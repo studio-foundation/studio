@@ -1,0 +1,19 @@
+# Sub-repos (each has own git)
+/contracts/
+/ralph/
+/runner/
+/engine/
+/cli/
+
+# Node
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,11 @@
+{
+  "name": "studio-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Studio v7 - Multi-repo workspace for agentic pipeline orchestration",
+  "scripts": {
+    "build:all": "cd contracts && npm run build && cd ../ralph && npm run build && cd ../runner && npm run build && cd ../engine && npm run build && cd ../cli && npm run build",
+    "clean:all": "cd contracts && npm run clean; cd ../ralph && npm run clean; cd ../runner && npm run clean; cd ../engine && npm run clean; cd ../cli && npm run clean",
+    "test:all": "echo 'Tests will be added per repo'"
+  }
+}
