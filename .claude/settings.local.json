@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Studio v7 workspace setup design document\n\nDesign covers sequential dependency-order setup for all 6 repos:\n- studio-workspace \\(parent\\)\n- studio-contracts \\(types\\)\n- studio-ralph \\(RALPH loop\\)\n- studio-runner \\(agent runner\\)\n- studio-engine \\(orchestrator\\)\n- studio-cli \\(CLI interface\\)\n\nApproach: Build each repo in dependency order with validation at each step.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Studio v7 workspace setup implementation plan\n\nComprehensive 36-task plan with bite-sized steps for setting up:\n- Parent workspace with scripts and setup.sh\n- @studio/contracts \\(types, zero dependencies\\)\n- @studio/ralph \\(RALPH loop engine\\)\n- @studio/runner \\(multi-provider agent runner\\)\n- @studio/engine \\(pipeline orchestrator\\)\n- @studio/cli \\(CLI interface\\)\n\nSequential dependency-order build with validation at each step.\nEach task is 2-5 minutes with exact commands and expected output.\n\nReady for execution with superpowers:executing-plans or subagent-driven-development.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
