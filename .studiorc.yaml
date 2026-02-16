@@ -1,0 +1,16 @@
+# Studio v7 Configuration
+
+providers:
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+
+paths:
+  pipelines: ./engine/pipelines
+  contracts: ./engine/configs/contracts
+  agents: ./engine/configs/agents
+
+defaults:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
