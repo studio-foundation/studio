@@ -31,11 +31,20 @@ Studio/
 ├── engine/             # @studio/engine — pipeline orchestration
 │   └── src/state/           # state machine, status derivation
 ├── cli/                # @studio/cli — terminal interface
-└── configs/            # YAML configs (PAS du code)
-    ├── pipelines/      # Définitions de pipelines
-    ├── contracts/      # Output contracts (schemas de validation)
-    └── agents/         # Profils d'agents LLM
+└── engine/configs/     # YAML configs organisés par projet
+    ├── software/       # Projet "software" (feature-builder pipeline)
+    │   ├── pipelines/  # Définitions de pipelines
+    │   ├── agents/     # Profils d'agents LLM
+    │   ├── contracts/  # Output contracts (schemas de validation)
+    │   └── inputs/     # Fichiers d'input exemple
+    └── cuisine/        # Projet "cuisine" (recipe-generator pipeline)
+        ├── pipelines/
+        ├── agents/
+        ├── contracts/
+        └── inputs/
 ```
+
+Chaque projet est un dossier 100% autonome. Agents et contracts sont partagés entre les pipelines d'un même projet, jamais entre projets.
 
 ## Concepts clés
 
@@ -91,15 +100,19 @@ Pour ajouter un tool : créer un fichier dans `builtin/`, l'enregistrer dans le 
 
 ## Configs YAML — source de vérité
 
-**Pipelines :** `configs/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
+Les configs sont organisées par projet : `engine/configs/<projet>/`.
 
-**Contracts :** `configs/contracts/*.contract.yaml` — JSON schema + contraintes (tool_calls minimum, rejection detection).
+**Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
-**Agents :** `configs/agents/*.agent.yaml` — provider, model, temperature, tools autorisés, system prompt.
+**Contracts :** `<projet>/contracts/*.contract.yaml` — JSON schema + contraintes (tool_calls minimum, rejection detection).
+
+**Agents :** `<projet>/agents/*.agent.yaml` — provider, model, temperature, tools autorisés, system prompt.
+
+**Inputs :** `<projet>/inputs/*.input.yaml` — fichiers d'input exemple.
 
 **Ne hardcode JAMAIS dans le code ce qui peut être dans un YAML.** Si tu te retrouves à écrire `if (stage.kind === 'qa')` dans le engine, c'est une erreur — ça devrait être dans le contract.
 
-## Pipeline de référence : feature-builder
+## Pipeline de référence : software/feature-builder
 
 ```yaml
 stages:
@@ -114,11 +127,19 @@ stages:
 ## Commandes
 
 ```bash
-studio run <pipeline> --input "..."       # Lancer un pipeline
-studio run <pipeline> --input-file X.yaml # Lancer avec input YAML
-studio status [run-id]                    # Vérifier le status
-studio list pipelines                     # Lister les pipelines
-studio list runs                          # Lister les runs
+studio run <projet/pipeline> --input "..."       # Lancer un pipeline
+studio run <projet/pipeline> --input-file X.yaml # Lancer avec input YAML
+studio status [run-id]                           # Vérifier le status
+studio list projects                             # Lister les projets
+studio list pipelines                            # Lister les pipelines
+studio list agents                               # Lister les agents
+studio list runs                                 # Lister les runs
+```
+
+Exemples :
+```bash
+studio run software/feature-builder --input-file engine/configs/software/inputs/faq-about.input.yaml
+studio run cuisine/recipe-generator --input-file engine/configs/cuisine/inputs/pad-thai.input.yaml
 ```
 
 ## Avant de modifier du code

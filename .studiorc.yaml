@@ -7,9 +7,7 @@ providers:
     apiKey: ${OPENAI_API_KEY}
 
 paths:
-  pipelines: ./engine/pipelines
-  contracts: ./engine/configs/contracts
-  agents: ./engine/configs/agents
+  configs: ./engine/configs
   projects_dir: ${STUDIO_PROJECTS_DIR}
 
 defaults:
