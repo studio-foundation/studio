@@ -13,5 +13,5 @@ paths:
   projects_dir: ${STUDIO_PROJECTS_DIR}
 
 defaults:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
+  provider: openai
+  model: gpt-5-nano-2025-08-07

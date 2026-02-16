@@ -1,8 +1,8 @@
 # Studio
 
-**Reliable AI pipelines for software development.**
+**Reliable AI pipelines for complex work.**
 
-Studio is an orchestration framework that makes AI agents produce working code — not just plausible code. Define pipelines in YAML, plug in any LLM, and let Studio handle validation, retries, and quality enforcement automatically.
+Studio is a governance framework that orchestrates AI agents into reliable, repeatable workflows. Define pipelines in YAML, plug in any LLM, and let Studio handle validation, retries, and quality enforcement. Not just for code — for any domain where AI needs to produce trustworthy results.
 
 ```
 $ studio run feature-builder --input "Add a FAQ section to the About page"
@@ -22,169 +22,176 @@ Run this 10 times. It passes 10 times. That's the point.
 
 ## The problem
 
-AI coding tools are impressive but unreliable. They hallucinate file changes they never made, skip steps they claim to have completed, and produce outputs that look correct but aren't. The current fix is a human watching every step. Studio replaces that with structural validation.
+AI agents are powerful but unreliable. They hallucinate results, skip steps they claim to have completed, and produce outputs that look correct but aren't. The industry's answer is either "trust the model" or "put a human on every step."
+
+Studio takes a different position: **verify structurally, retry automatically, trust nothing.**
 
 ## How it works
 
-Studio breaks AI work into **stages** with explicit **output contracts**. Each stage runs through a **RALPH loop** (Retry with Automated Logic for Persistent Handling): execute, validate against the contract, retry with escalated feedback if validation fails. No stage advances until its output is proven correct.
+Studio breaks work into **stages** with explicit **output contracts**. Each stage runs through a **RALPH loop** — execute, validate against the contract, retry with escalated feedback if validation fails. No stage advances until its output is proven correct.
 
 ```
 Pipeline (YAML)
-  └── Stage 1: brief-analysis
-        └── RALPH loop:
-              execute (LLM) → validate (contract) → pass? next : retry
-  └── Stage 2: implementation-plan
-        └── RALPH loop: ...
-  └── Stage 3: code-generation
-        └── RALPH loop: ...
-  └── Stage 4: qa-review
-        └── RALPH loop: ...
+  └── Stage 1 → RALPH: execute → validate → pass? next : retry
+  └── Stage 2 → RALPH: execute → validate → pass? next : retry
+  └── Stage 3 → RALPH: execute → validate → pass? next : retry
+  └── ...
 ```
 
-### Anti-theatre detection
+The agents do the work. The kernel governs the work. The agents are never sovereign.
 
-Studio catches agents that *describe* work without *doing* it. If a code generation stage returns `files_changed: 3` but made zero tool calls to actually write files, validation fails and the agent retries with explicit feedback about what went wrong. This is baked into the output contracts, not an afterthought.
+---
+
+## Not just code
+
+Studio is domain-agnostic. The pipeline engine doesn't care what the agents are doing — it cares that the output contracts are satisfied.
+
+### Code Builder
+
+Build features, fix bugs, extend existing code — with structural validation that catches agents faking work.
+
+```yaml
+# pipelines/feature-builder.pipeline.yaml
+stages:
+  - name: brief-analysis
+    agent: analyst
+    contract: brief-analysis
+  - name: implementation-plan
+    agent: analyst
+    contract: implementation-plan
+  - name: code-generation
+    agent: coder
+    contract: code-generation
+    tools:
+      required: [repo_manager.write_file]
+  - name: qa-review
+    agent: analyst
+    contract: qa-review
+```
+
+### Git Butler
+
+Rewrite messy git history into clean, reviewable commits. Analyze diffs, identify logical boundaries, rebase automatically, validate integrity.
+
+```yaml
+# pipelines/git-butler.pipeline.yaml
+stages:
+  - name: history-analysis
+    agent: analyst
+    contract: history-analysis
+  - name: commit-boundary-detection
+    agent: analyst
+    contract: commit-boundaries
+  - name: rewrite-plan
+    agent: planner
+    contract: rewrite-plan
+  - name: execute-rebase
+    agent: git-operator
+    contract: rebase-execution
+    tools:
+      required: [git.rebase, git.commit]
+  - name: integrity-check
+    agent: analyst
+    contract: integrity-validation
+```
+
+### ADHD Finance
+
+Help neurodivergent people manage money by automating categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
+
+```yaml
+# pipelines/budget-builder.pipeline.yaml
+stages:
+  - name: parse-statements
+    agent: finance-reader
+    contract: parsed-transactions
+  - name: categorize
+    agent: finance-analyst
+    contract: categorized-transactions
+  - name: compute-allocations
+    agent: finance-planner
+    contract: allocation-plan
+  - name: validate-budget
+    agent: finance-auditor
+    contract: budget-balance
+```
+
+### Wiki Creator
+
+Analyze books and build structured wikis — extract entities, map relationships, generate cross-referenced pages.
+
+```yaml
+# pipelines/wiki-builder.pipeline.yaml
+stages:
+  - name: extract-structure
+    agent: reader
+    contract: book-structure
+  - name: identify-entities
+    agent: analyst
+    contract: entity-map
+  - name: build-knowledge-graph
+    agent: analyst
+    contract: knowledge-graph
+  - name: generate-pages
+    agent: writer
+    contract: wiki-pages
+  - name: cross-reference
+    agent: auditor
+    contract: cross-reference-validation
+```
+
+Same engine. Different pipelines. Different contracts. Different agents. Studio doesn't care about the domain — it cares that the output is proven correct.
 
 ---
 
 ## Quick start
 
 ```bash
-# Install
 npm install -g @studio/cli
 
-# Initialize a project
 cd your-project
 studio init
+# Edit .studiorc.yaml with your provider API key
 
-# Configure your LLM provider
-# Edit .studiorc.yaml with your API key
-
-# Run a pipeline
 studio run feature-builder --input "Add dark mode support"
 ```
 
-### Project structure after `studio init`
+### Project structure
 
 ```
 your-project/
-├── .studiorc.yaml              # Provider config (API keys, model preferences)
+├── .studiorc.yaml                  # Provider config
 ├── configs/
-│   ├── pipelines/
-│   │   └── feature-builder.pipeline.yaml
-│   ├── contracts/
-│   │   ├── brief-analysis.contract.yaml
-│   │   ├── implementation-plan.contract.yaml
-│   │   ├── code-generation.contract.yaml
-│   │   └── qa-review.contract.yaml
-│   └── agents/
-│       ├── analyst.agent.yaml
-│       └── coder.agent.yaml
-└── src/                        # Your code (Studio reads and writes here)
+│   ├── pipelines/                  # Pipeline definitions (YAML)
+│   ├── contracts/                  # Output contracts (YAML)
+│   └── agents/                     # Agent profiles (YAML)
+└── ...                             # Your project files
 ```
 
 ---
 
-## Define your own pipeline
+## Core concepts
 
-Pipelines are YAML. No code required.
+**Pipeline** — A sequence of stages that transforms input into validated output. Defined in YAML. Versioned in Git. Domain-agnostic.
 
-```yaml
-# configs/pipelines/feature-builder.pipeline.yaml
-name: feature-builder
-description: Build a feature from a user description
-version: 1
+**Stage** — One step in a pipeline. Each stage has an agent, an output contract, and RALPH retry settings.
 
-stages:
-  - name: brief-analysis
-    agent: analyst
-    contract: brief-analysis
-    ralph:
-      max_attempts: 3
+**Output contract** — A structural schema that defines what a stage must produce. Validation is binary: pass or fail.
 
-  - name: implementation-plan
-    agent: analyst
-    contract: implementation-plan
-    ralph:
-      max_attempts: 3
+**RALPH loop** — The retry engine. Execute → validate → retry with escalated feedback → repeat until pass or max attempts.
 
-  - name: code-generation
-    agent: coder
-    contract: code-generation
-    ralph:
-      max_attempts: 5
-    tools:
-      required:
-        - repo_manager.write_file
+**Agent** — An LLM configuration: provider, model, tools, system prompt. Agents are interchangeable and never sovereign.
 
-  - name: qa-review
-    agent: analyst
-    contract: qa-review
-    ralph:
-      max_attempts: 3
-```
+**Anti-theatre** — Validation constraints that catch agents faking work. If a code generation stage claims to have written files but made zero tool calls, it fails regardless of what it says in its output.
 
-### Output contracts
-
-Contracts define what a stage *must* produce to pass validation.
-
-```yaml
-# configs/contracts/code-generation.contract.yaml
-name: code-generation
-version: 1
-
-schema:
-  type: object
-  required: [files_changed, summary]
-  properties:
-    files_changed:
-      type: array
-      minItems: 1
-      items:
-        type: object
-        required: [path, action]
-    summary:
-      type: string
-      minLength: 20
-
-constraints:
-  tool_calls:
-    minimum: 1           # Must actually call tools — no theatre
-  files_changed:
-    must_exist: true      # Referenced files must exist on disk
-```
-
-### Agent profiles
-
-Agents are LLM configurations with constraints.
-
-```yaml
-# configs/agents/coder.agent.yaml
-name: coder
-description: Writes and modifies code
-provider: anthropic          # or openai, local, etc.
-model: claude-sonnet-4-20250514
-temperature: 0.2
-
-tools:
-  - repo_manager.read_file
-  - repo_manager.write_file
-  - repo_manager.list_files
-  - shell.run_command
-
-system_prompt: |
-  You are a code generation agent.
-  You MUST use repo_manager.write_file for every file change.
-  Never describe what you would write — actually write it.
-```
+**Kernel** — The governance layer. The kernel decides, the agents execute. The kernel is a constitution, not an implementation.
 
 ---
 
 ## Provider-agnostic
 
-Studio doesn't care which LLM you use. Configure providers in `.studiorc.yaml`:
-
 ```yaml
+# .studiorc.yaml
 providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
@@ -194,93 +201,85 @@ providers:
     default_model: gpt-4.1
 ```
 
-Different agents can use different providers. Your analyst can run on Claude while your coder runs on GPT. Switch models without changing pipeline logic.
-
----
-
-## Key concepts
-
-**Pipeline** — A sequence of stages that transform a user request into working code. Defined in YAML. Versioned in Git.
-
-**Stage** — One step in a pipeline (analysis, planning, code generation, QA). Each stage has an agent, an output contract, and RALPH retry settings.
-
-**Output contract** — A structural schema that defines what a stage must produce. Validation is binary: pass or fail. No ambiguity.
-
-**RALPH loop** — The retry engine. Execute → validate → retry with feedback → repeat until pass or max attempts. Prompt escalation between retries gives the agent increasingly specific instructions about what went wrong.
-
-**Agent** — An LLM configuration: which model, what tools, what system prompt. Agents are stateless — all context comes from the pipeline.
-
-**Anti-theatre** — Validation constraints that catch agents faking work. If `tool_calls.minimum: 1` and the agent made zero tool calls, it failed regardless of what it claims in its output.
-
----
-
-## CLI reference
-
-```bash
-studio run <pipeline> --input "..."     # Run a pipeline
-studio run <pipeline> --dry-run         # Validate config without calling LLMs
-studio status [run-id]                  # Check run status
-studio list pipelines                   # List available pipelines
-studio list runs                        # List recent runs
-studio validate <contract> <output>     # Validate an output against a contract
-studio init                             # Initialize Studio in current directory
-```
+Different agents can use different providers. Switch models without changing pipeline logic. The orchestration layer doesn't depend on who does the work — it depends on the work being done correctly.
 
 ---
 
 ## Architecture
 
 ```
-@studio/cli          → User interface (terminal)
+@studio/cli          → User interface
     │
-@studio/engine       → Pipeline orchestration, state management
+@studio/engine       → Pipeline orchestration, state, governance
     │
-    ├── @studio/ralph    → RALPH loop: execute, validate, retry
+    ├── @studio/ralph    → Execute, validate, retry
     │
-    └── @studio/runner   → LLM calls, tool execution, multi-provider
+    └── @studio/runner   → LLM calls, tools, multi-provider
     │
-@studio/contracts    → Shared types (zero dependencies, zero logic)
+@studio/contracts    → Shared types (zero dependencies)
 ```
 
 Five packages. Each fits in a single context window. Each is testable in isolation.
 
 ---
 
-## Why not just use Claude Code / Cursor / Devin?
+## CLI
 
-Those tools are great at executing single tasks interactively. Studio solves a different problem:
+```bash
+studio run <pipeline> --input "..."     # Run a pipeline
+studio run <pipeline> --dry-run         # Validate without calling LLMs
+studio status [run-id]                  # Check run status
+studio list pipelines                   # List available pipelines
+studio validate <contract> <output>     # Validate output against contract
+studio init                             # Initialize in current directory
+```
 
-| | Claude Code / Cursor | Studio |
-|---|---|---|
-| Validation | Human reviews output | Structural contracts, automatic |
-| Retries | Human re-prompts | Automatic with escalated feedback |
-| Reproducibility | Varies by session | Same input → same quality, every time |
-| Multi-step | Conversational | Formal pipeline with stage gates |
-| Provider lock-in | Tied to one provider | Any LLM, swap freely |
-| Theatre detection | Hope the model is honest | Prove it with tool call verification |
+---
 
-Studio doesn't replace these tools — it can *use* them as runners. Studio is the orchestration layer that ensures the output is reliable, regardless of which LLM does the work.
+## Philosophy
+
+Studio is an explicitly political project.
+
+The productivity gains from AI are real. But left unchecked, they follow the same pattern as post-industrial automation: the value concentrates at the top, the tools become proprietary, and the people who need them most are priced out.
+
+Studio exists to redistribute cognitive capacity. The kernel is open source — a common good, not a product. The agents are interchangeable. The framework belongs to no one.
+
+The long-term vision: reduce the cost of building software and automating complex work to the point where a single person — neurodivergent, disabled, an artist, anyone — can create and operate products that generate real value. Not by coding everything themselves, but by orchestrating AI agents with structural guarantees of quality.
+
+This is a contribution, however indirect, toward a world where universal basic income becomes not just possible but obvious — because the machines are already doing the work, and the frameworks to govern them are free.
+
+### Structure
+
+Studio follows a tripartite architecture designed to prevent capture:
+
+**Open Source Kernel** — The governance engine. Common good. Non-negotiable. Protected by constitutional invariants. No commercial entity has authority over it.
+
+**Support Core** — Hosting, maintenance, documentation. Generates revenue subordinate to the common good.
+
+**Products Powered by Studio** — Specialized tools (Code Builder, ADHD Finance, Git Butler, Wiki Creator). Commercial entities that can appear or disappear. They never dictate kernel evolution.
+
+### Anti-drift
+
+Ideological drift rarely happens through open conflict. It happens through accumulation of "reasonable" decisions. Studio integrates mechanisms for deceleration, traceability, and veto. Any evolution that improves performance at the cost of increasing inequality is a regression.
+
+### Governance
+
+Decision-making power must be held primarily by the people directly affected by the inequalities the project aims to reduce. Diversity is not symbolic — it is decisional.
 
 ---
 
 ## Status
 
-Studio v7 is in active development. The core RALPH loop and pipeline engine work. The built-in `feature-builder` pipeline is the reference implementation.
-
-**Working:** CLI, pipeline engine, RALPH loop, output contract validation, multi-provider support, anti-theatre detection.
-
-**Coming soon:** Plugin system for custom tools, pipeline marketplace, cloud-hosted runs, observability dashboard.
-
----
-
-## Contributing
-
-Studio is open source under [LICENSE]. Contributions welcome.
-
-The project follows a validation-first philosophy: every feature must be provably correct, not just plausibly correct. Tests verify invariants, not implementations.
+Studio v7 is in active development. The RALPH loop, pipeline engine, and CLI are functional. The `feature-builder` pipeline is the reference implementation.
 
 ---
 
 ## License
 
-[TBD]
+[TBD — transitioning from proprietary to an open-source license that protects against commercial capture]
+
+---
+
+> Studio is not built to be fast. It is built to last.
+> 
+> Nothing in this project is for sale.
