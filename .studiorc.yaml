@@ -10,6 +10,7 @@ paths:
   pipelines: ./engine/pipelines
   contracts: ./engine/configs/contracts
   agents: ./engine/configs/agents
+  projects_dir: ${STUDIO_PROJECTS_DIR}
 
 defaults:
   provider: anthropic
