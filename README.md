@@ -5,7 +5,7 @@
 Studio is a governance framework that orchestrates AI agents into reliable, repeatable workflows. Define pipelines in YAML, plug in any LLM, and let Studio handle validation, retries, and quality enforcement. Not just for code — for any domain where AI needs to produce trustworthy results.
 
 ```
-$ studio run feature-builder --input "Add a FAQ section to the About page"
+$ studio run software/feature-builder --input "Add a FAQ section to the About page"
 
 [1/4] brief-analysis ............ ✓ (attempt 1/3)
 [2/4] implementation-plan ....... ✓ (attempt 1/3)
@@ -59,86 +59,52 @@ stages:
   - name: implementation-plan
     agent: analyst
     contract: implementation-plan
-  - name: code-generation
-    agent: coder
-    contract: code-generation
-    tools:
-      required: [repo_manager.write_file]
-  - name: qa-review
-    agent: analyst
-    contract: qa-review
+  - group: implementation-review
+    max_iterations: 3
+    stages:
+      - name: code-generation
+        agent: coder
+        contract: code-generation
+        tools:
+          required: [repo_manager-write_file]
+      - name: qa-review
+        agent: analyst
+        contract: qa-review
 ```
 
-### Git Butler
+### Recipe Generator
 
-Rewrite messy git history into clean, reviewable commits. Analyze diffs, identify logical boundaries, rebase automatically, validate integrity.
+Create recipes from user descriptions, with iterative critique and refinement. Uses a feedback loop group to ensure quality.
 
 ```yaml
-# pipelines/git-butler.pipeline.yaml
+# pipelines/recipe-generator.pipeline.yaml
 stages:
-  - name: history-analysis
-    agent: analyst
-    contract: history-analysis
-  - name: commit-boundary-detection
-    agent: analyst
-    contract: commit-boundaries
-  - name: rewrite-plan
-    agent: planner
-    contract: rewrite-plan
-  - name: execute-rebase
-    agent: git-operator
-    contract: rebase-execution
-    tools:
-      required: [git.rebase, git.commit]
-  - name: integrity-check
-    agent: analyst
-    contract: integrity-validation
+  - name: ingredient-analysis
+    agent: chef
+    contract: ingredient-check
+  - name: recipe-plan
+    agent: chef
+    contract: recipe-plan
+  - group: creation-review
+    max_iterations: 3
+    stages:
+      - name: recipe-creation
+        agent: chef
+        contract: recipe-output
+      - name: recipe-critique
+        agent: chef
+        contract: recipe-critique
 ```
 
-### ADHD Finance
+### What else can you build?
 
-Help neurodivergent people manage money by automating categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
+Studio is a pipeline creator. Anyone can add new pipelines for any domain. Here are examples of what's possible:
 
-```yaml
-# pipelines/budget-builder.pipeline.yaml
-stages:
-  - name: parse-statements
-    agent: finance-reader
-    contract: parsed-transactions
-  - name: categorize
-    agent: finance-analyst
-    contract: categorized-transactions
-  - name: compute-allocations
-    agent: finance-planner
-    contract: allocation-plan
-  - name: validate-budget
-    agent: finance-auditor
-    contract: budget-balance
-```
-
-### Wiki Creator
-
-Analyze books and build structured wikis — extract entities, map relationships, generate cross-referenced pages.
-
-```yaml
-# pipelines/wiki-builder.pipeline.yaml
-stages:
-  - name: extract-structure
-    agent: reader
-    contract: book-structure
-  - name: identify-entities
-    agent: analyst
-    contract: entity-map
-  - name: build-knowledge-graph
-    agent: analyst
-    contract: knowledge-graph
-  - name: generate-pages
-    agent: writer
-    contract: wiki-pages
-  - name: cross-reference
-    agent: auditor
-    contract: cross-reference-validation
-```
+- **Git Butler** — Rewrite messy git history into clean, reviewable commits. Analyze diffs, identify logical boundaries, rebase automatically, validate integrity.
+- **ADHD Finance** — Help neurodivergent people manage money by automating categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
+- **Wiki Creator** — Analyze books and build structured wikis. Extract entities, map relationships, generate cross-referenced pages.
+- **Legal Document Analyzer** — Parse contracts, identify clauses, flag risks, generate summaries.
+- **Data Pipeline Validator** — Analyze ETL jobs, validate transformations, ensure data integrity.
 
 Same engine. Different pipelines. Different contracts. Different agents. Studio doesn't care about the domain — it cares that the output is proven correct.
 
@@ -153,7 +119,7 @@ cd your-project
 studio init
 # Edit .studiorc.yaml with your provider API key
 
-studio run feature-builder --input "Add dark mode support"
+studio run software/feature-builder --input "Add dark mode support"
 ```
 
 ### Project structure
@@ -161,10 +127,13 @@ studio run feature-builder --input "Add dark mode support"
 ```
 your-project/
 ├── .studiorc.yaml                  # Provider config
-├── configs/
-│   ├── pipelines/                  # Pipeline definitions (YAML)
-│   ├── contracts/                  # Output contracts (YAML)
-│   └── agents/                     # Agent profiles (YAML)
+├── engine/
+│   └── configs/
+│       ├── <project>/              # Project-specific configs
+│       │   ├── pipelines/          # Pipeline definitions (YAML)
+│       │   ├── contracts/          # Output contracts (YAML)
+│       │   ├── agents/             # Agent profiles (YAML)
+│       │   └── inputs/             # Input file examples (YAML)
 └── ...                             # Your project files
 ```
 
@@ -185,6 +154,8 @@ your-project/
 **Anti-theatre** — Validation constraints that catch agents faking work. If a code generation stage claims to have written files but made zero tool calls, it fails regardless of what it says in its output.
 
 **Kernel** — The governance layer. The kernel decides, the agents execute. The kernel is a constitution, not an implementation.
+
+**Groups** — Multi-stage feedback loops within a pipeline. A group contains multiple stages (e.g., code-generation + qa-review) that execute in iterations. If the last stage rejects (via post-validation), the group reruns from the start with accumulated feedback. Maximum iterations set via `max_iterations`. Groups enable creation-critique-revision workflows without manual intervention.
 
 ---
 
@@ -226,12 +197,12 @@ Five packages. Each fits in a single context window. Each is testable in isolati
 ## CLI
 
 ```bash
-studio run <pipeline> --input "..."     # Run a pipeline
-studio run <pipeline> --dry-run         # Validate without calling LLMs
-studio status [run-id]                  # Check run status
-studio list pipelines                   # List available pipelines
-studio validate <contract> <output>     # Validate output against contract
-studio init                             # Initialize in current directory
+studio run <project/pipeline> --input "..."     # Run a pipeline
+studio run <project/pipeline> --dry-run         # Validate without calling LLMs
+studio status [run-id]                          # Check run status
+studio list pipelines                           # List available pipelines
+studio validate <contract> <output>             # Validate output against contract
+studio init                                     # Initialize in current directory
 ```
 
 ---
@@ -270,7 +241,7 @@ Decision-making power must be held primarily by the people directly affected by 
 
 ## Status
 
-Studio v7 is in active development. The RALPH loop, pipeline engine, and CLI are functional. The `feature-builder` pipeline is the reference implementation.
+Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, and group-based feedback loops are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique).
 
 ---
 
