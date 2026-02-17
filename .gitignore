@@ -12,6 +12,9 @@ dist/
 .env
 .DS_Store
 
+# Run logs (local, not versioned)
+.studio/runs/
+
 # IDE
 .vscode/
 .idea/
