@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, access, cp, rename } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, access, rename } from 'node:fs/promises';
 import { resolve, join, basename } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';

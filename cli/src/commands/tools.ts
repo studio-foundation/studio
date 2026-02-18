@@ -140,28 +140,32 @@ export async function toolsCommand(
       }
 
       case 'add': {
-        const name = args[0];
-        if (!name) {
-          console.error('Usage: studio tools add <name> --project <project>');
-          process.exit(1);
-        }
-        const { toolsDir, project } = await resolveProjectToolsDir(options.project);
-        await mkdir(toolsDir, { recursive: true });
-
-        const templatePath = resolve(TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
-        let templateContent: string;
-        try {
-          templateContent = await readFile(templatePath, 'utf-8');
-        } catch {
-          console.error(
-            `Error: Unknown tool '${name}'. Available: repo-manager, shell, search`
-          );
+        if (args.length === 0) {
+          // Wizard mode — handled in Task 4
+          console.error('Usage: studio tools add <name> [name...] --project <project>');
+          console.error('(Or run without args for interactive wizard once STU-41 is fully implemented)');
           process.exit(1);
         }
 
-        const destPath = resolve(toolsDir, `${name}.tool.yaml`);
-        await writeFile(destPath, templateContent, 'utf-8');
-        console.log(chalk.green(`✓ Added tool '${name}' to project '${project}'`));
+        // Direct mode
+        const { project } = await resolveProjectToolsDir(options.project);
+        const config = await loadConfig();
+        const studioDir = config.resolvedStudioDir!;
+
+        const { installed, skipped } = await toolsAddDirect(studioDir, project, args);
+
+        for (const name of installed) {
+          console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
+        }
+        for (const name of skipped) {
+          console.log(chalk.yellow(`  ⚠ ${name} already installed, skipping`));
+        }
+        console.log('');
+        if (installed.length > 0) {
+          console.log(`Done! ${installed.length} tool${installed.length > 1 ? 's' : ''} installed in '${project}'.`);
+        } else {
+          console.log('No new tools installed.');
+        }
         break;
       }
 
