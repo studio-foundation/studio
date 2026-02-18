@@ -18,7 +18,8 @@ export function validateApiKeyForProvider(provider: string, key: string): true |
   if (provider === 'anthropic') {
     if (!key.startsWith('sk-ant-')) return 'Anthropic API keys must start with sk-ant-';
   } else if (provider === 'openai') {
-    if (!key.startsWith('sk-')) return 'OpenAI API keys must start with sk-';
+    if (!key.startsWith('sk-') || key.startsWith('sk-ant-'))
+      return 'OpenAI API keys must start with sk- (and not be an Anthropic key)';
   } else if (provider === 'google') {
     if (!key.startsWith('AIza')) return 'Google API keys must start with AIza';
   }

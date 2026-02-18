@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { getConfigValue, setConfigValue, maskSecrets } from '../../src/commands/config.js';
-import { PROVIDERS, validateApiKeyForProvider } from '../../src/commands/config.js';
+import {
+  getConfigValue,
+  setConfigValue,
+  maskSecrets,
+  PROVIDERS,
+  validateApiKeyForProvider,
+} from '../../src/commands/config.js';
 
 const TMP = resolve(import.meta.dirname, '.tmp-config-cmd-test');
 const STUDIO_DIR = resolve(TMP, '.studio');
@@ -87,6 +92,11 @@ describe('validateApiKeyForProvider', () => {
     const result = validateApiKeyForProvider('openai', 'wrong-key');
     expect(typeof result).toBe('string');
     expect(result).toContain('sk-');
+  });
+
+  it('rejects an Anthropic-prefixed key when provider is openai', () => {
+    const result = validateApiKeyForProvider('openai', 'sk-ant-api03-abc');
+    expect(typeof result).toBe('string');
   });
 
   it('accepts a valid Google key (AIza...)', () => {
