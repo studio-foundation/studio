@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile, unlink, mkdir, access } from 'node:fs/pro
 import { resolve } from 'node:path';
 import chalk from 'chalk';
 import { load } from 'js-yaml';
+import { select, checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
 
 const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
@@ -141,10 +142,76 @@ export async function toolsCommand(
 
       case 'add': {
         if (args.length === 0) {
-          // Wizard mode — handled in Task 4
-          console.error('Usage: studio tools add <name> [name...] --project <project>');
-          console.error('(Or run without args for interactive wizard once STU-41 is fully implemented)');
-          process.exit(1);
+          // Wizard mode
+          const config = await loadConfig();
+          const studioDir = config.resolvedStudioDir;
+          if (!studioDir) {
+            console.error("Error: No .studio/ directory found. Run 'studio init' first.");
+            process.exit(1);
+          }
+
+          // Discover projects
+          const projectsDir = resolve(studioDir, 'projects');
+          let projectEntries: string[];
+          try {
+            const entries = await readdir(projectsDir, { withFileTypes: true });
+            projectEntries = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+          } catch {
+            projectEntries = [];
+          }
+
+          if (projectEntries.length === 0) {
+            console.error(chalk.red("No projects found. Run 'studio project add' first."));
+            process.exit(1);
+          }
+
+          // Select project
+          let selectedProject: string;
+          if (options.project) {
+            selectedProject = options.project;
+          } else if (projectEntries.length === 1) {
+            selectedProject = projectEntries[0]!;
+          } else {
+            selectedProject = await select({
+              message: 'Which project?',
+              choices: projectEntries.map((p) => ({ value: p, name: p })),
+            });
+          }
+
+          // Select tools via checkbox
+          console.log('');
+          const available = await listAvailableTools();
+          const alreadyInstalled = await listTools(getToolsDir(studioDir, selectedProject));
+
+          const choices = available.map((t) => ({
+            value: t.name,
+            name: `${t.name} — ${t.description}`,
+            disabled: alreadyInstalled.includes(t.name) ? '(already installed)' : false,
+          }));
+
+          const selected: string[] = await checkbox({
+            message: 'Select tools to install:',
+            choices,
+          });
+
+          if (selected.length === 0) {
+            console.log('No tools selected.');
+            break;
+          }
+
+          // Install
+          console.log('\nInstalling tools...');
+          const { installed, skipped } = await toolsAddDirect(studioDir, selectedProject, selected);
+
+          for (const name of installed) {
+            console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
+          }
+          for (const name of skipped) {
+            console.log(chalk.yellow(`  ⚠ ${name} already installed, skipping`));
+          }
+          console.log('');
+          console.log(`Done! ${installed.length} tool${installed.length !== 1 ? 's' : ''} installed in '${selectedProject}'.`);
+          break;
         }
 
         // Direct mode
