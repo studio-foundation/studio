@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm, readFile, writeFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import * as yaml from 'js-yaml';
 
 // Use /tmp as base to avoid interference from the Studio repo's own .studio/
 const TMP = resolve('/tmp', '.studio-init-test');
@@ -162,5 +163,59 @@ describe('validateApiKeyFormat', () => {
   it('accepts any key for unknown provider', async () => {
     const { validateApiKeyFormat } = await import('../../src/commands/init.js');
     expect(validateApiKeyFormat('later', '')).toBe(true);
+  });
+});
+
+describe('writeProviderToConfig', () => {
+  // We need a fresh .studio/ for each test — reuse the outer TMP/beforeEach/afterEach.
+
+  it('writes anthropic key and defaults to config.yaml', async () => {
+    const { createStudioStructure, writeProviderToConfig } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const studioDir = resolve(TMP, '.studio');
+    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-test-key');
+
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+
+    const providers = parsed.providers as Record<string, { apiKey: string }>;
+    expect(providers.anthropic.apiKey).toBe('sk-ant-test-key');
+
+    const defaults = parsed.defaults as { provider: string; model: string };
+    expect(defaults.provider).toBe('anthropic');
+    expect(defaults.model).toBe('claude-sonnet-4-20250514');
+  });
+
+  it('writes openai key and defaults to config.yaml', async () => {
+    const { createStudioStructure, writeProviderToConfig } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const studioDir = resolve(TMP, '.studio');
+    await writeProviderToConfig(studioDir, 'openai', 'sk-openai-test-key');
+
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+
+    const providers = parsed.providers as Record<string, { apiKey: string }>;
+    expect(providers.openai.apiKey).toBe('sk-openai-test-key');
+
+    const defaults = parsed.defaults as { provider: string; model: string };
+    expect(defaults.provider).toBe('openai');
+    expect(defaults.model).toBe('gpt-4o');
+  });
+
+  it('is idempotent — writing twice does not duplicate keys', async () => {
+    const { createStudioStructure, writeProviderToConfig } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const studioDir = resolve(TMP, '.studio');
+    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-first');
+    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-second');
+
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, { apiKey: string }>;
+    expect(providers.anthropic.apiKey).toBe('sk-ant-second');
   });
 });

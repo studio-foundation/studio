@@ -1,5 +1,6 @@
 import { mkdir, writeFile, readFile, access, cp } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import { findStudioDir } from '../studio-dir.js';
 
@@ -96,6 +97,47 @@ async function updateGitignore(cwd: string): Promise<void> {
   const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
   const addition = '\n# Studio (generated)\n' + toAdd.join('\n') + '\n';
   await writeFile(gitignorePath, existing + separator + addition, 'utf-8');
+}
+
+const DEFAULT_MODELS: Record<string, string> = {
+  anthropic: 'claude-sonnet-4-20250514',
+  openai: 'gpt-4o',
+};
+
+/**
+ * Write provider credentials and defaults into .studio/config.yaml.
+ * Parses the existing config, sets the provider key, then rewrites.
+ * Comments from the original template are lost — accepted for Phase 1.
+ */
+export async function writeProviderToConfig(
+  studioDir: string,
+  provider: string,
+  apiKey: string
+): Promise<void> {
+  const configPath = join(studioDir, 'config.yaml');
+
+  let raw = '';
+  try {
+    raw = await readFile(configPath, 'utf-8');
+  } catch {
+    // Config doesn't exist yet — start from empty
+  }
+
+  const parsed = ((yaml.load(raw) ?? {}) as Record<string, unknown>);
+
+  // Set provider key
+  if (!parsed.providers || typeof parsed.providers !== 'object') {
+    parsed.providers = {};
+  }
+  (parsed.providers as Record<string, unknown>)[provider] = { apiKey };
+
+  // Set defaults
+  parsed.defaults = {
+    provider,
+    model: DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514',
+  };
+
+  await writeFile(configPath, yaml.dump(parsed), 'utf-8');
 }
 
 /**
