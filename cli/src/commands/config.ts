@@ -5,6 +5,27 @@ import chalk from 'chalk';
 import { findStudioDir } from '../studio-dir.js';
 import { resolveEnvVars } from '../config.js';
 
+export const PROVIDERS = [
+  { id: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514' },
+  { id: 'openai',    label: 'OpenAI (GPT)',        defaultModel: 'gpt-4o' },
+  { id: 'google',    label: 'Google (Gemini)',     defaultModel: 'gemini-1.5-pro' },
+  { id: 'local',     label: 'Local (Ollama)',      defaultModel: 'llama3.2' },
+] as const;
+
+export type ProviderId = (typeof PROVIDERS)[number]['id'];
+
+export function validateApiKeyForProvider(provider: string, key: string): true | string {
+  if (provider === 'anthropic') {
+    if (!key.startsWith('sk-ant-')) return 'Anthropic API keys must start with sk-ant-';
+  } else if (provider === 'openai') {
+    if (!key.startsWith('sk-')) return 'OpenAI API keys must start with sk-';
+  } else if (provider === 'google') {
+    if (!key.startsWith('AIza')) return 'Google API keys must start with AIza';
+  }
+  // local / unknown providers: no format constraint
+  return true;
+}
+
 export function getConfigValue(config: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.');
   let current: unknown = config;
