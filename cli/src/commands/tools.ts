@@ -1,12 +1,29 @@
-import { readdir, readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
+import { readdir, readFile, writeFile, unlink, mkdir, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import chalk from 'chalk';
+import { load } from 'js-yaml';
 import { loadConfig } from '../config.js';
 
 const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
 
 export function getToolsDir(studioDir: string, project: string): string {
   return resolve(studioDir, 'projects', project, 'tools');
+}
+
+export async function listAvailableTools(): Promise<{ name: string; description: string }[]> {
+  const entries = await readdir(TOOL_TEMPLATES_DIR);
+  const yamlFiles = entries.filter((f) => f.endsWith('.tool.yaml')).sort();
+  const tools: { name: string; description: string }[] = [];
+  for (const file of yamlFiles) {
+    const content = await readFile(resolve(TOOL_TEMPLATES_DIR, file), 'utf-8');
+    const parsed = load(content) as { name?: string; description?: string };
+    const toolName = file.replace('.tool.yaml', '');
+    tools.push({
+      name: toolName,
+      description: parsed.description ?? '',
+    });
+  }
+  return tools;
 }
 
 export async function listTools(toolsDir: string): Promise<string[]> {

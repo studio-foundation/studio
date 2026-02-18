@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { listTools, getToolsDir } from '../../src/commands/tools.js';
+import { listTools, getToolsDir, listAvailableTools } from '../../src/commands/tools.js';
 
 const TMP = resolve(import.meta.dirname, '.tmp-tools-test');
 const STUDIO_DIR = resolve(TMP, '.studio');
@@ -29,5 +29,30 @@ describe('getToolsDir', () => {
   it('resolves tools dir from studioDir and project', () => {
     const dir = getToolsDir(STUDIO_DIR, 'software');
     expect(dir).toBe(resolve(STUDIO_DIR, 'projects', 'software', 'tools'));
+  });
+});
+
+describe('listAvailableTools', () => {
+  it('returns all available tool templates', async () => {
+    const tools = await listAvailableTools();
+    const names = tools.map((t) => t.name);
+    expect(names).toContain('git');
+    expect(names).toContain('repo-manager');
+    expect(names).toContain('shell');
+    expect(names).toContain('search');
+  });
+
+  it('returns description for each tool', async () => {
+    const tools = await listAvailableTools();
+    for (const t of tools) {
+      expect(typeof t.description).toBe('string');
+      expect(t.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('returns tools sorted by name', async () => {
+    const tools = await listAvailableTools();
+    const names = tools.map((t) => t.name);
+    expect(names).toEqual([...names].sort());
   });
 });
