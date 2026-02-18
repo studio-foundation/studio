@@ -475,11 +475,25 @@ Les logs de run sont dans `.studio/runs/<timestamp>-<pipeline>-<id>.jsonl` (un J
 
 **Tu ne push JAMAIS sur `main` ou `master`. Jamais. Aucune exception.**
 
+**Structure importante — 5 repos git indépendants + 1 root :**
+
+```
+Studio/          ← repo git root (workspace)
+├── contracts/   ← repo git indépendant
+├── ralph/       ← repo git indépendant
+├── runner/      ← repo git indépendant
+├── engine/      ← repo git indépendant
+└── cli/         ← repo git indépendant
+```
+
+La branche doit être créée **dans le repo du package touché**, pas dans Studio root. Si la tâche touche plusieurs packages, crée une branche dans chacun.
+
 ### Workflow obligatoire
 
 **1. Créer une branche AVANT de toucher au code**
 
 ```bash
+cd <package>   # le repo du package touché (runner/, engine/, etc.)
 git checkout -b <type>/<description-courte>
 # Si issue Linear : git checkout -b arianedguay/stu-28-description
 ```
