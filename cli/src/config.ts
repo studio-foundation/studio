@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
+import { findStudioDir } from './studio-dir.js';
 
 export interface StudioConfig {
   providers?: {
@@ -10,30 +11,58 @@ export interface StudioConfig {
   paths?: {
     configs?: string;
     projects_dir?: string;
+    pipelines?: string;
   };
   defaults?: {
     provider?: string;
     model?: string;
   };
+  /** Resolved path to .studio/ dir — set at load time, not from YAML */
+  resolvedStudioDir?: string;
 }
 
-const DEFAULT_CONFIG_NAMES = ['.studiorc.yaml', '.studiorc.yml'];
+const LEGACY_CONFIG_NAMES = ['.studiorc.yaml', '.studiorc.yml'];
 
-export async function loadConfig(configPath?: string): Promise<StudioConfig> {
-  const filePath = configPath ? resolve(configPath) : await findConfig();
+export async function loadConfig(configPath?: string, cwd?: string): Promise<StudioConfig> {
+  const effectiveCwd = cwd ?? process.cwd();
 
-  if (!filePath) {
-    return {};
+  if (configPath) {
+    return loadFromFile(resolve(configPath));
   }
 
+  // 1. Try .studio/config.yaml (new standard)
+  const studioDir = await findStudioDir(effectiveCwd);
+  if (studioDir) {
+    const studioConfig = join(studioDir, 'config.yaml');
+    try {
+      const config = await loadFromFile(studioConfig);
+      config.resolvedStudioDir = studioDir;
+      return config;
+    } catch {
+      // .studio/ exists but no config.yaml — still set studioDir for path resolution
+      return { resolvedStudioDir: studioDir };
+    }
+  }
+
+  // 2. Fallback: .studiorc.yaml / .studiorc.yml at cwd
+  for (const name of LEGACY_CONFIG_NAMES) {
+    const filePath = resolve(effectiveCwd, name);
+    try {
+      return await loadFromFile(filePath);
+    } catch {
+      // try next
+    }
+  }
+
+  return {};
+}
+
+async function loadFromFile(filePath: string): Promise<StudioConfig> {
   let raw: string;
   try {
     raw = await readFile(filePath, 'utf-8');
   } catch {
-    if (configPath) {
-      throw new Error(`Config file not found: ${configPath}`);
-    }
-    return {};
+    throw new Error(`Config file not found: ${filePath}`);
   }
 
   const resolved = resolveEnvVars(raw);
@@ -54,25 +83,9 @@ export async function loadConfig(configPath?: string): Promise<StudioConfig> {
   return parsed as StudioConfig;
 }
 
-async function findConfig(): Promise<string | null> {
-  for (const name of DEFAULT_CONFIG_NAMES) {
-    const filePath = resolve(process.cwd(), name);
-    try {
-      await readFile(filePath, 'utf-8');
-      return filePath;
-    } catch {
-      // Not found, try next
-    }
-  }
-  return null;
-}
-
 export function resolveEnvVars(content: string): string {
   return content.replace(/\$\{([^}]+)\}/g, (_match, varName: string) => {
     const value = process.env[varName.trim()];
-    if (value === undefined) {
-      return '';
-    }
-    return value;
+    return value === undefined ? '' : value;
   });
 }
