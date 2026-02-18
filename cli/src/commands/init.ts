@@ -3,7 +3,7 @@ import { resolve, join, basename } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
-import { input, select, password } from '@inquirer/prompts';
+import { input, select, password, confirm } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
 
@@ -201,33 +201,123 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
 interface InitOptions {
   template?: string;
   project?: string;
+  provider?: string;
+  apiKey?: string;
+  force?: boolean;
+  yes?: boolean;
 }
 
-export async function initCommand(_options: InitOptions = {}): Promise<void> {
+export async function initCommand(nameArg?: string, options: InitOptions = {}): Promise<void> {
   try {
     const cwd = process.cwd();
 
-    // ── Header ──────────────────────────────────────────────
+    // ── Exists detection ──────────────────────────────────────────────
+    const existing = await findStudioDir(cwd);
+
+    if (existing && !options.force) {
+      console.error(chalk.red('  ✗ Studio is already initialized in this directory.'));
+      console.log('');
+      console.log('To reconfigure:');
+      console.log(`  ${chalk.cyan('studio config add-provider')}     # Add/update LLM provider`);
+      console.log(`  ${chalk.cyan('studio tools add')}               # Install additional tools`);
+      console.log(`  ${chalk.cyan('studio project add')}             # Create new project`);
+      console.log('');
+      console.log('To start fresh:');
+      console.log(`  ${chalk.cyan('studio init --force')}            # ⚠ Backs up existing config`);
+      process.exit(1);
+    }
+
+    // ── Force: backup existing .studio/ ──────────────────────────────
+    if (existing && options.force) {
+      if (!options.yes) {
+        const confirmed = await confirm({
+          message: '⚠ This will backup your existing .studio/ directory. Continue?',
+          default: false,
+        });
+        if (!confirmed) {
+          console.log('Aborted.');
+          process.exit(0);
+        }
+      }
+      const backupPath = await backupStudioDir(cwd);
+      const backupName = backupPath.split('/').at(-1)!;
+      console.log('');
+      console.log(chalk.green(`  ✓ Backed up to ${backupName}/`));
+      console.log('');
+    }
+
+    // ── Direct mode (all flags provided) vs Wizard ────────────────────
+    const isDirectMode = !!(options.template && options.provider);
+
+    if (isDirectMode) {
+      // Validate required flags
+      if (options.provider !== 'later' && !options.apiKey) {
+        console.error('Error: --api-key is required when --provider is not "later"');
+        process.exit(1);
+      }
+      if (options.provider !== 'later' && options.apiKey) {
+        const validation = validateApiKeyFormat(options.provider!, options.apiKey);
+        if (validation !== true) {
+          console.error(`Error: ${validation}`);
+          process.exit(1);
+        }
+      }
+
+      const projectName = nameArg ?? options.project ?? basename(cwd);
+      const spinner = ora('Creating project...').start();
+
+      try {
+        await directInit(cwd, projectName, options.template!, options.provider!, options.apiKey ?? '');
+        spinner.stop();
+      } catch (err) {
+        spinner.fail('Failed');
+        throw err;
+      }
+
+      console.log(chalk.green(`  ✓ .studio/config.yaml`));
+      console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
+      console.log(chalk.green(`  ✓ Applied template: ${options.template}`));
+      console.log(chalk.green(`  ✓ Updated .gitignore`));
+      console.log('');
+
+      const templates = await listTemplates();
+      const selectedTemplate = templates.find((t) => t.name === options.template);
+      const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
+
+      console.log(chalk.bold('Done! Run your first pipeline:'));
+      console.log(`  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`);
+      if (options.provider === 'later') {
+        console.log('');
+        console.log('Set your API key first:');
+        console.log(
+          `  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`
+        );
+      }
+      console.log('');
+      return;
+    }
+
+    // ── Wizard mode ───────────────────────────────────────────────────
     console.log('');
     console.log(chalk.bold('  ╭─────────────────────────────────╮'));
     console.log(chalk.bold('  │  Studio — Pipeline Creator      │'));
     console.log(chalk.bold('  ╰─────────────────────────────────╯'));
     console.log('');
 
-    // ── Step 1: Project name ────────────────────────────────
-    const defaultName = basename(cwd);
+    // Step 1: Project name
+    const defaultName = nameArg ?? options.project ?? basename(cwd);
     const rawName = await input({
       message: 'Project name:',
       default: defaultName,
     });
     const projectName = rawName.trim() || defaultName;
 
-    // ── Step 2: Description (optional, not persisted) ───────
+    // Step 2: Description (optional, not persisted)
     await input({
       message: 'Description (optional, press Enter to skip):',
     });
 
-    // ── Step 3: Template ─────────────────────────────────────
+    // Step 3: Template
     const templates = await listTemplates();
     const templateChoices = templates.map((t) => ({
       value: t.name,
@@ -239,7 +329,7 @@ export async function initCommand(_options: InitOptions = {}): Promise<void> {
       choices: templateChoices,
     });
 
-    // ── Step 4: Provider ─────────────────────────────────────
+    // Step 4: Provider
     const provider = await select<string>({
       message: 'LLM Provider:',
       choices: [
@@ -249,7 +339,7 @@ export async function initCommand(_options: InitOptions = {}): Promise<void> {
       ],
     });
 
-    // ── Step 5: API Key (skipped if "configure later") ───────
+    // Step 5: API Key
     let apiKey: string | undefined;
     if (provider !== 'later') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
@@ -259,7 +349,7 @@ export async function initCommand(_options: InitOptions = {}): Promise<void> {
       });
     }
 
-    // ── Step 6: Create structure ──────────────────────────────
+    // Step 6: Create structure
     console.log('');
     const spinner = ora('Creating project...').start();
 
@@ -278,14 +368,14 @@ export async function initCommand(_options: InitOptions = {}): Promise<void> {
       throw err;
     }
 
-    // ── Step 7: Success output ────────────────────────────────
+    // Step 7: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
     console.log(chalk.green(`  ✓ Copied template files`));
     console.log(chalk.green(`  ✓ Updated .gitignore`));
     console.log('');
 
-    // ── Step 8: Next steps ────────────────────────────────────
+    // Step 8: Next steps
     const selectedTemplate = templates.find((t) => t.name === templateName);
     const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
