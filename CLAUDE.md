@@ -462,3 +462,69 @@ Crée un mini-pipeline avec 1 seul stage pour tester rapidement.
 **Inspecter les tool calls :**
 
 Les events `onStageComplete` incluent `tool_calls` avec le nom et les arguments de chaque call.
+
+---
+
+## Logs de Run
+
+Les logs de run sont dans `.studio/runs/<timestamp>-<pipeline>-<id>.jsonl` (un JSON par ligne, format JSONL).
+
+---
+
+## Git Workflow — Règles obligatoires
+
+**Tu ne push JAMAIS sur `main` ou `master`. Jamais. Aucune exception.**
+
+### Workflow obligatoire
+
+**1. Créer une branche AVANT de toucher au code**
+
+```bash
+git checkout -b <type>/<description-courte>
+# Si issue Linear : git checkout -b arianedguay/stu-28-description
+```
+
+Nommage : `feat/`, `fix/`, `refactor/`, `chore/`
+
+**2. Commits atomiques**
+
+```bash
+git commit -m "feat(runner): integrate anonymizer before LLM calls"
+```
+
+Format : `<type>(<scope>): <description>` — Types : `feat`, `fix`, `refactor`, `test`, `chore`, `docs`
+
+**3. Push + PR**
+
+```bash
+git push -u origin <branch-name>
+gh pr create --title "<titre>" --body "<description>" --base main
+```
+
+PR body doit contenir : **Quoi**, **Pourquoi**, **Packages touchés**, **Comment tester**.
+
+**4. Rebuild avant la PR**
+
+```bash
+cd <package> && pnpm build   # Rebuild les packages touchés
+pnpm build                   # Build global si plusieurs packages
+```
+
+### Checklist de fin de task
+
+```
+[ ] Branche créée (pas sur main)
+[ ] Commits atomiques avec messages conventionnels
+[ ] Packages touchés rebuildés
+[ ] Build global passe
+[ ] Branche pushée sur origin
+[ ] PR créée avec description complète
+[ ] PR pointe vers main (--base main)
+```
+
+### Interdit
+
+- `git push origin main` — NON
+- `git commit` directement sur main — NON
+- `git push --force` — NON
+- Créer une PR sans avoir buildé — NON
