@@ -1,0 +1,28 @@
+{
+  "name": "@studio/runner",
+  "version": "0.1.0",
+  "description": "Multi-provider LLM agent runner with tool execution",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["llm", "agent", "tools", "openai", "anthropic"],
+  "author": "Ariane Guay",
+  "license": "MIT",
+  "dependencies": {
+    "@studio/contracts": "file:../contracts",
+    "openai": "^4.77.0",
+    "@anthropic-ai/sdk": "^0.33.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.5",
+    "@types/js-yaml": "^4.0.9",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,23 @@
+name: generic
+version: 1.0.0
+description: General-purpose assistant agent
+
+systemMessage: |
+  You are a helpful assistant that can perform tasks using available tools.
+  Be concise and accurate in your responses.
+  Use tools when necessary to accomplish the user's goals.
+
+capabilities:
+  - general_qa
+  - file_operations
+  - command_execution
+  - code_search
+
+tools:
+  - repo_manager
+  - shell
+  - search
+
+parameters:
+  temperature: 0.7
+  maxTokens: 2048
