@@ -52,6 +52,13 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   // Get provider
   const provider = providerRegistry.get(agent.provider);
 
+  // Get allowed tools for this agent (filter if specified)
+  const allowedTools = agent.tools && agent.tools.length > 0
+    ? toolRegistry.filter(agent.tools)
+    : toolRegistry;
+
+  const promptSnippets = allowedTools.getActiveSnippets();
+
   // Build initial prompt
   const messages = buildPrompt({
     agent,
@@ -59,12 +66,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     context,
     executionContext,
     outputContract: config.outputContract,
+    promptSnippets,
   });
-
-  // Get allowed tools for this agent (filter if specified)
-  const allowedTools = agent.tools && agent.tools.length > 0
-    ? toolRegistry.filter(agent.tools)
-    : toolRegistry;
 
   const toolDefinitions = allowedTools.toToolDefinitions();
 

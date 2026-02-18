@@ -203,3 +203,38 @@ describe('buildPrompt - context_packs', () => {
     expect(headers).toHaveLength(1);
   });
 });
+
+describe('buildPrompt with promptSnippets', () => {
+  it('injects prompt snippets into system message', () => {
+    const messages = buildPrompt({
+      agent: { name: 'a', provider: 'anthropic', model: 'claude-haiku-4-5', tools: [] },
+      task: { description: 'Do something' },
+      context: {},
+      promptSnippets: ['Use tool X carefully.', 'Always verify results.'],
+    });
+    const system = messages.find(m => m.role === 'system')!;
+    expect(system.content).toContain('Use tool X carefully.');
+    expect(system.content).toContain('Always verify results.');
+  });
+
+  it('does not crash when promptSnippets is empty', () => {
+    expect(() =>
+      buildPrompt({
+        agent: { name: 'a', provider: 'anthropic', model: 'claude-haiku-4-5', tools: [] },
+        task: { description: 'Do something' },
+        context: {},
+        promptSnippets: [],
+      })
+    ).not.toThrow();
+  });
+
+  it('does not crash when promptSnippets is undefined', () => {
+    expect(() =>
+      buildPrompt({
+        agent: { name: 'a', provider: 'anthropic', model: 'claude-haiku-4-5', tools: [] },
+        task: { description: 'Do something' },
+        context: {},
+      })
+    ).not.toThrow();
+  });
+});

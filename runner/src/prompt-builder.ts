@@ -32,6 +32,7 @@ export interface PromptBuildConfig {
   context: AgentContext;
   executionContext?: ExecutionContext;
   outputContract?: OutputContract;
+  promptSnippets?: string[];
 }
 
 /**
@@ -101,6 +102,11 @@ Any other value means rejection.`;
 ${task.expected_output || `Provide your response according to the ${task.contract_name} contract.`}
 `;
   }
+  // Inject prompt snippets from active tool plugins
+  if (config.promptSnippets && config.promptSnippets.length > 0) {
+    systemContent += '\n\n' + config.promptSnippets.join('\n\n');
+  }
+
 
   messages.push({
     role: 'system',
