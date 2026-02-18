@@ -8,6 +8,8 @@ import { listCommand } from './commands/list.js';
 import { logsCommand } from './commands/logs.js';
 import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
+import { configCommand } from './commands/config.js';
+import { toolsCommand } from './commands/tools.js';
 
 const program = new Command();
 
@@ -58,7 +60,20 @@ program
 
 program
   .command('init')
-  .description('Initialize a new Studio project')
+  .description('Initialize a new Studio project in the current directory')
+  .option('--template <name>', 'Project template to use (e.g. software)')
   .action(initCommand);
+
+program
+  .command('config <action> [args...]')
+  .description('Manage Studio configuration (list, get, set)')
+  .option('--api-key <key>', 'API key (used with: config set provider <name> --api-key <key>)')
+  .action(configCommand);
+
+program
+  .command('tools <action> [args...]')
+  .description('Manage Studio tools (list, add, remove, info)')
+  .option('--project <name>', 'Target project name')
+  .action(toolsCommand);
 
 program.parse();

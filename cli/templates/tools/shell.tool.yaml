@@ -1,0 +1,6 @@
+name: shell
+description: Execute shell commands in the workspace
+builtin: true
+tools:
+  - name: shell-run_command
+    description: Run a shell command

@@ -73,6 +73,43 @@ defaults:
 
     await expect(loadConfig(configPath)).rejects.toThrow('Failed to parse config');
   });
+
+  it('should load .studio/config.yaml when present', async () => {
+    const studioDir = resolve(TEST_DIR, '.studio');
+    await mkdir(studioDir, { recursive: true });
+    await writeFile(
+      resolve(studioDir, 'config.yaml'),
+      `providers:\n  anthropic:\n    apiKey: studio-key\ndefaults:\n  provider: anthropic\n`
+    );
+    const config = await loadConfig(undefined, TEST_DIR);
+    expect(config.providers?.anthropic?.apiKey).toBe('studio-key');
+    expect(config.resolvedStudioDir).toBe(studioDir);
+  });
+
+  it('should fall back to .studiorc.yaml when no .studio/', async () => {
+    // Use /tmp to avoid interference from .studio/ in Studio's own repo tree
+    const isolatedDir = resolve('/tmp', `.studio-config-fallback-${Date.now()}`);
+    await mkdir(isolatedDir, { recursive: true });
+    try {
+      const configPath = resolve(isolatedDir, '.studiorc.yaml');
+      await writeFile(configPath, `providers:\n  openai:\n    apiKey: fallback-key\n`);
+      const config = await loadConfig(undefined, isolatedDir);
+      expect(config.providers?.openai?.apiKey).toBe('fallback-key');
+      expect(config.resolvedStudioDir).toBeUndefined();
+    } finally {
+      await rm(isolatedDir, { recursive: true, force: true });
+    }
+  });
+
+  it('loadConfig with explicit path ignores .studio/', async () => {
+    const studioDir = resolve(TEST_DIR, '.studio');
+    await mkdir(studioDir, { recursive: true });
+    await writeFile(resolve(studioDir, 'config.yaml'), `providers:\n  anthropic:\n    apiKey: studio-key\n`);
+    const explicit = resolve(TEST_DIR, 'explicit.yaml');
+    await writeFile(explicit, `providers:\n  openai:\n    apiKey: explicit-key\n`);
+    const config = await loadConfig(explicit, TEST_DIR);
+    expect(config.providers?.openai?.apiKey).toBe('explicit-key');
+  });
 });
 
 describe('resolveEnvVars', () => {

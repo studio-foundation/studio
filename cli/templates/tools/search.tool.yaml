@@ -1,0 +1,6 @@
+name: search
+description: Search the codebase
+builtin: true
+tools:
+  - name: search-search_codebase
+    description: Search files by content or name

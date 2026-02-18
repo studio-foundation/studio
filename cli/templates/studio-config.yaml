@@ -1,0 +1,13 @@
+# Studio Configuration
+# This file is gitignored — it contains secrets.
+# See .studio/projects/ for your pipeline configs (those ARE committed).
+
+providers:
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+  # openai:
+  #   apiKey: ${OPENAI_API_KEY}
+
+defaults:
+  provider: anthropic
+  model: claude-sonnet-4-6

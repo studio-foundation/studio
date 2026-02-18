@@ -214,7 +214,11 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     }
 
     // Resolve configs dir and parse project/pipeline
-    const configsDir = resolve(config.paths?.configs || './configs');
+    const configsDir = config.paths?.configs
+      ? resolve(config.paths.configs)
+      : config.resolvedStudioDir
+        ? resolve(config.resolvedStudioDir, 'projects')
+        : resolve('./configs');
     const { project, pipeline: pipelineBase } = parseProjectPipeline(pipelineName);
     const pipelinesDir = join(configsDir, project, 'pipelines');
 

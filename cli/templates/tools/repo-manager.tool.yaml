@@ -1,0 +1,10 @@
+name: repo_manager
+description: Read and write files in the workspace
+builtin: true
+tools:
+  - name: repo_manager-read_file
+    description: Read a file from the workspace
+  - name: repo_manager-write_file
+    description: Write or create a file in the workspace
+  - name: repo_manager-list_files
+    description: List files in the workspace
