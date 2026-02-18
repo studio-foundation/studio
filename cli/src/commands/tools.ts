@@ -26,6 +26,41 @@ export async function listAvailableTools(): Promise<{ name: string; description:
   return tools;
 }
 
+export async function toolsAddDirect(
+  studioDir: string,
+  project: string,
+  toolNames: string[]
+): Promise<{ installed: string[]; skipped: string[] }> {
+  const toolsDir = getToolsDir(studioDir, project);
+  await mkdir(toolsDir, { recursive: true });
+
+  const installed: string[] = [];
+  const skipped: string[] = [];
+
+  for (const name of toolNames) {
+    const templatePath = resolve(TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
+    let templateContent: string;
+    try {
+      templateContent = await readFile(templatePath, 'utf-8');
+    } catch {
+      const available = await listAvailableTools();
+      throw new Error(`Unknown tool '${name}'. Available: ${available.map((t) => t.name).join(', ')}`);
+    }
+
+    const destPath = resolve(toolsDir, `${name}.tool.yaml`);
+    const alreadyInstalled = await access(destPath).then(() => true).catch(() => false);
+    if (alreadyInstalled) {
+      skipped.push(name);
+      continue;
+    }
+
+    await writeFile(destPath, templateContent, 'utf-8');
+    installed.push(name);
+  }
+
+  return { installed, skipped };
+}
+
 export async function listTools(toolsDir: string): Promise<string[]> {
   try {
     const entries = await readdir(toolsDir);
