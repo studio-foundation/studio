@@ -307,6 +307,10 @@ export async function configCommand(
         process.exit(1);
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'ExitPromptError') {
+      console.log('\nAborted.');
+      process.exit(0);
+    }
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
