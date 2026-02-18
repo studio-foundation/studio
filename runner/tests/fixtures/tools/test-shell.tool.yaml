@@ -1,0 +1,19 @@
+name: test_shell
+description: Shell-based test tool
+version: 1
+
+commands:
+  - name: test_shell-echo
+    description: Echo a message
+    parameters:
+      message:
+        type: string
+        required: true
+        description: Message to echo
+    execute:
+      type: shell
+      command: echo {{message}}
+      parse_output: text
+
+prompt_snippet: |
+  You have access to a test shell tool.

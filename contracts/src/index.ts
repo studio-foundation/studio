@@ -10,3 +10,4 @@ export * from './validation.js';
 export * from './provider.js';
 export * from './errors.js';
 export * from './context-pack.js';
+export * from './tool-plugin.js';
