@@ -98,6 +98,23 @@ async function updateGitignore(cwd: string): Promise<void> {
   await writeFile(gitignorePath, existing + separator + addition, 'utf-8');
 }
 
+/**
+ * Validate API key format without making a network call.
+ * Returns true if valid, or an error string to display.
+ */
+export function validateApiKeyFormat(provider: string, key: string): true | string {
+  if (provider === 'anthropic') {
+    if (!key.startsWith('sk-ant-')) {
+      return 'Anthropic API keys must start with sk-ant-';
+    }
+  } else if (provider === 'openai') {
+    if (!key.startsWith('sk-')) {
+      return 'OpenAI API keys must start with sk-';
+    }
+  }
+  return true;
+}
+
 interface InitOptions {
   template?: string;
   project?: string;

@@ -133,3 +133,34 @@ describe('createStudioStructure with templates', () => {
     expect(await exists(resolve(TMP, '.studio', 'projects', 'my-app', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
   });
 });
+
+describe('validateApiKeyFormat', () => {
+  it('accepts a valid Anthropic key', async () => {
+    const { validateApiKeyFormat } = await import('../../src/commands/init.js');
+    expect(validateApiKeyFormat('anthropic', 'sk-ant-api03-abc123')).toBe(true);
+  });
+
+  it('rejects an Anthropic key with wrong prefix', async () => {
+    const { validateApiKeyFormat } = await import('../../src/commands/init.js');
+    const result = validateApiKeyFormat('anthropic', 'sk-wrong-key');
+    expect(typeof result).toBe('string'); // returns error message
+    expect(result).toContain('sk-ant-');
+  });
+
+  it('accepts a valid OpenAI key', async () => {
+    const { validateApiKeyFormat } = await import('../../src/commands/init.js');
+    expect(validateApiKeyFormat('openai', 'sk-proj-abc123')).toBe(true);
+  });
+
+  it('rejects an OpenAI key with wrong prefix', async () => {
+    const { validateApiKeyFormat } = await import('../../src/commands/init.js');
+    const result = validateApiKeyFormat('openai', 'wrong-key');
+    expect(typeof result).toBe('string');
+    expect(result).toContain('sk-');
+  });
+
+  it('accepts any key for unknown provider', async () => {
+    const { validateApiKeyFormat } = await import('../../src/commands/init.js');
+    expect(validateApiKeyFormat('later', '')).toBe(true);
+  });
+});
