@@ -18,18 +18,25 @@ Files changed: src/pages/About.tsx (+47 lines)
 
 Run this 10 times. It passes 10 times. That's the point.
 
-Studio is the WordPress of AI pipeline orchestration. Pipelines are YAML. Tools are plugins. Contracts are quality gates. No code required — just configure and run.
+---
 
-| WordPress | Studio |
-|-----------|--------|
-| Pages / Posts | Pipelines |
-| Plugins | Tool plugins (`.tool.yaml`) |
-| Themes | Projects |
-| Hooks / Filters | Events system |
-| wp-admin | CLI + dashboard |
-| Plugin marketplace | Tool registry |
+## `git` for AI pipelines
 
-WordPress made publishing a website accessible to anyone. Studio makes orchestrating AI agents accessible to anyone. The parallel is intentional — and Studio goes further on governance and validation than WordPress ever could.
+Studio is to AI orchestration what `git` is to version control: an invisible tool that lives in a dot-directory, installs globally, and does its job without being a platform.
+
+```
+git init          →  studio init
+.git/             →  .studio/
+git commit        →  studio run
+git push          →  (API hosted, later)
+GitHub            →  Studio Cloud (commercial product)
+git hooks         →  Tool plugins (.tool.yaml)
+GitHub Actions    →  Community registry
+```
+
+You install Studio. You run `studio init`. A `.studio/` directory appears. You configure your pipelines in YAML. You run them from the terminal. That's it.
+
+No framework to learn. No platform to depend on. No repo to fork. Just a tool.
 
 ---
 
@@ -111,7 +118,7 @@ stages:
 
 ### What else can you build?
 
-Studio is a pipeline creator. Anyone can add new pipelines for any domain. Here are examples of what's possible:
+Studio is a pipeline creator. Anyone can add new pipelines for any domain:
 
 - **Git Butler** — Rewrite messy git history into clean, reviewable commits. Analyze diffs, identify logical boundaries, rebase automatically, validate integrity.
 - **ADHD Finance** — Help neurodivergent people manage money by automating categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
@@ -129,27 +136,34 @@ Same engine. Different pipelines. Different contracts. Different agents. Studio 
 npm install -g @studio/cli
 
 cd your-project
-studio init
-# Edit .studiorc.yaml with your provider API key
+studio init --template software
+studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
 
 studio run software/feature-builder --input "Add dark mode support"
 ```
 
 ### Project structure
 
+After `studio init`, everything lives in `.studio/` — just like `.git/`:
+
 ```
 your-project/
-├── .studiorc.yaml                  # Provider config
-├── engine/
-│   └── configs/
-│       ├── <project>/              # Project-specific configs
-│       │   ├── pipelines/          # Pipeline definitions (YAML)
-│       │   ├── contracts/          # Output contracts (YAML)
-│       │   ├── agents/             # Agent profiles (YAML)
-│       │   ├── tools/              # Tool plugins (YAML)
-│       │   └── inputs/             # Input file examples (YAML)
-└── ...                             # Your project files
+├── .studio/                          # All Studio config lives here
+│   ├── config.yaml                   # Provider config (gitignored)
+│   ├── projects/
+│   │   └── <project>/
+│   │       ├── pipelines/            # Pipeline definitions (YAML)
+│   │       ├── contracts/            # Output contracts (YAML)
+│   │       ├── agents/               # Agent profiles (YAML)
+│   │       ├── tools/                # Tool plugins (YAML)
+│   │       └── inputs/               # Input file examples (YAML)
+│   ├── registry.lock.json            # Tool versions (committed)
+│   └── runs/                         # Runtime data (gitignored)
+├── src/                              # Your project files
+└── ...
 ```
+
+Studio finds `.studio/` by walking up the directory tree, just like `git` finds `.git/`.
 
 ---
 
@@ -173,16 +187,14 @@ your-project/
 
 **Tool Plugin** — A `.tool.yaml` file that defines a set of commands available to agents. Each plugin contains its parameters, execution logic (shell or builtin), a prompt snippet, and its constraints. The prompt snippet is automatically injected into the agent's system prompt — the tool documents itself. Creating a tool requires no code — just YAML.
 
-**Anonymization** — `--anonymize` mode replaces PII (names, emails, phone numbers) with tokens before sending to the LLM. A local keymap reconstructs the real values after the run. The LLM never sees sensitive data.
-
 ---
 
 ## Tool Plugins
 
-Tool plugins are the killer feature. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file. No code required.
+Tool plugins are the extension system. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file. Like git hooks, but for AI agents.
 
 ```yaml
-# engine/configs/cuisine/tools/nutrition.tool.yaml
+# .studio/projects/cuisine/tools/nutrition.tool.yaml
 name: nutrition
 description: Nutritional analysis tools
 version: 1
@@ -224,14 +236,16 @@ Three things make this powerful:
 ## Provider-agnostic
 
 ```yaml
-# .studiorc.yaml
+# .studio/config.yaml
 providers:
   anthropic:
-    api_key: ${ANTHROPIC_API_KEY}
-    default_model: claude-sonnet-4-20250514
+    apiKey: ${ANTHROPIC_API_KEY}
   openai:
-    api_key: ${OPENAI_API_KEY}
-    default_model: gpt-4.1
+    apiKey: ${OPENAI_API_KEY}
+
+defaults:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
 ```
 
 Different agents can use different providers. Switch models without changing pipeline logic. The orchestration layer doesn't depend on who does the work — it depends on the work being done correctly.
@@ -242,47 +256,53 @@ Different agents can use different providers. Switch models without changing pip
 
 ```
 @studio/cli          → User interface (terminal)
-@studio/api          → HTTP interface (REST, SSE, webhooks)
-    │
-    ├── both consume ↓
     │
 @studio/engine       → Pipeline orchestration, state, governance
     │
-    ├── @studio/ralph      → Execute, validate, retry
+    ├── @studio/ralph    → Execute, validate, retry
     │
-    └── @studio/runner     → LLM calls, tool plugin runtime, multi-provider
-         │
-         └── @studio/anonymizer  → PII detection, tokenization, keymap
+    └── @studio/runner   → LLM calls, tool plugin runtime, multi-provider
     │
 @studio/contracts    → Shared types (zero dependencies)
 ```
 
-Seven packages. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
+Five packages in a single monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
 
 ---
 
 ## CLI
 
+The CLI is the primary interface. Like `git`, it handles both setup and daily use.
+
 ```bash
+# Daily use
 studio run <project/pipeline> --input "..."     # Run a pipeline
 studio run <project/pipeline> --dry-run         # Validate without calling LLMs
 studio status [run-id]                          # Check run status
 studio list pipelines                           # List available pipelines
 studio validate <contract> <output>             # Validate output against contract
-studio init                                     # Initialize in current directory
+
+# Setup & config
+studio init                                     # Initialize .studio/ in current directory
+studio config set provider anthropic --api-key $KEY
+studio config list                              # Show config (API keys masked)
+studio tools list                               # List tools in current project
+studio tools add git --project software         # Install a tool plugin
+studio tools info git                           # Show tool details
 ```
 
 ---
 
-## Integrations
+## API
 
-Studio exposes a REST API and SSE streaming for external integrations.
+The API is for machine-to-machine usage — when there's no human at the terminal. Same engine, different interface. Like GitHub is to `git`.
 
 - **Linear** — Drag an issue to "In Progress" → Studio auto-launches the matching pipeline → results posted as comment → issue moves to "Done"
+- **CI/CD** — Trigger pipelines from GitHub Actions
 - **Webhooks** — Receive HTTP notifications on pipeline events (start, complete, reject, fail)
 - **SSE** — Stream pipeline progress in real-time to dashboards or bots
 
-Studio is both a CLI tool and an API server. Same engine, different interfaces.
+The CLI is free forever (like `git`). The hosted API is the monetizable product (like GitHub).
 
 ---
 
@@ -302,11 +322,11 @@ This is a contribution, however indirect, toward a world where universal basic i
 
 Studio follows a tripartite architecture designed to prevent capture:
 
-**Open Source Kernel** — The governance engine. Common good. Non-negotiable. Protected by constitutional invariants. No commercial entity has authority over it.
+**Open Source Kernel** — The tool itself. Common good. Non-negotiable. Protected by constitutional invariants. No commercial entity has authority over it. Like `git`.
 
-**Support Core** — Hosting, maintenance, documentation. Generates revenue subordinate to the common good.
+**Support Core** — Hosting, maintenance, documentation. Generates revenue subordinate to the common good. Like the Linux Foundation.
 
-**Products Powered by Studio** — Specialized tools (Code Builder, ADHD Finance, Git Butler, Wiki Creator). Commercial entities that can appear or disappear. They never dictate kernel evolution.
+**Products Powered by Studio** — Specialized tools (Code Builder, ADHD Finance, Git Butler, Wiki Creator). Commercial entities that can appear or disappear. They never dictate kernel evolution. Like GitHub, GitLab, Bitbucket are to `git`.
 
 ### Anti-drift
 
@@ -320,7 +340,9 @@ Decision-making power must be held primarily by the people directly affected by 
 
 ## Status
 
-Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique). An HTTP API with SSE streaming and webhook support is in development.
+Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique).
+
+Current priority: **Code Builder that works end-to-end.** Everything else follows from that.
 
 ---
 
