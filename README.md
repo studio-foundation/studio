@@ -18,6 +18,19 @@ Files changed: src/pages/About.tsx (+47 lines)
 
 Run this 10 times. It passes 10 times. That's the point.
 
+Studio is the WordPress of AI pipeline orchestration. Pipelines are YAML. Tools are plugins. Contracts are quality gates. No code required — just configure and run.
+
+| WordPress | Studio |
+|-----------|--------|
+| Pages / Posts | Pipelines |
+| Plugins | Tool plugins (`.tool.yaml`) |
+| Themes | Projects |
+| Hooks / Filters | Events system |
+| wp-admin | CLI + dashboard |
+| Plugin marketplace | Tool registry |
+
+WordPress made publishing a website accessible to anyone. Studio makes orchestrating AI agents accessible to anyone. The parallel is intentional — and Studio goes further on governance and validation than WordPress ever could.
+
 ---
 
 ## The problem
@@ -133,6 +146,7 @@ your-project/
 │       │   ├── pipelines/          # Pipeline definitions (YAML)
 │       │   ├── contracts/          # Output contracts (YAML)
 │       │   ├── agents/             # Agent profiles (YAML)
+│       │   ├── tools/              # Tool plugins (YAML)
 │       │   └── inputs/             # Input file examples (YAML)
 └── ...                             # Your project files
 ```
@@ -157,6 +171,54 @@ your-project/
 
 **Groups** — Multi-stage feedback loops within a pipeline. A group contains multiple stages (e.g., code-generation + qa-review) that execute in iterations. If the last stage rejects (via post-validation), the group reruns from the start with accumulated feedback. Maximum iterations set via `max_iterations`. Groups enable creation-critique-revision workflows without manual intervention.
 
+**Tool Plugin** — A `.tool.yaml` file that defines a set of commands available to agents. Each plugin contains its parameters, execution logic (shell or builtin), a prompt snippet, and its constraints. The prompt snippet is automatically injected into the agent's system prompt — the tool documents itself. Creating a tool requires no code — just YAML.
+
+**Anonymization** — `--anonymize` mode replaces PII (names, emails, phone numbers) with tokens before sending to the LLM. A local keymap reconstructs the real values after the run. The LLM never sees sensitive data.
+
+---
+
+## Tool Plugins
+
+Tool plugins are the killer feature. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file. No code required.
+
+```yaml
+# engine/configs/cuisine/tools/nutrition.tool.yaml
+name: nutrition
+description: Nutritional analysis tools
+version: 1
+
+commands:
+  - name: nutrition-analyze
+    description: Analyze nutritional content of a recipe
+    parameters:
+      ingredients:
+        type: array
+        items: string
+        required: true
+      servings:
+        type: integer
+        required: false
+    execute:
+      type: shell
+      command: |
+        echo '{{ingredients | json}}' | nutrition-api --servings={{servings}}
+      parse_output: json
+
+prompt_snippet: |
+  You have access to nutrition tools. Always verify nutritional content before finalizing a recipe.
+
+constraints:
+  requires_binaries: [nutrition-api]
+```
+
+Three things make this powerful:
+
+**Self-documenting.** The `prompt_snippet` is automatically injected into the system prompt of any agent that has access to the tool. The tool explains itself. Zero config on the pipeline side.
+
+**Project-scoped.** Each project has its own `tools/` folder. The cuisine project has nutrition tools. The software project has git tools. They never cross. Agents only access what their project allows.
+
+**Double-gated.** The project authorizes which tool groups are available. The agent YAML authorizes which specific tools it can call. Two layers of access control, both declarative.
+
 ---
 
 ## Provider-agnostic
@@ -179,18 +241,23 @@ Different agents can use different providers. Switch models without changing pip
 ## Architecture
 
 ```
-@studio/cli          → User interface
+@studio/cli          → User interface (terminal)
+@studio/api          → HTTP interface (REST, SSE, webhooks)
+    │
+    ├── both consume ↓
     │
 @studio/engine       → Pipeline orchestration, state, governance
     │
-    ├── @studio/ralph    → Execute, validate, retry
+    ├── @studio/ralph      → Execute, validate, retry
     │
-    └── @studio/runner   → LLM calls, tools, multi-provider
+    └── @studio/runner     → LLM calls, tool plugin runtime, multi-provider
+         │
+         └── @studio/anonymizer  → PII detection, tokenization, keymap
     │
 @studio/contracts    → Shared types (zero dependencies)
 ```
 
-Five packages. Each fits in a single context window. Each is testable in isolation.
+Seven packages. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
 
 ---
 
@@ -204,6 +271,18 @@ studio list pipelines                           # List available pipelines
 studio validate <contract> <output>             # Validate output against contract
 studio init                                     # Initialize in current directory
 ```
+
+---
+
+## Integrations
+
+Studio exposes a REST API and SSE streaming for external integrations.
+
+- **Linear** — Drag an issue to "In Progress" → Studio auto-launches the matching pipeline → results posted as comment → issue moves to "Done"
+- **Webhooks** — Receive HTTP notifications on pipeline events (start, complete, reject, fail)
+- **SSE** — Stream pipeline progress in real-time to dashboards or bots
+
+Studio is both a CLI tool and an API server. Same engine, different interfaces.
 
 ---
 
@@ -241,7 +320,7 @@ Decision-making power must be held primarily by the people directly affected by 
 
 ## Status
 
-Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, and group-based feedback loops are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique).
+Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique). An HTTP API with SSE streaming and webhook support is in development.
 
 ---
 
@@ -252,5 +331,5 @@ Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, and gr
 ---
 
 > Studio is not built to be fast. It is built to last.
-> 
+>
 > Nothing in this project is for sale.
