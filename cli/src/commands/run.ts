@@ -4,7 +4,7 @@ import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import type { EngineEvents } from '@studio/engine';
 import { PipelineEngine, parseProjectPipeline, loadPipelineByName } from '@studio/engine';
-import { createDefaultRegistry, ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools, createPatchTools, createGitTools } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio/runner';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { formatResult } from '../output/formatter.js';
@@ -282,21 +282,11 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       process.exit(1);
     }
 
+    const toolsDir = resolve(configsDir, project, 'tools');
+    const loadedPlugins = await loadProjectTools(toolsDir, repoPath);
     const toolRegistry = new ToolRegistry();
-    for (const tool of createRepoManagerTools(repoPath)) {
-      toolRegistry.register(tool);
-    }
-    for (const tool of createShellTools(repoPath)) {
-      toolRegistry.register(tool);
-    }
-    for (const tool of createSearchTools(repoPath)) {
-      toolRegistry.register(tool);
-    }
-    for (const tool of createPatchTools(repoPath)) {
-      toolRegistry.register(tool);
-    }
-    for (const tool of createGitTools(repoPath)) {
-      toolRegistry.register(tool);
+    for (const plugin of loadedPlugins) {
+      toolRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
     }
 
     const progress = new ProgressDisplay(!!options.json, !!options.verbose);
