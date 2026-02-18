@@ -24,12 +24,29 @@ export interface Tool {
 
 export class ToolRegistry {
   private tools: Map<string, Tool> = new Map();
+  private toolToPlugin: Map<string, string> = new Map();   // normalized name → plugin name
+  private pluginSnippets: Map<string, string> = new Map(); // plugin name → snippet
 
   /**
-   * Register a tool
+   * Register a single tool (no plugin metadata).
    */
   register(tool: Tool): void {
     this.tools.set(tool.name, tool);
+  }
+
+  /**
+   * Register all tools belonging to a plugin.
+   * If promptSnippet is provided it will be returned by getActiveSnippets()
+   * whenever any tool from this plugin is in the registry.
+   */
+  registerPlugin(pluginName: string, tools: Tool[], promptSnippet?: string): void {
+    for (const tool of tools) {
+      this.register(tool);
+      this.toolToPlugin.set(normalizeToolName(tool.name), pluginName);
+    }
+    if (promptSnippet) {
+      this.pluginSnippets.set(pluginName, promptSnippet);
+    }
   }
 
   /**
@@ -65,9 +82,25 @@ export class ToolRegistry {
   }
 
   /**
+   * Return prompt snippets for all plugins that have at least one tool
+   * currently in this registry.
+   */
+  getActiveSnippets(): string[] {
+    const activePlugins = new Set<string>();
+    for (const toolName of this.tools.keys()) {
+      const plugin = this.toolToPlugin.get(normalizeToolName(toolName));
+      if (plugin) activePlugins.add(plugin);
+    }
+    return Array.from(activePlugins)
+      .map(p => this.pluginSnippets.get(p))
+      .filter((s): s is string => s !== undefined);
+  }
+
+  /**
    * Create a new registry filtered to specific tool names.
    * Normalizes dots to hyphens so both "repo_manager.write_file"
    * and "repo_manager-write_file" match the registered name.
+   * Plugin snippet metadata is carried over for included tools.
    */
   filter(allowedTools: string[]): ToolRegistry {
     const filtered = new ToolRegistry();
@@ -76,6 +109,13 @@ export class ToolRegistry {
         ?? this.tools.get(normalizeToolName(toolName));
       if (tool) {
         filtered.register(tool);
+        // Carry over plugin metadata so getActiveSnippets() works on filtered registry
+        const pluginName = this.toolToPlugin.get(normalizeToolName(tool.name));
+        if (pluginName) {
+          filtered.toolToPlugin.set(normalizeToolName(tool.name), pluginName);
+          const snippet = this.pluginSnippets.get(pluginName);
+          if (snippet) filtered.pluginSnippets.set(pluginName, snippet);
+        }
       }
     }
     return filtered;
