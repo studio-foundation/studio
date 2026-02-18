@@ -1,6 +1,10 @@
 packages:
-  - 'contracts'
-  - 'ralph'
-  - 'runner'
-  - 'engine'
-  - 'cli'
+  - "contracts"
+  - "ralph"
+  - "runner"
+  - "engine"
+  - "cli"
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild
