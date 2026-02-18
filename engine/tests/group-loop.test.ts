@@ -109,6 +109,7 @@ function createMockToolRegistry() {
     list: vi.fn().mockReturnValue([]),
     toToolDefinitions: vi.fn().mockReturnValue([]),
     filter: vi.fn().mockReturnThis(),
+    getActiveSnippets: vi.fn().mockReturnValue([]),
   };
 }
 
