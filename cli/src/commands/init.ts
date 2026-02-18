@@ -6,6 +6,7 @@ import ora from 'ora';
 import { input, select, password, confirm } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
+import { createProjectDir } from './project.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -31,8 +32,6 @@ export async function backupStudioDir(cwd: string): Promise<string> {
 
 const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 
-const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
-
 /**
  * Create the full .studio/ directory structure in `cwd`.
  * If templateName is provided, copies the template's project/ subdir.
@@ -53,37 +52,9 @@ export async function createStudioStructure(
   }
 
   const studioDir = resolve(cwd, '.studio');
-  const projectDir = join(studioDir, 'projects', projectName);
-
-  if (templateName) {
-    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
-
-    // Verify template exists
-    const templateExists = await access(templateDir).then(() => true).catch(() => false);
-    if (!templateExists) {
-      throw new Error(
-        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
-      );
-    }
-
-    // Copy project/ subdir if present, otherwise create empty dirs
-    const templateProjectDir = join(templateDir, 'project');
-    const hasProjectDir = await access(templateProjectDir).then(() => true).catch(() => false);
-
-    if (hasProjectDir) {
-      await mkdir(projectDir, { recursive: true });
-      await cp(templateProjectDir, projectDir, { recursive: true });
-    } else {
-      for (const sub of PROJECT_SUBDIRS) {
-        await mkdir(join(projectDir, sub), { recursive: true });
-      }
-    }
-  } else {
-    // No template — create empty subdirectories
-    for (const sub of PROJECT_SUBDIRS) {
-      await mkdir(join(projectDir, sub), { recursive: true });
-    }
-  }
+  const projectsDir = join(studioDir, 'projects');
+  await mkdir(projectsDir, { recursive: true });
+  await createProjectDir(projectsDir, projectName, templateName);
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });

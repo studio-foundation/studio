@@ -11,6 +11,7 @@ import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
 import { toolsCommand } from './commands/tools.js';
 import { templatesCommand } from './commands/templates.js';
+import { projectCommand } from './commands/project.js';
 
 const program = new Command();
 
@@ -86,5 +87,12 @@ program
   .command('templates <action> [args...]')
   .description('Manage Studio templates (list)')
   .action(templatesCommand);
+
+program
+  .command('project <action> [args...]')
+  .description('Manage Studio projects (add)')
+  .option('--template <name>', 'Template to use (blank, software, …)')
+  .option('--description <desc>', 'Project description')
+  .action(projectCommand);
 
 program.parse();
