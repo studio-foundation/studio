@@ -1,0 +1,15 @@
+brief_summary: "Ajouter une section FAQ simple a la page About, avec quelques questions/reponses, en respectant le style existant."
+feature_brief: "Ajouter une section FAQ simple a la page About avec quelques questions/reponses en accord avec le style existant."
+target_page: "src/pages/about.tsx"
+acceptance_criteria:
+  - "La section FAQ apparait sur la page About sans casser la mise en page."
+  - "Chaque question est affichee comme un accordeon avec ouverture/fermeture."
+  - "Le style (typographie, espacements, couleurs) est coherent avec le design existant."
+  - "Aucune regression: build et tests passent."
+sample_faq:
+  - question: "C'est quoi ce projet?"
+    answer: "Une breve description du site/projet."
+  - question: "Comment me contacter?"
+    answer: "Lien vers la page contact ou courriel."
+  - question: "Ou trouver mon travail?"
+    answer: "Lien vers le portfolio ou les projets."

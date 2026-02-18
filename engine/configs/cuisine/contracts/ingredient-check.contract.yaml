@@ -1,0 +1,7 @@
+name: ingredient-check
+version: 1
+schema:
+  required_fields:
+    - cuisine_type
+    - dietary_constraints
+    - difficulty

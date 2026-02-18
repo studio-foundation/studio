@@ -1,0 +1,53 @@
+# Mock outputs for software/feature-builder pipeline
+# Used with: studio run software/feature-builder --provider mock
+stages:
+  brief-analysis:
+    output:
+      summary: "Mock: Add FAQ section to About page"
+      requirements:
+        - "Display FAQ with accordion expand/collapse"
+        - "Match existing page typography and spacing"
+      acceptance_criteria:
+        - "FAQ section renders on About page"
+        - "Each item expands/collapses on click"
+        - "Style matches existing design"
+    tool_calls: []
+
+  implementation-plan:
+    output:
+      summary: "Mock implementation plan for FAQ section"
+      steps:
+        - "Create FAQSection component"
+        - "Add FAQ data to About page"
+        - "Wire accordion interaction"
+      files_to_modify:
+        - "src/pages/about.tsx"
+      risks:
+        - "Minor style drift if design tokens change"
+      estimated_complexity: "low"
+    tool_calls: []
+
+  code-generation:
+    output:
+      summary: "Mock: Generated FAQ component"
+      files_changed:
+        - "src/components/FAQSection.tsx"
+    tool_calls:
+      - name: repo_manager-write_file
+        arguments:
+          path: "src/components/FAQSection.tsx"
+          content: |
+            // Mock generated FAQ component
+            export const FAQSection = () => (
+              <section>
+                <h2>FAQ</h2>
+                <details><summary>What is this?</summary><p>A mock FAQ.</p></details>
+              </section>
+            );
+
+  qa-review:
+    output:
+      status: "approved"
+      summary: "Mock QA review — approved"
+      issues: []
+    tool_calls: []

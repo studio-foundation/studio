@@ -1,0 +1,9 @@
+name: recipe-output
+version: 1
+schema:
+  required_fields:
+    - title
+    - servings
+    - ingredients
+    - instructions
+    - tips

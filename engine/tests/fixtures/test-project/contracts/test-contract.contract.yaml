@@ -1,0 +1,6 @@
+
+name: test-contract
+version: 1
+schema:
+  required_fields:
+    - summary

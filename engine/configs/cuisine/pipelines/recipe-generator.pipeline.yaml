@@ -1,0 +1,40 @@
+name: recipe-generator
+description: Generate a recipe from a user description
+version: 1
+
+stages:
+  - name: ingredient-analysis
+    kind: analysis
+    agent: chef
+    contract: ingredient-check
+    ralph:
+      max_attempts: 3
+
+  - name: recipe-plan
+    kind: planning
+    agent: chef
+    contract: recipe-plan
+    ralph:
+      max_attempts: 3
+
+  - group: creation-review
+    max_iterations: 3
+    stages:
+      - name: recipe-creation
+        kind: creation
+        agent: chef
+        contract: recipe-output
+        ralph:
+          max_attempts: 5
+        context:
+          include:
+            - input
+            - all_stage_outputs
+            - group_feedback
+
+      - name: recipe-critique
+        kind: critique
+        agent: chef
+        contract: recipe-critique
+        ralph:
+          max_attempts: 3
