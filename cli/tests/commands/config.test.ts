@@ -9,6 +9,7 @@ import {
   PROVIDERS,
   validateApiKeyForProvider,
   addProviderConfig,
+  isProviderConfigured,
 } from '../../src/commands/config.js';
 
 const TMP = resolve(import.meta.dirname, '.tmp-config-cmd-test');
@@ -198,5 +199,23 @@ describe('addProviderConfig', () => {
     const parsed = yaml.load(raw) as Record<string, unknown>;
     const defaults = parsed.defaults as { model: string };
     expect(defaults.model).toBe('claude-sonnet-4-20250514');
+  });
+});
+
+describe('isProviderConfigured', () => {
+  const CONFIG_FILE = resolve(STUDIO_DIR, 'config.yaml');
+
+  it('returns false when config.yaml does not exist', async () => {
+    expect(await isProviderConfigured(CONFIG_FILE, 'anthropic')).toBe(false);
+  });
+
+  it('returns false when provider not in config', async () => {
+    await addProviderConfig(CONFIG_FILE, 'openai', 'sk-key', false);
+    expect(await isProviderConfigured(CONFIG_FILE, 'anthropic')).toBe(false);
+  });
+
+  it('returns true when provider is in config', async () => {
+    await addProviderConfig(CONFIG_FILE, 'anthropic', 'sk-ant-key', false);
+    expect(await isProviderConfigured(CONFIG_FILE, 'anthropic')).toBe(true);
   });
 });

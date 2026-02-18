@@ -51,6 +51,12 @@ export async function addProviderConfig(
   await saveConfig(configFile, config);
 }
 
+export async function isProviderConfigured(configFile: string, provider: string): Promise<boolean> {
+  const config = await loadRawConfig(configFile);
+  if (!config.providers || typeof config.providers !== 'object') return false;
+  return provider in (config.providers as Record<string, unknown>);
+}
+
 export function getConfigValue(config: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.');
   let current: unknown = config;
