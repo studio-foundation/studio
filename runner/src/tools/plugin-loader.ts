@@ -1,0 +1,115 @@
+// runner/src/tools/plugin-loader.ts
+import { readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import yaml from 'js-yaml';
+import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
+import type { Tool } from './tool-registry.js';
+import { renderTemplate, executeShellCommand } from './yaml-executor.js';
+import { createRepoManagerTools } from './builtin/repo-manager.js';
+import { createShellTools } from './builtin/shell.js';
+import { createSearchTools } from './builtin/search.js';
+import { createPatchTools } from './builtin/patch.js';
+import { createGitTools } from './builtin/git.js';
+
+export interface LoadedPlugin {
+  name: string;
+  tools: Tool[];
+  promptSnippet?: string;
+}
+
+/** Build a map of tool name → Tool from all builtin factories. */
+function buildBuiltinMap(repoPath: string): Map<string, Tool> {
+  const map = new Map<string, Tool>();
+  const add = (tools: Tool[]) => tools.forEach(t => map.set(t.name, t));
+  add(createRepoManagerTools(repoPath));
+  add(createShellTools(repoPath));
+  add(createSearchTools(repoPath));
+  add(createPatchTools(repoPath));
+  add(createGitTools(repoPath));
+  return map;
+}
+
+/** Convert a ParameterDef map to a JSON Schema object for the LLM. */
+function buildJsonSchema(
+  parameters: ToolCommandDef['parameters']
+): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+
+  for (const [key, def] of Object.entries(parameters ?? {})) {
+    properties[key] = {
+      type: def.type,
+      ...(def.description ? { description: def.description } : {}),
+      ...(def.type === 'array' && def.items ? { items: def.items } : {}),
+    };
+    if (def.required) required.push(key);
+  }
+
+  return {
+    type: 'object',
+    properties,
+    ...(required.length > 0 ? { required } : {}),
+  };
+}
+
+/** Create a Tool that renders the command template and runs it in a shell. */
+function createShellTool(cmd: ToolCommandDef, repoPath: string): Tool {
+  const exec = cmd.execute as { type: 'shell'; command: string; parse_output?: 'text' | 'json' };
+  return {
+    name: cmd.name,
+    description: cmd.description,
+    parameters: buildJsonSchema(cmd.parameters),
+    async execute(args) {
+      const rendered = renderTemplate(exec.command, args);
+      return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath);
+    },
+  };
+}
+
+/**
+ * Load all `.tool.yaml` files from a project's tools directory.
+ * Returns an empty array if the directory does not exist.
+ */
+export async function loadProjectTools(
+  toolsDir: string,
+  repoPath: string
+): Promise<LoadedPlugin[]> {
+  if (!existsSync(toolsDir)) return [];
+
+  let files: string[];
+  try {
+    files = (await readdir(toolsDir)).filter(f => f.endsWith('.tool.yaml'));
+  } catch {
+    return [];
+  }
+
+  if (files.length === 0) return [];
+
+  const builtinMap = buildBuiltinMap(repoPath);
+  const plugins: LoadedPlugin[] = [];
+
+  for (const file of files.sort()) {
+    const content = await readFile(resolve(toolsDir, file), 'utf-8');
+    const def = yaml.load(content) as ToolPluginDef;
+
+    const tools: Tool[] = [];
+    for (const cmd of def.commands ?? []) {
+      if (cmd.execute.type === 'builtin') {
+        const tool = builtinMap.get(cmd.name);
+        if (tool) tools.push(tool);
+        // If unknown builtin name, skip silently (no crash)
+      } else {
+        tools.push(createShellTool(cmd, repoPath));
+      }
+    }
+
+    plugins.push({
+      name: def.name,
+      tools,
+      promptSnippet: def.prompt_snippet,
+    });
+  }
+
+  return plugins;
+}

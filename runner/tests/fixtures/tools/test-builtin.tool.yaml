@@ -1,0 +1,14 @@
+name: test_builtin
+description: Builtin-backed test tool
+version: 1
+
+commands:
+  - name: repo_manager-list_files
+    description: List files in the workspace
+    parameters:
+      path:
+        type: string
+        required: false
+    execute:
+      type: builtin
+      parse_output: json
