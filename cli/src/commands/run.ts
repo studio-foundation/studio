@@ -244,11 +244,13 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       }
     }
 
-    const providerRegistry = createDefaultRegistry({
-      openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
-      anthropic: config.providers?.anthropic ? { apiKey: config.providers.anthropic.apiKey } : undefined,
-      openaiResponses: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
-    });
+    const providerRegistry = createDefaultRegistry(
+      options.provider === 'mock' ? {} : {
+        openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
+        anthropic: config.providers?.anthropic ? { apiKey: config.providers.anthropic.apiKey } : undefined,
+        openaiResponses: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
+      }
+    );
 
     // Handle --provider override
     if (options.provider === 'mock') {
