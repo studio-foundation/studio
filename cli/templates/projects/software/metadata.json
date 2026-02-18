@@ -1,0 +1,11 @@
+{
+  "name": "software",
+  "version": "1.0.0",
+  "description": "Code generation with repo, shell and search tools",
+  "author": "studio-core",
+  "tags": ["software", "code", "development"],
+  "type": "template",
+  "studio_version": ">=7.0.0",
+  "pipelines": ["feature-builder"],
+  "tools_included": ["repo-manager", "search", "shell"]
+}

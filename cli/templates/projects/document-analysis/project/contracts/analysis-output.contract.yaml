@@ -1,0 +1,7 @@
+name: analysis-output
+version: 1
+schema:
+  required_fields:
+    - summary
+    - key_findings
+    - recommendations

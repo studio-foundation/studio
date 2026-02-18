@@ -10,6 +10,7 @@ import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
 import { toolsCommand } from './commands/tools.js';
+import { templatesCommand } from './commands/templates.js';
 
 const program = new Command();
 
@@ -62,6 +63,7 @@ program
   .command('init')
   .description('Initialize a new Studio project in the current directory')
   .option('--template <name>', 'Project template to use (e.g. software)')
+  .option('--project <name>', 'Project name (defaults to template name or "default")')
   .action(initCommand);
 
 program
@@ -75,5 +77,10 @@ program
   .description('Manage Studio tools (list, add, remove, info)')
   .option('--project <name>', 'Target project name')
   .action(toolsCommand);
+
+program
+  .command('templates <action> [args...]')
+  .description('Manage Studio templates (list)')
+  .action(templatesCommand);
 
 program.parse();
