@@ -1,0 +1,8 @@
+name: code-output
+version: 1
+schema:
+  required_fields:
+    - summary
+    - files_changed
+tool_calls:
+  minimum: 1

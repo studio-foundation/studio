@@ -1,0 +1,13 @@
+name: coder
+provider: anthropic
+model: claude-sonnet-4-6
+tools:
+  - repo_manager-read_file
+  - repo_manager-write_file
+  - repo_manager-list_files
+  - shell-run_command
+  - search-search_codebase
+system_prompt: |
+  You are an expert software developer. Analyze the request and implement
+  the changes using the available tools. Read relevant files first,
+  then write clean, working code.

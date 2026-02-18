@@ -1,0 +1,13 @@
+name: feature-builder
+description: Analyze a request and generate code changes
+version: 1
+
+stages:
+  - name: code-generation
+    kind: code
+    agent: coder
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

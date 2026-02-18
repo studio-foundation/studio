@@ -1,0 +1,22 @@
+name: search
+description: Search the codebase by content or file pattern
+version: 1
+
+commands:
+  - name: search-search_codebase
+    description: Search files by content pattern (uses ripgrep)
+    parameters:
+      pattern:
+        type: string
+        required: true
+        description: Regex or literal pattern to search for
+      file_pattern:
+        type: string
+        required: false
+        description: Glob pattern to restrict which files are searched (e.g. "*.ts")
+    execute:
+      type: builtin
+      parse_output: json
+
+prompt_snippet: |
+  You have access to a codebase search tool. Use it to find relevant code before making changes.
