@@ -73,8 +73,9 @@ program
 
 program
   .command('config <action> [args...]')
-  .description('Manage Studio configuration (list, get, set)')
-  .option('--api-key <key>', 'API key (used with: config set provider <name> --api-key <key>)')
+  .description('Manage Studio configuration (list, get, set, add-provider)')
+  .option('--api-key <key>', 'API key (used with: config set provider <name> --api-key <key>; config add-provider <name> --api-key <key>)')
+  .option('--set-default', 'Set as default provider (used with: config add-provider)')
   .action(configCommand);
 
 program
