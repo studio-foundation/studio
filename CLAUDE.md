@@ -508,12 +508,14 @@ git commit -m "feat(runner): integrate anonymizer before LLM calls"
 
 Format : `<type>(<scope>): <description>` — Types : `feat`, `fix`, `refactor`, `test`, `chore`, `docs`
 
-**3. Push + PR**
+**3. Push + PR — une PR PAR repo touché**
 
 ```bash
 git push -u origin <branch-name>
 gh pr create --title "<titre>" --body "<description>" --base main
 ```
+
+**Si la tâche touche N packages, il y a N PRs.** Une PR dans `runner`, une dans `contracts`, etc. Ne jamais finir une tâche avec un package modifié mais sans PR.
 
 PR body doit contenir : **Quoi**, **Pourquoi**, **Packages touchés**, **Comment tester**.
 
@@ -527,13 +529,14 @@ pnpm build                   # Build global si plusieurs packages
 ### Checklist de fin de task
 
 ```
-[ ] Branche créée (pas sur main)
+[ ] Branche créée dans chaque repo touché (pas sur main, pas dans Studio root)
 [ ] Commits atomiques avec messages conventionnels
 [ ] Packages touchés rebuildés
 [ ] Build global passe
-[ ] Branche pushée sur origin
-[ ] PR créée avec description complète
-[ ] PR pointe vers main (--base main)
+[ ] Branche pushée sur origin pour chaque repo touché
+[ ] PR créée pour chaque repo touché (N packages = N PRs)
+[ ] Chaque PR pointe vers main (--base main)
+[ ] Chaque PR body contient : Quoi, Pourquoi, Packages touchés, Comment tester
 ```
 
 ### Interdit
@@ -542,3 +545,5 @@ pnpm build                   # Build global si plusieurs packages
 - `git commit` directement sur main — NON
 - `git push --force` — NON
 - Créer une PR sans avoir buildé — NON
+- Créer une PR dans Studio root au lieu du repo du package — NON
+- Finir une tâche avec un package modifié mais sans PR — NON
