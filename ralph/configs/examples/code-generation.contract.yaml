@@ -1,0 +1,21 @@
+name: code-generation
+version: 1
+
+schema:
+  required_fields:
+    - summary
+    - files_changed
+  files_changed:
+    min_items: 1
+    item_schema:
+      required: [path, action, content]
+
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager.write_file
+
+custom_rules:
+  - name: no-theatre
+    description: "Agent must actually call tools, not just describe calling them"
+    check: "tool_calls_count > 0 OR stage_kind != code_generation"

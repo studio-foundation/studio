@@ -1,0 +1,15 @@
+
+name: simple
+description: Simple test pipeline
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    ralph:
+      max_attempts: 2
+      retry_strategy: none
+    context:
+      include:
+        - input
