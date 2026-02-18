@@ -1,0 +1,26 @@
+{
+  "name": "@studio/contracts",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types and interfaces for Studio v7",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["studio", "types", "contracts"],
+  "author": "Ariane Guay",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
