@@ -1,12 +1,65 @@
-import { readdir, readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
+import { readdir, readFile, writeFile, unlink, mkdir, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import chalk from 'chalk';
+import { load } from 'js-yaml';
+import { select, checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
 
 const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
 
 export function getToolsDir(studioDir: string, project: string): string {
   return resolve(studioDir, 'projects', project, 'tools');
+}
+
+export async function listAvailableTools(): Promise<{ name: string; description: string }[]> {
+  const entries = await readdir(TOOL_TEMPLATES_DIR);
+  const yamlFiles = entries.filter((f) => f.endsWith('.tool.yaml')).sort();
+  const tools: { name: string; description: string }[] = [];
+  for (const file of yamlFiles) {
+    const content = await readFile(resolve(TOOL_TEMPLATES_DIR, file), 'utf-8');
+    const parsed = load(content) as { name?: string; description?: string };
+    const toolName = file.replace('.tool.yaml', '');
+    tools.push({
+      name: toolName,
+      description: parsed.description ?? '',
+    });
+  }
+  return tools;
+}
+
+export async function toolsAddDirect(
+  studioDir: string,
+  project: string,
+  toolNames: string[]
+): Promise<{ installed: string[]; skipped: string[] }> {
+  const toolsDir = getToolsDir(studioDir, project);
+  await mkdir(toolsDir, { recursive: true });
+
+  const installed: string[] = [];
+  const skipped: string[] = [];
+
+  for (const name of toolNames) {
+    const templatePath = resolve(TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
+    let templateContent: string;
+    try {
+      templateContent = await readFile(templatePath, 'utf-8');
+    } catch {
+      const available = await listAvailableTools();
+      throw new Error(`Unknown tool '${name}'. Available: ${available.map((t) => t.name).join(', ')}`);
+    }
+
+    const destPath = resolve(toolsDir, `${name}.tool.yaml`);
+    const alreadyInstalled = await access(destPath).then(() => true).catch(() => false);
+    if (alreadyInstalled) {
+      skipped.push(name);
+      continue;
+    }
+
+    await writeFile(destPath, templateContent, 'utf-8');
+    installed.push(name);
+  }
+
+  return { installed, skipped };
 }
 
 export async function listTools(toolsDir: string): Promise<string[]> {
@@ -88,28 +141,98 @@ export async function toolsCommand(
       }
 
       case 'add': {
-        const name = args[0];
-        if (!name) {
-          console.error('Usage: studio tools add <name> --project <project>');
-          process.exit(1);
-        }
-        const { toolsDir, project } = await resolveProjectToolsDir(options.project);
-        await mkdir(toolsDir, { recursive: true });
+        if (args.length === 0) {
+          // Wizard mode
+          const config = await loadConfig();
+          const studioDir = config.resolvedStudioDir;
+          if (!studioDir) {
+            console.error("Error: No .studio/ directory found. Run 'studio init' first.");
+            process.exit(1);
+          }
 
-        const templatePath = resolve(TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
-        let templateContent: string;
-        try {
-          templateContent = await readFile(templatePath, 'utf-8');
-        } catch {
-          console.error(
-            `Error: Unknown tool '${name}'. Available: repo-manager, shell, search`
-          );
-          process.exit(1);
+          // Discover projects
+          const projectsDir = resolve(studioDir, 'projects');
+          let projectEntries: string[];
+          try {
+            const entries = await readdir(projectsDir, { withFileTypes: true });
+            projectEntries = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+          } catch {
+            projectEntries = [];
+          }
+
+          if (projectEntries.length === 0) {
+            console.error(chalk.red("No projects found. Run 'studio project add' first."));
+            process.exit(1);
+          }
+
+          // Select project
+          let selectedProject: string;
+          if (options.project) {
+            selectedProject = options.project;
+          } else if (projectEntries.length === 1) {
+            selectedProject = projectEntries[0]!;
+          } else {
+            selectedProject = await select({
+              message: 'Which project?',
+              choices: projectEntries.map((p) => ({ value: p, name: p })),
+            });
+          }
+
+          // Select tools via checkbox
+          console.log('');
+          const available = await listAvailableTools();
+          const alreadyInstalled = await listTools(getToolsDir(studioDir, selectedProject));
+
+          const choices = available.map((t) => ({
+            value: t.name,
+            name: `${t.name} — ${t.description}`,
+            disabled: alreadyInstalled.includes(t.name) ? '(already installed)' : false,
+          }));
+
+          const selected: string[] = await checkbox({
+            message: 'Select tools to install:',
+            choices,
+          });
+
+          if (selected.length === 0) {
+            console.log('No tools selected.');
+            break;
+          }
+
+          // Install
+          console.log('\nInstalling tools...');
+          const { installed, skipped } = await toolsAddDirect(studioDir, selectedProject, selected);
+
+          for (const name of installed) {
+            console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
+          }
+          for (const name of skipped) {
+            console.log(chalk.yellow(`  ⚠ ${name} already installed, skipping`));
+          }
+          console.log('');
+          console.log(`Done! ${installed.length} tool${installed.length !== 1 ? 's' : ''} installed in '${selectedProject}'.`);
+          break;
         }
 
-        const destPath = resolve(toolsDir, `${name}.tool.yaml`);
-        await writeFile(destPath, templateContent, 'utf-8');
-        console.log(chalk.green(`✓ Added tool '${name}' to project '${project}'`));
+        // Direct mode
+        const { project } = await resolveProjectToolsDir(options.project);
+        const config = await loadConfig();
+        const studioDir = config.resolvedStudioDir!;
+
+        const { installed, skipped } = await toolsAddDirect(studioDir, project, args);
+
+        for (const name of installed) {
+          console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
+        }
+        for (const name of skipped) {
+          console.log(chalk.yellow(`  ⚠ ${name} already installed, skipping`));
+        }
+        console.log('');
+        if (installed.length > 0) {
+          console.log(`Done! ${installed.length} tool${installed.length > 1 ? 's' : ''} installed in '${project}'.`);
+        } else {
+          console.log('No new tools installed.');
+        }
         break;
       }
 
