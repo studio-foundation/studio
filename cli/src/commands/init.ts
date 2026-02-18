@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, access, cp } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { findStudioDir } from '../studio-dir.js';
@@ -11,11 +11,13 @@ const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
 
 /**
  * Create the full .studio/ directory structure in `cwd`.
+ * If templateName is provided, copies the template's project/ subdir.
  * Throws if .studio/ already exists anywhere in the directory tree.
  */
 export async function createStudioStructure(
   cwd: string,
-  projectName = 'default'
+  projectName = 'default',
+  templateName?: string
 ): Promise<void> {
   // Check if already initialized
   const existing = await findStudioDir(cwd);
@@ -29,9 +31,34 @@ export async function createStudioStructure(
   const studioDir = resolve(cwd, '.studio');
   const projectDir = join(studioDir, 'projects', projectName);
 
-  // Create project subdirectories
-  for (const sub of PROJECT_SUBDIRS) {
-    await mkdir(join(projectDir, sub), { recursive: true });
+  if (templateName) {
+    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
+
+    // Verify template exists
+    const templateExists = await access(templateDir).then(() => true).catch(() => false);
+    if (!templateExists) {
+      throw new Error(
+        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
+      );
+    }
+
+    // Copy project/ subdir if present, otherwise create empty dirs
+    const templateProjectDir = join(templateDir, 'project');
+    const hasProjectDir = await access(templateProjectDir).then(() => true).catch(() => false);
+
+    if (hasProjectDir) {
+      await mkdir(projectDir, { recursive: true });
+      await cp(templateProjectDir, projectDir, { recursive: true });
+    } else {
+      for (const sub of PROJECT_SUBDIRS) {
+        await mkdir(join(projectDir, sub), { recursive: true });
+      }
+    }
+  } else {
+    // No template — create empty subdirectories
+    for (const sub of PROJECT_SUBDIRS) {
+      await mkdir(join(projectDir, sub), { recursive: true });
+    }
   }
 
   // Create runs/logs/
@@ -73,16 +100,18 @@ async function updateGitignore(cwd: string): Promise<void> {
 
 interface InitOptions {
   template?: string;
+  project?: string;
 }
 
 export async function initCommand(options: InitOptions = {}): Promise<void> {
   try {
     const cwd = process.cwd();
-    const projectName = options.template ?? 'default';
+    const templateName = options.template;
+    const projectName = options.project ?? options.template ?? 'default';
 
     console.log(chalk.blue('\nInitializing Studio project...\n'));
 
-    await createStudioStructure(cwd, projectName);
+    await createStudioStructure(cwd, projectName, templateName);
 
     console.log(chalk.gray(`  Created .studio/config.yaml`));
     console.log(

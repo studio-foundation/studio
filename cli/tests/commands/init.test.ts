@@ -86,3 +86,50 @@ describe('initCommand already initialized', () => {
     }
   });
 });
+
+describe('createStudioStructure with templates', () => {
+  it('copies template project files when templateName is software', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP, 'software', 'software');
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'agents', 'coder.agent.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'contracts', 'code-output.contract.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'tools', 'repo-manager.tool.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'inputs', 'example.input.yaml'))).toBe(true);
+  });
+
+  it('creates empty dirs for blank template (no project/ subdir)', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP, 'blank', 'blank');
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'blank', 'pipelines'))).toBe(true);
+    const { readdir } = await import('node:fs/promises');
+    const entries = await readdir(resolve(TMP, '.studio', 'projects', 'blank', 'pipelines'));
+    expect(entries).toEqual([]);
+  });
+
+  it('throws with helpful message when template does not exist', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await expect(createStudioStructure(TMP, 'xyz', 'xyz')).rejects.toThrow(
+      "Template 'xyz' not found"
+    );
+  });
+
+  it('error message mentions studio templates list', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    try {
+      await createStudioStructure(TMP, 'xyz', 'xyz');
+      expect.fail('should have thrown');
+    } catch (err) {
+      expect(err instanceof Error && err.message).toContain('studio templates list');
+    }
+  });
+
+  it('custom project name with template: copies to named project dir', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP, 'my-app', 'software');
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'my-app', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+  });
+});
