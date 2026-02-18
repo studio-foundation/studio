@@ -18,7 +18,11 @@ export async function listCommand(
 ): Promise<void> {
   try {
     const config = await loadConfig();
-    const configsDir = resolve(config.paths?.configs || './configs');
+    const configsDir = config.paths?.configs
+      ? resolve(config.paths.configs)
+      : config.resolvedStudioDir
+        ? resolve(config.resolvedStudioDir, 'projects')
+        : resolve('./configs');
 
     switch (resource) {
       case 'projects':
