@@ -164,6 +164,24 @@ export async function writeProviderToConfig(
 }
 
 /**
+ * Direct init (non-interactive) — creates structure and writes config.
+ * Used when all CLI flags are provided (CI/CD mode).
+ */
+export async function directInit(
+  cwd: string,
+  projectName: string,
+  templateName: string,
+  provider: string,
+  apiKey: string
+): Promise<void> {
+  await createStudioStructure(cwd, projectName, templateName);
+  if (provider !== 'later' && apiKey) {
+    const studioDir = resolve(cwd, '.studio');
+    await writeProviderToConfig(studioDir, provider, apiKey);
+  }
+}
+
+/**
  * Validate API key format without making a network call.
  * Returns true if valid, or an error string to display.
  */

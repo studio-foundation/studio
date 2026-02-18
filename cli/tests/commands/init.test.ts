@@ -205,6 +205,60 @@ describe('backupStudioDir', () => {
   });
 });
 
+describe('directInit', () => {
+  it('creates structure and writes provider config', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-test-key');
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'my-project', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+
+    const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, { apiKey: string }>;
+    expect(providers.anthropic.apiKey).toBe('sk-ant-test-key');
+  });
+
+  it('skips writing config when provider is "later"', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'my-project', 'software', 'later', '');
+
+    expect(await exists(resolve(TMP, '.studio'))).toBe(true);
+    // Config.yaml exists (from template) but has no providers key written by directInit
+    const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
+    // The template config.yaml has anthropic placeholder but no actual key
+    expect(raw).not.toContain('sk-ant-');
+  });
+
+  it('throws when template does not exist', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await expect(
+      directInit(TMP, 'my-project', 'nonexistent', 'anthropic', 'sk-ant-key')
+    ).rejects.toThrow("Template 'nonexistent' not found");
+  });
+
+  it('throws when .studio/ already exists', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key');
+    await expect(
+      directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key')
+    ).rejects.toThrow('already initialized');
+  });
+
+  it('works with force: backup then directInit succeeds', async () => {
+    const { directInit, backupStudioDir } = await import('../../src/commands/init.js');
+    // First init
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-first');
+    // Backup + reinit
+    await backupStudioDir(TMP);
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-second');
+
+    const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, { apiKey: string }>;
+    expect(providers.anthropic.apiKey).toBe('sk-ant-second');
+  });
+});
+
 describe('writeProviderToConfig', () => {
   // We need a fresh .studio/ for each test — reuse the outer TMP/beforeEach/afterEach.
 
