@@ -1,0 +1,42 @@
+{
+  "name": "@studio/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for Studio v7",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "studio": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "studio",
+    "cli"
+  ],
+  "author": "Ariane Guay",
+  "license": "ISC",
+  "dependencies": {
+    "@studio/contracts": "file:../contracts",
+    "@studio/engine": "file:../engine",
+    "@studio/ralph": "file:../ralph",
+    "@studio/runner": "file:../runner",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "js-yaml": "^4.1.1",
+    "ora": "^9.3.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.2.3",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  }
+}
