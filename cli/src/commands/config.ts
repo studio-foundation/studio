@@ -27,6 +27,30 @@ export function validateApiKeyForProvider(provider: string, key: string): true |
   return true;
 }
 
+export async function addProviderConfig(
+  configFile: string,
+  provider: string,
+  apiKey: string,
+  setDefault: boolean
+): Promise<void> {
+  const config = await loadRawConfig(configFile);
+
+  if (!config.providers || typeof config.providers !== 'object') {
+    config.providers = {};
+  }
+  (config.providers as Record<string, unknown>)[provider] = { apiKey };
+
+  if (setDefault) {
+    const meta = PROVIDERS.find((p) => p.id === provider);
+    config.defaults = {
+      provider,
+      model: meta?.defaultModel ?? 'claude-sonnet-4-20250514',
+    };
+  }
+
+  await saveConfig(configFile, config);
+}
+
 export function getConfigValue(config: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.');
   let current: unknown = config;
