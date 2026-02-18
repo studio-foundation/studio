@@ -1,8 +1,0 @@
-name: recipe-plan
-version: 1
-schema:
-  required_fields:
-    - ingredients
-    - equipment
-    - estimated_time_minutes
-    - steps_outline

@@ -1,8 +1,0 @@
-name: implementation-plan
-version: 1
-schema:
-  required_fields:
-    - summary
-    - steps
-    - files_to_modify
-    - risks
