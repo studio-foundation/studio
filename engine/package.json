@@ -24,9 +24,9 @@
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@studio/contracts": "file:../contracts",
-    "@studio/ralph": "file:../ralph",
-    "@studio/runner": "file:../runner",
+    "@studio/contracts": "workspace:*",
+    "@studio/ralph": "workspace:*",
+    "@studio/runner": "workspace:*",
     "better-sqlite3": "^9.0.0",
     "js-yaml": "^4.1.0"
   },
