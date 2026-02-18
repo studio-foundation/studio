@@ -166,6 +166,45 @@ describe('validateApiKeyFormat', () => {
   });
 });
 
+describe('backupStudioDir', () => {
+  it('moves .studio/ to a backup directory', async () => {
+    const { createStudioStructure, backupStudioDir } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const backupPath = await backupStudioDir(TMP);
+
+    // Original .studio/ is gone
+    expect(await exists(resolve(TMP, '.studio'))).toBe(false);
+    // Backup dir exists
+    expect(await exists(backupPath)).toBe(true);
+  });
+
+  it('backup directory name starts with .studio.backup-', async () => {
+    const { createStudioStructure, backupStudioDir } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const backupPath = await backupStudioDir(TMP);
+    const backupName = backupPath.split('/').at(-1)!;
+
+    expect(backupName).toMatch(/^\.studio\.backup-\d{4}-\d{2}-\d{2}-\d{2}h\d{2}m\d{2}s$/);
+  });
+
+  it('backup preserves files from original .studio/', async () => {
+    const { createStudioStructure, backupStudioDir } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+
+    const backupPath = await backupStudioDir(TMP);
+
+    expect(await exists(resolve(backupPath, 'config.yaml'))).toBe(true);
+    expect(await exists(resolve(backupPath, 'registry.lock.json'))).toBe(true);
+  });
+
+  it('throws if .studio/ does not exist', async () => {
+    const { backupStudioDir } = await import('../../src/commands/init.js');
+    await expect(backupStudioDir(TMP)).rejects.toThrow();
+  });
+});
+
 describe('writeProviderToConfig', () => {
   // We need a fresh .studio/ for each test — reuse the outer TMP/beforeEach/afterEach.
 

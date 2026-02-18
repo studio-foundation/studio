@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, access, cp } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, access, cp, rename } from 'node:fs/promises';
 import { resolve, join, basename } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
@@ -8,6 +8,26 @@ import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
+
+function formatBackupTimestamp(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-` +
+    `${pad(d.getHours())}h${pad(d.getMinutes())}m${pad(d.getSeconds())}s`
+  );
+}
+
+/**
+ * Rename .studio/ to .studio.backup-<timestamp>/ in `cwd`.
+ * Returns the absolute path to the backup directory.
+ */
+export async function backupStudioDir(cwd: string): Promise<string> {
+  const studioDir = resolve(cwd, '.studio');
+  const backupDir = resolve(cwd, `.studio.backup-${formatBackupTimestamp()}`);
+  await rename(studioDir, backupDir);
+  return backupDir;
+}
 
 const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 
