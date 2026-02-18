@@ -1,7 +1,6 @@
 import { readdir, readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import chalk from 'chalk';
-import { findStudioDir } from '../studio-dir.js';
 import { loadConfig } from '../config.js';
 
 const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
