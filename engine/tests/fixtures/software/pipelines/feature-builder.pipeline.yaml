@@ -1,0 +1,69 @@
+name: feature-builder
+description: Build a feature from a user description
+version: 2
+
+repo:
+  url: https://github.com/arianeguay/pipelines-test-repo
+  branch: main
+
+stages:
+  - name: brief-analysis
+    kind: analysis
+    agent: analyst
+    contract: brief-analysis
+    ralph:
+      max_attempts: 3
+      retry_strategy: exponential
+      max_tool_calls: 5
+    context:
+      include:
+        - input
+
+  - name: implementation-plan
+    kind: planning
+    agent: analyst
+    contract: implementation-plan
+    ralph:
+      max_attempts: 3
+      retry_strategy: exponential
+      max_tool_calls: 5
+    context:
+      include:
+        - input
+        - previous_stage_output
+
+  - group: implementation-review
+    max_iterations: 3
+    stages:
+      - name: code-generation
+        kind: code_generation
+        agent: coder
+        contract: code-generation
+        ralph:
+          max_attempts: 5
+          retry_strategy: exponential
+          max_tool_calls: 200
+        tools:
+          required:
+            - repo_manager-write_file
+        context:
+          include:
+            - input
+            - all_stage_outputs
+            - repo_files
+            - group_feedback
+          packs:
+            - example-conventions
+
+      - name: qa-review
+        kind: qa
+        agent: analyst
+        contract: qa-review
+        ralph:
+          max_attempts: 3
+          retry_strategy: exponential
+          max_tool_calls: 5
+        context:
+          include:
+            - input
+            - all_stage_outputs

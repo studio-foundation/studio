@@ -5,8 +5,8 @@ import { parseAgentYaml } from '../src/pipeline/agent-loader.js';
 import { parseContractYaml } from '../src/pipeline/contract-loader.js';
 import { isStageGroup } from '@studio/contracts';
 
-const CONFIGS_DIR = join(import.meta.dirname, '..', 'configs');
-const PIPELINES_DIR = join(CONFIGS_DIR, 'software', 'pipelines');
+const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
+const PIPELINES_DIR = join(FIXTURES_DIR, 'software', 'pipelines');
 
 describe('parsePipelineYaml', () => {
   it('parses a valid pipeline YAML', () => {
