@@ -266,7 +266,16 @@ Different agents can use different providers. Switch models without changing pip
 @studio/contracts    → Shared types (zero dependencies)
 ```
 
-Five packages in a single monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
+Five packages in a single pnpm monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
+
+**Build from source:**
+
+```bash
+git clone https://github.com/arianeguay/studio-workspace
+cd studio-workspace
+pnpm install
+pnpm build
+```
 
 ---
 

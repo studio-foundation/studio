@@ -28,8 +28,8 @@ GitHub Actions    →  Community registry
 ```
 
 **2 repos :**
-- **Repo Studio** — le produit (publié sur npm). Contient les 5 packages + templates built-in.
-- **Repos utilisateurs** — les projets qui UTILISENT Studio (ex: code-builder). Contiennent `.studio/` avec leurs configs.
+- **Repo Studio** — le produit (publié sur npm). Contient les 5 packages.
+- **Repos utilisateurs** — les projets qui UTILISENT Studio (ex: `code-builder`). Contiennent `.studio/projects/` avec leurs configs.
 
 ## Architecture — 5 packages, 1 monorepo
 
@@ -45,7 +45,6 @@ Studio/                         # UN repo git, pnpm workspaces
 │   └── package.json
 ├── cli/                        # @studio/cli — interface terminal
 │   └── package.json
-├── templates/                  # Templates built-in (software, content, etc.)
 ├── package.json                # Root workspace
 ├── pnpm-workspace.yaml
 └── CLAUDE.md
@@ -97,8 +96,6 @@ my-project/                           # Le repo de l'utilisateur
 - **Gitignored :** `.studio/config.yaml` (API keys), `.studio/runs/`
 
 `findStudioDir()` remonte les dossiers parents jusqu'à trouver `.studio/`, exactement comme `git` cherche `.git/`.
-
-**Backward compat :** Si `.studio/` n'existe pas, le engine fallback sur `engine/configs/`.
 
 ## CLI vs API
 
@@ -189,7 +186,7 @@ Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin run
 
 ## Configs YAML — source de vérité
 
-Les configs sont organisées par projet : `.studio/projects/<projet>/` (côté utilisateur) ou `templates/<projet>/` (templates built-in dans le monorepo).
+Les configs sont organisées par projet : `.studio/projects/<projet>/` dans le repo utilisateur (ex: `code-builder/.studio/projects/software/`).
 
 **Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
@@ -266,22 +263,27 @@ studio tools info git                            # Détail d'un tool
 studio validate <contract> <output.json>         # Valider sans LLM
 ```
 
-## Format .studio/config.yaml
+## Format .studiorc.yaml
+
+Fichier de configuration à la racine du repo utilisateur (ex: `code-builder/.studiorc.yaml`). Gitignored.
 
 ```yaml
-# Généré par studio config, éditable aussi à la main
 providers:
   anthropic:
     apiKey: ${ANTHROPIC_API_KEY}
   openai:
     apiKey: ${OPENAI_API_KEY}
 
+paths:
+  configs: .studio/projects       # Chemin vers les configs du projet
+  projects_dir: .studio/projects  # Chemin pour les runs et clones
+
 defaults:
   provider: anthropic
   model: claude-sonnet-4-20250514
 ```
 
-Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`. Ce fichier est gitignored — ne commit jamais les API keys.
+Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`. Ne commit jamais ce fichier — il contient des secrets.
 
 ---
 
