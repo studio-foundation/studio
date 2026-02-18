@@ -1,0 +1,19 @@
+name: analysis
+version: 1
+
+schema:
+  required_fields:
+    - summary
+    - recommendations
+  summary:
+    min_length: 50
+  recommendations:
+    min_items: 1
+
+tool_calls:
+  minimum: 0  # Analysis doesn't require tool calls
+
+custom_rules:
+  - name: actionable-recommendations
+    description: "Recommendations must be specific and actionable"
+    check: "recommendations.length > 0"

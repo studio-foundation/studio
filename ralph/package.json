@@ -1,0 +1,42 @@
+{
+  "name": "@studio/ralph",
+  "version": "0.1.0",
+  "description": "RALPH loop engine - Recursive Automated Loop for Persistent Handling",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "studio",
+    "ralph",
+    "retry",
+    "validation"
+  ],
+  "author": "Ariane Guay",
+  "license": "ISC",
+  "dependencies": {
+    "@studio/contracts": "file:../contracts",
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.2.3",
+    "@vitest/coverage-v8": "^4.0.18",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  }
+}
