@@ -48,3 +48,32 @@ export async function createProjectDir(
     }
   }
 }
+
+/**
+ * Validate a project name: lowercase alphanumeric + hyphens, no leading/trailing hyphens.
+ * Returns true if valid, or an error string if not.
+ */
+export function validateProjectName(name: string): true | string {
+  if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
+    return true;
+  }
+  return 'Project name must be lowercase alphanumeric with hyphens (e.g. my-project)';
+}
+
+/**
+ * Non-interactive project creation.
+ * Validates name, then delegates to createProjectDir.
+ */
+export async function projectAddDirect(
+  studioDir: string,
+  projectName: string,
+  templateName?: string,
+  _description?: string
+): Promise<void> {
+  const validation = validateProjectName(projectName);
+  if (validation !== true) {
+    throw new Error(validation);
+  }
+  const projectsDir = join(studioDir, 'projects');
+  await createProjectDir(projectsDir, projectName, templateName);
+}
