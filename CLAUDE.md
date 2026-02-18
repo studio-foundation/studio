@@ -2,16 +2,63 @@
 
 Studio est un orchestrateur de pipelines agentiques. Il exécute des workflows multi-stages en utilisant des LLMs, avec validation stricte et retry automatique. Il est **domain-agnostic** — le engine ne sait pas ce qu'est du code, un fichier, ou du QA. Tout le domaine vient des configs YAML.
 
-## Architecture — 5 packages
+**Positionnement :** Studio est le `git` des orchestrateurs de pipelines d'agents. Un outil invisible qui vit dans `.studio/`, qu'on installe globalement et qu'on utilise au quotidien. Pas un framework, pas une plateforme — un outil de dev.
+
+## Modèle de distribution
+
+Studio est un **outil qu'on installe**, pas un repo qu'on fork. Comme `git`.
+
+```bash
+npm install -g @studio/cli       # Installer pour usage régulier
+npx @studio/cli init             # Ou essayer sans installer
+
+cd my-project/
+studio init --template software  # Crée .studio/ (comme git init crée .git/)
+studio run software/feature-builder --input "Add dark mode"
+```
 
 ```
-@studio/cli          → Interface terminal (commandes `studio run`, `studio status`)
+git init          →  studio init
+.git/             →  .studio/
+git commit        →  studio run
+git push          →  (API hosted, plus tard)
+GitHub            →  Studio Cloud (produit commercial)
+git hooks         →  Tool plugins (.tool.yaml)
+GitHub Actions    →  Community registry
+```
+
+**2 repos :**
+- **Repo Studio** — le produit (publié sur npm). Contient les 5 packages + templates built-in.
+- **Repos utilisateurs** — les projets qui UTILISENT Studio (ex: code-builder). Contiennent `.studio/` avec leurs configs.
+
+## Architecture — 5 packages, 1 monorepo
+
+```
+Studio/                         # UN repo git, pnpm workspaces
+├── contracts/                  # @studio/contracts — types, interfaces (ZERO dépendances)
+│   └── package.json
+├── ralph/                      # @studio/ralph — retry loop + validation
+│   └── package.json
+├── runner/                     # @studio/runner — tool plugin runtime, LLM providers
+│   └── package.json
+├── engine/                     # @studio/engine — pipeline orchestration, state machine
+│   └── package.json
+├── cli/                        # @studio/cli — interface terminal
+│   └── package.json
+├── templates/                  # Templates built-in (software, content, etc.)
+├── package.json                # Root workspace
+├── pnpm-workspace.yaml
+└── CLAUDE.md
+```
+
+```
+@studio/cli          → Interface terminal (studio run, studio config, etc.)
     │
 @studio/engine       → Orchestration pipeline, state machine, persistence SQLite
     │
     ├── @studio/ralph    → RALPH loop : execute → validate → retry si fail
     │
-    └── @studio/runner   → Appels LLM, exécution tools, multi-provider
+    └── @studio/runner   → Tool plugin runtime, appels LLM, multi-provider
     │
 @studio/contracts    → Types partagés (ZERO dépendances, ZERO logique)
 ```
@@ -20,31 +67,62 @@ Studio est un orchestrateur de pipelines agentiques. Il exécute des workflows m
 
 **Jamais de dépendance inversée.** ralph ne connaît pas runner. runner ne connaît pas engine. Si tu te retrouves à importer un package "vers le haut", c'est une erreur d'architecture.
 
-## Dossiers
+**pnpm workspaces :** Les dépendances internes utilisent `workspace:*`. Un seul `pnpm install` à la racine, un seul `pnpm build`.
+
+## Structure `.studio/` (côté utilisateur)
+
+Quand un utilisateur fait `studio init` dans son projet, tout vit dans `.studio/` :
 
 ```
-Studio/
-├── contracts/          # @studio/contracts — types, interfaces
-├── ralph/              # @studio/ralph — retry loop + validation
-├── runner/             # @studio/runner — LLM providers + tools
-│   └── src/tools/builtin/   # repo-manager, shell, search
-├── engine/             # @studio/engine — pipeline orchestration
-│   └── src/state/           # state machine, status derivation
-├── cli/                # @studio/cli — terminal interface
-└── engine/configs/     # YAML configs organisés par projet
-    ├── software/       # Projet "software" (feature-builder pipeline)
-    │   ├── pipelines/  # Définitions de pipelines
-    │   ├── agents/     # Profils d'agents LLM
-    │   ├── contracts/  # Output contracts (schemas de validation)
-    │   └── inputs/     # Fichiers d'input exemple
-    └── cuisine/        # Projet "cuisine" (recipe-generator pipeline)
-        ├── pipelines/
-        ├── agents/
-        ├── contracts/
-        └── inputs/
+my-project/                           # Le repo de l'utilisateur
+├── .studio/                          # Tout Studio vit ici (comme .git/)
+│   ├── config.yaml                   # Providers, defaults (gitignored)
+│   ├── projects/
+│   │   └── <project>/
+│   │       ├── pipelines/            # *.pipeline.yaml
+│   │       ├── agents/               # *.agent.yaml
+│   │       ├── contracts/            # *.contract.yaml
+│   │       ├── tools/                # *.tool.yaml (tool plugins)
+│   │       └── inputs/               # *.input.yaml
+│   ├── registry.lock.json            # Versions tools installés (commité)
+│   └── runs/                         # Données runtime (gitignored)
+│       ├── runs.db                   # SQLite
+│       └── logs/                     # JSONL
+├── src/                              # Le code du user
+└── .gitignore
 ```
 
-Chaque projet est un dossier 100% autonome. Agents et contracts sont partagés entre les pipelines d'un même projet, jamais entre projets.
+**Git strategy :**
+- **Commité :** `.studio/projects/`, `.studio/registry.lock.json`
+- **Gitignored :** `.studio/config.yaml` (API keys), `.studio/runs/`
+
+`findStudioDir()` remonte les dossiers parents jusqu'à trouver `.studio/`, exactement comme `git` cherche `.git/`.
+
+**Backward compat :** Si `.studio/` n'existe pas, le engine fallback sur `engine/configs/`.
+
+## CLI vs API
+
+Le CLI et l'API sont deux interfaces distinctes sur le même engine. Comme `git` et GitHub.
+
+```
+CLI = usage direct (humain devant un terminal)
+  studio init              → crée .studio/
+  studio config set        → modifie config.yaml
+  studio tools add         → installe un tool
+  studio run               → lance un pipeline ← USAGE QUOTIDIEN
+  studio status            → check un run
+  studio validate          → dry-run
+
+API = usage programmatique (machine-to-machine)
+  Linear webhook → POST /runs    → auto-trigger sans humain
+  CI/CD → POST /runs             → pipeline dans GitHub Actions
+  Slack bot → POST /runs         → lance depuis Slack
+  Dashboard → GET /runs          → affichage web
+```
+
+`studio run` est une commande de première classe — un dev qui utilise code-builder au quotidien fait `studio run` dans son terminal. L'API c'est pour quand il n'y a pas d'humain devant le terminal.
+
+Le CLI est gratuit forever (comme `git`). L'API hosted est le produit monétisable (comme GitHub).
 
 ## Concepts clés
 
@@ -60,9 +138,11 @@ Chaque projet est un dossier 100% autonome. Agents et contracts sont partagés e
 
 **Post-validation rejection** — Le engine peut détecter qu'un stage a répondu correctement (format OK) mais que le verdict est négatif (ex: QA qui rejette). Status = `rejected`, pas `failed`. Configuré via le contract YAML, pas hardcodé.
 
-**Groups** — Boucles de feedback multi-stages. Un group contient plusieurs stages qui s'exécutent en itérations. Si le dernier stage du groupe rejette (via `post_validation.rejection_detection`), le group redémarre depuis le début avec le feedback accumulé. Maximum d'itérations configuré via `max_iterations`. Les stages dans un group peuvent accéder au `group_feedback` via leur context. Implémenté dans software/feature-builder (implementation-review) et cuisine/recipe-generator (creation-review).
+**Groups** — Boucles de feedback multi-stages. Un group contient plusieurs stages qui s'exécutent en itérations. Si le dernier stage du groupe rejette (via `post_validation.rejection_detection`), le group redémarre depuis le début avec le feedback accumulé. Maximum d'itérations configuré via `max_iterations`. Les stages dans un group peuvent accéder au `group_feedback` via leur context.
 
 **Context propagation** — Chaque stage peut configurer exactement quel contexte il reçoit via `context.include: [...]`. Options disponibles : `input` (input initial du pipeline), `previous_stage_output` (output du stage précédent), `all_stage_outputs` (outputs de tous les stages précédents), `group_feedback` (feedback accumulé dans le group), `repo_files` (fichiers du repo si applicable).
+
+**Tool plugin** — Un fichier `.tool.yaml` qui définit des commandes disponibles aux agents. Chaque plugin contient ses paramètres, sa logique d'exécution (shell ou builtin), un prompt snippet auto-injecté, et ses contraintes. Créer un tool = juste du YAML, pas de code.
 
 ## State machine
 
@@ -89,29 +169,35 @@ pending → running → success
 
 6. **Les prompts sont dans runner.** `prompt-builder.ts` assemble le system prompt + context. Le engine ne construit pas de prompts.
 
-## Tools (runner/src/tools/builtin/)
+## Tools
 
-| Tool | Fichier | Description |
-|------|---------|-------------|
-| `repo_manager-read_file` | repo-manager.ts | Lire un fichier du workspace |
-| `repo_manager-write_file` | repo-manager.ts | Écrire/créer un fichier |
-| `repo_manager-list_files` | repo-manager.ts | Lister les fichiers |
-| `shell-run_command` | shell.ts | Exécuter une commande shell |
-| `search-search_codebase` | search.ts | Rechercher dans le code |
+Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin runtime.
+
+**Builtins actuels :**
+
+| Tool | Description |
+|------|-------------|
+| `repo_manager-read_file` | Lire un fichier du workspace |
+| `repo_manager-write_file` | Écrire/créer un fichier |
+| `repo_manager-list_files` | Lister les fichiers |
+| `shell-run_command` | Exécuter une commande shell |
+| `search-search_codebase` | Rechercher dans le code |
 
 **Format des tools :** Les noms utilisent des tirets (`-`), pas des points (`.`). Exemple : `repo_manager-write_file`, pas `repo_manager.write_file`.
 
-Pour ajouter un tool : créer un fichier dans `builtin/`, l'enregistrer dans le tool registry, l'ajouter à l'agent YAML.
+**Pour ajouter un tool :** Créer un `.tool.yaml` dans `.studio/projects/<projet>/tools/`. Le runner le charge automatiquement.
 
 ## Configs YAML — source de vérité
 
-Les configs sont organisées par projet : `engine/configs/<projet>/`.
+Les configs sont organisées par projet : `.studio/projects/<projet>/` (côté utilisateur) ou `templates/<projet>/` (templates built-in dans le monorepo).
 
 **Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
 **Contracts :** `<projet>/contracts/*.contract.yaml` — JSON schema + contraintes (tool_calls minimum, rejection detection).
 
 **Agents :** `<projet>/agents/*.agent.yaml` — provider, model, temperature, tools autorisés, system prompt.
+
+**Tools :** `<projet>/tools/*.tool.yaml` — tool plugins (commandes, paramètres, prompt snippet, contraintes).
 
 **Inputs :** `<projet>/inputs/*.input.yaml` — fichiers d'input exemple.
 
@@ -157,61 +243,45 @@ stages:
 ## Commandes
 
 ```bash
+# Usage quotidien
 studio run <projet/pipeline> --input "..."       # Lancer un pipeline
 studio run <projet/pipeline> --input-file X.yaml # Lancer avec input YAML
 studio status [run-id]                           # Vérifier le status
 studio list projects                             # Lister les projets
 studio list pipelines                            # Lister les pipelines
-studio list agents                               # Lister les agents
-studio list runs                                 # Lister les runs (nécessite DB)
+
+# Configuration
+studio init                                      # Créer .studio/ (wizard interactif)
+studio config set provider anthropic --api-key $KEY  # Configurer un provider
+studio config set default.model claude-haiku-4-20250514
+studio config list                               # Voir la config (API keys masquées)
+
+# Tools
+studio tools list                                # Tools du projet actif
+studio tools add git --project software          # Installer un tool
+studio tools remove nutrition                    # Supprimer un tool
+studio tools info git                            # Détail d'un tool
+
+# Validation
+studio validate <contract> <output.json>         # Valider sans LLM
 ```
 
-Exemples :
-```bash
-studio run software/feature-builder --input-file engine/configs/software/inputs/faq-about.input.yaml
-studio run cuisine/recipe-generator --input-file engine/configs/cuisine/inputs/pad-thai.input.yaml
-```
-
-## Avant de modifier du code
-
-1. **Identifie dans quel package tu es.** Respecte les frontières.
-2. **Vérifie les dépendances.** Ne crée jamais de dépendance inverse.
-3. **Vérifie les YAML.** Si ta feature peut être configurée en YAML plutôt que codée, fais-le en YAML.
-4. **Rebuild le package après.** `cd <package> && npm run build`
-5. **Le engine est domain-agnostic.** Si tu mets du jargon métier dans le engine, c'est faux.
-
----
-
-## Format .studiorc.yaml (Configuration)
-
-Le fichier `.studiorc.yaml` à la racine du projet configure les providers LLM et les chemins.
-
-**Structure complète :**
+## Format .studio/config.yaml
 
 ```yaml
-# Providers LLM (au moins un requis)
+# Généré par studio config, éditable aussi à la main
 providers:
   anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}    # Variable d'env ou valeur directe
+    apiKey: ${ANTHROPIC_API_KEY}
   openai:
     apiKey: ${OPENAI_API_KEY}
 
-# Chemins (optionnel si structure standard)
-paths:
-  configs: ./engine/configs          # Dossier racine des configs
-  projects_dir: ${STUDIO_PROJECTS_DIR}  # Optionnel : dossier de repos externes
-
-# Defaults (optionnel)
 defaults:
-  provider: anthropic                # Provider par défaut si non spécifié dans agent
-  model: claude-sonnet-4-20250514    # Model par défaut
+  provider: anthropic
+  model: claude-sonnet-4-20250514
 ```
 
-**Notes importantes :**
-- Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`
-- Si `paths.configs` n'est pas spécifié, le engine cherche dans `./engine/configs`
-- Le `defaults.provider` est utilisé si l'agent YAML ne spécifie pas de provider
-- Le fichier est dans le `.gitignore` — ne commit jamais les API keys
+Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`. Ce fichier est gitignored — ne commit jamais les API keys.
 
 ---
 
@@ -223,13 +293,11 @@ defaults:
 name: brief-analysis
 version: 1
 schema:
-  required_fields:        # Champs obligatoires dans l'output JSON
+  required_fields:
     - summary
     - requirements
     - acceptance_criteria
 ```
-
-L'agent doit retourner un JSON avec ces 3 champs. Si un champ manque, validation fail.
 
 ### Contract avec Anti-théâtre (code-generation)
 
@@ -241,58 +309,36 @@ schema:
     - summary
     - files_changed
 tool_calls:
-  minimum: 1                        # Au moins 1 tool call requis
-  required_tools:                   # Tools spécifiques obligatoires
+  minimum: 1
+  required_tools:
     - repo_manager.write_file       # Format avec point dans le YAML
 ```
 
 **Important :** Dans les contracts YAML, les tools utilisent le format `repo_manager.write_file` (point), mais les tools réels dans le code utilisent `repo_manager-write_file` (tiret). Le engine fait la transformation.
 
-Si l'agent complète sans appeler `repo_manager-write_file`, validation fail même si l'output JSON est correct.
-
 ### Contract avec Rejection Detection (qa-review)
 
-Voir section "Format rejection detection (post_validation)" plus haut pour l'exemple complet.
+Voir section "Format rejection detection (post_validation)" plus haut.
 
 ---
 
 ## Format des Inputs (.input.yaml)
 
-Les fichiers dans `<projet>/inputs/` définissent l'input initial du pipeline. Format libre — c'est du YAML arbitraire qui sera passé aux stages.
-
-**Exemple (faq-about.input.yaml) :**
+Format libre — du YAML arbitraire passé aux stages.
 
 ```yaml
-brief_summary: "Ajouter une section FAQ simple a la page About, avec quelques questions/reponses, en respectant le style existant."
-feature_brief: "Ajouter une section FAQ simple a la page About avec quelques questions/reponses en accord avec le style existant."
+brief_summary: "Ajouter une section FAQ simple a la page About."
 target_page: "src/pages/about.tsx"
 acceptance_criteria:
   - "La section FAQ apparait sur la page About sans casser la mise en page."
-  - "Chaque question est affichee comme un accordeon avec ouverture/fermeture."
-  - "Le style (typographie, espacements, couleurs) est coherent avec le design existant."
-  - "Aucune regression: build et tests passent."
-sample_faq:
-  - question: "C'est quoi ce projet?"
-    answer: "Une breve description du site/projet."
-  - question: "Comment me contacter?"
-    answer: "Lien vers la page contact ou courriel."
+  - "Le style est coherent avec le design existant."
 ```
-
-**Usage :**
-
-```bash
-studio run software/feature-builder --input-file engine/configs/software/inputs/faq-about.input.yaml
-```
-
-Tout le contenu YAML est passé au premier stage via `context.include: [input]`. Structure ton input selon ce dont tes agents ont besoin.
 
 ---
 
 ## Système d'Events (Observabilité)
 
 Le engine émet des events à chaque étape du pipeline. Définis dans `engine/src/events.ts`.
-
-**Events disponibles :**
 
 | Event | Quand | Données |
 |-------|-------|---------|
@@ -306,168 +352,48 @@ Le engine émet des events à chaque étape du pipeline. Définis dans `engine/s
 | `onGroupFeedback` | Group rejette | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group termine | `iterations`, `status` |
 
-**Exemple d'utilisation (dans le CLI) :**
-
-```typescript
-const events: EngineEvents = {
-  onStageComplete: (event) => {
-    console.log(`✓ ${event.stage_name} (attempt ${event.attempts})`);
-    if (event.rejection_reason) {
-      console.log(`  ✗ Rejected: ${event.rejection_reason}`);
-    }
-  },
-  onGroupFeedback: (event) => {
-    console.log(`↻ Group ${event.group_name} iteration ${event.iteration}: ${event.rejection_reason}`);
-  }
-};
-
-await engine.executePipeline(pipelineConfig, input, events);
-```
-
-Les events permettent d'afficher la progression, de logger, ou d'envoyer des métriques à un système externe.
-
 ---
 
 ## Common Pitfalls (Erreurs Fréquentes)
 
 ### 1. Oublier de rebuild après modification
 
-**Symptôme :** Tes changements dans un package ne sont pas pris en compte.
-
-**Solution :** Après toute modif dans `contracts/`, `ralph/`, `runner/`, ou `engine/`, fais :
-
-```bash
-cd <package>
-npm run build
-```
-
-Les packages consomment les `.js` compilés dans `dist/`, pas les `.ts` sources.
+`pnpm build` à la racine du monorepo rebuild tout dans le bon ordre.
 
 ### 2. Dépendance inversée accidentelle
 
-**Symptôme :** Import error ou circular dependency.
-
-**Erreur typique :** Importer `engine` depuis `ralph`, ou `runner` depuis `contracts`.
-
-**Solution :** Vérifie le graphe de dépendances :
-- `contracts` → rien (leaf package)
-- `ralph` → `contracts` uniquement
-- `runner` → `contracts` uniquement
-- `engine` → `ralph`, `runner`, `contracts`
-- `cli` → `engine`, `contracts`
-
-Si tu dois partager un type, mets-le dans `contracts`.
+Vérifie le graphe : `contracts` → rien, `ralph` → contracts, `runner` → contracts, `engine` → ralph + runner + contracts, `cli` → engine + contracts.
 
 ### 3. Format des tools incohérent
 
-**Symptôme :** Tool call fail avec "unknown tool".
-
-**Erreur :** Utiliser `repo_manager.write_file` dans l'agent YAML au lieu de `repo_manager-write_file`.
-
-**Solution :** Dans les **agent YAML**, utilise le format tiret :
-
-```yaml
-tools:
-  - repo_manager-write_file
-  - shell-run_command
-```
-
-Dans les **contract YAML** (`required_tools`), utilise le format point (le engine transforme).
+Dans les **agent YAML**, format tiret : `repo_manager-write_file`. Dans les **contract YAML** (`required_tools`), format point : `repo_manager.write_file` (le engine transforme).
 
 ### 4. Oublier `context.include` dans un stage
 
-**Symptôme :** L'agent n'a pas accès à l'input ou aux outputs précédents.
+Si `context` n'est pas spécifié, le stage n'a accès à rien. Spécifie explicitement dans le pipeline YAML.
 
-**Solution :** Dans le pipeline YAML, spécifie explicitement :
+### 5. Groups sans rejection detection
 
-```yaml
-stages:
-  - name: mon-stage
-    context:
-      include:
-        - input                    # Input initial du pipeline
-        - previous_stage_output    # Output du stage précédent
-        - all_stage_outputs        # Tous les outputs précédents
-        - group_feedback           # Feedback du group (si dans un group)
-```
+Le **dernier stage** du group doit avoir `post_validation.rejection_detection` dans son contract pour que le group puisse itérer.
 
-Si `context` n'est pas spécifié, le stage n'a accès à rien.
+### 6. API keys non configurées
 
-### 5. Contract trop strict ou trop lâche
-
-**Symptôme :** Validation fail en boucle, ou agents qui fake work sans être détectés.
-
-**Erreur :** Exiger `tool_calls.minimum: 10` pour un stage qui n'a besoin que de 1-2 calls, ou ne pas exiger de tool calls du tout pour un stage qui doit écrire des fichiers.
-
-**Solution :** Balance entre strictness et flexibilité. Pour un code-generation stage :
-
-```yaml
-tool_calls:
-  minimum: 1                        # Au moins 1 call
-  required_tools:
-    - repo_manager-write_file       # Tool spécifique requis
-```
-
-Pour un analysis stage (lecture seule), pas besoin de `tool_calls`.
-
-### 6. Rejection detection mal configurée
-
-**Symptôme :** QA rejette mais le pipeline avance quand même, ou inverse (faux positifs).
-
-**Erreur :** `approved_values` et `rejected_values` qui se chevauchent, ou field name incorrect.
-
-**Solution :** Vérifie que :
-- `field` correspond au vrai champ dans l'output JSON de l'agent
-- `approved_values` et `rejected_values` sont mutuellement exclusifs
-- Le field existe toujours dans l'output (sinon le engine assume "not rejected")
-
-### 7. API keys non configurées
-
-**Symptôme :** "API key not found" ou "provider not configured".
-
-**Solution :**
-1. Crée un `.studiorc.yaml` à la racine
-2. Ajoute au moins un provider avec une API key valide
-3. Utilise des variables d'env : `apiKey: ${ANTHROPIC_API_KEY}`
-4. Export la variable : `export ANTHROPIC_API_KEY=sk-...`
-
-### 8. Groups sans rejection detection
-
-**Symptôme :** Le group itère 1 fois puis s'arrête, même si QA rejette.
-
-**Erreur :** Le dernier stage du group n'a pas de `post_validation.rejection_detection` configuré dans son contract.
-
-**Solution :** Si tu veux que le group itère sur rejection, le **dernier stage** doit avoir rejection detection. Exemple : dans un group `[code-generation, qa-review]`, c'est le contract `qa-review` qui doit détecter rejection.
+`studio config set provider anthropic --api-key $ANTHROPIC_API_KEY`
 
 ---
 
 ## Debugging Tips
 
-**Voir les events détaillés :**
-
 ```bash
-DEBUG=studio:* studio run software/feature-builder --input "..."
+DEBUG=studio:* studio run software/feature-builder --input "..."   # Events détaillés
+studio validate software/code-generation output.json               # Valider sans LLM
 ```
-
-**Valider un contract sans LLM :**
-
-```bash
-studio validate software/code-generation output.json
-```
-
-**Tester un stage isolé :**
-
-Crée un mini-pipeline avec 1 seul stage pour tester rapidement.
-
-**Inspecter les tool calls :**
-
-Les events `onStageComplete` incluent `tool_calls` avec le nom et les arguments de chaque call.
 
 ---
 
 ## Logs de Run
 
-Les logs de run sont dans `.studio/runs/<timestamp>-<pipeline>-<id>.jsonl` (un JSON par ligne, format JSONL).
+`.studio/runs/logs/<timestamp>-<pipeline>-<id>.jsonl` (un JSON par ligne, format JSONL).
 
 ---
 
@@ -475,68 +401,32 @@ Les logs de run sont dans `.studio/runs/<timestamp>-<pipeline>-<id>.jsonl` (un J
 
 **Tu ne push JAMAIS sur `main` ou `master`. Jamais. Aucune exception.**
 
-**Structure importante — 5 repos git indépendants + 1 root :**
+**Monorepo = 1 repo git, 1 branche par feature, 1 PR.**
 
-```
-Studio/          ← repo git root (workspace)
-├── contracts/   ← repo git indépendant
-├── ralph/       ← repo git indépendant
-├── runner/      ← repo git indépendant
-├── engine/      ← repo git indépendant
-└── cli/         ← repo git indépendant
-```
-
-La branche doit être créée **dans le repo du package touché**, pas dans Studio root. Si la tâche touche plusieurs packages, crée une branche dans chacun.
-
-### Workflow obligatoire
-
-**1. Créer une branche AVANT de toucher au code**
+### Workflow
 
 ```bash
-cd <package>   # le repo du package touché (runner/, engine/, etc.)
+# 1. Branche
 git checkout -b <type>/<description-courte>
-# Si issue Linear : git checkout -b arianedguay/stu-28-description
-```
 
-Nommage : `feat/`, `fix/`, `refactor/`, `chore/`
+# 2. Commits atomiques
+git commit -m "feat(runner): integrate tool plugin loader"
 
-**2. Commits atomiques**
+# 3. Build
+pnpm build
 
-```bash
-git commit -m "feat(runner): integrate anonymizer before LLM calls"
-```
-
-Format : `<type>(<scope>): <description>` — Types : `feat`, `fix`, `refactor`, `test`, `chore`, `docs`
-
-**3. Push + PR — une PR PAR repo touché**
-
-```bash
+# 4. Push + PR
 git push -u origin <branch-name>
 gh pr create --title "<titre>" --body "<description>" --base main
-```
-
-**Si la tâche touche N packages, il y a N PRs.** Une PR dans `runner`, une dans `contracts`, etc. Ne jamais finir une tâche avec un package modifié mais sans PR.
-
-PR body doit contenir : **Quoi**, **Pourquoi**, **Packages touchés**, **Comment tester**.
-
-**4. Rebuild avant la PR**
-
-```bash
-cd <package> && pnpm build   # Rebuild les packages touchés
-pnpm build                   # Build global si plusieurs packages
 ```
 
 ### Checklist de fin de task
 
 ```
-[ ] Branche créée dans chaque repo touché (pas sur main, pas dans Studio root)
+[ ] Branche créée (pas sur main)
 [ ] Commits atomiques avec messages conventionnels
-[ ] Packages touchés rebuildés
-[ ] Build global passe
-[ ] Branche pushée sur origin pour chaque repo touché
-[ ] PR créée pour chaque repo touché (N packages = N PRs)
-[ ] Chaque PR pointe vers main (--base main)
-[ ] Chaque PR body contient : Quoi, Pourquoi, Packages touchés, Comment tester
+[ ] pnpm build passe
+[ ] PR créée (Quoi, Pourquoi, Packages touchés, Comment tester)
 ```
 
 ### Interdit
@@ -544,6 +434,12 @@ pnpm build                   # Build global si plusieurs packages
 - `git push origin main` — NON
 - `git commit` directement sur main — NON
 - `git push --force` — NON
-- Créer une PR sans avoir buildé — NON
-- Créer une PR dans Studio root au lieu du repo du package — NON
-- Finir une tâche avec un package modifié mais sans PR — NON
+- PR sans build — NON
+
+## Avant de modifier du code
+
+1. **Identifie dans quel package tu es.** Respecte les frontières.
+2. **Vérifie les dépendances.** Ne crée jamais de dépendance inverse.
+3. **Vérifie les YAML.** Si ta feature peut être configurée en YAML plutôt que codée, fais-le en YAML.
+4. **`pnpm build` après.** Un seul build à la racine.
+5. **Le engine est domain-agnostic.** Si tu mets du jargon métier dans le engine, c'est faux.
