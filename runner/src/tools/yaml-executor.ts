@@ -96,6 +96,7 @@ export async function executeShellCommand(
       } catch {
         return {
           success: false,
+          output: undefined,
           error: `Failed to parse JSON output: ${raw.slice(0, 200)}`,
         };
       }
@@ -104,6 +105,6 @@ export async function executeShellCommand(
     return { success: true, output: raw };
   } catch (err: unknown) {
     const e = err as { message?: string; stderr?: string };
-    return { success: false, error: e.stderr?.trim() || e.message || 'Command failed' };
+    return { success: false, output: undefined, error: e.stderr?.trim() || e.message || 'Command failed' };
   }
 }
