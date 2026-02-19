@@ -209,6 +209,7 @@ export class PipelineEngine {
           input.input,
           projectPaths,
           runMiddleware,
+          pipelineRun.id,
         );
 
         pipelineRun.stages.push(...groupResult.stageRuns);
@@ -251,6 +252,7 @@ export class PipelineEngine {
           totalStages,
           projectPaths,
           runMiddleware,
+          pipelineRun.id,
         );
 
         pipelineRun.stages.push(result.stageRun);
@@ -320,6 +322,7 @@ export class PipelineEngine {
     totalStages: number,
     paths: ProjectPaths,
     runMiddleware?: AnonymizationMiddleware | null,
+    runId?: string,
   ): Promise<StageResult> {
     const stageRunId = randomUUID();
     const stageStartedAt = new Date().toISOString();
@@ -380,6 +383,11 @@ export class PipelineEngine {
     // Resolve retry strategy
     const retryStrategy = this.resolveRetryStrategy(stageDef.ralph?.retry_strategy);
 
+    // Create per-stage middleware if agent requests it (and no run-level middleware)
+    const stageMiddleware = (!runMiddleware && agentConfig.anonymize)
+      ? new AnonymizationMiddleware()
+      : null;
+
     // Execute ralph loop
     const ralphResult = await ralph<AgentRunResult>({
       executor: async (execContext: RalphExecutionContext) => {
@@ -410,10 +418,7 @@ export class PipelineEngine {
           providerRegistry: this.config.providerRegistry,
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
-          // Activate middleware if run-level or agent-level anonymize is set
-          anonymizationMiddleware: (runMiddleware || agentConfig.anonymize)
-            ? (runMiddleware ?? new AnonymizationMiddleware())
-            : undefined,
+          anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
         });
 
         // Record agent run
@@ -456,6 +461,11 @@ export class PipelineEngine {
         });
       },
     });
+
+    // Persist stage-level keymap if we created a stage middleware
+    if (stageMiddleware) {
+      await this.persistKeymap(runId ?? stageRunId, stageMiddleware.getKeymap());
+    }
 
     // Derive stage status from ralph result
     let stageStatus = deriveStageStatus(ralphResult);
@@ -528,6 +538,7 @@ export class PipelineEngine {
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
     runMiddleware?: AnonymizationMiddleware | null,
+    runId?: string,
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
@@ -577,6 +588,7 @@ export class PipelineEngine {
           totalStages,
           paths,
           runMiddleware,
+          runId,
         );
 
         allStageRuns.push(result.stageRun);

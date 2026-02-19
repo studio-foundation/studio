@@ -74,4 +74,15 @@ describe('deanonymize', () => {
     const restored = deanonymize(text, keymap);
     expect(restored).toBe(original);
   });
+
+  it('deanonymizes correctly when there are more than 9 PII values of same category', () => {
+    // Build a keymap with EMAIL_1 through EMAIL_11
+    const keymap: Record<string, string> = {};
+    for (let i = 1; i <= 11; i++) {
+      keymap[`EMAIL_${i}`] = `user${i}@example.com`;
+    }
+    const text = 'EMAIL_1 EMAIL_10 EMAIL_11 EMAIL_2';
+    const restored = deanonymize(text, keymap);
+    expect(restored).toBe('user1@example.com user10@example.com user11@example.com user2@example.com');
+  });
 });

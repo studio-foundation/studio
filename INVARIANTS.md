@@ -163,18 +163,22 @@ partager l'ensemble des configs.
 ## INV-10 — Le graphe de dépendances est un DAG strict
 
 **Description :** Les dépendances entre packages forment un graphe acyclique
-dirigé (DAG). L'ordre est : `contracts` → `(ralph, runner)` → `engine` → `cli`.
-Aucune dépendance en sens inverse. `ralph` et `runner` sont frères — aucun ne
-connaît l'autre.
+dirigé (DAG). L'ordre est : `(contracts, anonymizer)` → `(ralph, runner)` →
+`engine` → `cli`. Aucune dépendance en sens inverse. `ralph` et `runner` sont
+frères — aucun ne connaît l'autre. `anonymizer` est un co-leaf avec `contracts` :
+il dépend uniquement de `@redactpii/node` (externe), pas d'un quelconque package
+`@studio/*`.
 
 **Enforcé par :** Les `package.json` de chaque package définissent les
 dépendances. `pnpm` détecte les cycles à l'install. À vérifier via :
 
 ```bash
-cat ralph/package.json    # dependencies: { "@studio/contracts": "workspace:*" }
-cat runner/package.json   # dependencies: { "@studio/contracts": "workspace:*" }
-cat engine/package.json   # dependencies: { "@studio/ralph": ..., "@studio/runner": ..., "@studio/contracts": ... }
-cat cli/package.json      # dependencies: { "@studio/engine": ..., "@studio/contracts": ... }
+cat contracts/package.json   # dependencies: {} (aucune dépendance interne)
+cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (externe uniquement)
+cat ralph/package.json       # dependencies: { "@studio/contracts": "workspace:*" }
+cat runner/package.json      # dependencies: { "@studio/contracts": "workspace:*", "@studio/anonymizer": "workspace:*" }
+cat engine/package.json      # dependencies: { "@studio/ralph": ..., "@studio/runner": ..., "@studio/contracts": ... }
+cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ... }
 ```
 
 **Ce qui casse si violé :** Dépendance circulaire → crash à l'initialisation des

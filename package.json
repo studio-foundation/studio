@@ -4,7 +4,7 @@
   "private": true,
   "description": "Studio v7 — Agentic pipeline orchestrator (monorepo)",
   "scripts": {
-    "build": "pnpm --filter @studio/contracts build && pnpm --filter @studio/ralph build && pnpm --filter @studio/runner build && pnpm --filter @studio/engine build && pnpm --filter @studio/cli build",
+    "build": "pnpm --filter @studio/contracts build && pnpm --filter @studio/anonymizer build && pnpm --filter @studio/ralph build && pnpm --filter @studio/runner build && pnpm --filter @studio/engine build && pnpm --filter @studio/cli build",
     "clean": "pnpm -r run clean",
     "test": "pnpm -r run test"
   }

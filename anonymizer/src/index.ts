@@ -26,17 +26,8 @@ export function anonymize(text: string, options?: AnonymizerOptions): PIIDetecti
     return { text, keymap: tokenizer.getKeymap() };
   }
 
-  // Deduplicate: keep only the first occurrence of each unique value
-  // so that repeated values are replaced with the same token.
-  const seenValues = new Set<string>();
-  const deduped = filtered.filter(span => {
-    if (seenValues.has(span.value)) return true; // keep for replacement, token will be reused
-    seenValues.add(span.value);
-    return true;
-  });
-
   // Replace spans from right to left to preserve character positions
-  const sortedDesc = [...deduped].sort((a, b) => b.start - a.start);
+  const sortedDesc = [...filtered].sort((a, b) => b.start - a.start);
   let result = text;
   for (const span of sortedDesc) {
     const token = tokenizer.tokenize(span.value, span.category);
@@ -52,7 +43,9 @@ export function anonymize(text: string, options?: AnonymizerOptions): PIIDetecti
  */
 export function deanonymize(text: string, keymap: Record<string, string>): string {
   let result = text;
-  for (const [token, original] of Object.entries(keymap)) {
+  // Sort by token length descending so EMAIL_10 is replaced before EMAIL_1
+  const sorted = Object.entries(keymap).sort((a, b) => b[0].length - a[0].length);
+  for (const [token, original] of sorted) {
     result = result.replaceAll(token, original);
   }
   return result;
