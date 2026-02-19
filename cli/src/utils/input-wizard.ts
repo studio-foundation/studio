@@ -32,6 +32,42 @@ export function validateInputSchema(raw: unknown): InputSchema {
 export async function collectStructuredInput(
   schema: InputSchema
 ): Promise<Record<string, unknown>> {
-  // Implemented in Task 5
-  throw new Error('not implemented');
+  const result: Record<string, unknown> = {};
+
+  for (const field of schema.fields) {
+    if (field.type === 'text') {
+      result[field.name] = await input({
+        message: field.prompt,
+        required: field.required,
+        default: field.default,
+      });
+    } else if (field.type === 'array') {
+      const items: string[] = [];
+      let index = 1;
+
+      while (true) {
+        const value = await input({
+          message: `${field.prompt} (${index})`,
+          required: index === 1 && field.required,
+          default: '',
+        });
+
+        if (value === '') {
+          if (index === 1 && field.required) {
+            console.log('At least one value required.');
+            continue;
+          }
+          break;
+        }
+
+        items.push(value);
+        index++;
+      }
+
+      result[field.name] = items;
+    }
+  }
+
+  console.log('\n✓ Input collected\n');
+  return result;
 }

@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { InputSchema } from '@studio/contracts';
+import { collectStructuredInput } from '../../src/utils/input-wizard.js';
+
+// Mock @inquirer/prompts at module level
+vi.mock('@inquirer/prompts', () => ({
+  input: vi.fn(),
+}));
 import { validateInputSchema } from '../../src/utils/input-wizard.js';
 
 describe('validateInputSchema', () => {
@@ -82,5 +89,65 @@ describe('validateInputSchema', () => {
         fields: [{ name: 'foo', type: 'array', items: 'number', prompt: 'Foo', required: true }],
       })
     ).toThrow("Array field 'foo' must have items: 'text'");
+  });
+});
+
+describe('collectStructuredInput', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('collects a single text field', async () => {
+    const { input: mockInput } = await import('@inquirer/prompts');
+    (mockInput as ReturnType<typeof vi.fn>).mockResolvedValueOnce('Add dark mode');
+
+    const schema: InputSchema = {
+      type: 'structured',
+      fields: [{ name: 'brief_summary', type: 'text', prompt: 'Brief summary', required: true }],
+    };
+
+    const result = await collectStructuredInput(schema);
+
+    expect(result).toEqual({ brief_summary: 'Add dark mode' });
+    expect(mockInput).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Brief summary' })
+    );
+  });
+
+  it('collects an array field with multiple entries', async () => {
+    const { input: mockInput } = await import('@inquirer/prompts');
+    (mockInput as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('First criterion')
+      .mockResolvedValueOnce('Second criterion')
+      .mockResolvedValueOnce('');  // empty → stop
+
+    const schema: InputSchema = {
+      type: 'structured',
+      fields: [{ name: 'criteria', type: 'array', items: 'text', prompt: 'Criteria', required: true }],
+    };
+
+    const result = await collectStructuredInput(schema);
+
+    expect(result).toEqual({ criteria: ['First criterion', 'Second criterion'] });
+  });
+
+  it('collects multiple fields', async () => {
+    const { input: mockInput } = await import('@inquirer/prompts');
+    (mockInput as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('Add dark mode')   // text field
+      .mockResolvedValueOnce('Must work')        // array entry 1
+      .mockResolvedValueOnce('');                // array stop
+
+    const schema: InputSchema = {
+      type: 'structured',
+      fields: [
+        { name: 'summary', type: 'text', prompt: 'Summary', required: true },
+        { name: 'criteria', type: 'array', items: 'text', prompt: 'Criteria', required: true },
+      ],
+    };
+
+    const result = await collectStructuredInput(schema);
+
+    expect(result).toEqual({ summary: 'Add dark mode', criteria: ['Must work'] });
   });
 });
