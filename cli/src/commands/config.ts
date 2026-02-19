@@ -2,9 +2,12 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
+import ora from 'ora';
 import { select, password, confirm, input } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { resolveEnvVars } from '../config.js';
+import { validateApiKeyLive } from '../provider-validator.js';
+import { getAvailableModels } from '../models-cache.js';
 
 export const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514' },
@@ -32,7 +35,8 @@ export async function addProviderConfig(
   configFile: string,
   provider: string,
   apiKey: string,
-  setDefault: boolean
+  setDefault: boolean,
+  model?: string
 ): Promise<void> {
   const config = await loadRawConfig(configFile);
 
@@ -45,7 +49,7 @@ export async function addProviderConfig(
     const meta = PROVIDERS.find((p) => p.id === provider);
     config.defaults = {
       provider,
-      model: meta?.defaultModel ?? 'claude-sonnet-4-20250514',
+      model: model ?? meta?.defaultModel ?? 'claude-sonnet-4-20250514',
     };
   }
 
@@ -159,12 +163,32 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
       message: 'Ollama base URL:',
       default: 'http://localhost:11434',
     });
+    const spinner = ora('Validating connection...').start();
+    const result = await validateApiKeyLive('local', '', { baseUrl: apiKey });
+    if (result.status === 'valid') spinner.succeed('Connected');
+    else if (result.status === 'warning') spinner.warn(result.message);
+    else spinner.fail(result.error);
   } else {
     const providerLabel = PROVIDERS.find((p) => p.id === providerId)?.label ?? providerId;
-    apiKey = await password({
-      message: `${providerLabel} API Key:`,
-      validate: (value: string) => validateApiKeyForProvider(providerId, value),
-    });
+    while (true) {
+      apiKey = await password({
+        message: `${providerLabel} API Key:`,
+        validate: (value: string) => validateApiKeyForProvider(providerId, value),
+      });
+      const spinner = ora('Validating...').start();
+      const result = await validateApiKeyLive(providerId, apiKey);
+      spinner.stop();
+      if (result.status === 'valid') {
+        console.log(chalk.green('  ✓ Valid'));
+        break;
+      } else if (result.status === 'warning') {
+        console.log(chalk.yellow(`  ⚠ ${result.message}`));
+        break;
+      } else {
+        console.log(chalk.red(`  ✗ ${result.error}`));
+        console.log(chalk.gray('  Please try again.'));
+      }
+    }
   }
 
   // Step 4: Set as default?
@@ -176,8 +200,35 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
       default: true,
     }));
 
+  // Step 4b: Choose default model (if setting as default and models are available)
+  let defaultModel: string | undefined;
+  if (setDefault && providerId !== 'local') {
+    const models = await getAvailableModels(providerId, apiKey);
+    const meta = PROVIDERS.find((p) => p.id === providerId);
+    const fallbackModel = meta?.defaultModel ?? 'claude-sonnet-4-20250514';
+
+    if (models.length > 0) {
+      const choices = [
+        ...models.map((m) => ({ value: m, name: m })),
+        { value: '__custom__', name: 'Enter custom model ID' },
+      ];
+      const selected = await select<string>({
+        message: 'Default model:',
+        choices,
+        default: models.includes(fallbackModel) ? fallbackModel : models[0],
+      });
+      if (selected === '__custom__') {
+        defaultModel = await input({ message: 'Model ID:', default: fallbackModel });
+      } else {
+        defaultModel = selected;
+      }
+    } else {
+      defaultModel = await input({ message: 'Default model:', default: fallbackModel });
+    }
+  }
+
   // Step 5: Write config
-  await addProviderConfig(configFile, providerId, apiKey, setDefault);
+  await addProviderConfig(configFile, providerId, apiKey, setDefault, defaultModel);
 
   // Step 6: Confirmation output
   const label = PROVIDERS.find((p) => p.id === providerId)?.label ?? providerId;
@@ -238,6 +289,46 @@ export async function configCommand(
           break;
         }
 
+        // Special case: interactive model selection when no value provided
+        if (args[0] === 'defaults.model' && args[1] === undefined) {
+          const rawConfig = await loadRawConfig(configFile);
+          const defaults = rawConfig.defaults as { provider?: string; model?: string } | undefined;
+          const provider = defaults?.provider;
+          const providerConfig =
+            provider && rawConfig.providers
+              ? (rawConfig.providers as Record<string, { apiKey: string }>)[provider]
+              : undefined;
+          const apiKey = providerConfig?.apiKey ?? '';
+
+          if (!provider) {
+            console.error('Error: no default provider configured. Run studio config add-provider first.');
+            process.exit(1);
+          }
+
+          const spinner = ora(`Fetching models for ${provider}...`).start();
+          const models = await getAvailableModels(provider, apiKey);
+          spinner.stop();
+
+          if (models.length === 0) {
+            console.error(
+              `Error: could not fetch models for provider '${provider}'. ` +
+              `Provide the model ID directly: studio config set defaults.model <model-id>`
+            );
+            process.exit(1);
+          }
+
+          const selectedModel = await select<string>({
+            message: 'Default model:',
+            choices: models.map((m) => ({ value: m, name: m })),
+            default: defaults?.model && models.includes(defaults.model) ? defaults.model : models[0],
+          });
+
+          setConfigValue(rawConfig, 'defaults.model', selectedModel);
+          await saveConfig(configFile, rawConfig);
+          console.log(chalk.green(`✓ Set defaults.model = ${selectedModel}`));
+          break;
+        }
+
         // Generic: studio config set <dotted.path> <value>
         const path = args[0];
         const value = args[1];
@@ -274,6 +365,27 @@ export async function configCommand(
           if (validation !== true) {
             console.error(`Error: ${validation}`);
             process.exit(1);
+          }
+          process.stdout.write('Validating...');
+          const result = await validateApiKeyLive(provider, apiKey);
+          if (result.status === 'valid') {
+            console.log(chalk.green(' ✓ Valid'));
+          } else if (result.status === 'warning') {
+            console.log(chalk.yellow(` ⚠ ${result.message}`));
+          } else {
+            console.error(chalk.red(` ✗ ${result.error}`));
+            process.exit(1);
+          }
+        } else {
+          process.stdout.write('Validating connection...');
+          const result = await validateApiKeyLive('local', '', {
+            baseUrl: apiKey || 'http://localhost:11434',
+          });
+          const msg = 'message' in result ? result.message : '';
+          if (result.status === 'valid') {
+            console.log(chalk.green(' ✓ Connected'));
+          } else {
+            console.log(chalk.yellow(` ⚠ ${msg}`));
           }
         }
 
