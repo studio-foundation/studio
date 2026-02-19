@@ -1,0 +1,18 @@
+name: qa-review
+version: 1
+schema:
+  required_fields:
+    - status
+    - summary
+    - issues
+post_validation:
+  rejection_detection:
+    field: status
+    approved_values:
+      - approved
+      - approved_with_notes
+    rejected_values:
+      - rejected
+      - needs_revision
+    details_field: issues
+    summary_field: summary

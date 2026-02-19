@@ -1,0 +1,10 @@
+name: code-generation
+version: 1
+schema:
+  required_fields:
+    - summary
+    - files_changed
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager.write_file
