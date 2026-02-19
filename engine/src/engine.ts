@@ -35,6 +35,7 @@ import {
   type ToolRegistry,
   type ProviderRegistry,
   type TaskInput,
+  AnonymizationMiddleware,
 } from '@studio/runner';
 import { loadPipelineByName } from './pipeline/loader.js';
 import { loadAgentProfile } from './pipeline/agent-loader.js';
@@ -118,6 +119,7 @@ export interface RunInput {
   pipeline: string;
   input: string | Record<string, unknown>;
   meta?: Record<string, unknown>;
+  anonymize?: boolean;
 }
 
 interface StageResult {
@@ -178,6 +180,10 @@ export class PipelineEngine {
     this.pipelineTotals = { tokens: 0, toolCalls: 0 };
     const pipelineStartTime = Date.now();
 
+    // Create anonymization middleware for this run if requested via RunInput flag
+    const runAnonymize = input.anonymize === true;
+    const runMiddleware = runAnonymize ? new AnonymizationMiddleware() : null;
+
     this.events?.onPipelineStart?.({
       pipeline_name: pipeline.name,
       run_id: pipelineRun.id,
@@ -202,6 +208,7 @@ export class PipelineEngine {
           totalStages,
           input.input,
           projectPaths,
+          runMiddleware,
         );
 
         pipelineRun.stages.push(...groupResult.stageRuns);
@@ -227,6 +234,9 @@ export class PipelineEngine {
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
           return pipelineRun;
         }
       } else {
@@ -240,6 +250,7 @@ export class PipelineEngine {
           stageCounter - 1,
           totalStages,
           projectPaths,
+          runMiddleware,
         );
 
         pipelineRun.stages.push(result.stageRun);
@@ -257,6 +268,9 @@ export class PipelineEngine {
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
           return pipelineRun;
         }
 
@@ -283,6 +297,9 @@ export class PipelineEngine {
     });
     this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
     this.config.db?.savePipelineRun(pipelineRun);
+    if (runMiddleware) {
+      await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+    }
 
     return pipelineRun;
   }
@@ -302,6 +319,7 @@ export class PipelineEngine {
     stageIndex: number,
     totalStages: number,
     paths: ProjectPaths,
+    runMiddleware?: AnonymizationMiddleware | null,
   ): Promise<StageResult> {
     const stageRunId = randomUUID();
     const stageStartedAt = new Date().toISOString();
@@ -392,6 +410,10 @@ export class PipelineEngine {
           providerRegistry: this.config.providerRegistry,
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
+          // Activate middleware if run-level or agent-level anonymize is set
+          anonymizationMiddleware: (runMiddleware || agentConfig.anonymize)
+            ? (runMiddleware ?? new AnonymizationMiddleware())
+            : undefined,
         });
 
         // Record agent run
@@ -505,6 +527,7 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
+    runMiddleware?: AnonymizationMiddleware | null,
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
@@ -553,6 +576,7 @@ export class PipelineEngine {
           stageNumber,
           totalStages,
           paths,
+          runMiddleware,
         );
 
         allStageRuns.push(result.stageRun);
@@ -739,6 +763,21 @@ export class PipelineEngine {
         return noDelay();
       default:
         return exponentialBackoff(1000, 30000);
+    }
+  }
+
+  private async persistKeymap(runId: string, keymap: Record<string, string>): Promise<void> {
+    if (Object.keys(keymap).length === 0) return;
+    try {
+      const { mkdir, writeFile } = await import('node:fs/promises');
+      const { join } = await import('node:path');
+      // configsDir is .studio/projects/ — keymap goes in .studio/runs/anonymization/
+      const anonDir = join(this.config.configsDir, '..', 'runs', 'anonymization');
+      await mkdir(anonDir, { recursive: true });
+      const keymapPath = join(anonDir, `${runId}.keymap.json`);
+      await writeFile(keymapPath, JSON.stringify(keymap, null, 2), 'utf-8');
+    } catch {
+      // Non-fatal — keymap persistence is best-effort
     }
   }
 }
