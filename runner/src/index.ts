@@ -39,3 +39,7 @@ export { createGitTools } from './tools/builtin/git.js';
 
 export { loadProjectTools } from './tools/plugin-loader.js';
 export type { LoadedPlugin } from './tools/plugin-loader.js';
+
+// Anonymization middleware
+export { AnonymizationMiddleware } from './middleware/anonymization.js';
+export type { AnonymizerOptions } from '@studio/anonymizer';

@@ -8,6 +8,7 @@ import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
 import type { ProviderRegistry } from './providers/registry.js';
 import { isAgentLoopProvider } from './providers/provider.js';
+import type { AnonymizationMiddleware } from './middleware/anonymization.js';
 
 export interface RunAgentConfig {
   agent: AgentConfig;
@@ -18,6 +19,7 @@ export interface RunAgentConfig {
   providerRegistry: ProviderRegistry;
   outputContract?: OutputContract;
   maxToolCalls?: number;
+  anonymizationMiddleware?: AnonymizationMiddleware;
 }
 
 export interface AgentRunResult {
@@ -48,6 +50,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   const startTime = Date.now();
   const { agent, task, context, executionContext, toolRegistry, providerRegistry } = config;
   const maxToolCalls = config.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS;
+  const mw = config.anonymizationMiddleware;
 
   // Get provider
   const provider = providerRegistry.get(agent.provider);
@@ -59,10 +62,15 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
 
   const promptSnippets = allowedTools.getActiveSnippets();
 
+  // Injection point 1: Anonymize task input before building prompt
+  const taskForPrompt = mw
+    ? { ...task, description: mw.anonymize(task.description) }
+    : task;
+
   // Build initial prompt
   const messages = buildPrompt({
     agent,
-    task,
+    task: taskForPrompt,
     context,
     executionContext,
     outputContract: config.outputContract,
@@ -94,7 +102,13 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       async (name, args, callId) => {
         const executed = await toolExecutor.execute({ id: callId, name, arguments: args });
         allToolCalls.push(executed);
-        return { result: executed.result, error: executed.error };
+        // Injection point 2: Anonymize tool results before returning to LLM
+        let result = executed.result;
+        if (mw && result !== undefined) {
+          const resultStr = mw.anonymize(JSON.stringify(result));
+          try { result = JSON.parse(resultStr); } catch { result = resultStr; }
+        }
+        return { result, error: executed.error };
       }
     );
 
@@ -104,7 +118,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       tokenAccumulator.total_tokens += loopResult.usage.total_tokens;
     }
 
-    const output = parseAgentOutput(loopResult.content);
+    const finalContent = mw ? mw.deanonymize(loopResult.content) : loopResult.content;
+    const output = parseAgentOutput(finalContent);
     const duration = Date.now() - startTime;
     return {
       output,
@@ -178,9 +193,11 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       return `Tool ${tc.name} (id: ${tc.id}) result: ${JSON.stringify(tc.result)}`;
     }).join('\n\n');
 
+    const toolResultContent = `Tool execution results:\n\n${toolResultsMessage}`;
     currentMessages.push({
       role: 'user',
-      content: `Tool execution results:\n\n${toolResultsMessage}`
+      // Injection point 4: Anonymize tool results before adding to conversation
+      content: mw ? mw.anonymize(toolResultContent) : toolResultContent,
     });
 
     iterations++;
@@ -195,7 +212,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   }
 
   // Parse final output from the last response content
-  const output = parseAgentOutput(lastResponse.content);
+  const finalContent = mw ? mw.deanonymize(lastResponse.content) : lastResponse.content;
+  const output = parseAgentOutput(finalContent);
 
   const duration = Date.now() - startTime;
 
