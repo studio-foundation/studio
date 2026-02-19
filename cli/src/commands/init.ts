@@ -9,10 +9,7 @@ import { listTemplates } from './templates.js';
 import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
-<<<<<<< feat/stu-48-init-tool-selection
 import { listAvailableTools, toolsAddDirect } from './tools.js';
-=======
->>>>>>> main
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -379,7 +376,6 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       } else {
         selectedModel = await input({ message: 'Default model:', default: fallback });
       }
-<<<<<<< feat/stu-48-init-tool-selection
     }
 
     // Step 6: Tool selection
@@ -401,8 +397,6 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         message: 'Select tools to install:',
         choices: toolChoices,
       });
-=======
->>>>>>> main
     }
 
     // Step 7: Create structure (without tools — we install them below)
