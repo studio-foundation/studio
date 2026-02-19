@@ -137,6 +137,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.33.1
         version: 0.33.1
+      '@studio/anonymizer':
+        specifier: workspace:*
+        version: link:../anonymizer
       '@studio/contracts':
         specifier: workspace:*
         version: link:../contracts
