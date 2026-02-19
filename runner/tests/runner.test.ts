@@ -402,6 +402,59 @@ describe('runAgent — callbacks', () => {
     expect(completeEvents[0].result).toBeUndefined();
   });
 
+  it('calls callbacks in agent-loop provider path', async () => {
+    // AgentLoopProvider mock — owns the full loop and calls executeTool
+    const agentLoopProvider: import('../src/providers/provider.js').AgentLoopProvider = {
+      name: 'mock-loop',
+      call: async () => { throw new Error('not used'); },
+      runAgentLoop: async (_req, executeTool) => {
+        const outcome = await executeTool('loop_tool', { x: 1 }, 'call-loop-1');
+        return {
+          content: '"loop done"',
+          tool_calls: [{ id: 'call-loop-1', name: 'loop_tool', arguments: { x: 1 }, ...outcome }],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'loop_tool',
+      description: 'Loop path tool',
+      parameters: {},
+      execute: async (args) => ({ success: true, output: args }),
+    });
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(agentLoopProvider);
+
+    const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
+    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
+      task: { description: 'Test loop callbacks' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onToolCallStart: (e) => startEvents.push(e),
+        onToolCallComplete: (e) => completeEvents.push(e),
+      },
+    });
+
+    expect(startEvents).toHaveLength(1);
+    expect(startEvents[0].tool).toBe('loop_tool');
+    expect(startEvents[0].params).toEqual({ x: 1 });
+    expect(startEvents[0].timestamp).toBeTypeOf('number');
+    expect(completeEvents).toHaveLength(1);
+    expect(completeEvents[0].tool).toBe('loop_tool');
+    expect(completeEvents[0].result).toEqual({ x: 1 });
+    expect(completeEvents[0].error).toBeUndefined();
+    expect(completeEvents[0].duration_ms).toBeGreaterThanOrEqual(0);
+  });
+
   it('works fine when no callbacks are provided', async () => {
     const mockProvider = new MockProvider([
       {

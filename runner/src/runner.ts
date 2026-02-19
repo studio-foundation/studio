@@ -101,8 +101,24 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
         stage_name: task.contract_name,
       },
       async (name, args, callId) => {
+        const tcStart = Date.now();
+        config.callbacks?.onToolCallStart?.({
+          tool: name,
+          params: args,
+          timestamp: tcStart,
+        });
+
         const executed = await toolExecutor.execute({ id: callId, name, arguments: args });
         allToolCalls.push(executed);
+
+        config.callbacks?.onToolCallComplete?.({
+          tool: name,
+          result: executed.result,
+          error: executed.error,
+          duration_ms: Date.now() - tcStart,
+          timestamp: Date.now(),
+        });
+
         // Injection point 2: Anonymize tool results before returning to LLM
         let result = executed.result;
         if (mw && result !== undefined) {
