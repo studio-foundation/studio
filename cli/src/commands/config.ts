@@ -2,8 +2,61 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
+import { select, password, confirm, input } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { resolveEnvVars } from '../config.js';
+
+export const PROVIDERS = [
+  { id: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514' },
+  { id: 'openai',    label: 'OpenAI (GPT)',        defaultModel: 'gpt-4o' },
+  { id: 'google',    label: 'Google (Gemini)',     defaultModel: 'gemini-1.5-pro' },
+  { id: 'local',     label: 'Local (Ollama)',      defaultModel: 'llama3.2' },
+] as const;
+
+export type ProviderId = (typeof PROVIDERS)[number]['id'];
+
+export function validateApiKeyForProvider(provider: string, key: string): true | string {
+  if (provider === 'anthropic') {
+    if (!key.startsWith('sk-ant-')) return 'Anthropic API keys must start with sk-ant-';
+  } else if (provider === 'openai') {
+    if (!key.startsWith('sk-') || key.startsWith('sk-ant-'))
+      return 'OpenAI API keys must start with sk- (and not be an Anthropic key)';
+  } else if (provider === 'google') {
+    if (!key.startsWith('AIza')) return 'Google API keys must start with AIza';
+  }
+  // local / unknown providers: no format constraint
+  return true;
+}
+
+export async function addProviderConfig(
+  configFile: string,
+  provider: string,
+  apiKey: string,
+  setDefault: boolean
+): Promise<void> {
+  const config = await loadRawConfig(configFile);
+
+  if (!config.providers || typeof config.providers !== 'object') {
+    config.providers = {};
+  }
+  (config.providers as Record<string, unknown>)[provider] = { apiKey };
+
+  if (setDefault) {
+    const meta = PROVIDERS.find((p) => p.id === provider);
+    config.defaults = {
+      provider,
+      model: meta?.defaultModel ?? 'claude-sonnet-4-20250514',
+    };
+  }
+
+  await saveConfig(configFile, config);
+}
+
+export async function isProviderConfigured(configFile: string, provider: string): Promise<boolean> {
+  const config = await loadRawConfig(configFile);
+  if (!config.providers || typeof config.providers !== 'object') return false;
+  return provider in (config.providers as Record<string, unknown>);
+}
 
 export function getConfigValue(config: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.');
@@ -71,6 +124,70 @@ async function saveConfig(configFile: string, config: Record<string, unknown>): 
 interface ConfigOptions {
   apiKey?: string;
   project?: string;
+  setDefault?: boolean;
+}
+
+async function configAddProviderWizard(configFile: string): Promise<void> {
+  const config = await loadRawConfig(configFile);
+  const existingProviders = config.providers
+    ? Object.keys(config.providers as Record<string, unknown>)
+    : [];
+
+  // Step 1: Select provider
+  const providerId = await select<string>({
+    message: 'Which provider would you like to add?',
+    choices: PROVIDERS.map((p) => ({ value: p.id, name: p.label })),
+  });
+
+  // Step 2: Handle already-configured case
+  if (existingProviders.includes(providerId)) {
+    const providerLabel = PROVIDERS.find((p) => p.id === providerId)?.label ?? providerId;
+    const override = await confirm({
+      message: `${providerLabel} is already configured. Override?`,
+      default: false,
+    });
+    if (!override) {
+      console.log('Aborted.');
+      return;
+    }
+  }
+
+  // Step 3: Ask for API key (or base URL for local)
+  let apiKey = '';
+  if (providerId === 'local') {
+    apiKey = await input({
+      message: 'Ollama base URL:',
+      default: 'http://localhost:11434',
+    });
+  } else {
+    const providerLabel = PROVIDERS.find((p) => p.id === providerId)?.label ?? providerId;
+    apiKey = await password({
+      message: `${providerLabel} API Key:`,
+      validate: (value: string) => validateApiKeyForProvider(providerId, value),
+    });
+  }
+
+  // Step 4: Set as default?
+  const isFirstProvider = existingProviders.filter((p) => p !== providerId).length === 0;
+  const setDefault =
+    isFirstProvider ||
+    (await confirm({
+      message: 'Set as default provider?',
+      default: true,
+    }));
+
+  // Step 5: Write config
+  await addProviderConfig(configFile, providerId, apiKey, setDefault);
+
+  // Step 6: Confirmation output
+  const label = PROVIDERS.find((p) => p.id === providerId)?.label ?? providerId;
+  console.log('');
+  console.log(chalk.green(`✓ ${label} provider configured`));
+  if (setDefault) console.log(chalk.green('✓ Set as default'));
+  console.log('');
+  console.log('You can now run:');
+  console.log(`  ${chalk.cyan('studio run <pipeline> --input "..."')}`);
+  console.log('');
 }
 
 export async function configCommand(
@@ -135,11 +252,65 @@ export async function configCommand(
         break;
       }
 
+      case 'add-provider': {
+        const provider = args[0];
+
+        if (!provider) {
+          // Wizard mode
+          await configAddProviderWizard(configFile);
+          break;
+        }
+
+        // Direct mode
+        if (provider !== 'local' && !options.apiKey) {
+          console.error(`Error: --api-key is required for provider '${provider}'`);
+          process.exit(1);
+        }
+
+        const apiKey = options.apiKey ?? '';
+
+        if (provider !== 'local') {
+          const validation = validateApiKeyForProvider(provider, apiKey);
+          if (validation !== true) {
+            console.error(`Error: ${validation}`);
+            process.exit(1);
+          }
+        }
+
+        // Check already configured
+        const alreadyConfigured = await isProviderConfigured(configFile, provider);
+        if (alreadyConfigured) {
+          console.error(
+            `Error: Provider '${provider}' is already configured. Use 'studio config set' to update it, or run the wizard to override.`
+          );
+          process.exit(1);
+        }
+
+        // Determine setDefault
+        const config = await loadRawConfig(configFile);
+        const existingCount = config.providers
+          ? Object.keys(config.providers as Record<string, unknown>).length
+          : 0;
+        const setDefault = options.setDefault ?? existingCount === 0;
+
+        await addProviderConfig(configFile, provider, apiKey, setDefault);
+
+        const label = PROVIDERS.find((p) => p.id === provider)?.label ?? provider;
+        console.log(chalk.green(`✓ ${label} provider configured`));
+        if (setDefault) console.log(chalk.green('✓ Set as default'));
+        console.log('');
+        break;
+      }
+
       default:
-        console.error(`Unknown config action: ${action}. Available: list, get, set`);
+        console.error(`Unknown config action: ${action}. Available: list, get, set, add-provider`);
         process.exit(1);
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'ExitPromptError') {
+      console.log('\nAborted.');
+      process.exit(0);
+    }
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
