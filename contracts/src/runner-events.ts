@@ -7,15 +7,15 @@
 export interface ToolCallStartEvent {
   tool: string;
   params: Record<string, unknown>;
-  timestamp: string;
+  timestamp: number; // ms since epoch (Date.now())
 }
 
 export interface ToolCallCompleteEvent {
   tool: string;
-  result: unknown;
+  result: unknown; // tool-plugin-specific; typed by each tool plugin
   error?: string;
   duration_ms: number;
-  timestamp: string;
+  timestamp: number; // ms since epoch (Date.now())
 }
 
 /**
