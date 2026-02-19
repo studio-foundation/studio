@@ -69,6 +69,7 @@ program
   .option('--api-key <key>', 'API key for the provider')
   .option('--force', 'Backup existing .studio/ and reinitialize')
   .option('--yes', 'Skip confirmation prompts (for CI/CD)')
+  .option('--no-tools', 'Skip tool installation (direct mode only)')
   .action(initCommand);
 
 program
