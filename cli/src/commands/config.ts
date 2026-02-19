@@ -289,6 +289,46 @@ export async function configCommand(
           break;
         }
 
+        // Special case: interactive model selection when no value provided
+        if (args[0] === 'defaults.model' && args[1] === undefined) {
+          const rawConfig = await loadRawConfig(configFile);
+          const defaults = rawConfig.defaults as { provider?: string; model?: string } | undefined;
+          const provider = defaults?.provider;
+          const providerConfig =
+            provider && rawConfig.providers
+              ? (rawConfig.providers as Record<string, { apiKey: string }>)[provider]
+              : undefined;
+          const apiKey = providerConfig?.apiKey ?? '';
+
+          if (!provider) {
+            console.error('Error: no default provider configured. Run studio config add-provider first.');
+            process.exit(1);
+          }
+
+          const spinner = ora(`Fetching models for ${provider}...`).start();
+          const models = await getAvailableModels(provider, apiKey);
+          spinner.stop();
+
+          if (models.length === 0) {
+            console.error(
+              `Error: could not fetch models for provider '${provider}'. ` +
+              `Provide the model ID directly: studio config set defaults.model <model-id>`
+            );
+            process.exit(1);
+          }
+
+          const selectedModel = await select<string>({
+            message: 'Default model:',
+            choices: models.map((m) => ({ value: m, name: m })),
+            default: defaults?.model && models.includes(defaults.model) ? defaults.model : models[0],
+          });
+
+          setConfigValue(rawConfig, 'defaults.model', selectedModel);
+          await saveConfig(configFile, rawConfig);
+          console.log(chalk.green(`✓ Set defaults.model = ${selectedModel}`));
+          break;
+        }
+
         // Generic: studio config set <dotted.path> <value>
         const path = args[0];
         const value = args[1];
