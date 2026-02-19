@@ -154,6 +154,8 @@ pending → running → success
 
 ## Règles NON-NÉGOCIABLES
 
+> Liste formelle et documentée : **[INVARIANTS.md](INVARIANTS.md)**
+
 1. **Le engine est domain-agnostic.** Pas de référence à "code", "file", "git", "QA" dans le engine. Tout le domaine vient des YAML.
 
 2. **ralph ne connaît pas runner.** ralph prend un `executor: () => Promise<T>` générique. Il ne sait pas que c'est un LLM derrière.
