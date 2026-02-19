@@ -2,10 +2,25 @@
 
 import type { StageKind } from './stage';
 
+export interface InputField {
+  name: string;
+  type: 'text' | 'array';
+  prompt: string;
+  required: boolean;
+  default?: string;
+  items?: 'text';
+}
+
+export interface InputSchema {
+  type: 'structured';
+  fields: InputField[];
+}
+
 export interface PipelineDefinition {
   name: string;
   description: string;
   version: number;
+  input_schema?: InputSchema;
   repo?: {
     url: string;
     branch?: string;
