@@ -4,6 +4,7 @@ packages:
   - "runner"
   - "engine"
   - "cli"
+  - "anonymizer"
 
 onlyBuiltDependencies:
   - better-sqlite3

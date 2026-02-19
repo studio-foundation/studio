@@ -8,6 +8,22 @@ importers:
 
   .: {}
 
+  anonymizer:
+    dependencies:
+      '@redactpii/node':
+        specifier: ^1.0.16
+        version: 1.0.16
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.11
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.11)
+
   cli:
     dependencies:
       '@inquirer/prompts':
@@ -607,6 +623,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@redactpii/node@1.0.16':
+    resolution: {integrity: sha512-8gVDlnmyAyqMbA3yjiKIFgT6hzMzKJzBLJZQbX6Jv8Qxe3axT3CQQq5ar8kI3vQvSB8VbTisL66Hg4eHJRycqQ==}
 
   '@rollup/rollup-android-arm-eabi@4.57.1':
     resolution: {integrity: sha512-A6ehUVSiSaaliTxai040ZpZ2zTevHYbvu/lDoeAteHI8QnaosIzm4qwtezfRg1jOYaUmnzLX1AOD6Z+UJjtifg==}
@@ -1867,6 +1886,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@redactpii/node@1.0.16': {}
+
   '@rollup/rollup-android-arm-eabi@4.57.1':
     optional: true
 
@@ -1961,7 +1982,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.2.3
       form-data: 4.0.5
 
   '@types/node@18.19.130':

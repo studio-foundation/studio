@@ -1,0 +1,24 @@
+{
+  "name": "@studio/anonymizer",
+  "version": "0.1.0",
+  "description": "PII detection and anonymization with consistent token mapping",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["pii", "anonymization", "privacy"],
+  "author": "Ariane Guay",
+  "license": "MIT",
+  "dependencies": {
+    "@redactpii/node": "^1.0.16"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.5",
+    "vitest": "^2.1.8"
+  }
+}
