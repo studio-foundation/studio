@@ -20,6 +20,7 @@ interface RunOptions {
   json?: boolean;
   verbose?: boolean;
   provider?: string;
+  anonymize?: boolean;
 }
 
 async function cloneRepo(
@@ -325,6 +326,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       result = await engine.run({
         pipeline: pipelineName,
         input,
+        anonymize: options.anonymize,
       });
     } finally {
       runLogger.close();

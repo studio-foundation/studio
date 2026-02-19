@@ -31,6 +31,7 @@ program
   .option('--provider <name>', 'Override LLM provider for all stages (e.g. mock)')
   .option('--json', 'Output results as JSON')
   .option('--verbose', 'Show detailed execution logs')
+  .option('--anonymize', 'Anonymize PII in inputs and outputs before sending to LLM')
   .action(runCommand);
 
 program
