@@ -7,6 +7,8 @@ import { input, select, password, confirm } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
 import { createProjectDir } from './project.js';
+import { validateApiKeyLive } from '../provider-validator.js';
+import { getAvailableModels } from '../models-cache.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -106,7 +108,8 @@ const DEFAULT_MODELS: Record<string, string> = {
 export async function writeProviderToConfig(
   studioDir: string,
   provider: string,
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<void> {
   const configPath = join(studioDir, 'config.yaml');
 
@@ -128,7 +131,7 @@ export async function writeProviderToConfig(
   // Set defaults
   parsed.defaults = {
     provider,
-    model: DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514',
+    model: model ?? DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514',
   };
 
   await writeFile(configPath, yaml.dump(parsed), 'utf-8');
@@ -232,6 +235,16 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
           console.error(`Error: ${validation}`);
           process.exit(1);
         }
+        process.stdout.write('Validating API key...');
+        const result = await validateApiKeyLive(options.provider!, options.apiKey);
+        if (result.status === 'valid') {
+          console.log(chalk.green(' ✓'));
+        } else if (result.status === 'warning') {
+          console.log(chalk.yellow(` ⚠ ${result.message}`));
+        } else {
+          console.error(chalk.red(` ✗ ${result.error}`));
+          process.exit(1);
+        }
       }
 
       const projectName = nameArg ?? options.project ?? basename(cwd);
@@ -314,10 +327,51 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     let apiKey: string | undefined;
     if (provider !== 'later') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
-      apiKey = await password({
-        message: `${providerLabel} API Key:`,
-        validate: (value: string) => validateApiKeyFormat(provider, value),
-      });
+      while (true) {
+        apiKey = await password({
+          message: `${providerLabel} API Key:`,
+          validate: (value: string) => validateApiKeyFormat(provider, value),
+        });
+        const spinner = ora('Validating...').start();
+        const result = await validateApiKeyLive(provider, apiKey);
+        spinner.stop();
+        if (result.status === 'valid') {
+          console.log(chalk.green('  ✓ Valid'));
+          break;
+        } else if (result.status === 'warning') {
+          console.log(chalk.yellow(`  ⚠ ${result.message}`));
+          break;
+        } else {
+          console.log(chalk.red(`  ✗ ${result.error}`));
+          console.log(chalk.gray('  Please try again.'));
+        }
+      }
+    }
+
+    // Step 5b: Choose default model
+    let selectedModel: string | undefined;
+    if (provider !== 'later' && apiKey) {
+      const models = await getAvailableModels(provider, apiKey);
+      const fallback = DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514';
+
+      if (models.length > 0) {
+        const choices = [
+          ...models.map((m) => ({ value: m, name: m })),
+          { value: '__custom__', name: 'Enter custom model ID' },
+        ];
+        const chosen = await select<string>({
+          message: 'Default model:',
+          choices,
+          default: models.includes(fallback) ? fallback : models[0],
+        });
+        if (chosen === '__custom__') {
+          selectedModel = await input({ message: 'Model ID:', default: fallback });
+        } else {
+          selectedModel = chosen;
+        }
+      } else {
+        selectedModel = await input({ message: 'Default model:', default: fallback });
+      }
     }
 
     // Step 6: Create structure
@@ -330,7 +384,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       await createStudioStructure(cwd, projectName, templateName);
 
       if (provider !== 'later' && apiKey) {
-        await writeProviderToConfig(studioDir, provider, apiKey);
+        await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
       }
 
       spinner.stop();
