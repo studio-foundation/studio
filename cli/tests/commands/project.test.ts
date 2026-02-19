@@ -96,6 +96,38 @@ describe('validateProjectName', () => {
   });
 });
 
+describe('createProjectDir with { withTools: false }', () => {
+  it('copies software template files but leaves tools/ empty', async () => {
+    const { createProjectDir } = await import('../../src/commands/project.js');
+    await createProjectDir(PROJECTS_DIR, 'my-app', 'software', { withTools: false });
+
+    // Non-tool template files are copied
+    expect(await exists(join(PROJECTS_DIR, 'my-app', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(join(PROJECTS_DIR, 'my-app', 'agents', 'coder.agent.yaml'))).toBe(true);
+
+    // tools/ directory exists but is empty
+    expect(await exists(join(PROJECTS_DIR, 'my-app', 'tools'))).toBe(true);
+    const toolFiles = await readdir(join(PROJECTS_DIR, 'my-app', 'tools'));
+    expect(toolFiles).toEqual([]);
+  });
+
+  it('blank template with { withTools: false } still creates all 5 subdirs including tools/', async () => {
+    const { createProjectDir } = await import('../../src/commands/project.js');
+    await createProjectDir(PROJECTS_DIR, 'my-blank', 'blank', { withTools: false });
+
+    for (const sub of ['pipelines', 'agents', 'contracts', 'tools', 'inputs']) {
+      expect(await exists(join(PROJECTS_DIR, 'my-blank', sub))).toBe(true);
+    }
+  });
+
+  it('default behavior (withTools: true) still copies tools', async () => {
+    const { createProjectDir } = await import('../../src/commands/project.js');
+    await createProjectDir(PROJECTS_DIR, 'my-app', 'software');
+
+    expect(await exists(join(PROJECTS_DIR, 'my-app', 'tools', 'repo-manager.tool.yaml'))).toBe(true);
+  });
+});
+
 describe('projectAddDirect', () => {
   it('creates project dirs with a valid name and no template', async () => {
     const { projectAddDirect } = await import('../../src/commands/project.js');

@@ -1,5 +1,5 @@
 import { mkdir, access, cp } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve, join, relative, sep } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { input, select } from '@inquirer/prompts';
@@ -17,8 +17,10 @@ export const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'in
 export async function createProjectDir(
   projectsDir: string,
   projectName: string,
-  templateName?: string
+  templateName?: string,
+  options?: { withTools?: boolean }
 ): Promise<void> {
+  const withTools = options?.withTools ?? true;
   const projectDir = join(projectsDir, projectName);
 
   // Check if already exists
@@ -41,7 +43,18 @@ export async function createProjectDir(
 
     if (hasProjectDir) {
       await mkdir(projectDir, { recursive: true });
-      await cp(templateProjectDir, projectDir, { recursive: true });
+      if (withTools) {
+        await cp(templateProjectDir, projectDir, { recursive: true });
+      } else {
+        await cp(templateProjectDir, projectDir, {
+          recursive: true,
+          filter: (src) => {
+            const rel = relative(templateProjectDir, src);
+            return rel !== 'tools' && !rel.startsWith('tools' + sep);
+          },
+        });
+        await mkdir(join(projectDir, 'tools'), { recursive: true });
+      }
     } else {
       for (const sub of PROJECT_SUBDIRS) {
         await mkdir(join(projectDir, sub), { recursive: true });

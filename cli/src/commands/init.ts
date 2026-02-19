@@ -3,12 +3,16 @@ import { resolve, join, basename } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
-import { input, select, password, confirm } from '@inquirer/prompts';
+import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
 import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
+<<<<<<< feat/stu-48-init-tool-selection
+import { listAvailableTools, toolsAddDirect } from './tools.js';
+=======
+>>>>>>> main
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -42,7 +46,8 @@ const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 export async function createStudioStructure(
   cwd: string,
   projectName = 'default',
-  templateName?: string
+  templateName?: string,
+  withTools = true
 ): Promise<void> {
   // Check if already initialized
   const existing = await findStudioDir(cwd);
@@ -56,7 +61,7 @@ export async function createStudioStructure(
   const studioDir = resolve(cwd, '.studio');
   const projectsDir = join(studioDir, 'projects');
   await mkdir(projectsDir, { recursive: true });
-  await createProjectDir(projectsDir, projectName, templateName);
+  await createProjectDir(projectsDir, projectName, templateName, { withTools });
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
@@ -146,9 +151,10 @@ export async function directInit(
   projectName: string,
   templateName: string,
   provider: string,
-  apiKey: string
+  apiKey: string,
+  noTools = false
 ): Promise<void> {
-  await createStudioStructure(cwd, projectName, templateName);
+  await createStudioStructure(cwd, projectName, templateName, !noTools);
   if (provider !== 'later' && apiKey) {
     const studioDir = resolve(cwd, '.studio');
     await writeProviderToConfig(studioDir, provider, apiKey);
@@ -179,6 +185,7 @@ interface InitOptions {
   apiKey?: string;
   force?: boolean;
   yes?: boolean;
+  tools?: boolean;  // false when --no-tools is passed, true otherwise
 }
 
 export async function initCommand(nameArg?: string, options: InitOptions = {}): Promise<void> {
@@ -251,7 +258,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const spinner = ora('Creating project...').start();
 
       try {
-        await directInit(cwd, projectName, options.template!, options.provider!, options.apiKey ?? '');
+        await directInit(cwd, projectName, options.template!, options.provider!, options.apiKey ?? '', options.tools === false);
         spinner.stop();
       } catch (err) {
         spinner.fail('Failed');
@@ -372,16 +379,40 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       } else {
         selectedModel = await input({ message: 'Default model:', default: fallback });
       }
+<<<<<<< feat/stu-48-init-tool-selection
     }
 
-    // Step 6: Create structure
+    // Step 6: Tool selection
+    const availableTools = await listAvailableTools();
+    let selectedTools: string[] = [];
+
+    if (availableTools.length > 0) {
+      const selectedTemplateMeta = templates.find((t) => t.name === templateName);
+      const recommended = new Set(selectedTemplateMeta?.tools_included ?? []);
+
+      const toolChoices = availableTools.map((t) => ({
+        value: t.name,
+        name: `${t.name} — ${t.description}`,
+        checked: recommended.has(t.name),
+      }));
+
+      console.log('');
+      selectedTools = await checkbox({
+        message: 'Select tools to install:',
+        choices: toolChoices,
+      });
+=======
+>>>>>>> main
+    }
+
+    // Step 7: Create structure (without tools — we install them below)
     console.log('');
     const spinner = ora('Creating project...').start();
 
     const studioDir = resolve(cwd, '.studio');
 
     try {
-      await createStudioStructure(cwd, projectName, templateName);
+      await createStudioStructure(cwd, projectName, templateName, false);
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -393,14 +424,22 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       throw err;
     }
 
-    // Step 7: Success output
+    // Step 8: Install selected tools
+    if (selectedTools.length > 0) {
+      await toolsAddDirect(studioDir, projectName, selectedTools);
+    }
+
+    // Step 9: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
-    console.log(chalk.green(`  ✓ Copied template files`));
+    console.log(chalk.green(`  ✓ Applied template: ${templateName}`));
     console.log(chalk.green(`  ✓ Updated .gitignore`));
+    if (selectedTools.length > 0) {
+      console.log(chalk.green(`  ✓ Installed tools: ${selectedTools.join(', ')}`));
+    }
     console.log('');
 
-    // Step 8: Next steps
+    // Step 10: Next steps
     const selectedTemplate = templates.find((t) => t.name === templateName);
     const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
