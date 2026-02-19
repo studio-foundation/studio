@@ -2,7 +2,7 @@
  * Main agent runner function - executes agent with LLM + tools
  */
 
-import type { AgentConfig, ToolCall, LLMResponse, Message, OutputContract } from '@studio/contracts';
+import type { AgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio/contracts';
 import { buildPrompt, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
@@ -20,6 +20,7 @@ export interface RunAgentConfig {
   outputContract?: OutputContract;
   maxToolCalls?: number;
   anonymizationMiddleware?: AnonymizationMiddleware;
+  callbacks?: RunnerCallbacks;
 }
 
 export interface AgentRunResult {
@@ -169,13 +170,28 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     // Execute each tool call
     const executedToolCalls: ToolCall[] = [];
     for (const tc of response.tool_calls) {
+      const tcStart = Date.now();
+      config.callbacks?.onToolCallStart?.({
+        tool: tc.name,
+        params: tc.arguments,
+        timestamp: tcStart,
+      });
+
       const executed = await toolExecutor.execute({
         id: tc.id,
         name: tc.name,
-        arguments: tc.arguments
+        arguments: tc.arguments,
       });
       executedToolCalls.push(executed);
       allToolCalls.push(executed);
+
+      config.callbacks?.onToolCallComplete?.({
+        tool: tc.name,
+        result: executed.result,
+        error: executed.error,
+        duration_ms: Date.now() - tcStart,
+        timestamp: Date.now(),
+      });
     }
 
     // Add assistant message with tool calls to conversation

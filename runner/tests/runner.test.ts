@@ -302,3 +302,126 @@ describe('runAgent', () => {
     });
   });
 });
+
+describe('runAgent — callbacks', () => {
+  it('calls onToolCallStart and onToolCallComplete for each tool call', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'echo_tool',
+      description: 'Echoes input',
+      parameters: {},
+      execute: async (args) => ({ success: true, output: args }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'echo_tool', arguments: { msg: 'hello' } }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"done"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
+    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'Test callbacks' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onToolCallStart: (e) => startEvents.push(e),
+        onToolCallComplete: (e) => completeEvents.push(e),
+      },
+    });
+
+    expect(startEvents).toHaveLength(1);
+    expect(startEvents[0].tool).toBe('echo_tool');
+    expect(startEvents[0].params).toEqual({ msg: 'hello' });
+    expect(startEvents[0].timestamp).toBeTypeOf('number');
+
+    expect(completeEvents).toHaveLength(1);
+    expect(completeEvents[0].tool).toBe('echo_tool');
+    expect(completeEvents[0].result).toEqual({ msg: 'hello' });
+    expect(completeEvents[0].error).toBeUndefined();
+    expect(completeEvents[0].duration_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('includes error in onToolCallComplete when tool fails', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'broken_tool',
+      description: 'Always fails',
+      parameters: {},
+      execute: async () => ({ success: false, error: 'something went wrong' }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'broken_tool', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"recovered"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'Test error callback' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onToolCallComplete: (e) => completeEvents.push(e),
+      },
+    });
+
+    expect(completeEvents[0].error).toBe('something went wrong');
+    expect(completeEvents[0].result).toBeUndefined();
+  });
+
+  it('works fine when no callbacks are provided', async () => {
+    const mockProvider = new MockProvider([
+      {
+        content: '"ok"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 },
+      },
+    ]);
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    await expect(
+      runAgent({
+        agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+        task: { description: 'No callbacks' },
+        context: {},
+        toolRegistry: new ToolRegistry(),
+        providerRegistry,
+      })
+    ).resolves.toBeDefined();
+  });
+});
