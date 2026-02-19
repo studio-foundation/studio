@@ -259,6 +259,49 @@ describe('directInit', () => {
   });
 });
 
+describe('createStudioStructure with withTools: false', () => {
+  it('does not copy tool files from template', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP, 'software', 'software', false);
+
+    const toolsDir = resolve(TMP, '.studio', 'projects', 'software', 'tools');
+    expect(await exists(toolsDir)).toBe(true);
+
+    const { readdir } = await import('node:fs/promises');
+    const toolFiles = await readdir(toolsDir);
+    expect(toolFiles).toEqual([]);
+  });
+
+  it('still copies other template files when withTools is false', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP, 'software', 'software', false);
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'agents', 'coder.agent.yaml'))).toBe(true);
+  });
+});
+
+describe('directInit with noTools: true', () => {
+  it('creates project without copying tool files', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key', true);
+
+    const toolsDir = resolve(TMP, '.studio', 'projects', 'my-project', 'tools');
+    expect(await exists(toolsDir)).toBe(true);
+
+    const { readdir } = await import('node:fs/promises');
+    const toolFiles = await readdir(toolsDir);
+    expect(toolFiles).toEqual([]);
+  });
+
+  it('still creates config.yaml when noTools is true', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key', true);
+
+    expect(await exists(resolve(TMP, '.studio', 'config.yaml'))).toBe(true);
+  });
+});
+
 describe('writeProviderToConfig', () => {
   // We need a fresh .studio/ for each test — reuse the outer TMP/beforeEach/afterEach.
 

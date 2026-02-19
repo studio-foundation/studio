@@ -42,7 +42,8 @@ const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 export async function createStudioStructure(
   cwd: string,
   projectName = 'default',
-  templateName?: string
+  templateName?: string,
+  withTools = true
 ): Promise<void> {
   // Check if already initialized
   const existing = await findStudioDir(cwd);
@@ -56,7 +57,7 @@ export async function createStudioStructure(
   const studioDir = resolve(cwd, '.studio');
   const projectsDir = join(studioDir, 'projects');
   await mkdir(projectsDir, { recursive: true });
-  await createProjectDir(projectsDir, projectName, templateName);
+  await createProjectDir(projectsDir, projectName, templateName, { withTools });
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
@@ -146,9 +147,10 @@ export async function directInit(
   projectName: string,
   templateName: string,
   provider: string,
-  apiKey: string
+  apiKey: string,
+  noTools = false
 ): Promise<void> {
-  await createStudioStructure(cwd, projectName, templateName);
+  await createStudioStructure(cwd, projectName, templateName, !noTools);
   if (provider !== 'later' && apiKey) {
     const studioDir = resolve(cwd, '.studio');
     await writeProviderToConfig(studioDir, provider, apiKey);
