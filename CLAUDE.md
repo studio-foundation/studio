@@ -27,9 +27,9 @@ git hooks         →  Tool plugins (.tool.yaml)
 GitHub Actions    →  Community registry
 ```
 
-**2 repos :**
-- **Repo Studio** — le produit (publié sur npm). Contient les 5 packages.
-- **Repos utilisateurs** — les projets qui UTILISENT Studio (ex: `code-builder`). Contiennent `.studio/projects/` avec leurs configs.
+**2 types de repos :**
+- **Repo Studio** — le kernel (publié sur npm). Contient les 5 packages + templates architecturaux.
+- **Repos utilisateurs** — les projets/apps qui UTILISENT Studio (ex: `code-builder`, `adhd-finance`). Contiennent `.studio/` avec leurs configs.
 
 ## Architecture — 5 packages, 1 monorepo
 
@@ -45,6 +45,12 @@ Studio/                         # UN repo git, pnpm workspaces
 │   └── package.json
 ├── cli/                        # @studio/cli — interface terminal
 │   └── package.json
+├── templates/                  # Templates architecturaux (voir TEMPLATES.md)
+│   ├── software/
+│   ├── finance/
+│   ├── analysis/
+│   ├── data/
+│   └── conversation/
 ├── package.json                # Root workspace
 ├── pnpm-workspace.yaml
 └── CLAUDE.md
@@ -68,6 +74,69 @@ Studio/                         # UN repo git, pnpm workspaces
 
 **pnpm workspaces :** Les dépendances internes utilisent `workspace:*`. Un seul `pnpm install` à la racine, un seul `pnpm build`.
 
+## Templates — Patterns Architecturaux
+
+**Les templates ne sont PAS des produits finaux.** Ce sont des **patterns architecturaux** pour différents types d'apps.
+
+| Template | Use cases | Exemples de produits |
+|----------|-----------|---------------------|
+| `software/` | Code generation, refactoring, git operations | Code Builder, Git Butler, API Generator |
+| `finance/` | Transaction analysis, budget management | ADHD Finance, Invoicing Tools, Portfolio Managers |
+| `analysis/` | Content extraction, entity recognition, structuring | Wiki Creator, Voice Training, Legal Analyzers |
+| `data/` | Validation, transformation, compliance checking | GrayOS Compliance, ETL Auditors, Data Cleaners |
+| `conversation/` | Dialogue management, memory, feedback loops | Therapy Chatbots, Learning Assistants |
+
+### Qu'est-ce qu'un template ?
+
+Un template fournit un **starter fonctionnel** pour un type d'app :
+
+- **Pipelines de base** pour le pattern (ex: `content-extraction`, `entity-recognition` pour `analysis/`)
+- **Tools adaptés** (ex: `repo_manager-*` pour `software/`, `text-processor` pour `analysis/`)
+- **Contracts types** (schemas de validation pour ce domaine)
+- **Agents configurés** (analyzer, coder, etc. selon le pattern)
+- **DB schema starter** (Prisma schema adapté au use case)
+- **Code minimal** (structure de dossiers, fichiers de base)
+
+**Important :** Les templates génèrent des apps **fonctionnelles out-of-the-box**. Comme `create-react-app`, pas comme un fichier vide.
+
+### Workflow développeur
+
+```bash
+# Créer une app basée sur un template
+studio init --template analysis --name wiki-creator
+cd wiki-creator
+
+# L'app est générée avec :
+# - .studio/projects/analysis/ (pipelines, contracts, agents, tools)
+# - src/ (code starter)
+# - prisma/schema.prisma (DB schema)
+# - package.json
+
+# Installer et run
+npm install
+npm run dev
+
+# Ça marche immédiatement
+studio run analysis/content-extraction --input "..."
+
+# Puis customize selon tes besoins
+# - Ajouter des pipelines spécifiques
+# - Étendre le DB schema
+# - Ajouter du code métier
+```
+
+### Produits vs Templates
+
+**Code Builder** (produit) utilise le template `software/`  
+**ADHD Finance** (produit) utilise le template `finance/`  
+**Wiki Creator** (produit) utilise le template `analysis/`  
+**Voice Training** (produit) utilise le template `analysis/` aussi  
+**GrayOS Compliance** (produit) utilise le template `data/`
+
+Les templates sont **réutilisables** — plusieurs produits peuvent partir du même template et diverger complètement.
+
+Voir **[TEMPLATES.md](TEMPLATES.md)** pour la documentation complète.
+
 ## Structure `.studio/` (côté utilisateur)
 
 Quand un utilisateur fait `studio init` dans son projet, tout vit dans `.studio/` :
@@ -77,7 +146,7 @@ my-project/                           # Le repo de l'utilisateur
 ├── .studio/                          # Tout Studio vit ici (comme .git/)
 │   ├── config.yaml                   # Providers, defaults (gitignored)
 │   ├── projects/
-│   │   └── <project>/
+│   │   └── <project>/                # Ex: software/, finance/, analysis/
 │   │       ├── pipelines/            # *.pipeline.yaml
 │   │       ├── agents/               # *.agent.yaml
 │   │       ├── contracts/            # *.contract.yaml
@@ -87,12 +156,13 @@ my-project/                           # Le repo de l'utilisateur
 │   └── runs/                         # Données runtime (gitignored)
 │       ├── runs.db                   # SQLite
 │       └── logs/                     # JSONL
-├── src/                              # Le code du user
+├── src/                              # Le code de l'app
+├── prisma/                           # DB schema (étendu depuis le template)
 └── .gitignore
 ```
 
 **Git strategy :**
-- **Commité :** `.studio/projects/`, `.studio/registry.lock.json`
+- **Commité :** `.studio/projects/`, `.studio/registry.lock.json`, `src/`, `prisma/`
 - **Gitignored :** `.studio/config.yaml` (API keys), `.studio/runs/`
 
 `findStudioDir()` remonte les dossiers parents jusqu'à trouver `.studio/`, exactement comme `git` cherche `.git/`.
@@ -103,12 +173,12 @@ Le CLI et l'API sont deux interfaces distinctes sur le même engine. Comme `git`
 
 ```
 CLI = usage direct (humain devant un terminal)
-  studio init              → crée .studio/
-  studio config set        → modifie config.yaml
-  studio tools add         → installe un tool
-  studio run               → lance un pipeline ← USAGE QUOTIDIEN
-  studio status            → check un run
-  studio validate          → dry-run
+  studio init --template <type>  → génère une app complète
+  studio config set              → modifie config.yaml
+  studio tools add               → installe un tool
+  studio run                     → lance un pipeline ← USAGE QUOTIDIEN
+  studio status                  → check un run
+  studio validate                → dry-run
 
 API = usage programmatique (machine-to-machine)
   Linear webhook → POST /runs    → auto-trigger sans humain
@@ -186,9 +256,11 @@ Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin run
 
 **Pour ajouter un tool :** Créer un `.tool.yaml` dans `.studio/projects/<projet>/tools/`. Le runner le charge automatiquement.
 
+**Tools par template :** Chaque template inclut les tools appropriés pour son domaine. `software/` a `repo_manager-*`, `analysis/` a `text-processor`, `finance/` a `bank-api`, etc.
+
 ## Configs YAML — source de vérité
 
-Les configs sont organisées par projet : `.studio/projects/<projet>/` dans le repo utilisateur (ex: `code-builder/.studio/projects/software/`).
+Les configs sont organisées par projet : `.studio/projects/<projet>/` dans le repo utilisateur.
 
 **Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
@@ -250,7 +322,7 @@ studio list projects                             # Lister les projets
 studio list pipelines                            # Lister les pipelines
 
 # Configuration
-studio init                                      # Créer .studio/ (wizard interactif)
+studio init --template <type> --name <projet>    # Créer une app complète
 studio config set provider anthropic --api-key $KEY  # Configurer un provider
 studio config set default.model claude-haiku-4-20250514
 studio config list                               # Voir la config (API keys masquées)
@@ -265,27 +337,22 @@ studio tools info git                            # Détail d'un tool
 studio validate <contract> <output.json>         # Valider sans LLM
 ```
 
-## Format .studiorc.yaml
-
-Fichier de configuration à la racine du repo utilisateur (ex: `code-builder/.studiorc.yaml`). Gitignored.
+## Format .studio/config.yaml
 
 ```yaml
+# Généré par studio config, éditable aussi à la main
 providers:
   anthropic:
     apiKey: ${ANTHROPIC_API_KEY}
   openai:
     apiKey: ${OPENAI_API_KEY}
 
-paths:
-  configs: .studio/projects       # Chemin vers les configs du projet
-  projects_dir: .studio/projects  # Chemin pour les runs et clones
-
 defaults:
   provider: anthropic
   model: claude-sonnet-4-20250514
 ```
 
-Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`. Ne commit jamais ce fichier — il contient des secrets.
+Les API keys peuvent utiliser des variables d'environnement : `${VAR_NAME}`. Ce fichier est gitignored — ne commit jamais les API keys.
 
 ---
 
@@ -447,3 +514,69 @@ gh pr create --title "<titre>" --body "<description>" --base main
 3. **Vérifie les YAML.** Si ta feature peut être configurée en YAML plutôt que codée, fais-le en YAML.
 4. **`pnpm build` après.** Un seul build à la racine.
 5. **Le engine est domain-agnostic.** Si tu mets du jargon métier dans le engine, c'est faux.
+
+## Projets "Powered by Studio"
+
+Un projet Powered by Studio est un **workspace** où Studio orchestre du travail via des pipelines.
+
+### Anatomie
+
+```
+mon-projet/                      # Le workspace (repo git séparé)
+├── .studio/                     # Studio vit ici (comme .git/)
+│   ├── config.yaml              # Config locale (gitignored)
+│   ├── projects/
+│   │   └── <nom>/               # Ex: software/, analysis/, finance/
+│   │       ├── pipelines/
+│   │       ├── contracts/
+│   │       ├── agents/
+│   │       └── tools/
+│   └── runs/
+│       └── runs.db              # État d'exécution (gitignored)
+├── src/                         # Le code de l'app
+├── prisma/                      # DB schema (étendu depuis template)
+└── package.json
+```
+
+### Intégration
+
+Studio s'intègre via les **tools** qui ont accès au workspace :
+
+- `repo_manager-write_file` écrit dans `src/`
+- `shell-run_command` exécute dans le workspace
+- `search-search_codebase` cherche dans le workspace
+
+Le kernel est agnostic du contenu du workspace — il orchestre simplement les transformations.
+
+### Exemples concrets
+
+**Code Builder** (repo séparé) :
+- Généré avec `studio init --template software --name code-builder`
+- Contient `.studio/projects/software/` (copié depuis template)
+- Code custom dans `src/` (CLI wrapper, IDE extension, etc.)
+- DB schema étendu pour tracking repos/features
+
+**ADHD Finance** (repo séparé) :
+- Généré avec `studio init --template finance --name adhd-finance`
+- Contient `.studio/projects/finance/` (copié depuis template)
+- Code custom dans `src/` (Next.js app, Plaid integration, etc.)
+- DB schema étendu pour users/accounts/transactions/budgets
+
+**Wiki Creator** (repo séparé) :
+- Généré avec `studio init --template analysis --name wiki-creator`
+- Contient `.studio/projects/analysis/` (copié depuis template)
+- Code custom dans `src/` (book parser, wiki generator, etc.)
+- DB schema étendu pour books/wikis/pages/entities
+
+### Local vs Remote (futur)
+
+**Local** : Studio run dans le workspace sur ta machine  
+**Remote** : Studio run dans un clone sur Studio Cloud
+
+Le concept de "remote" (comme `git remote`) permettra de push/pull les configs et d'exécuter sur un serveur.
+
+---
+
+**Voir aussi :**
+- **[TEMPLATES.md](TEMPLATES.md)** — Documentation complète des templates architecturaux
+- **[INVARIANTS.md](INVARIANTS.md)** — Règles non-négociables du kernel

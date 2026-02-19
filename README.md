@@ -62,13 +62,50 @@ The agents do the work. The kernel governs the work. The agents are never sovere
 
 ---
 
-## Not just code
+## Templates — Build apps powered by AI pipelines
 
-Studio is domain-agnostic. The pipeline engine doesn't care what the agents are doing — it cares that the output contracts are satisfied.
+Studio isn't just a tool you add to your project. It's a **generator for complete AI-powered applications**.
 
-### Code Builder
+```bash
+studio init --template software --name code-builder
+cd code-builder
+npm install
+studio run software/feature-builder --input "Add dark mode"
+```
 
-Build features, fix bugs, extend existing code — with structural validation that catches agents faking work.
+This generates a **full working app** with:
+- Complete pipeline definitions for code generation + QA
+- Tools for file operations, git, shell commands
+- Database schema for tracking repos and features
+- Starter code structure ready to extend
+
+### Templates are architectural patterns
+
+| Template | Use cases | Example products |
+|----------|-----------|------------------|
+| `software` | Code generation, refactoring, git operations | Code Builder, Git Butler, API generators |
+| `finance` | Transaction analysis, budget management | ADHD Finance, invoicing tools, portfolio managers |
+| `analysis` | Content extraction, entity recognition | Wiki Creator, Voice Training, legal analyzers |
+| `data` | Validation, transformation, compliance | ETL auditors, data cleaners, schema validators |
+| `conversation` | Dialogue management, memory systems | Chatbots, learning assistants, therapy tools |
+
+Each template includes:
+- **Pipelines** for common workflows in that domain
+- **Tools** specific to the use case (file ops, text processing, APIs)
+- **Contracts** defining what valid output looks like
+- **Agents** configured for the domain (coder, analyst, etc.)
+- **Database schema** starter (Prisma)
+- **Code structure** that works out-of-the-box
+
+Then you customize for your specific product.
+
+---
+
+## Real examples
+
+### Code Builder (built with `software` template)
+
+Generate features, fix bugs, refactor code — with structural validation that catches agents faking work.
 
 ```yaml
 # pipelines/feature-builder.pipeline.yaml
@@ -92,78 +129,88 @@ stages:
         contract: qa-review
 ```
 
-### Recipe Generator
+**Anti-theatre validation:** If the code-generation stage claims to have written files but made zero tool calls, it fails. No exceptions.
 
-Create recipes from user descriptions, with iterative critique and refinement. Uses a feedback loop group to ensure quality.
+### ADHD Finance (built with `finance` template)
 
-```yaml
-# pipelines/recipe-generator.pipeline.yaml
-stages:
-  - name: ingredient-analysis
-    agent: chef
-    contract: ingredient-check
-  - name: recipe-plan
-    agent: chef
-    contract: recipe-plan
-  - group: creation-review
-    max_iterations: 3
-    stages:
-      - name: recipe-creation
-        agent: chef
-        contract: recipe-output
-      - name: recipe-critique
-        agent: chef
-        contract: recipe-critique
-```
+Help neurodivergent people manage money by automating transaction categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
 
-### What else can you build?
+Uses pipelines like:
+- `transaction-analysis` — Categorize transactions with context
+- `budget-planning` — Generate budget recommendations
+- `account-splitting` — Auto-split paychecks across accounts
 
-Studio is a pipeline creator. Anyone can add new pipelines for any domain:
+Integrates with Plaid for bank connections, scheduled jobs for automation.
 
-- **Git Butler** — Rewrite messy git history into clean, reviewable commits. Analyze diffs, identify logical boundaries, rebase automatically, validate integrity.
-- **ADHD Finance** — Help neurodivergent people manage money by automating categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
-- **Wiki Creator** — Analyze books and build structured wikis. Extract entities, map relationships, generate cross-referenced pages.
-- **Legal Document Analyzer** — Parse contracts, identify clauses, flag risks, generate summaries.
-- **Data Pipeline Validator** — Analyze ETL jobs, validate transformations, ensure data integrity.
+### Wiki Creator (built with `analysis` template)
 
-Same engine. Different pipelines. Different contracts. Different agents. Studio doesn't care about the domain — it cares that the output is proven correct.
+Analyze books and build structured wikis. Extract entities, map relationships, generate cross-referenced pages.
+
+Pipelines:
+- `book-analysis` — Extract structure and themes
+- `entity-extraction` — Identify characters, places, concepts
+- `wiki-generation` — Generate interconnected pages
+
+### Voice Training (also built with `analysis` template)
+
+Help trans women improve their voice with structured exercises and AI-powered feedback. Like Duolingo but for voice feminization.
+
+Pipelines:
+- `voice-analysis` — Analyze pitch, resonance, articulation
+- `feedback-generation` — Generate personalized coaching
+- `progress-tracking` — Monitor improvement over time
+
+Same template (`analysis`), completely different product.
 
 ---
 
 ## Quick start
 
 ```bash
+# Install Studio globally
 npm install -g @studio/cli
 
-cd your-project
-studio init --template software
+# Create a new app from a template
+studio init --template software --name my-builder
+cd my-builder
+
+# Configure your LLM provider
 studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
 
+# Install dependencies
+npm install
+
+# Run a pipeline
 studio run software/feature-builder --input "Add dark mode support"
 ```
 
-### Project structure
-
-After `studio init`, everything lives in `.studio/` — just like `.git/`:
+### What gets generated
 
 ```
-your-project/
-├── .studio/                          # All Studio config lives here
+my-builder/
+├── .studio/                          # Studio config (like .git/)
 │   ├── config.yaml                   # Provider config (gitignored)
 │   ├── projects/
-│   │   └── <project>/
+│   │   └── software/                 # Copied from template
 │   │       ├── pipelines/            # Pipeline definitions (YAML)
 │   │       ├── contracts/            # Output contracts (YAML)
 │   │       ├── agents/               # Agent profiles (YAML)
 │   │       ├── tools/                # Tool plugins (YAML)
-│   │       └── inputs/               # Input file examples (YAML)
+│   │       └── inputs/               # Input examples (YAML)
 │   ├── registry.lock.json            # Tool versions (committed)
 │   └── runs/                         # Runtime data (gitignored)
-├── src/                              # Your project files
-└── ...
+├── src/                              # Your app code
+│   ├── index.ts
+│   └── lib/
+├── prisma/                           # Database schema
+│   └── schema.prisma
+├── package.json
+└── README.md
 ```
 
 Studio finds `.studio/` by walking up the directory tree, just like `git` finds `.git/`.
+
+The pipelines, tools, and contracts are **versioned with your code** in git. Your team shares the same configurations.
 
 ---
 
@@ -187,11 +234,13 @@ Studio finds `.studio/` by walking up the directory tree, just like `git` finds 
 
 **Tool Plugin** — A `.tool.yaml` file that defines a set of commands available to agents. Each plugin contains its parameters, execution logic (shell or builtin), a prompt snippet, and its constraints. The prompt snippet is automatically injected into the agent's system prompt — the tool documents itself. Creating a tool requires no code — just YAML.
 
+**Templates** — Architectural patterns that generate complete application starters. Each template provides pipelines, tools, contracts, agents, and code structure for a specific type of app (software, finance, analysis, data, conversation).
+
 ---
 
 ## Tool Plugins
 
-Tool plugins are the extension system. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file. Like git hooks, but for AI agents.
+Tool plugins are the extension system. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file.
 
 ```yaml
 # .studio/projects/cuisine/tools/nutrition.tool.yaml
@@ -223,13 +272,11 @@ constraints:
   requires_binaries: [nutrition-api]
 ```
 
-Three things make this powerful:
+**Self-documenting:** The `prompt_snippet` is automatically injected into the system prompt. The tool explains itself.
 
-**Self-documenting.** The `prompt_snippet` is automatically injected into the system prompt of any agent that has access to the tool. The tool explains itself. Zero config on the pipeline side.
+**Project-scoped:** Each project has its own `tools/` folder. The cuisine project has nutrition tools. The software project has git tools. They never cross.
 
-**Project-scoped.** Each project has its own `tools/` folder. The cuisine project has nutrition tools. The software project has git tools. They never cross. Agents only access what their project allows.
-
-**Double-gated.** The project authorizes which tool groups are available. The agent YAML authorizes which specific tools it can call. Two layers of access control, both declarative.
+**Double-gated:** The project authorizes which tool groups are available. The agent YAML authorizes which specific tools it can call. Two layers of access control.
 
 ---
 
@@ -264,9 +311,16 @@ Different agents can use different providers. Switch models without changing pip
     └── @studio/runner   → LLM calls, tool plugin runtime, multi-provider
     │
 @studio/contracts    → Shared types (zero dependencies)
+
+Templates/           → Architectural patterns
+    ├── software/
+    ├── finance/
+    ├── analysis/
+    ├── data/
+    └── conversation/
 ```
 
-Five packages in a single pnpm monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
+Five packages in a single monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
 
 **Build from source:**
 
@@ -284,6 +338,9 @@ pnpm build
 The CLI is the primary interface. Like `git`, it handles both setup and daily use.
 
 ```bash
+# Generate a new app
+studio init --template <type> --name <project>
+
 # Daily use
 studio run <project/pipeline> --input "..."     # Run a pipeline
 studio run <project/pipeline> --dry-run         # Validate without calling LLMs
@@ -292,7 +349,6 @@ studio list pipelines                           # List available pipelines
 studio validate <contract> <output>             # Validate output against contract
 
 # Setup & config
-studio init                                     # Initialize .studio/ in current directory
 studio config set provider anthropic --api-key $KEY
 studio config list                              # Show config (API keys masked)
 studio tools list                               # List tools in current project
@@ -335,7 +391,15 @@ Studio follows a tripartite architecture designed to prevent capture:
 
 **Support Core** — Hosting, maintenance, documentation. Generates revenue subordinate to the common good. Like the Linux Foundation.
 
-**Products Powered by Studio** — Specialized tools (Code Builder, ADHD Finance, Git Butler, Wiki Creator). Commercial entities that can appear or disappear. They never dictate kernel evolution. Like GitHub, GitLab, Bitbucket are to `git`.
+**Products Powered by Studio** — Specialized applications built from templates. Can be open source or commercial. Can appear or disappear. They never dictate kernel evolution. Each product starts from a template and customizes for its specific use case.
+
+Examples:
+- Code Builder (from `software` template)
+- ADHD Finance (from `finance` template)
+- Wiki Creator (from `analysis` template)
+- Voice Training (from `analysis` template)
+
+Like GitHub, GitLab, Bitbucket are to `git` — products built on a shared foundation.
 
 ### Anti-drift
 
@@ -349,9 +413,17 @@ Decision-making power must be held primarily by the people directly affected by 
 
 ## Status
 
-Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional. Two reference pipelines are implemented: `software/feature-builder` (code generation with QA feedback loops) and `cuisine/recipe-generator` (recipe creation with iterative critique).
+Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional.
 
-Current priority: **Code Builder that works end-to-end.** Everything else follows from that.
+**Current priority:** Code Builder that works end-to-end. Once validated, the `software` template will be extracted and polished for public use.
+
+Roadmap:
+1. ✅ Kernel (engine, ralph, runner, contracts, cli)
+2. 🚧 Code Builder (reference product validating `software` template)
+3. 📋 Extract and document `software` template
+4. 📋 Build other templates (`finance`, `analysis`, `data`)
+5. 📋 Community registry for custom templates
+6. 📋 Studio Cloud (hosted API)
 
 ---
 
