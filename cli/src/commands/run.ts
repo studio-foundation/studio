@@ -9,6 +9,7 @@ import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { formatResult } from '../output/formatter.js';
 import { createRunLogger } from '../run-logger.js';
+import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 
 interface RunOptions {
   input?: string;
@@ -187,7 +188,19 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
   try {
     const config = await loadConfig(options.config);
 
-    // Resolve input: --input-file takes precedence, --input as fallback
+    // Resolve configs dir and parse project/pipeline
+    const configsDir = config.paths?.configs
+      ? resolve(config.paths.configs)
+      : config.resolvedStudioDir
+        ? resolve(config.resolvedStudioDir, 'projects')
+        : resolve('./configs');
+    const { project, pipeline: pipelineBase } = parseProjectPipeline(pipelineName);
+    const pipelinesDir = join(configsDir, project, 'pipelines');
+
+    // Load pipeline early (needed for input_schema and repo URL)
+    const pipelineDef = await loadPipelineByName(pipelineBase, pipelinesDir);
+
+    // Resolve input: --input-file > --input > wizard > error
     let input: string | Record<string, unknown>;
 
     if (options.inputFile) {
@@ -208,19 +221,18 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       }
     } else if (options.input) {
       input = options.input;
+    } else if (pipelineDef.input_schema?.type === 'structured') {
+      try {
+        const schema = validateInputSchema(pipelineDef.input_schema);
+        input = await collectStructuredInput(schema);
+      } catch (err) {
+        console.error(`Error: Invalid input_schema in pipeline: ${(err as Error).message}`);
+        process.exit(1);
+      }
     } else {
       console.error('Error: --input or --input-file is required');
       process.exit(1);
     }
-
-    // Resolve configs dir and parse project/pipeline
-    const configsDir = config.paths?.configs
-      ? resolve(config.paths.configs)
-      : config.resolvedStudioDir
-        ? resolve(config.resolvedStudioDir, 'projects')
-        : resolve('./configs');
-    const { project, pipeline: pipelineBase } = parseProjectPipeline(pipelineName);
-    const pipelinesDir = join(configsDir, project, 'pipelines');
 
     // Resolve repo path: --repo > --repo-url > pipeline.repo.url > CWD
     let repoPath: string;
@@ -228,20 +240,18 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     if (options.repo) {
       repoPath = resolve(options.repo);
     } else {
-      const repoUrl = options.repoUrl;
-      const pipelineDef = await loadPipelineByName(pipelineBase, pipelinesDir);
-      const effectiveUrl = repoUrl || pipelineDef.repo?.url;
+      const repoUrl = options.repoUrl || pipelineDef.repo?.url;
       const effectiveBranch = pipelineDef.repo?.branch;
 
-      if (effectiveUrl) {
+      if (repoUrl) {
         const projectsDir = config.paths?.projects_dir || process.env.STUDIO_PROJECTS_DIR;
         if (!projectsDir) {
           console.error('Error: STUDIO_PROJECTS_DIR is not set. Set it in .env or .studiorc.yaml paths.projects_dir');
           process.exit(1);
         }
 
-        console.log(`Cloning ${effectiveUrl}...`);
-        repoPath = await cloneRepo(effectiveUrl, projectsDir, pipelineName, effectiveBranch);
+        console.log(`Cloning ${repoUrl}...`);
+        repoPath = await cloneRepo(repoUrl, projectsDir, pipelineName, effectiveBranch);
         console.log(`Cloned to: ${repoPath}\n`);
       } else {
         repoPath = '.';
