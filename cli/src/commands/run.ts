@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
+import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
 import { PipelineEngine, parseProjectPipeline, loadPipelineByName } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio/runner';
@@ -19,6 +20,7 @@ interface RunOptions {
   config?: string;
   json?: boolean;
   verbose?: boolean;
+  live?: boolean;
   provider?: string;
   anonymize?: boolean;
 }
@@ -300,7 +302,12 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       toolRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
     }
 
-    const progress = new ProgressDisplay(!!options.json, !!options.verbose);
+    if (options.live && options.verbose) {
+      console.warn(chalk.yellow('⚠ Warning: --live includes all --verbose output. Ignoring --verbose.\n'));
+    }
+
+    const displayMode = options.live ? 'live' : options.verbose ? 'verbose' : 'quiet';
+    const progress = new ProgressDisplay(!!options.json, displayMode);
     const runLogger = createRunLogger(process.cwd());
     const events = mergeEvents(
       progress.getEvents(),

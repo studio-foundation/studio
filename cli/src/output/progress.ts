@@ -2,16 +2,23 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
-import { humanReadableStageName, summarizeToolCalls, summarizeOutput } from './formatters.js';
+import { humanReadableStageName, summarizeToolCalls, summarizeOutput, getToolIcon, summarizeToolParams, summarizeToolResult } from './formatters.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
   private spinnerText = '';
+  private toolSpinner: Ora | null = null;
+  private displayMode: 'quiet' | 'verbose' | 'live';
+
+  private get verbose(): boolean { return this.displayMode === 'verbose'; }
+  private get live(): boolean { return this.displayMode === 'live'; }
 
   constructor(
     private jsonMode: boolean,
-    private verbose: boolean
-  ) {}
+    displayMode: 'quiet' | 'verbose' | 'live'
+  ) {
+    this.displayMode = displayMode;
+  }
 
   getEvents(): EngineEvents {
     return {
@@ -26,10 +33,11 @@ export class ProgressDisplay {
         const index = `[${event.stage_index + 1}/${event.total_stages}]`;
         const label = humanReadableStageName(event.stage_name);
         this.spinnerText = `${index} ${label}`;
-        this.spinner = ora({
-          text: this.spinnerText,
-          color: 'cyan',
-        }).start();
+        if (this.live) {
+          console.log(chalk.cyan(`${this.spinnerText}...`));
+        } else {
+          this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
+        }
       },
 
       onStageComplete: (event) => {
@@ -39,7 +47,21 @@ export class ProgressDisplay {
         const label = humanReadableStageName(event.stage_name);
         const attemptsStr = `${event.attempts} attempt${event.attempts !== 1 ? 's' : ''}`;
 
-        if (event.status === 'success') {
+        if (this.live) {
+          if (event.status === 'success') {
+            console.log(chalk.green(`  ✓`) + chalk.gray(` (${attemptsStr}, ${duration})`));
+          } else if (event.status === 'rejected') {
+            console.log(chalk.red(`  ✗ rejected`) + chalk.gray(` (${duration})`));
+            if (event.rejection_reason) console.log(chalk.red(`    ${event.rejection_reason}`));
+            if (event.rejection_details?.length) {
+              for (const detail of event.rejection_details) {
+                console.log(chalk.yellow(`      - ${detail}`));
+              }
+            }
+          } else {
+            console.log(chalk.red(`  ✗ failed`) + chalk.gray(` (${attemptsStr}, ${duration})`));
+          }
+        } else if (event.status === 'success') {
           this.spinner?.succeed(
             chalk.white(label) +
             chalk.gray(` (${attemptsStr}, ${duration})`)
@@ -65,13 +87,13 @@ export class ProgressDisplay {
         }
         this.spinner = null;
 
-        // Default: grouped tool calls summary
-        if (event.tool_calls && event.tool_calls.length > 0) {
+        // Tool call summary: quiet + verbose only (in live mode, each was shown individually)
+        if (!this.live && event.tool_calls && event.tool_calls.length > 0) {
           const summary = summarizeToolCalls(event.tool_calls);
           if (summary) console.log(chalk.gray(`  ${summary}`));
         }
 
-        // Default: human-readable output summary (no raw JSON)
+        // Output summary: all modes
         if (event.status !== 'rejected' && event.output) {
           const summary = summarizeOutput(event.output);
           if (summary) console.log(chalk.gray(`  ${summary}`));
@@ -99,7 +121,9 @@ export class ProgressDisplay {
 
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
-        // Stop spinner before printing, restart after
+        // Stop any active spinners before printing retry info
+        this.toolSpinner?.stop();
+        this.toolSpinner = null;
         this.spinner?.stop();
         this.spinner = null;
 
@@ -114,11 +138,13 @@ export class ProgressDisplay {
           console.log(chalk.gray(`    Tool calls made: ${event.tool_calls_count}`));
         }
 
-        // Restart spinner for ongoing stage
-        this.spinner = ora({
-          text: this.spinnerText,
-          color: 'cyan',
-        }).start();
+        // Restart stage spinner for ongoing stage (not in live mode — tool spinners take over)
+        if (!this.live) {
+          this.spinner = ora({
+            text: this.spinnerText,
+            color: 'cyan',
+          }).start();
+        }
       },
 
       onGroupStart: () => {
@@ -152,6 +178,28 @@ export class ProgressDisplay {
             console.log(chalk.red(`  ✗ Rejected after ${event.iterations} iterations (max reached)`));
           }
         }
+      },
+
+      onToolCallStart: (event) => {
+        if (this.jsonMode || !this.live) return;
+        const icon = getToolIcon(event.tool);
+        const params = summarizeToolParams(event.tool, event.params);
+        this.toolSpinner = ora({
+          text: chalk.white(`${icon} ${event.tool}${params}`),
+          indent: 2,
+          color: 'cyan',
+        }).start();
+      },
+
+      onToolCallComplete: (event) => {
+        if (this.jsonMode || !this.live) return;
+        const summary = summarizeToolResult(event.result, event.error);
+        if (event.error) {
+          this.toolSpinner?.fail(chalk.red(`${event.tool} — ${event.error}`));
+        } else {
+          this.toolSpinner?.succeed(chalk.gray(summary));
+        }
+        this.toolSpinner = null;
       },
 
       onPipelineComplete: (event) => {

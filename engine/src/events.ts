@@ -1,3 +1,5 @@
+import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio/contracts';
+
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)
 
@@ -89,6 +91,9 @@ export interface EngineEvents {
   onGroupIteration?: (event: GroupIterationEvent) => void;
   onGroupFeedback?: (event: GroupFeedbackEvent) => void;
   onGroupComplete?: (event: GroupCompleteEvent) => void;
+  // Real-time tool call streaming (used by --live mode)
+  onToolCallStart?: (event: ToolCallStartEvent) => void;
+  onToolCallComplete?: (event: ToolCallCompleteEvent) => void;
 }
 
 // Keep the generic event bus for other use cases

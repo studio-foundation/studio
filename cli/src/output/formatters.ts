@@ -114,3 +114,33 @@ export function summarizeOutput(output: unknown): string | null {
 
   return `${keys.length} field${keys.length !== 1 ? 's' : ''}: ${keys.join(', ')}`;
 }
+
+// ── Live mode helpers ─────────────────────────────────────────────────────────
+
+export function getToolIcon(tool: string): string {
+  if (tool.startsWith('repo_manager-read')) return '📖';
+  if (tool.startsWith('repo_manager-write')) return '✏️';
+  if (tool.startsWith('repo_manager-list')) return '📁';
+  if (tool.startsWith('search')) return '🔍';
+  if (tool.startsWith('shell')) return '⚙️';
+  if (tool.startsWith('git')) return '🔀';
+  return '🔧';
+}
+
+export function summarizeToolParams(tool: string, params: Record<string, unknown>): string {
+  if (tool.includes('read_file') || tool.includes('write_file')) return `(${params.path})`;
+  if (tool.includes('list_files')) return params.path ? `(${params.path})` : '';
+  if (tool.includes('search')) return `("${params.query}")`;
+  if (tool.includes('run_command')) return `("${params.command}")`;
+  return '';
+}
+
+export function summarizeToolResult(result: unknown, error?: string): string {
+  if (error) return error;
+  if (typeof result === 'string') {
+    const lines = result.split('\n').length;
+    return lines > 1 ? `${lines} lines` : result.slice(0, 60);
+  }
+  if (Array.isArray(result)) return `${result.length} items`;
+  return 'Done';
+}
