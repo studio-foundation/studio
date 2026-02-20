@@ -186,6 +186,8 @@ function mergeEvents(
     },
     onToolCallStart: (e) => progressEvents.onToolCallStart?.(e),
     onToolCallComplete: (e) => progressEvents.onToolCallComplete?.(e),
+    onAgentThinking: (e) => progressEvents.onAgentThinking?.(e),
+    onAgentProgress: (e) => progressEvents.onAgentProgress?.(e),
   };
 }
 

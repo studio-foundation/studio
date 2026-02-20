@@ -455,6 +455,159 @@ describe('runAgent — callbacks', () => {
     expect(completeEvents[0].duration_ms).toBeGreaterThanOrEqual(0);
   });
 
+  it('emits onAgentThinking when first-turn LLM text accompanies tool calls', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'fetch_data',
+      description: 'Fetches data',
+      parameters: {},
+      execute: async () => ({ success: true, output: 'data' }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: 'Let me fetch the data for you.',
+        tool_calls: [{ id: 'tc-1', name: 'fetch_data', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"done"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
+    const progressEvents: import('@studio/contracts').AgentProgressEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'Fetch data' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onAgentThinking: (e) => thinkingEvents.push(e),
+        onAgentProgress: (e) => progressEvents.push(e),
+      },
+    });
+
+    expect(thinkingEvents).toHaveLength(1);
+    expect(thinkingEvents[0].thought).toBe('Let me fetch the data for you.');
+    expect(thinkingEvents[0].timestamp).toBeTypeOf('number');
+    expect(progressEvents).toHaveLength(0);
+  });
+
+  it('emits onAgentProgress (not onAgentThinking) for text in subsequent turns', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'step_a',
+      description: 'Step A',
+      parameters: {},
+      execute: async () => ({ success: true, output: 'a' }),
+    });
+    toolRegistry.register({
+      name: 'step_b',
+      description: 'Step B',
+      parameters: {},
+      execute: async () => ({ success: true, output: 'b' }),
+    });
+
+    const mockProvider = new MockProvider([
+      // Turn 0: thinking text + first tool call
+      {
+        content: 'Starting with step A.',
+        tool_calls: [{ id: 'tc-1', name: 'step_a', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      // Turn 1: progress text + second tool call
+      {
+        content: 'Now moving to step B.',
+        tool_calls: [{ id: 'tc-2', name: 'step_b', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 20, completion_tokens: 8, total_tokens: 28 },
+      },
+      // Final
+      {
+        content: '"complete"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 30, completion_tokens: 5, total_tokens: 35 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
+    const progressEvents: import('@studio/contracts').AgentProgressEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'Two-step task' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onAgentThinking: (e) => thinkingEvents.push(e),
+        onAgentProgress: (e) => progressEvents.push(e),
+      },
+    });
+
+    expect(thinkingEvents).toHaveLength(1);
+    expect(thinkingEvents[0].thought).toBe('Starting with step A.');
+
+    expect(progressEvents).toHaveLength(1);
+    expect(progressEvents[0].message).toBe('Now moving to step B.');
+  });
+
+  it('does not emit thinking/progress when LLM text is empty alongside tool calls', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'silent_tool',
+      description: 'Silent tool',
+      parameters: {},
+      execute: async () => ({ success: true, output: 'done' }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'silent_tool', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+      },
+      {
+        content: '"ok"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 15, completion_tokens: 3, total_tokens: 18 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'Silent' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: { onAgentThinking: (e) => thinkingEvents.push(e) },
+    });
+
+    expect(thinkingEvents).toHaveLength(0);
+  });
+
   it('works fine when no callbacks are provided', async () => {
     const mockProvider = new MockProvider([
       {

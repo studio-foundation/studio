@@ -1,4 +1,4 @@
-import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent } from '@studio/contracts';
 
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)
@@ -81,6 +81,14 @@ export interface GroupCompleteEvent {
   status: string;
 }
 
+export interface StagedAgentThinkingEvent extends AgentThinkingEvent {
+  stage: string;
+}
+
+export interface StagedAgentProgressEvent extends AgentProgressEvent {
+  stage: string;
+}
+
 export interface EngineEvents {
   onPipelineStart?: (event: PipelineStartEvent) => void;
   onPipelineComplete?: (event: PipelineCompleteEvent) => void;
@@ -94,6 +102,9 @@ export interface EngineEvents {
   // Real-time tool call streaming (used by --live mode)
   onToolCallStart?: (event: ToolCallStartEvent) => void;
   onToolCallComplete?: (event: ToolCallCompleteEvent) => void;
+  // Agent thinking/progress (text content emitted alongside tool calls)
+  onAgentThinking?: (event: StagedAgentThinkingEvent) => void;
+  onAgentProgress?: (event: StagedAgentProgressEvent) => void;
 }
 
 // Keep the generic event bus for other use cases
