@@ -6,11 +6,9 @@ import type { LLMRequest, LLMResponse } from '@studio/contracts';
 import type { Provider } from './provider.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
+  Message,
   MessageParam,
   Tool,
-  ToolUseBlock,
-  TextBlock,
-  ContentBlock,
   TextBlockParam
 } from '@anthropic-ai/sdk/resources/messages';
 
@@ -25,6 +23,22 @@ export class AnthropicProvider implements Provider {
   }
 
   async call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
+    const params = this.buildParams(request);
+
+    if (onToken) {
+      // Streaming path
+      const stream = this.client.messages.stream(params);
+      stream.on('text', (textDelta: string) => onToken(textDelta));
+      const response = await stream.finalMessage();
+      return this.parseResponse(response);
+    }
+
+    // Non-streaming path (unchanged behavior)
+    const response = await this.client.messages.create(params);
+    return this.parseResponse(response);
+  }
+
+  private buildParams(request: LLMRequest) {
     // Extract system messages (Anthropic handles them separately)
     const systemMessages = request.messages.filter(m => m.role === 'system');
     const systemContent = systemMessages.map(m => m.content).join('\n\n');
@@ -64,16 +78,17 @@ export class AnthropicProvider implements Provider {
       ? [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' as const } }]
       : undefined;
 
-    // Make API call
-    const response = await this.client.messages.create({
+    return {
       model: request.model,
       max_tokens: request.max_tokens || 4096,
       system: systemParam,
       messages: anthropicMessages,
       tools: tools,
       temperature: request.temperature
-    });
+    };
+  }
 
+  private parseResponse(response: Message): LLMResponse {
     // Parse tool calls and text content from response
     const tool_calls: Array<{
       id: string;
@@ -84,13 +99,12 @@ export class AnthropicProvider implements Provider {
 
     for (const block of response.content) {
       if (block.type === 'text') {
-        textContent += (block as TextBlock).text;
+        textContent += block.text;
       } else if (block.type === 'tool_use') {
-        const toolBlock = block as ToolUseBlock;
         tool_calls.push({
-          id: toolBlock.id,
-          name: toolBlock.name,
-          arguments: toolBlock.input as Record<string, unknown>
+          id: block.id,
+          name: block.name,
+          arguments: block.input as Record<string, unknown>
         });
       }
     }
