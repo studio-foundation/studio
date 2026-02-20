@@ -422,6 +422,12 @@ export class PipelineEngine {
           callbacks: this.events ? {
             onToolCallStart: this.events.onToolCallStart,
             onToolCallComplete: this.events.onToolCallComplete,
+            onAgentThinking: this.events.onAgentThinking
+              ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
+              : undefined,
+            onAgentProgress: this.events.onAgentProgress
+              ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
+              : undefined,
           } : undefined,
         });
 

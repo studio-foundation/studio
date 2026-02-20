@@ -181,6 +181,22 @@ export class ProgressDisplay {
         }
       },
 
+      onAgentThinking: (event) => {
+        if (this.jsonMode || !this.live) return;
+        for (const line of event.thought.trim().split('\n')) {
+          const trimmed = line.trim();
+          if (trimmed) console.log(chalk.dim(`  🤔 ${trimmed}`));
+        }
+      },
+
+      onAgentProgress: (event) => {
+        if (this.jsonMode || !this.live) return;
+        for (const line of event.message.trim().split('\n')) {
+          const trimmed = line.trim();
+          if (trimmed) console.log(chalk.dim(`  💭 ${trimmed}`));
+        }
+      },
+
       onToolCallStart: (event) => {
         if (this.jsonMode || !this.live) return;
         const icon = getToolIcon(event.tool);

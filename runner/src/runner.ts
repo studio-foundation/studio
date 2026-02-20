@@ -183,6 +183,17 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       break;
     }
 
+    // Emit thinking/progress if the LLM produced text alongside tool calls
+    const thinkingText = response.content?.trim();
+    if (thinkingText) {
+      const now = Date.now();
+      if (iterations === 0) {
+        config.callbacks?.onAgentThinking?.({ thought: thinkingText, timestamp: now });
+      } else {
+        config.callbacks?.onAgentProgress?.({ message: thinkingText, timestamp: now });
+      }
+    }
+
     // Execute each tool call
     const executedToolCalls: ToolCall[] = [];
     for (const tc of response.tool_calls) {
