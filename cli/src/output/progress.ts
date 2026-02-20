@@ -121,7 +121,9 @@ export class ProgressDisplay {
 
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
-        // Stop spinner before printing, restart after
+        // Stop any active spinners before printing retry info
+        this.toolSpinner?.stop();
+        this.toolSpinner = null;
         this.spinner?.stop();
         this.spinner = null;
 
@@ -136,11 +138,13 @@ export class ProgressDisplay {
           console.log(chalk.gray(`    Tool calls made: ${event.tool_calls_count}`));
         }
 
-        // Restart spinner for ongoing stage
-        this.spinner = ora({
-          text: this.spinnerText,
-          color: 'cyan',
-        }).start();
+        // Restart stage spinner for ongoing stage (not in live mode — tool spinners take over)
+        if (!this.live) {
+          this.spinner = ora({
+            text: this.spinnerText,
+            color: 'cyan',
+          }).start();
+        }
       },
 
       onGroupStart: () => {
