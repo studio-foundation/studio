@@ -19,6 +19,7 @@ interface RunOptions {
   config?: string;
   json?: boolean;
   verbose?: boolean;
+  live?: boolean;
   provider?: string;
   anonymize?: boolean;
 }
@@ -300,7 +301,8 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       toolRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
     }
 
-    const progress = new ProgressDisplay(!!options.json, !!options.verbose);
+    const displayMode = options.live ? 'live' : options.verbose ? 'verbose' : 'quiet';
+    const progress = new ProgressDisplay(!!options.json, displayMode);
     const runLogger = createRunLogger(process.cwd());
     const events = mergeEvents(
       progress.getEvents(),
