@@ -44,8 +44,9 @@ export function addStageToolResults(
   context: PipelineContext,
   stageName: string,
   toolCalls: ToolCall[]
-): void {
+): PipelineContext {
   context.stageToolResults.set(stageName, toolCalls);
+  return context;
 }
 
 export function setGroupFeedback(

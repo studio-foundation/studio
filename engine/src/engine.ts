@@ -43,6 +43,7 @@ import { loadContract } from './pipeline/contract-loader.js';
 import {
   createInitialContext,
   addStageOutput,
+  addStageToolResults,
   getContextForStage,
   setGroupFeedback,
   clearGroupFeedback,
@@ -116,6 +117,7 @@ interface StageResult {
   status: string;
   postValidation?: PostValidationResult;
   lastAgentOutput?: unknown;
+  toolCalls?: ToolCall[];
 }
 
 interface GroupResult {
@@ -267,6 +269,9 @@ export class PipelineEngine {
 
         if (result.lastAgentOutput !== undefined) {
           addStageOutput(pipelineContext, entry.name, result.lastAgentOutput);
+        }
+        if (result.toolCalls && result.toolCalls.length > 0) {
+          addStageToolResults(pipelineContext, entry.name, result.toolCalls);
         }
 
         previousStageName = entry.name;
@@ -529,6 +534,7 @@ export class PipelineEngine {
       status: stageStatus,
       postValidation: postResult,
       lastAgentOutput: lastResult?.output,
+      toolCalls: lastResult?.tool_calls,
     };
   }
 
@@ -619,6 +625,9 @@ export class PipelineEngine {
         // Propagate output to context (will be cleared if we loop)
         if (result.lastAgentOutput !== undefined) {
           addStageOutput(context, stage.name, result.lastAgentOutput);
+        }
+        if (result.toolCalls && result.toolCalls.length > 0) {
+          addStageToolResults(context, stage.name, result.toolCalls);
         }
         previousStageName = stage.name;
 
