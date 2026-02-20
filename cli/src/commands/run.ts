@@ -184,6 +184,8 @@ function mergeEvents(
         status: e.status,
       });
     },
+    onToolCallStart: (e) => progressEvents.onToolCallStart?.(e),
+    onToolCallComplete: (e) => progressEvents.onToolCallComplete?.(e),
   };
 }
 
