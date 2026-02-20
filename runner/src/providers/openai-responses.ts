@@ -25,7 +25,7 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
   }
 
   // Satisfy Provider interface for simple (no-tool) calls
-  async call(request: LLMRequest): Promise<LLMResponse> {
+  async call(request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
     const input = messagesToInput(request.messages);
     const response = await this.client.responses.create({
       model: request.model,
@@ -53,7 +53,8 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
 
   async runAgentLoop(
     request: LLMRequest,
-    executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>
+    executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>,
+    onToken?: (token: string) => void
   ): Promise<AgentLoopResult> {
     const tools: FunctionTool[] = (request.tools ?? []).map(t => ({
       type: 'function' as const,

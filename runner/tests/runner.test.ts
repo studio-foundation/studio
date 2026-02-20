@@ -19,7 +19,7 @@ class MockProvider implements Provider {
     this.responses = responses;
   }
 
-  async call(request: LLMRequest): Promise<LLMResponse> {
+  async call(request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
     if (this.currentIndex >= this.responses.length) {
       throw new Error('Mock provider ran out of responses');
     }
@@ -31,7 +31,7 @@ class MockProvider implements Provider {
 class InfiniteToolCallProvider implements Provider {
   readonly name = 'mock';
 
-  async call(_request: LLMRequest): Promise<LLMResponse> {
+  async call(_request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
     return {
       content: '',
       tool_calls: [{ id: 'call-1', name: 'infinite_tool', arguments: {} }],

@@ -24,7 +24,7 @@ export class AnthropicProvider implements Provider {
     });
   }
 
-  async call(request: LLMRequest): Promise<LLMResponse> {
+  async call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
     // Extract system messages (Anthropic handles them separately)
     const systemMessages = request.messages.filter(m => m.role === 'system');
     const systemContent = systemMessages.map(m => m.content).join('\n\n');

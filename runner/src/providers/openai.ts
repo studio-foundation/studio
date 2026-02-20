@@ -18,7 +18,7 @@ export class OpenAIProvider implements Provider {
     });
   }
 
-  async call(request: LLMRequest): Promise<LLMResponse> {
+  async call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
     // Convert our Message format to OpenAI format
     const openaiMessages: ChatCompletionMessageParam[] = request.messages.map(msg => {
       if (msg.role === 'system') {
