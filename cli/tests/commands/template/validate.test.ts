@@ -84,20 +84,18 @@ describe('validateTemplateDir — Level 1: Structural', () => {
     expect(result.structuralErrors.some(e => e.includes('version') || e.includes('description'))).toBe(true);
   });
 
-  it('errors when fewer than 2 pipelines exist', async () => {
+  it('accepts a template with a single pipeline', async () => {
     const dir = await makeTemplate({
       pipelines: { 'only-one': 'name: only-one\nstages:\n  - name: s1\n    kind: analysis\n    agent: analyst\n    contract: output\n' },
     });
     const result = await validateTemplateDir(dir);
-    expect(result.valid).toBe(false);
-    expect(result.structuralErrors.some(e => e.includes('pipeline') && e.includes('2'))).toBe(true);
+    expect(result.valid).toBe(true);
   });
 
-  it('errors when no agents exist', async () => {
-    const dir = await makeTemplate({ agents: {} });
+  it('accepts a template with no pipelines or agents (e.g. blank template)', async () => {
+    const dir = await makeTemplate({ pipelines: {}, agents: {}, contracts: {} });
     const result = await validateTemplateDir(dir);
-    expect(result.valid).toBe(false);
-    expect(result.structuralErrors.some(e => e.includes('agent'))).toBe(true);
+    expect(result.valid).toBe(true);
   });
 });
 

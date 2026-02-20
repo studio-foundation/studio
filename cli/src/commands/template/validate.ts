@@ -81,21 +81,11 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
   }
 
   const pipelinesDir = join(templatePath, 'pipelines');
-  const pipelineFiles = (await listYamlFiles(pipelinesDir)).filter((f) => f.endsWith('.pipeline.yaml'));
-  if (pipelineFiles.length < 2) {
-    structuralErrors.push(`pipelines/: found ${pipelineFiles.length} pipeline(s), need at least 2`);
-  }
 
   const agentsDir = join(templatePath, 'agents');
   const agentFiles = (await listYamlFiles(agentsDir)).filter((f) => f.endsWith('.agent.yaml'));
-  if (agentFiles.length < 1) {
-    structuralErrors.push('agents/: no .agent.yaml files found (need at least 1)');
-  }
 
   const contractsDir = join(templatePath, 'contracts');
-  if (!(await pathExists(contractsDir))) {
-    structuralErrors.push('contracts/ directory not found');
-  }
 
   if (structuralErrors.length > 0) {
     return { valid: false, structuralErrors, semanticErrors: [], warnings };
