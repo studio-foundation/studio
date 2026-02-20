@@ -7,7 +7,7 @@ import ora from 'ora';
 import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { applyPlaceholders } from '../utils/placeholders.js';
-import { listTemplates } from './templates.js';
+import { listTemplates, type TemplateMetadata } from './templates.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { listAvailableTools, toolsAddDirect } from './tools.js';
@@ -223,6 +223,18 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
   return true;
 }
 
+/**
+ * Validate a project name for use as a directory name.
+ * Returns true if valid, or an error string to display.
+ */
+export function validateProjectName(name: string): true | string {
+  if (!name.trim()) return 'Project name cannot be empty';
+  if (/\s/.test(name)) return 'Project name cannot contain spaces';
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9\-_.]*$/.test(name))
+    return 'Project name must start with a letter or digit and contain only letters, digits, hyphens, underscores, or dots';
+  return true;
+}
+
 // App scaffold items to copy from template root → target root
 const APP_SCAFFOLD_ITEMS = ['src', 'prisma', 'package.json', 'README.md'];
 
@@ -383,6 +395,37 @@ interface InitOptions {
   tools?: boolean;  // false when --no-tools is passed, true otherwise
 }
 
+function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
+  const check = (cmd: string) =>
+    spawnSync(cmd, ['--version'], { stdio: 'ignore' }).status === 0;
+  if (check('pnpm')) return 'pnpm';
+  if (check('yarn')) return 'yarn';
+  if (check('bun')) return 'bun';
+  return 'npm';
+}
+
+function printTemplateCard(template: TemplateMetadata): void {
+  const lines: string[] = [template.description];
+  if (template.pipelines?.length) {
+    lines.push(`Pipelines: ${template.pipelines.join(', ')}`);
+  }
+  if (template.tools_included?.length) {
+    lines.push(`Tools:     ${template.tools_included.join(', ')}`);
+  }
+  const minWidth = `─ ${template.name} `.length;
+  const innerWidth = Math.max(minWidth, ...lines.map((l) => l.length));
+  const bar = '─'.repeat(innerWidth + 4);
+  const templateLabel = `─ ${template.name} `;
+  const rightBar = '─'.repeat(Math.max(0, bar.length - templateLabel.length));
+  console.log('');
+  console.log(`  ${templateLabel}${rightBar}`);
+  for (const line of lines) {
+    console.log(`  │  ${line}`);
+  }
+  console.log(`  ${bar}`);
+  console.log('');
+}
+
 export async function initCommand(nameArg?: string, options: InitOptions = {}): Promise<void> {
   try {
     const cwd = process.cwd();
@@ -497,25 +540,21 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // ── Wizard mode ───────────────────────────────────────────────────
+
+    // Non-interactive terminal fallback
+    if (!process.stdin.isTTY) {
+      console.error('stdin is not a TTY. Use flags for non-interactive init:');
+      console.error('  studio init --template <type> --name <project> --provider <provider> --api-key <key>');
+      process.exit(1);
+    }
+
     console.log('');
     console.log(chalk.bold('  ╭─────────────────────────────────╮'));
-    console.log(chalk.bold('  │  Studio — Pipeline Creator      │'));
+    console.log(chalk.bold('  │  Studio — Create App            │'));
     console.log(chalk.bold('  ╰─────────────────────────────────╯'));
     console.log('');
 
-    // Step 1: Project name (used for placeholder replacement in app scaffold files)
-    const defaultName = nameArg ?? options.project ?? basename(cwd);
-    const projectName = await input({
-      message: 'Project name:',
-      default: defaultName,
-    });
-
-    // Step 2: Description (optional, not persisted)
-    await input({
-      message: 'Description (optional, press Enter to skip):',
-    });
-
-    // Step 3: Template
+    // Step 1: Template selection (first — drives everything else)
     const templates = await listTemplates();
     const templateChoices = templates.map((t) => ({
       value: t.name,
@@ -523,11 +562,25 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }));
 
     const templateName = await select({
-      message: 'Choose a starter template:',
+      message: 'What type of app are you building?',
       choices: templateChoices,
     });
 
-    // Step 4: Provider
+    // Show template details card
+    const selectedTemplateMeta = templates.find((t) => t.name === templateName);
+    if (selectedTemplateMeta) {
+      printTemplateCard(selectedTemplateMeta);
+    }
+
+    // Step 2: Project name (with validation)
+    const defaultName = nameArg ?? options.project ?? basename(cwd);
+    const projectName = await input({
+      message: 'Project name:',
+      default: defaultName,
+      validate: validateProjectName,
+    });
+
+    // Step 3: Provider
     const provider = await select<string>({
       message: 'LLM Provider:',
       choices: [
@@ -537,7 +590,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       ],
     });
 
-    // Step 5: API Key
+    // Step 4: API Key
     let apiKey: string | undefined;
     if (provider !== 'later') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
@@ -562,7 +615,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       }
     }
 
-    // Step 5b: Choose default model
+    // Step 5: Choose default model
     let selectedModel: string | undefined;
     if (provider !== 'later' && apiKey) {
       const models = await getAvailableModels(provider, apiKey);
@@ -593,7 +646,6 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     let selectedTools: string[] = [];
 
     if (availableTools.length > 0) {
-      const selectedTemplateMeta = templates.find((t) => t.name === templateName);
       const recommended = new Set(selectedTemplateMeta?.tools_included ?? []);
 
       const toolChoices = availableTools.map((t) => ({
@@ -609,7 +661,14 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       });
     }
 
-    // Step 7: Create structure (without tools — we install them below)
+    // Step 7: Install dependencies preference
+    const pkgManager = detectPackageManager();
+    const installNow = await confirm({
+      message: `Install dependencies now? (uses ${pkgManager})`,
+      default: false,
+    });
+
+    // Step 8: Generate app (without tools — we install them below)
     console.log('');
     const spinner = ora('Creating project...').start();
 
@@ -629,13 +688,26 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       throw err;
     }
 
-    // Step 8: Install selected tools
-    // Note: tools.ts still uses the old project-based path; this will be updated in a follow-up task
+    // Step 9: Install selected tools
     if (selectedTools.length > 0) {
       await toolsAddDirect(studioDir, 'default', selectedTools);
     }
 
-    // Step 9: Success output
+    // Step 10: Install dependencies (if requested)
+    if (installNow) {
+      const installSpinner = ora(`Running ${pkgManager} install...`).start();
+      const installResult = spawnSync(pkgManager, ['install'], { cwd, encoding: 'utf-8' });
+      if (installResult.status === 0) {
+        installSpinner.succeed('Dependencies installed');
+      } else {
+        installSpinner.warn(`Install failed — run \`${pkgManager} install\` manually`);
+        if (installResult.stderr) {
+          console.error(installResult.stderr);
+        }
+      }
+    }
+
+    // Step 11: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/pipelines/`));
     console.log(chalk.green(`  ✓ src/`));
@@ -651,12 +723,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
     console.log('');
 
-    // Step 10: Next steps
-    const selectedTemplate = templates.find((t) => t.name === templateName);
-    const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
+    // Step 12: Next steps
+    const firstPipeline = selectedTemplateMeta?.pipelines?.[0] ?? 'your-pipeline';
 
     console.log(chalk.bold('Done! Next steps:'));
-    console.log(`  ${chalk.cyan('npm install')}`);
+    if (!installNow) {
+      console.log(`  ${chalk.cyan(`${pkgManager} install`)}`);
+    }
     console.log(
       `  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`
     );

@@ -509,3 +509,48 @@ describe('generateFullApp', () => {
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
   });
 });
+
+describe('validateProjectName', () => {
+  it('accepts valid names', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('my-app')).toBe(true);
+    expect(validateProjectName('my_project')).toBe(true);
+    expect(validateProjectName('MyApp123')).toBe(true);
+    expect(validateProjectName('app.v2')).toBe(true);
+  });
+
+  it('rejects empty string', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('')).toBeTypeOf('string');
+  });
+
+  it('rejects names with spaces or tabs', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('my app')).toBeTypeOf('string');
+    expect(validateProjectName('my\tapp')).toBeTypeOf('string');
+  });
+
+  it('rejects names starting with a hyphen', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    const result = validateProjectName('-bad');
+    expect(result).toBeTypeOf('string');
+    expect(result as string).toContain('letter or digit');
+  });
+
+  it('rejects names with special characters', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('my@app')).toBeTypeOf('string');
+    expect(validateProjectName('app!')).toBeTypeOf('string');
+    expect(validateProjectName('app/dir')).toBeTypeOf('string');
+  });
+
+  it('rejects whitespace-only names', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('   ')).toBeTypeOf('string');
+  });
+
+  it('rejects names starting with a dot', async () => {
+    const { validateProjectName } = await import('../../src/commands/init.js');
+    expect(validateProjectName('.hidden')).toBeTypeOf('string');
+  });
+});
