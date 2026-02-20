@@ -142,5 +142,14 @@ export function summarizeToolResult(result: unknown, error?: string): string {
     return lines > 1 ? `${lines} lines` : result.slice(0, 60);
   }
   if (Array.isArray(result)) return `${result.length} items`;
+  if (result !== null && typeof result === 'object') {
+    const obj = result as Record<string, unknown>;
+    if (typeof obj.content === 'string') {
+      const lines = obj.content.split('\n').length;
+      return lines > 1 ? `${lines} lines` : (obj.content.length > 0 ? obj.content.slice(0, 60) : 'empty');
+    }
+    if (Array.isArray(obj.files)) return `${obj.files.length} files`;
+    if (obj.written === true) return 'written';
+  }
   return 'Done';
 }

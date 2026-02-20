@@ -219,4 +219,17 @@ describe('summarizeToolResult', () => {
   it('returns Done for null', () => {
     expect(summarizeToolResult(null)).toBe('Done');
   });
+
+  it('returns line count for read_file result object', () => {
+    const content = 'line1\nline2\nline3\nline4';
+    expect(summarizeToolResult({ path: 'src/app.ts', content })).toBe('4 lines');
+  });
+
+  it('returns file count for list_files result object', () => {
+    expect(summarizeToolResult({ path: 'src/', files: ['a.ts', 'b.ts', 'c.ts'], count: 3 })).toBe('3 files');
+  });
+
+  it('returns "written" for write_file result object', () => {
+    expect(summarizeToolResult({ path: 'src/new.ts', written: true })).toBe('written');
+  });
 });

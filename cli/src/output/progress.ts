@@ -8,6 +8,7 @@ export class ProgressDisplay {
   private spinner: Ora | null = null;
   private spinnerText = '';
   private toolSpinner: Ora | null = null;
+  private currentToolText = '';
   private displayMode: 'quiet' | 'verbose' | 'live';
 
   private get verbose(): boolean { return this.displayMode === 'verbose'; }
@@ -184,8 +185,9 @@ export class ProgressDisplay {
         if (this.jsonMode || !this.live) return;
         const icon = getToolIcon(event.tool);
         const params = summarizeToolParams(event.tool, event.params);
+        this.currentToolText = `${icon} ${event.tool}${params}`;
         this.toolSpinner = ora({
-          text: chalk.white(`${icon} ${event.tool}${params}`),
+          text: chalk.white(this.currentToolText),
           indent: 2,
           color: 'cyan',
         }).start();
@@ -195,9 +197,9 @@ export class ProgressDisplay {
         if (this.jsonMode || !this.live) return;
         const summary = summarizeToolResult(event.result, event.error);
         if (event.error) {
-          this.toolSpinner?.fail(chalk.red(`${event.tool} — ${event.error}`));
+          this.toolSpinner?.fail(chalk.red(`${this.currentToolText} — ${event.error}`));
         } else {
-          this.toolSpinner?.succeed(chalk.gray(summary));
+          this.toolSpinner?.succeed(chalk.white(this.currentToolText) + chalk.gray(` → ${summary}`));
         }
         this.toolSpinner = null;
       },
