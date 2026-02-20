@@ -1,14 +1,17 @@
-import { mkdir, writeFile, readFile, access, rename, cp } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
 import { resolve, join, basename, relative, sep } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
 import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
+import { applyPlaceholders } from '../utils/placeholders.js';
 import { listTemplates } from './templates.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { listAvailableTools, toolsAddDirect } from './tools.js';
+import { validateTemplateDir } from './template/validate.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -187,8 +190,10 @@ export async function writeProviderToConfig(
 }
 
 /**
- * Direct init (non-interactive) — creates structure and writes config.
- * Used when all CLI flags are provided (CI/CD mode).
+ * Direct init (non-interactive) — creates .studio/ structure and writes config.
+ * @deprecated Use generateFullApp() for full app generation (src/, prisma/, git init).
+ * This function only creates the .studio/ workspace without app scaffold files.
+ * Kept for backward compatibility.
  */
 export async function directInit(
   cwd: string,
@@ -219,6 +224,156 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
     }
   }
   return true;
+}
+
+// App scaffold items to copy from template root → target root
+const APP_SCAFFOLD_ITEMS = ['src', 'prisma', 'package.json', 'README.md'];
+
+/**
+ * Copy app scaffold files (src/, prisma/, package.json, README.md) from
+ * `templateDir` to `targetDir`, applying placeholder replacement to all
+ * text file contents. Items missing from the template are silently skipped.
+ *
+ * @returns List of top-level items that were generated (e.g. ['src/', 'package.json'])
+ */
+export async function generateAppFiles(
+  templateDir: string,
+  targetDir: string,
+  vars: Record<string, string>
+): Promise<string[]> {
+  const generated: string[] = [];
+
+  for (const item of APP_SCAFFOLD_ITEMS) {
+    const src = join(templateDir, item);
+    const dest = join(targetDir, item);
+
+    let stat;
+    try {
+      stat = await lstat(src);
+    } catch {
+      continue; // Not present in this template — skip
+    }
+
+    if (stat.isDirectory()) {
+      await copyDirWithPlaceholders(src, dest, vars);
+      generated.push(item + '/');
+    } else {
+      const content = await readFile(src, 'utf-8');
+      const replaced = applyPlaceholders(content, vars);
+      await writeFile(dest, replaced, 'utf-8');
+      generated.push(item);
+    }
+  }
+
+  return generated;
+}
+
+const TEXT_EXTENSIONS = new Set([
+  '.ts', '.js', '.json', '.md', '.yaml', '.yml',
+  '.prisma', '.txt', '.env', '.gitignore', '.sh',
+]);
+
+/**
+ * Recursively copy a directory, applying placeholder replacement to known text
+ * file extensions. All other files (binary or unknown) are copied as-is.
+ */
+async function copyDirWithPlaceholders(
+  src: string,
+  dest: string,
+  vars: Record<string, string>
+): Promise<void> {
+  await mkdir(dest, { recursive: true });
+  const entries = await readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = join(src, entry.name);
+    const destPath = join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirWithPlaceholders(srcPath, destPath, vars);
+    } else {
+      const ext = entry.name.includes('.') ? '.' + entry.name.split('.').pop()! : '';
+      if (TEXT_EXTENSIONS.has(ext)) {
+        const content = await readFile(srcPath, 'utf-8');
+        const replaced = applyPlaceholders(content, vars);
+        await writeFile(destPath, replaced, 'utf-8');
+      } else {
+        await copyFile(srcPath, destPath);
+      }
+    }
+  }
+}
+
+/**
+ * Run `git init` in `cwd` unless `.git/` already exists.
+ * Returns true if git was initialized, false if skipped.
+ * Throws if `git init` exits with non-zero status.
+ */
+export async function initGitRepo(cwd: string): Promise<boolean> {
+  const gitDir = join(cwd, '.git');
+  const alreadyGit = await access(gitDir).then(() => true).catch(() => false);
+  if (alreadyGit) return false;
+
+  const result = spawnSync('git', ['init'], { cwd, encoding: 'utf-8' });
+  if (result.status !== 0) {
+    const stderr = (result.stderr ?? '').trim();
+    throw new Error(`git init failed: ${stderr}`);
+  }
+  return true;
+}
+
+interface GenerateFullAppOptions {
+  noTools?: boolean;
+  skipGit?: boolean;
+}
+
+/**
+ * Generate a complete app from a template:
+ * 1. Validates the template structure
+ * 2. Creates .studio/ workspace
+ * 3. Copies app scaffold files (src/, prisma/, package.json, README.md)
+ * 4. Initializes a git repository (unless skipGit)
+ *
+ * Does NOT write provider config — call writeProviderToConfig separately.
+ *
+ * @returns `{ gitInitialized: true }` if git was initialized, `{ gitInitialized: false }` if skipped.
+ */
+export async function generateFullApp(
+  cwd: string,
+  projectName: string,
+  templateName: string,
+  options: GenerateFullAppOptions = {}
+): Promise<{ gitInitialized: boolean }> {
+  const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
+
+  // 1. Validate template
+  const validation = await validateTemplateDir(templateDir);
+  if (!validation.valid) {
+    const allErrors = [...validation.structuralErrors, ...validation.semanticErrors];
+    throw new Error(
+      `Template '${templateName}' failed validation:\n` +
+      allErrors.map((e) => `  • ${e}`).join('\n')
+    );
+  }
+
+  // 2. Create .studio/ workspace (flat — no projects/<name>/ layer)
+  await createStudioStructure(cwd, templateName, !options.noTools);
+
+  // 3. Copy app scaffold files with placeholder replacement
+  const vars = {
+    PROJECT_NAME: projectName,
+    TEMPLATE_NAME: templateName,
+    YEAR: String(new Date().getFullYear()),
+  };
+  await generateAppFiles(templateDir, cwd, vars);
+
+  // 4. Initialize git repo (unless already initialized or skipped)
+  let gitInitialized = false;
+  if (!options.skipGit) {
+    gitInitialized = await initGitRepo(cwd);
+  }
+
+  return { gitInitialized };
 }
 
 interface InitOptions {
@@ -298,8 +453,16 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
       const spinner = ora('Creating project...').start();
 
+      let gitInitialized = false;
       try {
-        await directInit(cwd, options.template!, options.provider!, options.apiKey ?? '', options.tools === false);
+        const projectName = nameArg ?? options.project ?? basename(cwd);
+        ({ gitInitialized } = await generateFullApp(cwd, projectName, options.template!, {
+          noTools: options.tools === false,
+        }));
+        if (options.provider !== 'later' && options.apiKey) {
+          const studioDir = resolve(cwd, '.studio');
+          await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
+        }
         spinner.stop();
       } catch (err) {
         spinner.fail('Failed');
@@ -308,7 +471,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
       console.log(chalk.green(`  ✓ .studio/config.yaml`));
       console.log(chalk.green(`  ✓ .studio/pipelines/`));
-      console.log(chalk.green(`  ✓ Applied template: ${options.template}`));
+      console.log(chalk.green(`  ✓ src/`));
+      console.log(chalk.green(`  ✓ prisma/schema.prisma`));
+      console.log(chalk.green(`  ✓ package.json`));
+      console.log(chalk.green(`  ✓ README.md`));
+      if (gitInitialized) {
+        console.log(chalk.green(`  ✓ git initialized`));
+      }
       console.log(chalk.green(`  ✓ Updated .gitignore`));
       console.log('');
 
@@ -316,7 +485,8 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const selectedTemplate = templates.find((t) => t.name === options.template);
       const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
-      console.log(chalk.bold('Done! Run your first pipeline:'));
+      console.log(chalk.bold('Done! Next steps:'));
+      console.log(`  ${chalk.cyan('npm install')}`);
       console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
@@ -336,9 +506,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     console.log(chalk.bold('  ╰─────────────────────────────────╯'));
     console.log('');
 
-    // Step 1: Project name (kept for display / future use, not for dir structure)
+    // Step 1: Project name (used for placeholder replacement in app scaffold files)
     const defaultName = nameArg ?? options.project ?? basename(cwd);
-    await input({
+    const projectName = await input({
       message: 'Project name:',
       default: defaultName,
     });
@@ -448,8 +618,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     const studioDir = resolve(cwd, '.studio');
 
+    let gitInitialized = false;
     try {
-      await createStudioStructure(cwd, templateName, false);
+      ({ gitInitialized } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -470,7 +641,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     // Step 9: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/pipelines/`));
-    console.log(chalk.green(`  ✓ Applied template: ${templateName}`));
+    console.log(chalk.green(`  ✓ src/`));
+    console.log(chalk.green(`  ✓ prisma/schema.prisma`));
+    console.log(chalk.green(`  ✓ package.json`));
+    console.log(chalk.green(`  ✓ README.md`));
+    if (gitInitialized) {
+      console.log(chalk.green(`  ✓ git initialized`));
+    }
     console.log(chalk.green(`  ✓ Updated .gitignore`));
     if (selectedTools.length > 0) {
       console.log(chalk.green(`  ✓ Installed tools: ${selectedTools.join(', ')}`));
@@ -481,7 +658,8 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const selectedTemplate = templates.find((t) => t.name === templateName);
     const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
-    console.log(chalk.bold('Done! Run your first pipeline:'));
+    console.log(chalk.bold('Done! Next steps:'));
+    console.log(`  ${chalk.cyan('npm install')}`);
     console.log(
       `  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`
     );

@@ -417,6 +417,9 @@ export class PipelineEngine {
             onAgentProgress: this.events.onAgentProgress
               ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
               : undefined,
+            onAgentToken: this.events.onAgentToken
+              ? (e) => this.events!.onAgentToken!({ stage: stageDef.name, ...e })
+              : undefined,
           } : undefined,
         });
 

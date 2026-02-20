@@ -73,4 +73,32 @@ describe('MockProvider', () => {
       provider.runAgentLoop({ model: 'mock', messages: [] }, vi.fn())
     ).rejects.toThrow('MockProvider requires stage_name');
   });
+
+  it('emits a fake token when onToken is provided', async () => {
+    const stages = new Map([
+      ['test-stage', { output: { result: 'ok' }, tool_calls: [] }],
+    ]);
+    const provider = new MockProvider(stages);
+
+    const tokens: string[] = [];
+    await provider.runAgentLoop(
+      { model: 'mock', messages: [{ role: 'user', content: 'go' }], stage_name: 'test-stage' },
+      async () => ({ result: 'ok' }),
+      (token) => tokens.push(token)
+    );
+
+    expect(tokens.length).toBeGreaterThan(0);
+  });
+
+  it('does not error when onToken is not provided', async () => {
+    const stages = new Map([
+      ['test-stage', { output: { result: 'ok' }, tool_calls: [] }],
+    ]);
+    const provider = new MockProvider(stages);
+
+    await expect(provider.runAgentLoop(
+      { model: 'mock', messages: [{ role: 'user', content: 'go' }], stage_name: 'test-stage' },
+      async () => ({ result: 'ok' }),
+    )).resolves.toBeDefined();
+  });
 });

@@ -1,0 +1,26 @@
+name: quick-edit
+description: Apply a focused single-file code edit
+version: 1
+
+input_schema:
+  type: structured
+  fields:
+    - name: instruction
+      type: text
+      required: true
+      prompt: "What to change"
+    - name: target_file
+      type: text
+      required: true
+      prompt: "File to edit"
+
+stages:
+  - name: edit
+    kind: code
+    agent: coder
+    contract: quick-edit-output
+    ralph:
+      max_attempts: 2
+    context:
+      include:
+        - input

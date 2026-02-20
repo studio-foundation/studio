@@ -89,6 +89,11 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   // Accumulate token usage across turns
   const tokenAccumulator = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
 
+  // Build onToken wrapper that bridges provider token callbacks → RunnerCallbacks.onAgentToken
+  const onToken = config.callbacks?.onAgentToken
+    ? (token: string) => config.callbacks!.onAgentToken!({ token, timestamp: Date.now() })
+    : undefined;
+
   // --- Delegate to provider if it owns the full agent loop (e.g. Responses API) ---
   if (isAgentLoopProvider(provider)) {
     const loopResult = await provider.runAgentLoop(
@@ -126,7 +131,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           try { result = JSON.parse(resultStr); } catch { result = resultStr; }
         }
         return { result, error: executed.error };
-      }
+      },
+      onToken
     );
 
     if (loopResult.usage) {
@@ -167,7 +173,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       temperature: agent.temperature,
       max_tokens: agent.max_tokens,
       stage_name: task.contract_name,
-    });
+    }, onToken);
 
     lastResponse = response;
 

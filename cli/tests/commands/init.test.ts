@@ -355,3 +355,157 @@ describe('writeProviderToConfig', () => {
     expect(providers.anthropic.apiKey).toBe('sk-ant-second');
   });
 });
+
+describe('generateAppFiles', () => {
+  it('copies src/ with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const srcIndex = await readFile(resolve(TMP, 'src', 'index.ts'), 'utf-8');
+    expect(srcIndex).toContain('my-app');
+    expect(srcIndex).not.toContain('{{PROJECT_NAME}}');
+  });
+
+  it('copies package.json with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'cool-project',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const pkg = JSON.parse(await readFile(resolve(TMP, 'package.json'), 'utf-8'));
+    expect(pkg.name).toBe('cool-project');
+  });
+
+  it('copies README.md with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const readme = await readFile(resolve(TMP, 'README.md'), 'utf-8');
+    expect(readme).toContain('my-app');
+    expect(readme).toContain('software');
+    expect(readme).not.toContain('{{PROJECT_NAME}}');
+  });
+
+  it('copies prisma/schema.prisma', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    expect(await exists(resolve(TMP, 'prisma', 'schema.prisma'))).toBe(true);
+  });
+
+  it('skips items not present in template (blank template has no src/)', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/blank', import.meta.url).pathname;
+
+    await expect(
+      generateAppFiles(templateDir, TMP, {
+        PROJECT_NAME: 'x',
+        TEMPLATE_NAME: 'blank',
+        YEAR: '2026',
+      })
+    ).resolves.not.toThrow();
+
+    // blank template has no src/ so it should not be created
+    expect(await exists(resolve(TMP, 'src'))).toBe(false);
+  });
+
+  it('returns list of generated top-level items', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    const generated = await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    expect(generated).toContain('package.json');
+    expect(generated).toContain('README.md');
+    expect(generated).toContain('src/');    // directories have trailing slash
+    expect(generated).toContain('prisma/'); // directories have trailing slash
+  });
+});
+
+describe('initGitRepo', () => {
+  it('creates a .git/ directory in cwd', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    await initGitRepo(TMP);
+    expect(await exists(resolve(TMP, '.git'))).toBe(true);
+  });
+
+  it('returns true when it initializes git', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    const result = await initGitRepo(TMP);
+    expect(result).toBe(true);
+  });
+
+  it('returns false (skips) when .git/ already exists', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    await initGitRepo(TMP);
+    const result = await initGitRepo(TMP);
+    expect(result).toBe(false);
+  });
+});
+
+describe('generateFullApp', () => {
+  it('creates .studio/ AND src/ AND package.json AND README.md', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'my-app', 'software');
+
+    expect(await exists(resolve(TMP, '.studio', 'pipelines'))).toBe(true);
+    expect(await exists(resolve(TMP, 'src', 'index.ts'))).toBe(true);
+    expect(await exists(resolve(TMP, 'package.json'))).toBe(true);
+    expect(await exists(resolve(TMP, 'README.md'))).toBe(true);
+    expect(await exists(resolve(TMP, 'prisma', 'schema.prisma'))).toBe(true);
+  });
+
+  it('applies PROJECT_NAME placeholder in package.json', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'cool-app', 'software');
+
+    const pkg = JSON.parse(await readFile(resolve(TMP, 'package.json'), 'utf-8'));
+    expect(pkg.name).toBe('cool-app');
+  });
+
+  it('initializes a git repository', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    const result = await generateFullApp(TMP, 'my-app', 'software');
+    expect(result.gitInitialized).toBe(true);
+    expect(await exists(resolve(TMP, '.git'))).toBe(true);
+  });
+
+  it('throws when template does not exist', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await expect(generateFullApp(TMP, 'my-app', 'nonexistent-template')).rejects.toThrow();
+  });
+
+  it('skips git init when skipGit option is true', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    const result = await generateFullApp(TMP, 'my-app', 'software', { skipGit: true });
+    expect(result.gitInitialized).toBe(false);
+    expect(await exists(resolve(TMP, '.git'))).toBe(false);
+    expect(await exists(resolve(TMP, '.studio'))).toBe(true);
+  });
+});

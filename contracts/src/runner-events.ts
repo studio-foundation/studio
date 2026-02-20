@@ -28,6 +28,11 @@ export interface AgentProgressEvent {
   timestamp: number; // ms since epoch (Date.now())
 }
 
+export interface AgentTokenEvent {
+  token: string;
+  timestamp: number; // ms since epoch (Date.now())
+}
+
 /**
  * Subset of callbacks the runner accepts for real-time event emission.
  * Engine populates these from EngineEvents and passes them to runAgent().
@@ -37,4 +42,5 @@ export interface RunnerCallbacks {
   onToolCallComplete?: (event: ToolCallCompleteEvent) => void;
   onAgentThinking?: (event: AgentThinkingEvent) => void;
   onAgentProgress?: (event: AgentProgressEvent) => void;
+  onAgentToken?: (event: AgentTokenEvent) => void;
 }
