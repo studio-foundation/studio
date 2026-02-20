@@ -1,7 +1,6 @@
 import { mkdir, access, cp } from 'node:fs/promises';
 import { resolve, join, relative, sep } from 'node:path';
 import chalk from 'chalk';
-import ora from 'ora';
 import { input, select } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
@@ -13,6 +12,9 @@ export const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'in
 /**
  * Create a project directory under .studio/projects/.
  * Throws if the project already exists or the template is not found.
+ *
+ * @deprecated The flat .studio/ structure no longer uses projects/ subdirs.
+ * This function is kept for backward compatibility but will be removed.
  */
 export async function createProjectDir(
   projectsDir: string,
@@ -38,27 +40,21 @@ export async function createProjectDir(
       );
     }
 
-    const templateProjectDir = join(templateDir, 'project');
-    const hasProjectDir = await access(templateProjectDir).then(() => true).catch(() => false);
-
-    if (hasProjectDir) {
-      await mkdir(projectDir, { recursive: true });
-      if (withTools) {
-        await cp(templateProjectDir, projectDir, { recursive: true });
-      } else {
-        await cp(templateProjectDir, projectDir, {
-          recursive: true,
-          filter: (src) => {
-            const rel = relative(templateProjectDir, src);
-            return rel !== 'tools' && !rel.startsWith('tools' + sep);
-          },
-        });
-        await mkdir(join(projectDir, 'tools'), { recursive: true });
-      }
+    await mkdir(projectDir, { recursive: true });
+    if (withTools) {
+      await cp(templateDir, projectDir, {
+        recursive: true,
+        filter: (src) => !src.endsWith('metadata.json'),
+      });
     } else {
-      for (const sub of PROJECT_SUBDIRS) {
-        await mkdir(join(projectDir, sub), { recursive: true });
-      }
+      await cp(templateDir, projectDir, {
+        recursive: true,
+        filter: (src) => {
+          const rel = relative(templateDir, src);
+          return !rel.endsWith('metadata.json') && rel !== 'tools' && !rel.startsWith('tools' + sep);
+        },
+      });
+      await mkdir(join(projectDir, 'tools'), { recursive: true });
     }
   } else {
     for (const sub of PROJECT_SUBDIRS) {
@@ -81,6 +77,8 @@ export function validateProjectName(name: string): true | string {
 /**
  * Non-interactive project creation.
  * Validates name, then delegates to createProjectDir.
+ *
+ * @deprecated Use studio init in a new directory instead.
  */
 export async function projectAddDirect(
   studioDir: string,
@@ -98,6 +96,8 @@ export async function projectAddDirect(
 
 /**
  * Interactive wizard for adding a project to an existing workspace.
+ *
+ * @deprecated Use studio init in a new directory instead.
  */
 export async function projectAddWizard(studioDir: string): Promise<void> {
   // Step 1: Project name
@@ -131,17 +131,10 @@ export async function projectAddWizard(studioDir: string): Promise<void> {
 
   // Step 4: Create
   console.log('');
-  const spinner = ora('Creating project...').start();
-  try {
-    await projectAddDirect(studioDir, projectName, templateName);
-    spinner.stop();
-  } catch (err) {
-    spinner.fail('Failed');
-    throw err;
-  }
+  const projectsDir = join(studioDir, 'projects');
+  await projectAddDirect(studioDir, projectName, templateName);
 
   // Step 5: Success output
-  const projectsDir = join(studioDir, 'projects');
   for (const sub of PROJECT_SUBDIRS) {
     console.log(chalk.green(`  ✓ ${join(projectsDir, projectName, sub).replace(process.cwd() + '/', '')}/`));
   }
@@ -157,63 +150,19 @@ export async function projectAddWizard(studioDir: string): Promise<void> {
 
 /**
  * CLI dispatcher for `studio project <action> [args...]`.
+ * This command is deprecated — the flat .studio/ structure no longer uses projects/ subdirs.
  */
 export async function projectCommand(
   action: string,
-  args: string[],
-  options: { template?: string; description?: string }
+  _args: string[],
+  _options: { template?: string; description?: string }
 ): Promise<void> {
-  try {
-    if (action !== 'add') {
-      console.error(`Unknown project action: ${action}. Available: add`);
-      process.exit(1);
-    }
-
-    // Require existing .studio/
-    const cwd = process.cwd();
-    const studioDir = await findStudioDir(cwd);
-    if (!studioDir) {
-      console.error(chalk.red('Studio is not initialized in this directory.'));
-      console.log(`Run: ${chalk.cyan('studio init')}`);
-      process.exit(1);
-    }
-
-    const nameArg = args[0];
-
-    if (nameArg) {
-      // Direct mode
-      const spinner = ora('Creating project...').start();
-      try {
-        await projectAddDirect(studioDir, nameArg, options.template, options.description);
-        spinner.stop();
-      } catch (err) {
-        spinner.fail('Failed');
-        throw err;
-      }
-
-      const projectsDir = join(studioDir, 'projects');
-      for (const sub of PROJECT_SUBDIRS) {
-        console.log(chalk.green(`  ✓ ${join(projectsDir, nameArg, sub).replace(cwd + '/', '')}/`));
-      }
-      console.log('');
-
-      const templates = await listTemplates();
-      const selectedTemplate = templates.find((t) => t.name === (options.template ?? 'blank'));
-      const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
-      console.log(chalk.bold('Done! Run your first pipeline:'));
-      console.log(`  ${chalk.cyan(`studio run ${nameArg}/${firstPipeline} --input "..."`)}`);
-      console.log('');
-    } else {
-      // Wizard mode
-      console.log('');
-      await projectAddWizard(studioDir);
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name === 'ExitPromptError') {
-      console.log('\nAborted.');
-      process.exit(0);
-    }
-    console.error('Error:', error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
+  console.error(
+    chalk.red('  ✗ `studio project add` is no longer supported.')
+  );
+  console.log('');
+  console.log('Each workspace now has one flat .studio/ structure.');
+  console.log(`To start a new project, create a new directory and run ${chalk.cyan('studio init')}.`);
+  console.log('');
+  process.exit(1);
 }

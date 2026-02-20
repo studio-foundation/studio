@@ -20,11 +20,11 @@ describe('createStudioStructure', () => {
 
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'config.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'default', 'pipelines'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'default', 'agents'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'default', 'contracts'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'default', 'tools'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'default', 'inputs'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'agents'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'contracts'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'tools'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'inputs'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'runs', 'logs'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'registry.lock.json'))).toBe(true);
   });
@@ -50,12 +50,12 @@ describe('createStudioStructure', () => {
     expect(lines.length).toBe(1); // no duplicate
   });
 
-  it('creates named project structure when projectName provided', async () => {
+  it('creates flat structure (no projects/ subdir) when templateName is provided', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
     await createStudioStructure(TMP, 'software');
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'pipelines'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'agents'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'agents'))).toBe(true);
   });
 
   it('writes empty registry.lock.json', async () => {
@@ -91,28 +91,28 @@ describe('initCommand already initialized', () => {
 describe('createStudioStructure with templates', () => {
   it('copies template project files when templateName is software', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await createStudioStructure(TMP, 'software', 'software');
+    await createStudioStructure(TMP, 'software');
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'agents', 'coder.agent.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'contracts', 'code-output.contract.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'tools', 'repo-manager.tool.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'inputs', 'example.input.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'agents', 'coder.agent.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'contracts', 'code-output.contract.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'tools', 'repo-manager.tool.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'inputs', 'example.input.yaml'))).toBe(true);
   });
 
   it('creates empty dirs for blank template (no project/ subdir)', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await createStudioStructure(TMP, 'blank', 'blank');
+    await createStudioStructure(TMP, 'blank');
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'blank', 'pipelines'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines'))).toBe(true);
     const { readdir } = await import('node:fs/promises');
-    const entries = await readdir(resolve(TMP, '.studio', 'projects', 'blank', 'pipelines'));
+    const entries = await readdir(resolve(TMP, '.studio', 'pipelines'));
     expect(entries).toEqual([]);
   });
 
   it('throws with helpful message when template does not exist', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await expect(createStudioStructure(TMP, 'xyz', 'xyz')).rejects.toThrow(
+    await expect(createStudioStructure(TMP, 'xyz')).rejects.toThrow(
       "Template 'xyz' not found"
     );
   });
@@ -120,18 +120,18 @@ describe('createStudioStructure with templates', () => {
   it('error message mentions studio templates list', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
     try {
-      await createStudioStructure(TMP, 'xyz', 'xyz');
+      await createStudioStructure(TMP, 'xyz');
       expect.fail('should have thrown');
     } catch (err) {
       expect(err instanceof Error && err.message).toContain('studio templates list');
     }
   });
 
-  it('custom project name with template: copies to named project dir', async () => {
+  it('flat structure: template files copied directly into .studio/', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await createStudioStructure(TMP, 'my-app', 'software');
+    await createStudioStructure(TMP, 'software');
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'my-app', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
   });
 });
 
@@ -208,9 +208,9 @@ describe('backupStudioDir', () => {
 describe('directInit', () => {
   it('creates structure and writes provider config', async () => {
     const { directInit } = await import('../../src/commands/init.js');
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-test-key');
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-test-key');
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'my-project', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
 
     const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown>;
@@ -220,7 +220,7 @@ describe('directInit', () => {
 
   it('skips writing config when provider is "later"', async () => {
     const { directInit } = await import('../../src/commands/init.js');
-    await directInit(TMP, 'my-project', 'software', 'later', '');
+    await directInit(TMP, 'software', 'later', '');
 
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
     // Config.yaml exists (from template) but has no providers key written by directInit
@@ -232,25 +232,25 @@ describe('directInit', () => {
   it('throws when template does not exist', async () => {
     const { directInit } = await import('../../src/commands/init.js');
     await expect(
-      directInit(TMP, 'my-project', 'nonexistent', 'anthropic', 'sk-ant-key')
+      directInit(TMP, 'nonexistent', 'anthropic', 'sk-ant-key')
     ).rejects.toThrow("Template 'nonexistent' not found");
   });
 
   it('throws when .studio/ already exists', async () => {
     const { directInit } = await import('../../src/commands/init.js');
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key');
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-key');
     await expect(
-      directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key')
+      directInit(TMP, 'software', 'anthropic', 'sk-ant-key')
     ).rejects.toThrow('already initialized');
   });
 
   it('works with force: backup then directInit succeeds', async () => {
     const { directInit, backupStudioDir } = await import('../../src/commands/init.js');
     // First init
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-first');
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-first');
     // Backup + reinit
     await backupStudioDir(TMP);
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-second');
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-second');
 
     const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown>;
@@ -262,9 +262,9 @@ describe('directInit', () => {
 describe('createStudioStructure with withTools: false', () => {
   it('does not copy tool files from template', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await createStudioStructure(TMP, 'software', 'software', false);
+    await createStudioStructure(TMP, 'software', false);
 
-    const toolsDir = resolve(TMP, '.studio', 'projects', 'software', 'tools');
+    const toolsDir = resolve(TMP, '.studio', 'tools');
     expect(await exists(toolsDir)).toBe(true);
 
     const { readdir } = await import('node:fs/promises');
@@ -274,19 +274,19 @@ describe('createStudioStructure with withTools: false', () => {
 
   it('still copies other template files when withTools is false', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
-    await createStudioStructure(TMP, 'software', 'software', false);
+    await createStudioStructure(TMP, 'software', false);
 
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
-    expect(await exists(resolve(TMP, '.studio', 'projects', 'software', 'agents', 'coder.agent.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'pipelines', 'feature-builder.pipeline.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'agents', 'coder.agent.yaml'))).toBe(true);
   });
 });
 
 describe('directInit with noTools: true', () => {
   it('creates project without copying tool files', async () => {
     const { directInit } = await import('../../src/commands/init.js');
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key', true);
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-key', true);
 
-    const toolsDir = resolve(TMP, '.studio', 'projects', 'my-project', 'tools');
+    const toolsDir = resolve(TMP, '.studio', 'tools');
     expect(await exists(toolsDir)).toBe(true);
 
     const { readdir } = await import('node:fs/promises');
@@ -296,7 +296,7 @@ describe('directInit with noTools: true', () => {
 
   it('still creates config.yaml when noTools is true', async () => {
     const { directInit } = await import('../../src/commands/init.js');
-    await directInit(TMP, 'my-project', 'software', 'anthropic', 'sk-ant-key', true);
+    await directInit(TMP, 'software', 'anthropic', 'sk-ant-key', true);
 
     expect(await exists(resolve(TMP, '.studio', 'config.yaml'))).toBe(true);
   });

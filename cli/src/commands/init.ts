@@ -1,12 +1,11 @@
-import { mkdir, writeFile, readFile, access, rename } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { mkdir, writeFile, readFile, access, rename, cp } from 'node:fs/promises';
+import { resolve, join, basename, relative, sep } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
 import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
-import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { listAvailableTools, toolsAddDirect } from './tools.js';
@@ -35,14 +34,64 @@ export async function backupStudioDir(cwd: string): Promise<string> {
 
 const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 
+const STUDIO_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
+
+/**
+ * Create or populate .studio/ with subdirs.
+ * If templateName is provided, copies content from the template root (flat — no project/ subdir).
+ * If withTools is false, creates an empty tools/ dir instead of copying from template.
+ */
+async function copyTemplateToStudio(
+  studioDir: string,
+  templateName?: string,
+  options: { withTools?: boolean } = {}
+): Promise<void> {
+  const withTools = options.withTools ?? true;
+
+  if (templateName) {
+    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
+    const templateExists = await access(templateDir).then(() => true).catch(() => false);
+    if (!templateExists) {
+      throw new Error(
+        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
+      );
+    }
+
+    await mkdir(studioDir, { recursive: true });
+
+    if (withTools) {
+      await cp(templateDir, studioDir, {
+        recursive: true,
+        filter: (src) => !src.endsWith('metadata.json'),
+      });
+    } else {
+      await cp(templateDir, studioDir, {
+        recursive: true,
+        filter: (src) => {
+          const rel = relative(templateDir, src);
+          return !rel.endsWith('metadata.json') && rel !== 'tools' && !rel.startsWith('tools' + sep);
+        },
+      });
+    }
+
+    // Ensure all standard subdirs exist (template may not include all of them)
+    for (const sub of STUDIO_SUBDIRS) {
+      await mkdir(join(studioDir, sub), { recursive: true });
+    }
+  } else {
+    for (const sub of STUDIO_SUBDIRS) {
+      await mkdir(join(studioDir, sub), { recursive: true });
+    }
+  }
+}
+
 /**
  * Create the full .studio/ directory structure in `cwd`.
- * If templateName is provided, copies the template's project/ subdir.
+ * If templateName is provided, copies the template files directly into .studio/ (flat structure).
  * Throws if .studio/ already exists anywhere in the directory tree.
  */
 export async function createStudioStructure(
   cwd: string,
-  projectName = 'default',
   templateName?: string,
   withTools = true
 ): Promise<void> {
@@ -56,9 +105,7 @@ export async function createStudioStructure(
   }
 
   const studioDir = resolve(cwd, '.studio');
-  const projectsDir = join(studioDir, 'projects');
-  await mkdir(projectsDir, { recursive: true });
-  await createProjectDir(projectsDir, projectName, templateName, { withTools });
+  await copyTemplateToStudio(studioDir, templateName, { withTools });
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
@@ -145,13 +192,12 @@ export async function writeProviderToConfig(
  */
 export async function directInit(
   cwd: string,
-  projectName: string,
   templateName: string,
   provider: string,
   apiKey: string,
   noTools = false
 ): Promise<void> {
-  await createStudioStructure(cwd, projectName, templateName, !noTools);
+  await createStudioStructure(cwd, templateName, !noTools);
   if (provider !== 'later' && apiKey) {
     const studioDir = resolve(cwd, '.studio');
     await writeProviderToConfig(studioDir, provider, apiKey);
@@ -198,7 +244,6 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log('To reconfigure:');
       console.log(`  ${chalk.cyan('studio config add-provider')}     # Add/update LLM provider`);
       console.log(`  ${chalk.cyan('studio tools add')}               # Install additional tools`);
-      console.log(`  ${chalk.cyan('studio project add')}             # Create new project`);
       console.log('');
       console.log('To start fresh:');
       console.log(`  ${chalk.cyan('studio init --force')}            # ⚠ Backs up existing config`);
@@ -251,11 +296,10 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         }
       }
 
-      const projectName = nameArg ?? options.project ?? basename(cwd);
       const spinner = ora('Creating project...').start();
 
       try {
-        await directInit(cwd, projectName, options.template!, options.provider!, options.apiKey ?? '', options.tools === false);
+        await directInit(cwd, options.template!, options.provider!, options.apiKey ?? '', options.tools === false);
         spinner.stop();
       } catch (err) {
         spinner.fail('Failed');
@@ -263,7 +307,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       }
 
       console.log(chalk.green(`  ✓ .studio/config.yaml`));
-      console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
+      console.log(chalk.green(`  ✓ .studio/pipelines/`));
       console.log(chalk.green(`  ✓ Applied template: ${options.template}`));
       console.log(chalk.green(`  ✓ Updated .gitignore`));
       console.log('');
@@ -273,7 +317,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
       console.log(chalk.bold('Done! Run your first pipeline:'));
-      console.log(`  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`);
+      console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
         console.log('Set your API key first:');
@@ -292,13 +336,12 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     console.log(chalk.bold('  ╰─────────────────────────────────╯'));
     console.log('');
 
-    // Step 1: Project name
+    // Step 1: Project name (kept for display / future use, not for dir structure)
     const defaultName = nameArg ?? options.project ?? basename(cwd);
-    const rawName = await input({
+    await input({
       message: 'Project name:',
       default: defaultName,
     });
-    const projectName = rawName.trim() || defaultName;
 
     // Step 2: Description (optional, not persisted)
     await input({
@@ -406,7 +449,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const studioDir = resolve(cwd, '.studio');
 
     try {
-      await createStudioStructure(cwd, projectName, templateName, false);
+      await createStudioStructure(cwd, templateName, false);
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -419,13 +462,14 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // Step 8: Install selected tools
+    // Note: tools.ts still uses the old project-based path; this will be updated in a follow-up task
     if (selectedTools.length > 0) {
-      await toolsAddDirect(studioDir, projectName, selectedTools);
+      await toolsAddDirect(studioDir, 'default', selectedTools);
     }
 
     // Step 9: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
-    console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
+    console.log(chalk.green(`  ✓ .studio/pipelines/`));
     console.log(chalk.green(`  ✓ Applied template: ${templateName}`));
     console.log(chalk.green(`  ✓ Updated .gitignore`));
     if (selectedTools.length > 0) {
@@ -439,7 +483,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     console.log(chalk.bold('Done! Run your first pipeline:'));
     console.log(
-      `  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`
+      `  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`
     );
     if (provider === 'later') {
       console.log('');
