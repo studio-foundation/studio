@@ -1,5 +1,5 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile } from 'node:fs/promises';
-import { resolve, join, basename, dirname } from 'node:path';
+import { resolve, join, basename } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -210,7 +210,6 @@ export async function generateAppFiles(
     } else {
       const content = await readFile(src, 'utf-8');
       const replaced = applyPlaceholders(content, vars);
-      await mkdir(dirname(dest), { recursive: true });
       await writeFile(dest, replaced, 'utf-8');
       generated.push(item);
     }
@@ -219,9 +218,14 @@ export async function generateAppFiles(
   return generated;
 }
 
+const TEXT_EXTENSIONS = new Set([
+  '.ts', '.js', '.json', '.md', '.yaml', '.yml',
+  '.prisma', '.txt', '.env', '.gitignore', '.sh',
+]);
+
 /**
- * Recursively copy a directory, applying placeholder replacement to all text file contents.
- * Binary files are copied as-is.
+ * Recursively copy a directory, applying placeholder replacement to known text
+ * file extensions. All other files (binary or unknown) are copied as-is.
  */
 async function copyDirWithPlaceholders(
   src: string,
@@ -238,15 +242,12 @@ async function copyDirWithPlaceholders(
     if (entry.isDirectory()) {
       await copyDirWithPlaceholders(srcPath, destPath, vars);
     } else {
-      try {
+      const ext = entry.name.includes('.') ? '.' + entry.name.split('.').pop()! : '';
+      if (TEXT_EXTENSIONS.has(ext)) {
         const content = await readFile(srcPath, 'utf-8');
         const replaced = applyPlaceholders(content, vars);
         await writeFile(destPath, replaced, 'utf-8');
-      } catch (err) {
-        if (err instanceof Error && err.message.startsWith('Unresolved placeholder')) {
-          throw err;
-        }
-        // Binary file — copy as-is
+      } else {
         await copyFile(srcPath, destPath);
       }
     }

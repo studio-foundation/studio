@@ -443,5 +443,7 @@ describe('generateAppFiles', () => {
 
     expect(generated).toContain('package.json');
     expect(generated).toContain('README.md');
+    expect(generated).toContain('src/');    // directories have trailing slash
+    expect(generated).toContain('prisma/'); // directories have trailing slash
   });
 });
