@@ -238,3 +238,99 @@ describe('buildPrompt with promptSnippets', () => {
     ).not.toThrow();
   });
 });
+
+describe('buildPrompt — previous_tool_results', () => {
+  const baseAgent: AgentConfig = {
+    name: 'test',
+    provider: 'mock',
+    model: 'mock',
+    system_prompt: 'You are helpful.',
+  };
+
+  it('renders a "Previous Stage Discoveries" section per stage', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Do the task.' },
+      context: {
+        previous_tool_results: {
+          'brief-analysis': [
+            {
+              id: '1',
+              name: 'search-search_codebase',
+              arguments: { pattern: 'about' },
+              result: { matches: [{ file: 'src/pages/about.tsx', content: 'export default function About' }] },
+            },
+          ],
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).toContain('## Previous Stage Discoveries (brief-analysis)');
+    expect(userContent).toContain('search-search_codebase');
+    expect(userContent).toContain('about');
+    expect(userContent).toContain('about.tsx');
+  });
+
+  it('discoveries section appears before the Task section', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Do the task.' },
+      context: {
+        previous_tool_results: {
+          'stage-1': [{ id: '1', name: 'tool-x', arguments: { q: 'foo' }, result: 'bar' }],
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    const discoveriesIdx = userContent.indexOf('## Previous Stage Discoveries');
+    const taskIdx = userContent.indexOf('## Task');
+    expect(discoveriesIdx).toBeGreaterThan(-1);
+    expect(discoveriesIdx).toBeLessThan(taskIdx);
+  });
+
+  it('truncates results longer than 2000 chars', () => {
+    const longResult = 'x'.repeat(3000);
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Do the task.' },
+      context: {
+        previous_tool_results: {
+          'stage-1': [{ id: '1', name: 'tool-x', arguments: {}, result: longResult }],
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).toContain('[truncated]');
+    // Should not contain the full 3000-char result
+    expect(userContent).not.toContain(longResult);
+  });
+
+  it('renders tool error when present', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Do the task.' },
+      context: {
+        previous_tool_results: {
+          'stage-1': [{ id: '1', name: 'tool-x', arguments: {}, error: 'File not found' }],
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).toContain('Error: File not found');
+  });
+
+  it('skips rendering when previous_tool_results is empty or absent', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Do the task.' },
+      context: {},
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).not.toContain('Previous Stage Discoveries');
+  });
+});

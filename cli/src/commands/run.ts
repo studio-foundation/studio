@@ -206,6 +206,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
 
     // Resolve input: --input-file > --input > wizard > error
     let input: string | Record<string, unknown>;
+    let inputFileRepoUrl: string | undefined;
 
     if (options.inputFile) {
       const inputPath = resolve(options.inputFile);
@@ -218,7 +219,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       }
       const parsed = yaml.load(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        input = parsed as Record<string, unknown>;
+        const parsedObj = parsed as Record<string, unknown>;
+        inputFileRepoUrl = typeof parsedObj['repo_url'] === 'string' ? parsedObj['repo_url'] : undefined;
+        delete parsedObj['repo_url'];
+        input = parsedObj;
       } else {
         console.error('Error: Input file must contain a YAML object (key-value pairs)');
         process.exit(1);
@@ -244,7 +248,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     if (options.repo) {
       repoPath = resolve(options.repo);
     } else {
-      const repoUrl = options.repoUrl || pipelineDef.repo?.url;
+      const repoUrl = options.repoUrl || inputFileRepoUrl || pipelineDef.repo?.url;
       const effectiveBranch = pipelineDef.repo?.branch;
 
       if (repoUrl) {

@@ -147,6 +147,11 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
     }
   }
 
+  // Add previous stage tool results if any
+  if (context.previous_tool_results && Object.keys(context.previous_tool_results).length > 0) {
+    userContent += renderToolResults(context.previous_tool_results);
+  }
+
   // Add task description
   userContent += `## Task\n\n${task.description}`;
 
@@ -261,6 +266,30 @@ const FIELD_EXAMPLES: Record<string, string> = {
   steps: '["step 1", "step 2", "step 3"]',
   issues: '["issue 1", "issue 2"]',
 };
+
+const TOOL_RESULT_MAX_CHARS = 2000;
+
+function renderToolResults(previous_tool_results: Record<string, ToolCall[]>): string {
+  let out = '';
+  for (const [stage, toolCalls] of Object.entries(previous_tool_results)) {
+    out += `## Previous Stage Discoveries (${stage})\n\n`;
+    for (const tc of toolCalls) {
+      // Use first string argument value as the display label
+      const label = Object.values(tc.arguments).find(v => typeof v === 'string') ?? JSON.stringify(tc.arguments);
+      out += `### ${tc.name}(${label})\n`;
+      if (tc.error) {
+        out += `Error: ${tc.error}\n\n`;
+      } else {
+        const raw = JSON.stringify(tc.result, null, 2);
+        const body = raw.length > TOOL_RESULT_MAX_CHARS
+          ? raw.slice(0, TOOL_RESULT_MAX_CHARS) + '\n[truncated]'
+          : raw;
+        out += `\`\`\`\n${body}\n\`\`\`\n\n`;
+      }
+    }
+  }
+  return out;
+}
 
 function getFieldTypeHint(field: string): string {
   return FIELD_TYPE_HINTS[field] || 'string';
