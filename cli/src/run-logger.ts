@@ -13,7 +13,7 @@ function dateForFilename(): string {
 }
 
 export interface RunLogger {
-  start(runId: string, pipeline: string, project: string): void;
+  start(runId: string, pipeline: string): void;
   log(payload: Record<string, unknown>): void;
   close(): void;
   getLogPath(): string;
@@ -25,11 +25,11 @@ export function createRunLogger(cwd: string = process.cwd()): RunLogger {
   let shortRunId = '';
 
   return {
-    start(runId: string, pipeline: string, project: string): void {
+    start(runId: string, pipeline: string): void {
       shortRunId = runIdShort(runId);
       const date = dateForFilename();
       const base = resolve(cwd, RUNS_DIR);
-      logPath = resolve(base, `${date}-${project}-${pipeline}-${shortRunId}.jsonl`);
+      logPath = resolve(base, `${date}-${pipeline}-${shortRunId}.jsonl`);
       mkdirSync(base, { recursive: true });
       stream = createWriteStream(logPath, { flags: 'a' });
     },

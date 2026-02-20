@@ -21,7 +21,7 @@ export async function listCommand(
     const configsDir = config.paths?.configs
       ? resolve(config.paths.configs)
       : config.resolvedStudioDir
-        ? resolve(config.resolvedStudioDir, 'projects')
+        ? resolve(config.resolvedStudioDir)
         : resolve('./configs');
 
     switch (resource) {
@@ -50,36 +50,19 @@ export async function listCommand(
 }
 
 async function listProjects(configsDir: string, json?: boolean): Promise<void> {
-  const projects = await getProjects(configsDir);
-
+  // With the flat .studio/ structure, there is no projects/ layer.
   if (json) {
-    console.log(JSON.stringify(projects, null, 2));
+    console.log(JSON.stringify([configsDir], null, 2));
     return;
   }
-
-  if (projects.length === 0) {
-    console.log(chalk.yellow(`No projects found in ${configsDir}`));
-    return;
-  }
-
-  console.log('\nProjects:');
-  for (const name of projects) {
-    console.log(`  - ${name}`);
-  }
+  console.log('\nThis workspace uses a flat .studio/ structure (no projects/ layer).');
+  console.log('Run `studio list pipelines` to see available pipelines.');
   console.log('');
 }
 
 async function listPipelines(configsDir: string, json?: boolean): Promise<void> {
-  const projects = await getProjects(configsDir);
-  const results: string[] = [];
-
-  for (const project of projects) {
-    const pipelinesDir = join(configsDir, project, 'pipelines');
-    const names = await getFileNames(pipelinesDir, '.pipeline.yaml');
-    for (const name of names) {
-      results.push(`${project}/${name}`);
-    }
-  }
+  const pipelinesDir = join(configsDir, 'pipelines');
+  const results = await getFileNames(pipelinesDir, '.pipeline.yaml');
 
   if (json) {
     console.log(JSON.stringify(results, null, 2));
@@ -99,16 +82,8 @@ async function listPipelines(configsDir: string, json?: boolean): Promise<void> 
 }
 
 async function listAgents(configsDir: string, json?: boolean): Promise<void> {
-  const projects = await getProjects(configsDir);
-  const results: string[] = [];
-
-  for (const project of projects) {
-    const agentsDir = join(configsDir, project, 'agents');
-    const names = await getFileNames(agentsDir, '.agent.yaml');
-    for (const name of names) {
-      results.push(`${project}/${name}`);
-    }
-  }
+  const agentsDir = join(configsDir, 'agents');
+  const results = await getFileNames(agentsDir, '.agent.yaml');
 
   if (json) {
     console.log(JSON.stringify(results, null, 2));
@@ -129,7 +104,6 @@ async function listAgents(configsDir: string, json?: boolean): Promise<void> {
 
 interface RunListEntry {
   date: string;
-  project: string;
   pipeline: string;
   run_id: string;
   status: string;
@@ -159,13 +133,8 @@ async function listRuns(options: ListOptions): Promise<void> {
     const match = filename.match(/^(\d{4}-\d{2}-\d{2}T\d{1,2}h\d{1,2}m)-(.+)-([a-f0-9]{8})\.jsonl$/i);
     if (!match) continue;
     const datePart = match[1];
-    const middle = match[2];
+    const pipeline = match[2];
     const runId = match[3];
-    const lastHyphen = middle.lastIndexOf('-');
-    if (lastHyphen <= 0) continue;
-    const project = middle.slice(0, lastHyphen);
-    const pipeline = middle.slice(lastHyphen + 1);
-    if (options.project && project !== options.project) continue;
 
     let status = 'running';
     try {
@@ -183,7 +152,6 @@ async function listRuns(options: ListOptions): Promise<void> {
     }
     runs.push({
       date: datePart ?? filename,
-      project,
       pipeline,
       run_id: runId ?? '',
       status,
@@ -205,26 +173,14 @@ async function listRuns(options: ListOptions): Promise<void> {
     return;
   }
 
+  const statusColor = (s: string) =>
+    s === 'success' ? chalk.green(s) : s === 'rejected' || s === 'failed' ? chalk.red(s) : chalk.gray(s);
+
   console.log('\nRuns:');
   for (const r of limited) {
-    const statusColor =
-      r.status === 'success' ? chalk.green : r.status === 'rejected' || r.status === 'failed' ? chalk.red : chalk.gray;
-    console.log(`  ${r.date}  ${r.project}/${r.pipeline}  ${r.run_id}  ${statusColor(r.status)}`);
+    console.log(`  ${r.date}  ${r.pipeline}  ${r.run_id}  ${statusColor(r.status)}`);
   }
   console.log('');
-}
-
-async function getProjects(configsDir: string): Promise<string[]> {
-  let entries: import('node:fs').Dirent[];
-  try {
-    entries = await readdir(configsDir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return entries
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
 }
 
 async function getFileNames(dir: string, suffix: string): Promise<string[]> {

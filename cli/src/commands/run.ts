@@ -4,7 +4,7 @@ import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
-import { PipelineEngine, parseProjectPipeline, loadPipelineByName } from '@studio/engine';
+import { PipelineEngine, loadPipelineByName } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio/runner';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
@@ -61,19 +61,17 @@ function inputSummary(input: string | Record<string, unknown>): string {
 function mergeEvents(
   progressEvents: EngineEvents,
   logger: ReturnType<typeof createRunLogger>,
-  project: string,
   pipeline: string,
   input: string | Record<string, unknown>
 ): EngineEvents {
   let totalStages = 0;
   return {
     onPipelineStart: (e) => {
-      logger.start(e.run_id, pipeline, project);
+      logger.start(e.run_id, pipeline);
       progressEvents.onPipelineStart?.(e);
       logger.log({
         event: 'pipeline_start',
         run_id: e.run_id,
-        project,
         pipeline,
         input_summary: inputSummary(input),
       });
@@ -199,13 +197,12 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     const configsDir = config.paths?.configs
       ? resolve(config.paths.configs)
       : config.resolvedStudioDir
-        ? resolve(config.resolvedStudioDir, 'projects')
+        ? resolve(config.resolvedStudioDir)
         : resolve('./configs');
-    const { project, pipeline: pipelineBase } = parseProjectPipeline(pipelineName);
-    const pipelinesDir = join(configsDir, project, 'pipelines');
+    const pipelinesDir = join(configsDir, 'pipelines');
 
     // Load pipeline early (needed for input_schema and repo URL)
-    const pipelineDef = await loadPipelineByName(pipelineBase, pipelinesDir);
+    const pipelineDef = await loadPipelineByName(pipelineName, pipelinesDir);
 
     // Resolve input: --input-file > --input > wizard > error
     let input: string | Record<string, unknown>;
@@ -275,7 +272,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
 
     // Handle --provider override
     if (options.provider === 'mock') {
-      const mockYamlPath = join(configsDir, project, 'mock.yaml');
+      const mockYamlPath = join(configsDir, 'mock.yaml');
       let mockRaw: string;
       try {
         mockRaw = await readFile(mockYamlPath, 'utf-8');
@@ -299,7 +296,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       process.exit(1);
     }
 
-    const toolsDir = resolve(configsDir, project, 'tools');
+    const toolsDir = resolve(configsDir, 'tools');
     const loadedPlugins = await loadProjectTools(toolsDir, repoPath);
     const toolRegistry = new ToolRegistry();
     for (const plugin of loadedPlugins) {
@@ -316,8 +313,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     const events = mergeEvents(
       progress.getEvents(),
       runLogger,
-      project,
-      pipelineBase,
+      pipelineName,
       input
     );
 

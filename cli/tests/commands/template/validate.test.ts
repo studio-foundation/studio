@@ -13,12 +13,11 @@ async function makeTemplate(overrides: {
   contracts?: Record<string, string>;
 } = {}): Promise<string> {
   const dir = join(TMP, String(Date.now()));
-  const projectDir = join(dir, 'project');
-  await mkdir(join(projectDir, 'pipelines'), { recursive: true });
-  await mkdir(join(projectDir, 'agents'), { recursive: true });
-  await mkdir(join(projectDir, 'contracts'), { recursive: true });
-  await mkdir(join(projectDir, 'tools'), { recursive: true });
-  await mkdir(join(projectDir, 'inputs'), { recursive: true });
+  await mkdir(join(dir, 'pipelines'), { recursive: true });
+  await mkdir(join(dir, 'agents'), { recursive: true });
+  await mkdir(join(dir, 'contracts'), { recursive: true });
+  await mkdir(join(dir, 'tools'), { recursive: true });
+  await mkdir(join(dir, 'inputs'), { recursive: true });
 
   // metadata.json
   if (overrides.metadata !== null) {
@@ -32,7 +31,7 @@ async function makeTemplate(overrides: {
     'pipe-two': 'name: pipe-two\nstages:\n  - name: s2\n    kind: analysis\n    agent: analyst\n    contract: output\n',
   };
   for (const [name, content] of Object.entries(pipelines)) {
-    await writeFile(join(projectDir, 'pipelines', `${name}.pipeline.yaml`), content);
+    await writeFile(join(dir, 'pipelines', `${name}.pipeline.yaml`), content);
   }
 
   // agents — default: 1 valid agent
@@ -40,7 +39,7 @@ async function makeTemplate(overrides: {
     analyst: 'name: analyst\nprovider: anthropic\nmodel: claude-haiku-4-20250514\n',
   };
   for (const [name, content] of Object.entries(agents)) {
-    await writeFile(join(projectDir, 'agents', `${name}.agent.yaml`), content);
+    await writeFile(join(dir, 'agents', `${name}.agent.yaml`), content);
   }
 
   // contracts — default: 1 valid contract
@@ -48,7 +47,7 @@ async function makeTemplate(overrides: {
     output: 'name: output\nversion: 1\nschema:\n  required_fields:\n    - summary\n',
   };
   for (const [name, content] of Object.entries(contracts)) {
-    await writeFile(join(projectDir, 'contracts', `${name}.contract.yaml`), content);
+    await writeFile(join(dir, 'contracts', `${name}.contract.yaml`), content);
   }
 
   return dir;

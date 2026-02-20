@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
 import { resolve, join, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
@@ -8,7 +8,6 @@ import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
 import { applyPlaceholders } from '../utils/placeholders.js';
 import { listTemplates } from './templates.js';
-import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { listAvailableTools, toolsAddDirect } from './tools.js';
@@ -38,14 +37,61 @@ export async function backupStudioDir(cwd: string): Promise<string> {
 
 const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
 
+const STUDIO_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
+
+/**
+ * Create or populate .studio/ with subdirs.
+ * If templateName is provided, copies content from the template root (flat — no project/ subdir).
+ * If withTools is false, creates an empty tools/ dir instead of copying from template.
+ */
+async function copyTemplateToStudio(
+  studioDir: string,
+  templateName?: string,
+  options: { withTools?: boolean } = {}
+): Promise<void> {
+  const withTools = options.withTools ?? true;
+
+  if (templateName) {
+    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
+    const templateExists = await access(templateDir).then(() => true).catch(() => false);
+    if (!templateExists) {
+      throw new Error(
+        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
+      );
+    }
+
+    await mkdir(studioDir, { recursive: true });
+
+    // Copy only the studio-specific subdirs into .studio/ — never the app scaffold
+    // files (src/, prisma/, package.json, README.md); those are handled by generateAppFiles.
+    for (const sub of STUDIO_SUBDIRS) {
+      if (!withTools && sub === 'tools') continue;
+      const srcDir = join(templateDir, sub);
+      const destDir = join(studioDir, sub);
+      const srcExists = await access(srcDir).then(() => true).catch(() => false);
+      if (srcExists) {
+        await cp(srcDir, destDir, { recursive: true });
+      }
+      // Always ensure the subdir exists even if the template doesn't include it
+      await mkdir(destDir, { recursive: true });
+    }
+    if (!withTools) {
+      await mkdir(join(studioDir, 'tools'), { recursive: true });
+    }
+  } else {
+    for (const sub of STUDIO_SUBDIRS) {
+      await mkdir(join(studioDir, sub), { recursive: true });
+    }
+  }
+}
+
 /**
  * Create the full .studio/ directory structure in `cwd`.
- * If templateName is provided, copies the template's project/ subdir.
+ * If templateName is provided, copies the template files directly into .studio/ (flat structure).
  * Throws if .studio/ already exists anywhere in the directory tree.
  */
 export async function createStudioStructure(
   cwd: string,
-  projectName = 'default',
   templateName?: string,
   withTools = true
 ): Promise<void> {
@@ -59,9 +105,7 @@ export async function createStudioStructure(
   }
 
   const studioDir = resolve(cwd, '.studio');
-  const projectsDir = join(studioDir, 'projects');
-  await mkdir(projectsDir, { recursive: true });
-  await createProjectDir(projectsDir, projectName, templateName, { withTools });
+  await copyTemplateToStudio(studioDir, templateName, { withTools });
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
@@ -150,13 +194,12 @@ export async function writeProviderToConfig(
  */
 export async function directInit(
   cwd: string,
-  projectName: string,
   templateName: string,
   provider: string,
   apiKey: string,
   noTools = false
 ): Promise<void> {
-  await createStudioStructure(cwd, projectName, templateName, !noTools);
+  await createStudioStructure(cwd, templateName, !noTools);
   if (provider !== 'later' && apiKey) {
     const studioDir = resolve(cwd, '.studio');
     await writeProviderToConfig(studioDir, provider, apiKey);
@@ -310,8 +353,8 @@ export async function generateFullApp(
     );
   }
 
-  // 2. Create .studio/ workspace
-  await createStudioStructure(cwd, projectName, templateName, !options.noTools);
+  // 2. Create .studio/ workspace (flat — no projects/<name>/ layer)
+  await createStudioStructure(cwd, templateName, !options.noTools);
 
   // 3. Copy app scaffold files with placeholder replacement
   const vars = {
@@ -353,7 +396,6 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log('To reconfigure:');
       console.log(`  ${chalk.cyan('studio config add-provider')}     # Add/update LLM provider`);
       console.log(`  ${chalk.cyan('studio tools add')}               # Install additional tools`);
-      console.log(`  ${chalk.cyan('studio project add')}             # Create new project`);
       console.log('');
       console.log('To start fresh:');
       console.log(`  ${chalk.cyan('studio init --force')}            # ⚠ Backs up existing config`);
@@ -406,11 +448,11 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         }
       }
 
-      const projectName = nameArg ?? options.project ?? basename(cwd);
       const spinner = ora('Creating project...').start();
 
       let gitInitialized = false;
       try {
+        const projectName = nameArg ?? options.project ?? basename(cwd);
         ({ gitInitialized } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
@@ -424,12 +466,12 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         throw err;
       }
 
-      console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
+      console.log(chalk.green(`  ✓ .studio/config.yaml`));
+      console.log(chalk.green(`  ✓ .studio/pipelines/`));
       console.log(chalk.green(`  ✓ src/`));
       console.log(chalk.green(`  ✓ prisma/schema.prisma`));
       console.log(chalk.green(`  ✓ package.json`));
       console.log(chalk.green(`  ✓ README.md`));
-      console.log(chalk.green(`  ✓ .studio/config.yaml`));
       if (gitInitialized) {
         console.log(chalk.green(`  ✓ git initialized`));
       }
@@ -442,7 +484,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
       console.log(chalk.bold('Done! Next steps:'));
       console.log(`  ${chalk.cyan('npm install')}`);
-      console.log(`  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`);
+      console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
         console.log('Set your API key first:');
@@ -461,13 +503,12 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     console.log(chalk.bold('  ╰─────────────────────────────────╯'));
     console.log('');
 
-    // Step 1: Project name
+    // Step 1: Project name (used for placeholder replacement in app scaffold files)
     const defaultName = nameArg ?? options.project ?? basename(cwd);
-    const rawName = await input({
+    const projectName = await input({
       message: 'Project name:',
       default: defaultName,
     });
-    const projectName = rawName.trim() || defaultName;
 
     // Step 2: Description (optional, not persisted)
     await input({
@@ -589,17 +630,18 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // Step 8: Install selected tools
+    // Note: tools.ts still uses the old project-based path; this will be updated in a follow-up task
     if (selectedTools.length > 0) {
-      await toolsAddDirect(studioDir, projectName, selectedTools);
+      await toolsAddDirect(studioDir, 'default', selectedTools);
     }
 
     // Step 9: Success output
-    console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
+    console.log(chalk.green(`  ✓ .studio/config.yaml`));
+    console.log(chalk.green(`  ✓ .studio/pipelines/`));
     console.log(chalk.green(`  ✓ src/`));
     console.log(chalk.green(`  ✓ prisma/schema.prisma`));
     console.log(chalk.green(`  ✓ package.json`));
     console.log(chalk.green(`  ✓ README.md`));
-    console.log(chalk.green(`  ✓ .studio/config.yaml`));
     if (gitInitialized) {
       console.log(chalk.green(`  ✓ git initialized`));
     }
@@ -616,7 +658,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     console.log(chalk.bold('Done! Next steps:'));
     console.log(`  ${chalk.cyan('npm install')}`);
     console.log(
-      `  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`
+      `  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`
     );
     if (provider === 'later') {
       console.log('');

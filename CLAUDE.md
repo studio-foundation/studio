@@ -14,7 +14,7 @@ npx @studio/cli init             # Ou essayer sans installer
 
 cd my-project/
 studio init --template software  # Crée .studio/ (comme git init crée .git/)
-studio run software/feature-builder --input "Add dark mode"
+studio run feature-builder --input "Add dark mode"
 ```
 
 ```
@@ -107,7 +107,7 @@ studio init --template analysis --name wiki-creator
 cd wiki-creator
 
 # L'app est générée avec :
-# - .studio/projects/analysis/ (pipelines, contracts, agents, tools)
+# - .studio/ (pipelines/, contracts/, agents/, tools/ — flat)
 # - src/ (code starter)
 # - prisma/schema.prisma (DB schema)
 # - package.json
@@ -117,7 +117,7 @@ npm install
 npm run dev
 
 # Ça marche immédiatement
-studio run analysis/content-extraction --input "..."
+studio run content-extraction --input "..."
 
 # Puis customize selon tes besoins
 # - Ajouter des pipelines spécifiques
@@ -145,13 +145,11 @@ Quand un utilisateur fait `studio init` dans son projet, tout vit dans `.studio/
 my-project/                           # Le repo de l'utilisateur
 ├── .studio/                          # Tout Studio vit ici (comme .git/)
 │   ├── config.yaml                   # Providers, defaults (gitignored)
-│   ├── projects/
-│   │   └── <project>/                # Ex: software/, finance/, analysis/
-│   │       ├── pipelines/            # *.pipeline.yaml
-│   │       ├── agents/               # *.agent.yaml
-│   │       ├── contracts/            # *.contract.yaml
-│   │       ├── tools/                # *.tool.yaml (tool plugins)
-│   │       └── inputs/               # *.input.yaml
+│   ├── pipelines/                    # *.pipeline.yaml
+│   ├── agents/                       # *.agent.yaml
+│   ├── contracts/                    # *.contract.yaml
+│   ├── tools/                        # *.tool.yaml (tool plugins)
+│   ├── inputs/                       # *.input.yaml
 │   ├── registry.lock.json            # Versions tools installés (commité)
 │   └── runs/                         # Données runtime (gitignored)
 │       ├── runs.db                   # SQLite
@@ -162,7 +160,7 @@ my-project/                           # Le repo de l'utilisateur
 ```
 
 **Git strategy :**
-- **Commité :** `.studio/projects/`, `.studio/registry.lock.json`, `src/`, `prisma/`
+- **Commité :** `.studio/pipelines/`, `.studio/agents/`, `.studio/contracts/`, `.studio/tools/`, `.studio/registry.lock.json`, `src/`, `prisma/`
 - **Gitignored :** `.studio/config.yaml` (API keys), `.studio/runs/`
 
 `findStudioDir()` remonte les dossiers parents jusqu'à trouver `.studio/`, exactement comme `git` cherche `.git/`.
@@ -254,13 +252,13 @@ Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin run
 
 **Format des tools :** Les noms utilisent des tirets (`-`), pas des points (`.`). Exemple : `repo_manager-write_file`, pas `repo_manager.write_file`.
 
-**Pour ajouter un tool :** Créer un `.tool.yaml` dans `.studio/projects/<projet>/tools/`. Le runner le charge automatiquement.
+**Pour ajouter un tool :** Créer un `.tool.yaml` dans `.studio/tools/`. Le runner le charge automatiquement.
 
 **Tools par template :** Chaque template inclut les tools appropriés pour son domaine. `software/` a `repo_manager-*`, `analysis/` a `text-processor`, `finance/` a `bank-api`, etc.
 
 ## Configs YAML — source de vérité
 
-Les configs sont organisées par projet : `.studio/projects/<projet>/` dans le repo utilisateur.
+Les configs sont organisées directement dans `.studio/` dans le repo utilisateur (structure plate — pas de `projects/<nom>/`).
 
 **Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
@@ -315,8 +313,8 @@ stages:
 
 ```bash
 # Usage quotidien
-studio run <projet/pipeline> --input "..."       # Lancer un pipeline
-studio run <projet/pipeline> --input-file X.yaml # Lancer avec input YAML
+studio run <pipeline> --input "..."              # Lancer un pipeline
+studio run <pipeline> --input-file X.yaml        # Lancer avec input YAML
 studio status [run-id]                           # Vérifier le status
 studio list projects                             # Lister les projets
 studio list pipelines                            # Lister les pipelines
@@ -456,7 +454,7 @@ Le **dernier stage** du group doit avoir `post_validation.rejection_detection` d
 ## Debugging Tips
 
 ```bash
-DEBUG=studio:* studio run software/feature-builder --input "..."   # Events détaillés
+DEBUG=studio:* studio run feature-builder --input "..."   # Events détaillés
 studio validate software/code-generation output.json               # Valider sans LLM
 ```
 
@@ -525,12 +523,10 @@ Un projet Powered by Studio est un **workspace** où Studio orchestre du travail
 mon-projet/                      # Le workspace (repo git séparé)
 ├── .studio/                     # Studio vit ici (comme .git/)
 │   ├── config.yaml              # Config locale (gitignored)
-│   ├── projects/
-│   │   └── <nom>/               # Ex: software/, analysis/, finance/
-│   │       ├── pipelines/
-│   │       ├── contracts/
-│   │       ├── agents/
-│   │       └── tools/
+│   ├── pipelines/
+│   ├── contracts/
+│   ├── agents/
+│   ├── tools/
 │   └── runs/
 │       └── runs.db              # État d'exécution (gitignored)
 ├── src/                         # Le code de l'app
@@ -552,19 +548,19 @@ Le kernel est agnostic du contenu du workspace — il orchestre simplement les t
 
 **Code Builder** (repo séparé) :
 - Généré avec `studio init --template software --name code-builder`
-- Contient `.studio/projects/software/` (copié depuis template)
+- Contient `.studio/pipelines/`, `.studio/agents/`, etc. (copié depuis template)
 - Code custom dans `src/` (CLI wrapper, IDE extension, etc.)
 - DB schema étendu pour tracking repos/features
 
 **ADHD Finance** (repo séparé) :
 - Généré avec `studio init --template finance --name adhd-finance`
-- Contient `.studio/projects/finance/` (copié depuis template)
+- Contient `.studio/pipelines/`, `.studio/agents/`, etc. (copié depuis template)
 - Code custom dans `src/` (Next.js app, Plaid integration, etc.)
 - DB schema étendu pour users/accounts/transactions/budgets
 
 **Wiki Creator** (repo séparé) :
 - Généré avec `studio init --template analysis --name wiki-creator`
-- Contient `.studio/projects/analysis/` (copié depuis template)
+- Contient `.studio/pipelines/`, `.studio/agents/`, etc. (copié depuis template)
 - Code custom dans `src/` (book parser, wiki generator, etc.)
 - DB schema étendu pour books/wikis/pages/entities
 

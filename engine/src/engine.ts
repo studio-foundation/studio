@@ -95,23 +95,12 @@ interface ProjectPaths {
   contractsDir: string;
 }
 
-export function parseProjectPipeline(identifier: string): { project: string; pipeline: string } {
-  const parts = identifier.split('/');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new Error(
-      `Invalid pipeline identifier '${identifier}'. Expected format: project/pipeline (e.g. 'software/feature-builder')`
-    );
-  }
-  return { project: parts[0], pipeline: parts[1] };
-}
-
-function resolveProjectPaths(configsDir: string, project: string): ProjectPaths {
-  const projectDir = join(configsDir, project);
+function resolveProjectPaths(configsDir: string): ProjectPaths {
   return {
-    projectDir,
-    pipelinesDir: join(projectDir, 'pipelines'),
-    agentsDir: join(projectDir, 'agents'),
-    contractsDir: join(projectDir, 'contracts'),
+    projectDir: configsDir,
+    pipelinesDir: join(configsDir, 'pipelines'),
+    agentsDir: join(configsDir, 'agents'),
+    contractsDir: join(configsDir, 'contracts'),
   };
 }
 
@@ -160,9 +149,9 @@ export class PipelineEngine {
   }
 
   async run(input: RunInput): Promise<PipelineRun> {
-    // 1. Parse project/pipeline identifier and resolve paths
-    const { project, pipeline: pipelineName } = parseProjectPipeline(input.pipeline);
-    const projectPaths = resolveProjectPaths(this.config.configsDir, project);
+    // 1. Resolve paths — configsDir is now the project root directly
+    const pipelineName = input.pipeline;
+    const projectPaths = resolveProjectPaths(this.config.configsDir);
 
     // 2. Load the pipeline YAML
     const pipeline = await loadPipelineByName(pipelineName, projectPaths.pipelinesDir);
@@ -796,8 +785,8 @@ export class PipelineEngine {
     try {
       const { mkdir, writeFile } = await import('node:fs/promises');
       const { join } = await import('node:path');
-      // configsDir is .studio/projects/ — keymap goes in .studio/runs/anonymization/
-      const anonDir = join(this.config.configsDir, '..', 'runs', 'anonymization');
+      // configsDir is .studio/ directly — keymap goes in .studio/runs/anonymization/
+      const anonDir = join(this.config.configsDir, 'runs', 'anonymization');
       await mkdir(anonDir, { recursive: true });
       const keymapPath = join(anonDir, `${runId}.keymap.json`);
       await writeFile(keymapPath, JSON.stringify(keymap, null, 2), 'utf-8');
