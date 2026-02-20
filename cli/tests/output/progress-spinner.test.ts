@@ -104,3 +104,27 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
     expect(mockOraInstance.stop).toHaveBeenCalled();
   });
 });
+
+describe('ProgressDisplay — token streaming (live mode)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('stops thinking spinner when first token arrives', () => {
+    const d = makeDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.clearAllMocks();
+    events.onAgentToken!({ token: 'Hello', stage: 'code-generation', timestamp: Date.now() });
+    expect(mockOraInstance.stop).toHaveBeenCalled();
+  });
+
+  it('does not print tokens in non-live mode', () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const d = new ProgressDisplay(false, 'quiet');
+    const events = d.getEvents();
+    events.onAgentToken!({ token: 'Hello', stage: 'code-generation', timestamp: Date.now() });
+    expect(writeSpy).not.toHaveBeenCalled();
+    writeSpy.mockRestore();
+  });
+});

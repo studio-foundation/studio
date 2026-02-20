@@ -11,6 +11,7 @@ export class ProgressDisplay {
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private displayMode: 'quiet' | 'verbose' | 'live';
+  private isStreamingTokens = false;
 
   private get verbose(): boolean { return this.displayMode === 'verbose'; }
   private get live(): boolean { return this.displayMode === 'live'; }
@@ -51,6 +52,10 @@ export class ProgressDisplay {
         const attemptsStr = `${event.attempts} attempt${event.attempts !== 1 ? 's' : ''}`;
 
         if (this.live) {
+          if (this.isStreamingTokens) {
+            process.stdout.write('\n');
+            this.isStreamingTokens = false;
+          }
           this.thinkingSpinner?.stop();
           this.thinkingSpinner = null;
           if (event.status === 'success') {
@@ -127,6 +132,10 @@ export class ProgressDisplay {
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
         // Stop any active spinners before printing retry info
+        if (this.isStreamingTokens) {
+          process.stdout.write('\n');
+          this.isStreamingTokens = false;
+        }
         this.toolSpinner?.stop();
         this.toolSpinner = null;
         this.thinkingSpinner?.stop();
@@ -203,8 +212,24 @@ export class ProgressDisplay {
         }
       },
 
+      onAgentToken: (event) => {
+        if (this.jsonMode || !this.live) return;
+        if (this.thinkingSpinner) {
+          this.thinkingSpinner.stop();
+          this.thinkingSpinner = null;
+          process.stdout.write('  '); // indent to match spinner position
+        }
+        this.isStreamingTokens = true;
+        process.stdout.write(chalk.dim(event.token));
+      },
+
       onToolCallStart: (event) => {
         if (this.jsonMode || !this.live) return;
+        // End any in-progress token stream line before starting tool spinner
+        if (this.isStreamingTokens) {
+          process.stdout.write('\n');
+          this.isStreamingTokens = false;
+        }
         this.thinkingSpinner?.stop();
         this.thinkingSpinner = null;
         const icon = getToolIcon(event.tool);
