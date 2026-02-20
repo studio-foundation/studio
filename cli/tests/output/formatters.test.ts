@@ -176,8 +176,8 @@ describe('summarizeToolParams', () => {
     expect(summarizeToolParams('repo_manager-list_files', {})).toBe('');
   });
 
-  it('shows query for search tools', () => {
-    expect(summarizeToolParams('search-search_codebase', { query: 'useState' }))
+  it('shows pattern for search tools', () => {
+    expect(summarizeToolParams('search-search_codebase', { pattern: 'useState' }))
       .toBe('("useState")');
   });
 
