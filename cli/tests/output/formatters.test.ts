@@ -4,6 +4,9 @@ import {
   humanReadableStageName,
   summarizeToolCalls,
   summarizeOutput,
+  getToolIcon,
+  summarizeToolParams,
+  summarizeToolResult,
 } from '../../src/output/formatters.js';
 import type { ToolCallSummary } from '@studio/engine';
 
@@ -120,5 +123,100 @@ describe('summarizeOutput', () => {
 
   it('returns null for empty object', () => {
     expect(summarizeOutput({})).toBeNull();
+  });
+});
+
+describe('getToolIcon', () => {
+  it('returns 📖 for read_file tools', () => {
+    expect(getToolIcon('repo_manager-read_file')).toBe('📖');
+  });
+
+  it('returns ✏️ for write_file tools', () => {
+    expect(getToolIcon('repo_manager-write_file')).toBe('✏️');
+  });
+
+  it('returns 📁 for list_files tools', () => {
+    expect(getToolIcon('repo_manager-list_files')).toBe('📁');
+  });
+
+  it('returns 🔍 for search tools', () => {
+    expect(getToolIcon('search-search_codebase')).toBe('🔍');
+  });
+
+  it('returns ⚙️ for shell tools', () => {
+    expect(getToolIcon('shell-run_command')).toBe('⚙️');
+  });
+
+  it('returns 🔀 for git tools', () => {
+    expect(getToolIcon('git-commit')).toBe('🔀');
+  });
+
+  it('returns 🔧 for unknown tools', () => {
+    expect(getToolIcon('custom-unknown_tool')).toBe('🔧');
+  });
+});
+
+describe('summarizeToolParams', () => {
+  it('shows path for read_file', () => {
+    expect(summarizeToolParams('repo_manager-read_file', { path: 'src/app.ts' }))
+      .toBe('(src/app.ts)');
+  });
+
+  it('shows path for write_file', () => {
+    expect(summarizeToolParams('repo_manager-write_file', { path: 'src/new.ts', content: '...' }))
+      .toBe('(src/new.ts)');
+  });
+
+  it('shows path for list_files when present', () => {
+    expect(summarizeToolParams('repo_manager-list_files', { path: 'src/' }))
+      .toBe('(src/)');
+  });
+
+  it('returns empty string for list_files without path', () => {
+    expect(summarizeToolParams('repo_manager-list_files', {})).toBe('');
+  });
+
+  it('shows query for search tools', () => {
+    expect(summarizeToolParams('search-search_codebase', { query: 'useState' }))
+      .toBe('("useState")');
+  });
+
+  it('shows command for shell tools', () => {
+    expect(summarizeToolParams('shell-run_command', { command: 'npm test' }))
+      .toBe('("npm test")');
+  });
+
+  it('returns empty string for unknown tools', () => {
+    expect(summarizeToolParams('custom-do_thing', { foo: 'bar' })).toBe('');
+  });
+});
+
+describe('summarizeToolResult', () => {
+  it('returns error message when error is set', () => {
+    expect(summarizeToolResult(undefined, 'file not found')).toBe('file not found');
+  });
+
+  it('returns line count for multi-line strings', () => {
+    expect(summarizeToolResult('line1\nline2\nline3')).toBe('3 lines');
+  });
+
+  it('returns the string itself for single-line string under 60 chars', () => {
+    expect(summarizeToolResult('short result')).toBe('short result');
+  });
+
+  it('truncates long single-line strings to 60 chars', () => {
+    expect(summarizeToolResult('x'.repeat(80))).toHaveLength(60);
+  });
+
+  it('returns item count for arrays', () => {
+    expect(summarizeToolResult(['a', 'b', 'c'])).toBe('3 items');
+  });
+
+  it('returns Done for other types', () => {
+    expect(summarizeToolResult({ key: 'value' })).toBe('Done');
+  });
+
+  it('returns Done for null', () => {
+    expect(summarizeToolResult(null)).toBe('Done');
   });
 });
