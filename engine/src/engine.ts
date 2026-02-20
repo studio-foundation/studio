@@ -637,9 +637,10 @@ export class PipelineEngine {
           groupSucceeded = false;
 
           if (iteration < group.max_iterations) {
-            // Clear group stage outputs for next iteration
+            // Clear group stage outputs and tool results for next iteration
             for (const gs of group.stages) {
               context.stageOutputs.delete(gs.name);
+              context.stageToolResults.delete(gs.name);
             }
 
             // Set feedback for next iteration
