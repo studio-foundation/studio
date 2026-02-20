@@ -123,7 +123,7 @@ setupTestFixtures();
 
 function createTestEngine(overrides: Partial<EngineConfig> = {}): PipelineEngine {
   return new PipelineEngine({
-    configsDir: FIXTURES_DIR,
+    configsDir: PROJECT_DIR,
     providerRegistry: createMockProviderRegistry() as any,
     toolRegistry: createMockToolRegistry() as any,
     db: new InMemoryRunStore(),
@@ -135,7 +135,7 @@ describe('PipelineEngine', () => {
   it('runs a simple single-stage pipeline', async () => {
     const engine = createTestEngine();
     const result = await engine.run({
-      pipeline: 'test-project/simple',
+      pipeline: 'simple',
       input: 'Add a FAQ section',
     });
 
@@ -149,7 +149,7 @@ describe('PipelineEngine', () => {
   it('runs a multi-stage pipeline', async () => {
     const engine = createTestEngine();
     const result = await engine.run({
-      pipeline: 'test-project/two-stage',
+      pipeline: 'two-stage',
       input: 'Build feature X',
     });
 
@@ -164,7 +164,7 @@ describe('PipelineEngine', () => {
     const engine = createTestEngine({ db: store });
 
     const result = await engine.run({
-      pipeline: 'test-project/simple',
+      pipeline: 'simple',
       input: 'Test persist',
     });
 
@@ -185,14 +185,14 @@ describe('PipelineEngine', () => {
 
     const engine = new PipelineEngine(
       {
-        configsDir: FIXTURES_DIR,
+        configsDir: PROJECT_DIR,
         providerRegistry: createMockProviderRegistry() as any,
         toolRegistry: createMockToolRegistry() as any,
       },
       engineEvents
     );
 
-    await engine.run({ pipeline: 'test-project/simple', input: 'test events' });
+    await engine.run({ pipeline: 'simple', input: 'test events' });
 
     expect(events).toEqual([
       'pipeline_start',
@@ -218,7 +218,7 @@ describe('PipelineEngine', () => {
     });
 
     const result = await engine.run({
-      pipeline: 'test-project/simple',
+      pipeline: 'simple',
       input: 'This should fail validation',
     });
 
@@ -229,7 +229,7 @@ describe('PipelineEngine', () => {
   it('sets completed_at on pipeline run', async () => {
     const engine = createTestEngine();
     const result = await engine.run({
-      pipeline: 'test-project/simple',
+      pipeline: 'simple',
       input: 'test timestamps',
     });
 
@@ -240,7 +240,7 @@ describe('PipelineEngine', () => {
   it('creates proper stage run with tasks and agent runs', async () => {
     const engine = createTestEngine();
     const result = await engine.run({
-      pipeline: 'test-project/simple',
+      pipeline: 'simple',
       input: 'test structure',
     });
 
@@ -259,7 +259,7 @@ describe('PipelineEngine', () => {
   it('throws for non-existent pipeline', async () => {
     const engine = createTestEngine();
     await expect(
-      engine.run({ pipeline: 'test-project/nonexistent', input: 'test' })
+      engine.run({ pipeline: 'nonexistent', input: 'test' })
     ).rejects.toThrow('Failed to load pipeline');
   });
 
@@ -274,14 +274,14 @@ describe('PipelineEngine', () => {
 
     const engine = new PipelineEngine(
       {
-        configsDir: FIXTURES_DIR,
+        configsDir: PROJECT_DIR,
         providerRegistry: createMockProviderRegistry() as any,
         toolRegistry: createMockToolRegistry() as any,
       },
       engineEvents
     );
 
-    await engine.run({ pipeline: 'test-project/simple', input: 'test enriched events' });
+    await engine.run({ pipeline: 'simple', input: 'test enriched events' });
 
     expect(stageEvents).toHaveLength(1);
     const e = stageEvents[0];
@@ -303,14 +303,14 @@ describe('PipelineEngine', () => {
 
     const engine = new PipelineEngine(
       {
-        configsDir: FIXTURES_DIR,
+        configsDir: PROJECT_DIR,
         providerRegistry: createMockProviderRegistry() as any,
         toolRegistry: createMockToolRegistry() as any,
       },
       engineEvents
     );
 
-    await engine.run({ pipeline: 'test-project/simple', input: 'test totals' });
+    await engine.run({ pipeline: 'simple', input: 'test totals' });
 
     expect(pipelineEvents).toHaveLength(1);
     const e = pipelineEvents[0];

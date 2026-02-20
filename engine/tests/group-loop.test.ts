@@ -116,7 +116,7 @@ function createMockToolRegistry() {
 function createEngine(provider: any, events?: EngineEvents): PipelineEngine {
   return new PipelineEngine(
     {
-      configsDir: FIXTURES_DIR,
+      configsDir: PROJECT_DIR,
       providerRegistry: { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as any,
       toolRegistry: createMockToolRegistry() as any,
       db: new InMemoryRunStore(),
@@ -186,7 +186,7 @@ describe('Group feedback loop', () => {
     });
 
     const engine = createEngine(provider);
-    const result = await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     expect(result.status).toBe('success');
     // 3 stage runs: analysis + code-gen + qa-review
@@ -212,7 +212,7 @@ describe('Group feedback loop', () => {
     });
 
     const engine = createEngine(provider);
-    const result = await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     expect(result.status).toBe('success');
     // 5 stage runs: analysis + (code-gen + qa) × 2
@@ -231,7 +231,7 @@ describe('Group feedback loop', () => {
     });
 
     const engine = createEngine(provider);
-    const result = await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     expect(result.status).toBe('rejected');
     // 1 analysis + 3 × (code-gen + qa) = 7
@@ -254,7 +254,7 @@ describe('Group feedback loop', () => {
     });
 
     const engine = createEngine(provider);
-    const result = await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     expect(result.status).toBe('failed');
     // Only 2 stage runs: analysis + code-gen (failed, no qa)
@@ -276,7 +276,7 @@ describe('Group feedback loop', () => {
     });
 
     const engine = createEngine(provider);
-    await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     // The 4th call is code-gen iteration 2 — it should have analysis output in context
     // (Verified via provider.call args which include messages containing the context)
@@ -307,7 +307,7 @@ describe('Group feedback loop', () => {
     };
 
     const engine = createEngine(provider, engineEvents);
-    await engine.run({ pipeline: 'test-project/group-test', input: 'Build feature' });
+    await engine.run({ pipeline: 'group-test', input: 'Build feature' });
 
     expect(events).toContain('group_start');
     expect(events).toContain('group_iter_1');

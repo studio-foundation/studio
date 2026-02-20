@@ -1,7 +1,7 @@
 // Export barrel for @studio/engine
 
 // Main engine
-export { PipelineEngine, parseProjectPipeline } from './engine.js';
+export { PipelineEngine } from './engine.js';
 export type { EngineConfig, RunInput } from './engine.js';
 
 // Events
