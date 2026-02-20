@@ -569,15 +569,9 @@ Create a custom template when:
 
 ### Structure requirements
 
-A valid template must include:
+A valid template must satisfy all rules defined in the [Template Specification](#template-specification) section above.
 
-1. **At least 2 working pipelines** in `.studio/projects/<name>/pipelines/`
-2. **Matching contracts** for each pipeline
-3. **At least 1 agent** configuration
-4. **At least 1 tool** (or use built-ins)
-5. **Database schema** in `prisma/schema.prisma`
-6. **Minimal working code** in `src/`
-7. **README.md** with usage instructions
+Run `studio validate template <path>` to check your template against the full ruleset.
 
 ### Testing templates
 
