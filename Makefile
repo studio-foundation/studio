@@ -92,6 +92,10 @@ status:
 	@echo ""
 	@echo "=== cli ==="
 	@cd cli && git status -s || echo "Not a git repo"
+	@echo ""
+	@echo "=== anonymizer ==="
+	@cd anonymizer && git status -s || echo "Not a git repo"
+	@echo ""	
 
 # Link CLI globally to enable 'studio' command
 link-cli:
