@@ -64,14 +64,12 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
   }
 
   const metaPath = join(templatePath, 'metadata.json');
-  let metaName = '';
   try {
     const raw = await readFile(metaPath, 'utf-8');
     const meta = JSON.parse(raw) as Record<string, unknown>;
     for (const field of ['name', 'version', 'description']) {
       if (!meta[field]) errors.push(`metadata.json: missing required field '${field}'`);
     }
-    metaName = String(meta.name ?? '');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       errors.push('metadata.json: file not found');
@@ -128,9 +126,17 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
       const filePath = join(dir, file);
       try {
         const content = await readFile(filePath, 'utf-8');
-        const parsed = yaml.load(content) as Record<string, unknown>;
+        const parsed = yaml.load(content);
+        if (parsed === null || parsed === undefined) {
+          errors.push(`${label}/${file}: YAML file is empty`);
+          continue;
+        }
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push(`${label}/${file}: YAML file must be a mapping (object)`);
+          continue;
+        }
         if (label === 'pipelines') {
-          parsedPipelines.push({ file, parsed });
+          parsedPipelines.push({ file, parsed: parsed as Record<string, unknown> });
         }
       } catch (err) {
         errors.push(`${label}/${file}: YAML parse error — ${(err as Error).message}`);
@@ -163,6 +169,8 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
 
   const tsConfigPath = join(templatePath, 'tsconfig.json');
   if (await pathExists(tsConfigPath)) {
+    // spawnSync is intentional: this is a CLI command, not a server.
+    // Blocking during tsc --noEmit is acceptable for a validation step.
     const result = spawnSync('tsc', ['--noEmit'], { cwd: templatePath, encoding: 'utf-8' });
     if (result.status !== 0) {
       const output = (result.stdout ?? '') + (result.stderr ?? '');
@@ -173,10 +181,6 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
   const prismaSchema = join(templatePath, 'prisma', 'schema.prisma');
   if (await pathExists(prismaSchema)) {
     warnings.push('prisma/schema.prisma found (migration testing not automated — run prisma validate manually)');
-  }
-
-  if (metaName) {
-    warnings.push(`Template: ${metaName}`);
   }
 
   return { valid: errors.length === 0, errors, warnings };
