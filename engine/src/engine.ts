@@ -419,6 +419,10 @@ export class PipelineEngine {
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
           anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
+          callbacks: this.events ? {
+            onToolCallStart: this.events.onToolCallStart,
+            onToolCallComplete: this.events.onToolCallComplete,
+          } : undefined,
         });
 
         // Record agent run
