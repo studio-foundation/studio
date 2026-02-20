@@ -392,19 +392,19 @@ This section is the **formal contract** for template authors and for the validat
 
 ### Required Files
 
-| Path | Required | Notes |
-|------|----------|-------|
-| `template.yaml` | Yes | Template metadata — see format below |
-| `README.md` | Yes | User-facing documentation |
-| `.studio/projects/{{TEMPLATE_NAME}}/pipelines/` | Yes | ≥2 `.pipeline.yaml` files |
-| `.studio/projects/{{TEMPLATE_NAME}}/contracts/` | Yes | ≥1 `.contract.yaml` per pipeline |
-| `.studio/projects/{{TEMPLATE_NAME}}/agents/` | Yes | ≥1 `.agent.yaml` file |
-| `.studio/projects/{{TEMPLATE_NAME}}/tools/` | No | Optional — builtins are allowed |
-| `.studio/projects/{{TEMPLATE_NAME}}/inputs/` | No | Recommended — fixture inputs for testing |
-| `prisma/schema.prisma` | Yes | Database schema starter |
-| `src/index.ts` | Yes | Entry point — `src/` must be non-empty |
-| `package.json` | Yes | Node package definition |
-| `tsconfig.json` | No | TypeScript config |
+| Path | Status | Notes |
+|------|--------|-------|
+| `template.yaml` | Required | Template metadata — see format below |
+| `README.md` | Required | User-facing documentation |
+| `.studio/projects/{{TEMPLATE_NAME}}/pipelines/` | Required | ≥2 `.pipeline.yaml` files |
+| `.studio/projects/{{TEMPLATE_NAME}}/contracts/` | Required | ≥1 `.contract.yaml` per pipeline |
+| `.studio/projects/{{TEMPLATE_NAME}}/agents/` | Required | ≥1 `.agent.yaml` file |
+| `.studio/projects/{{TEMPLATE_NAME}}/tools/` | Optional | Builtins are allowed |
+| `.studio/projects/{{TEMPLATE_NAME}}/inputs/` | Required | ≥1 fixture input for smoke testing |
+| `prisma/schema.prisma` | Required | Database schema starter |
+| `src/index.ts` | Required | Entry point — `src/` must be non-empty |
+| `package.json` | Required | Node package definition |
+| `tsconfig.json` | Optional | TypeScript config |
 
 ### `template.yaml` Format
 
@@ -416,7 +416,7 @@ category: software   # software | finance | analysis | data | conversation
 min_studio_version: "1.0.0"
 requires:
   pipelines: 2        # minimum pipeline count
-  contracts: true     # ≥1 contract per pipeline
+  contracts: true     # contract count ≥ pipeline count
   agents: 1           # minimum agent count
   schema: true        # prisma/schema.prisma must exist
 ```
@@ -463,13 +463,17 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 - Agent count ≥ `requires.agents`
 - `prisma/schema.prisma` exists (when `requires.schema: true`)
 - `src/` directory exists and is non-empty
+- `inputs/` directory exists with at least one `.input.yaml` file
 
 **Level 2 — Semantic** (parse + cross-reference):
 - All YAML files parse without errors
 - Every pipeline stage references a contract that exists in `contracts/`
 - Every pipeline stage references an agent that exists in `agents/`
 - Every tool in an agent's `tools:` list exists in `tools/` or is a builtin
+  _(Builtins: `repo_manager-read_file`, `repo_manager-write_file`, `repo_manager-list_files`, `shell-run_command`, `search-search_codebase`)_
 - Every tool in a contract's `required_tools:` exists in `tools/` or is a builtin
+  _(Builtins: `repo_manager-read_file`, `repo_manager-write_file`, `repo_manager-list_files`, `shell-run_command`, `search-search_codebase`)_
+  _(Note: contracts use dot-format `repo_manager.write_file`, the engine transforms to tiret-format `repo_manager-write_file` internally — the validator reports errors using tiret-format)_
 - No unknown placeholders appear in any file or filename
 
 **Output format:**
@@ -484,27 +488,27 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 
 A template must pass all three levels before it can be merged.
 
-**Level 1 — Validate:**
+**Stage 1 — Validate:**
 ```bash
 studio validate template ./templates/<name>
 ```
 Zero errors from structural + semantic validation.
 
-**Level 2 — Generation test:**
+**Stage 2 — Generation test:**
 ```bash
 studio init --template <name> --name test-project --output /tmp/studio-test
 studio validate template /tmp/studio-test
 ```
 Verifies placeholder replacement produces a valid project — no unresolved `{{...}}`, all filenames valid, structure intact.
 
-**Level 3 — Pipeline smoke test:**
+**Stage 3 — Pipeline smoke test:**
 ```bash
 cd /tmp/studio-test
 studio run <template-name>/first-pipeline \
   --input-file .studio/projects/<name>/inputs/example-1.input.yaml \
   --dry-run
 ```
-At least one pipeline runs end-to-end against a fixture input. Uses `--dry-run` in CI (LLM calls mocked). Real API in manual testing.
+At least one pipeline runs end-to-end against a fixture input. The `--dry-run` flag mocks all LLM calls — use it in CI to avoid API costs. Real API in manual testing.
 
 > Every template **must** ship with at least one `inputs/*.input.yaml` fixture. This file doubles as documentation and as test data.
 
