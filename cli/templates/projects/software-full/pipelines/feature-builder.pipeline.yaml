@@ -39,6 +39,7 @@ stages:
       include:
         - input
         - previous_stage_output
+        - previous_stage_tool_results
 
   - group: implementation-review
     max_iterations: 3
@@ -53,6 +54,7 @@ stages:
           include:
             - input
             - all_stage_outputs
+            - all_stage_tool_results
             - group_feedback
 
       - name: qa-review
