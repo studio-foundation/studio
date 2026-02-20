@@ -403,16 +403,26 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const spinner = ora('Creating project...').start();
 
       try {
-        await directInit(cwd, projectName, options.template!, options.provider!, options.apiKey ?? '', options.tools === false);
+        await generateFullApp(cwd, projectName, options.template!, {
+          noTools: options.tools === false,
+        });
+        if (options.provider !== 'later' && options.apiKey) {
+          const studioDir = resolve(cwd, '.studio');
+          await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
+        }
         spinner.stop();
       } catch (err) {
         spinner.fail('Failed');
         throw err;
       }
 
-      console.log(chalk.green(`  ✓ .studio/config.yaml`));
       console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
-      console.log(chalk.green(`  ✓ Applied template: ${options.template}`));
+      console.log(chalk.green(`  ✓ src/`));
+      console.log(chalk.green(`  ✓ prisma/schema.prisma`));
+      console.log(chalk.green(`  ✓ package.json`));
+      console.log(chalk.green(`  ✓ README.md`));
+      console.log(chalk.green(`  ✓ .studio/config.yaml`));
+      console.log(chalk.green(`  ✓ git initialized`));
       console.log(chalk.green(`  ✓ Updated .gitignore`));
       console.log('');
 
@@ -420,7 +430,8 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const selectedTemplate = templates.find((t) => t.name === options.template);
       const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
-      console.log(chalk.bold('Done! Run your first pipeline:'));
+      console.log(chalk.bold('Done! Next steps:'));
+      console.log(`  ${chalk.cyan('npm install')}`);
       console.log(`  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
@@ -554,7 +565,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const studioDir = resolve(cwd, '.studio');
 
     try {
-      await createStudioStructure(cwd, projectName, templateName, false);
+      await generateFullApp(cwd, projectName, templateName, { noTools: true });
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -572,9 +583,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // Step 9: Success output
-    console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/projects/${projectName}/`));
-    console.log(chalk.green(`  ✓ Applied template: ${templateName}`));
+    console.log(chalk.green(`  ✓ src/`));
+    console.log(chalk.green(`  ✓ prisma/schema.prisma`));
+    console.log(chalk.green(`  ✓ package.json`));
+    console.log(chalk.green(`  ✓ README.md`));
+    console.log(chalk.green(`  ✓ .studio/config.yaml`));
+    console.log(chalk.green(`  ✓ git initialized`));
     console.log(chalk.green(`  ✓ Updated .gitignore`));
     if (selectedTools.length > 0) {
       console.log(chalk.green(`  ✓ Installed tools: ${selectedTools.join(', ')}`));
@@ -585,7 +600,8 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const selectedTemplate = templates.find((t) => t.name === templateName);
     const firstPipeline = selectedTemplate?.pipelines?.[0] ?? 'your-pipeline';
 
-    console.log(chalk.bold('Done! Run your first pipeline:'));
+    console.log(chalk.bold('Done! Next steps:'));
+    console.log(`  ${chalk.cyan('npm install')}`);
     console.log(
       `  ${chalk.cyan(`studio run ${projectName}/${firstPipeline} --input "..."`)}`
     );
