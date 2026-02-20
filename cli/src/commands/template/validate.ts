@@ -5,7 +5,8 @@ import { spawnSync } from 'node:child_process';
 
 export interface ValidationResult {
   valid: boolean;
-  errors: string[];
+  structuralErrors: string[];
+  semanticErrors: string[];
   warnings: string[];
 }
 
@@ -54,13 +55,14 @@ async function listYamlFiles(dir: string): Promise<string[]> {
 }
 
 export async function validateTemplateDir(templatePath: string): Promise<ValidationResult> {
-  const errors: string[] = [];
   const warnings: string[] = [];
 
   // ── Level 1: Structural ──────────────────────────────────────────────
 
+  const structuralErrors: string[] = [];
+
   if (!(await pathExists(templatePath))) {
-    return { valid: false, errors: [`Template directory not found: ${templatePath}`], warnings };
+    return { valid: false, structuralErrors: [`Template directory not found: ${templatePath}`], semanticErrors: [], warnings };
   }
 
   const metaPath = join(templatePath, 'metadata.json');
@@ -68,44 +70,46 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     const raw = await readFile(metaPath, 'utf-8');
     const meta = JSON.parse(raw) as Record<string, unknown>;
     for (const field of ['name', 'version', 'description']) {
-      if (!meta[field]) errors.push(`metadata.json: missing required field '${field}'`);
+      if (!meta[field]) structuralErrors.push(`metadata.json: missing required field '${field}'`);
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      errors.push('metadata.json: file not found');
+      structuralErrors.push('metadata.json: file not found');
     } else {
-      errors.push(`metadata.json: ${(err as Error).message}`);
+      structuralErrors.push(`metadata.json: ${(err as Error).message}`);
     }
   }
 
   const projectDir = join(templatePath, 'project');
   if (!(await pathExists(projectDir))) {
-    errors.push('project/ directory not found');
-    return { valid: false, errors, warnings };
+    structuralErrors.push('project/ directory not found');
+    return { valid: false, structuralErrors, semanticErrors: [], warnings };
   }
 
   const pipelinesDir = join(projectDir, 'pipelines');
   const pipelineFiles = (await listYamlFiles(pipelinesDir)).filter((f) => f.endsWith('.pipeline.yaml'));
   if (pipelineFiles.length < 2) {
-    errors.push(`project/pipelines/: found ${pipelineFiles.length} pipeline(s), need at least 2`);
+    structuralErrors.push(`project/pipelines/: found ${pipelineFiles.length} pipeline(s), need at least 2`);
   }
 
   const agentsDir = join(projectDir, 'agents');
   const agentFiles = (await listYamlFiles(agentsDir)).filter((f) => f.endsWith('.agent.yaml'));
   if (agentFiles.length < 1) {
-    errors.push('project/agents/: no .agent.yaml files found (need at least 1)');
+    structuralErrors.push('project/agents/: no .agent.yaml files found (need at least 1)');
   }
 
   const contractsDir = join(projectDir, 'contracts');
   if (!(await pathExists(contractsDir))) {
-    errors.push('project/contracts/ directory not found');
+    structuralErrors.push('project/contracts/ directory not found');
   }
 
-  if (errors.length > 0) {
-    return { valid: false, errors, warnings };
+  if (structuralErrors.length > 0) {
+    return { valid: false, structuralErrors, semanticErrors: [], warnings };
   }
 
   // ── Level 2: Semantic ────────────────────────────────────────────────
+
+  const semanticErrors: string[] = [];
 
   const knownAgents = new Set(agentFiles.map((f) => basename(f, '.agent.yaml')));
   const contractFiles = (await listYamlFiles(contractsDir)).filter((f) => f.endsWith('.contract.yaml'));
@@ -128,18 +132,18 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
         const content = await readFile(filePath, 'utf-8');
         const parsed = yaml.load(content);
         if (parsed === null || parsed === undefined) {
-          errors.push(`${label}/${file}: YAML file is empty`);
+          semanticErrors.push(`${label}/${file}: YAML file is empty`);
           continue;
         }
         if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-          errors.push(`${label}/${file}: YAML file must be a mapping (object)`);
+          semanticErrors.push(`${label}/${file}: YAML file must be a mapping (object)`);
           continue;
         }
         if (label === 'pipelines') {
           parsedPipelines.push({ file, parsed: parsed as Record<string, unknown> });
         }
       } catch (err) {
-        errors.push(`${label}/${file}: YAML parse error — ${(err as Error).message}`);
+        semanticErrors.push(`${label}/${file}: YAML parse error — ${(err as Error).message}`);
       }
     }
   }
@@ -149,20 +153,20 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     const stages = collectStages(parsed.stages as PipelineEntry[]);
     for (const stage of stages) {
       if (stage.contract && !knownContracts.has(stage.contract)) {
-        errors.push(
+        semanticErrors.push(
           `pipelines/${file}: stage '${stage.name ?? '?'}' references contract '${stage.contract}' which does not exist in contracts/`
         );
       }
       if (stage.agent && !knownAgents.has(stage.agent)) {
-        errors.push(
+        semanticErrors.push(
           `pipelines/${file}: stage '${stage.name ?? '?'}' references agent '${stage.agent}' which does not exist in agents/`
         );
       }
     }
   }
 
-  if (errors.length > 0) {
-    return { valid: false, errors, warnings };
+  if (semanticErrors.length > 0) {
+    return { valid: false, structuralErrors: [], semanticErrors, warnings };
   }
 
   // ── Level 3: Optional TypeScript compilation ─────────────────────────
@@ -174,7 +178,7 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     const result = spawnSync('tsc', ['--noEmit'], { cwd: templatePath, encoding: 'utf-8' });
     if (result.status !== 0) {
       const output = (result.stdout ?? '') + (result.stderr ?? '');
-      errors.push(`TypeScript compilation failed:\n${output.trim()}`);
+      semanticErrors.push(`TypeScript compilation failed:\n${output.trim()}`);
     }
   }
 
@@ -183,5 +187,5 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     warnings.push('prisma/schema.prisma found (migration testing not automated — run prisma validate manually)');
   }
 
-  return { valid: errors.length === 0, errors, warnings };
+  return { valid: semanticErrors.length === 0, structuralErrors: [], semanticErrors, warnings };
 }

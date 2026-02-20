@@ -22,24 +22,15 @@ export async function templateCommand(action: string, args: string[]): Promise<v
           console.log(chalk.green('✓ Structural validation passed'));
           console.log(chalk.green('✓ Semantic validation passed'));
         } else {
-          // Determine where it failed for output granularity
-          const hasStructural = result.errors.some(
-            (e) =>
-              e.includes('metadata.json') ||
-              e.includes('project/') ||
-              e.includes('pipelines') ||
-              e.includes('agents') ||
-              e.includes('contracts') ||
-              e.includes('Template directory')
-          );
-          if (hasStructural) {
+          if (result.structuralErrors.length > 0) {
             console.log(chalk.red('✗ Structural validation failed'));
           } else {
             console.log(chalk.green('✓ Structural validation passed'));
             console.log(chalk.red('✗ Semantic validation failed'));
           }
           console.log('');
-          for (const error of result.errors) {
+          const allErrors = [...result.structuralErrors, ...result.semanticErrors];
+          for (const error of allErrors) {
             for (const line of error.split('\n')) {
               console.log(`  ${chalk.red(line)}`);
             }

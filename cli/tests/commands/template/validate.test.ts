@@ -62,27 +62,27 @@ describe('validateTemplateDir — Level 1: Structural', () => {
     const dir = await makeTemplate();
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.structuralErrors).toHaveLength(0);
   });
 
   it('errors when directory does not exist', async () => {
     const result = await validateTemplateDir('/tmp/does-not-exist-xyz');
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('not found') || e.includes('does not exist'))).toBe(true);
+    expect(result.structuralErrors.some(e => e.includes('not found') || e.includes('does not exist'))).toBe(true);
   });
 
   it('errors when metadata.json is missing', async () => {
     const dir = await makeTemplate({ metadata: null });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('metadata.json'))).toBe(true);
+    expect(result.structuralErrors.some(e => e.includes('metadata.json'))).toBe(true);
   });
 
   it('errors when metadata.json is missing required field', async () => {
     const dir = await makeTemplate({ metadata: { name: 'test' } });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('version') || e.includes('description'))).toBe(true);
+    expect(result.structuralErrors.some(e => e.includes('version') || e.includes('description'))).toBe(true);
   });
 
   it('errors when fewer than 2 pipelines exist', async () => {
@@ -91,14 +91,14 @@ describe('validateTemplateDir — Level 1: Structural', () => {
     });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('pipeline') && e.includes('2'))).toBe(true);
+    expect(result.structuralErrors.some(e => e.includes('pipeline') && e.includes('2'))).toBe(true);
   });
 
   it('errors when no agents exist', async () => {
     const dir = await makeTemplate({ agents: {} });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('agent'))).toBe(true);
+    expect(result.structuralErrors.some(e => e.includes('agent'))).toBe(true);
   });
 });
 
@@ -112,7 +112,7 @@ describe('validateTemplateDir — Level 2: Semantic', () => {
     });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('pipe-bad'))).toBe(true);
+    expect(result.semanticErrors.some(e => e.includes('pipe-bad'))).toBe(true);
   });
 
   it('errors when pipeline stage references a contract that does not exist', async () => {
@@ -124,7 +124,7 @@ describe('validateTemplateDir — Level 2: Semantic', () => {
     });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('missing-contract'))).toBe(true);
+    expect(result.semanticErrors.some(e => e.includes('missing-contract'))).toBe(true);
   });
 
   it('errors when pipeline stage references an agent that does not exist', async () => {
@@ -136,7 +136,7 @@ describe('validateTemplateDir — Level 2: Semantic', () => {
     });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('missing-agent'))).toBe(true);
+    expect(result.semanticErrors.some(e => e.includes('missing-agent'))).toBe(true);
   });
 
   it('validates stages inside groups', async () => {
@@ -148,6 +148,6 @@ describe('validateTemplateDir — Level 2: Semantic', () => {
     });
     const result = await validateTemplateDir(dir);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('ghost-contract'))).toBe(true);
+    expect(result.semanticErrors.some(e => e.includes('ghost-contract'))).toBe(true);
   });
 });
