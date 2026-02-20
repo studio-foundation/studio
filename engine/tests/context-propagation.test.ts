@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   createInitialContext,
   addStageOutput,
+  addStageToolResults,
   getContextForStage,
   setGroupFeedback,
   clearGroupFeedback,
   type GroupFeedback,
 } from '../src/pipeline/context-propagation.js';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition, ToolCall } from '@studio/contracts';
 
 function makeStage(overrides: Partial<StageDefinition> = {}): StageDefinition {
   return {
@@ -204,5 +205,60 @@ describe('group feedback', () => {
 
     // Only input is present, no feedback text
     expect(agentCtx.additional_context).toBe('Build a FAQ');
+  });
+});
+
+describe('addStageToolResults', () => {
+  it('stores tool calls by stage name', () => {
+    const ctx = createInitialContext('test');
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'search-search_codebase', arguments: { pattern: 'about' }, result: { matches: [] } },
+    ];
+    addStageToolResults(ctx, 'brief-analysis', toolCalls);
+    expect(ctx.stageToolResults.get('brief-analysis')).toEqual(toolCalls);
+  });
+
+  it('accumulates tool results across stages', () => {
+    const ctx = createInitialContext('test');
+    addStageToolResults(ctx, 'stage-1', [{ id: '1', name: 'tool-a', arguments: {}, result: 'r1' }]);
+    addStageToolResults(ctx, 'stage-2', [{ id: '2', name: 'tool-b', arguments: {}, result: 'r2' }]);
+    expect(ctx.stageToolResults.size).toBe(2);
+  });
+});
+
+describe('getContextForStage — previous_stage_tool_results', () => {
+  it('includes tool calls from the previous stage', () => {
+    const ctx = createInitialContext('test');
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'search-search_codebase', arguments: { pattern: 'about' }, result: { matches: ['about.tsx'] } },
+    ];
+    addStageToolResults(ctx, 'brief-analysis', toolCalls);
+
+    const stage = makeStage({ context: { include: ['previous_stage_tool_results'] } });
+    const agentCtx = getContextForStage(ctx, stage, 'brief-analysis');
+
+    expect(agentCtx.previous_tool_results).toEqual({ 'brief-analysis': toolCalls });
+  });
+
+  it('returns empty when no previous stage tool results', () => {
+    const ctx = createInitialContext('test');
+    const stage = makeStage({ context: { include: ['previous_stage_tool_results'] } });
+    const agentCtx = getContextForStage(ctx, stage, 'nonexistent');
+    expect(agentCtx.previous_tool_results).toBeUndefined();
+  });
+});
+
+describe('getContextForStage — all_stage_tool_results', () => {
+  it('includes tool calls from all stages', () => {
+    const ctx = createInitialContext('test');
+    const tc1: ToolCall[] = [{ id: '1', name: 'tool-a', arguments: {}, result: 'r1' }];
+    const tc2: ToolCall[] = [{ id: '2', name: 'tool-b', arguments: {}, result: 'r2' }];
+    addStageToolResults(ctx, 'stage-1', tc1);
+    addStageToolResults(ctx, 'stage-2', tc2);
+
+    const stage = makeStage({ context: { include: ['all_stage_tool_results'] } });
+    const agentCtx = getContextForStage(ctx, stage);
+
+    expect(agentCtx.previous_tool_results).toEqual({ 'stage-1': tc1, 'stage-2': tc2 });
   });
 });

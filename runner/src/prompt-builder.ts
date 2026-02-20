@@ -2,7 +2,7 @@
  * Prompt builder - constructs messages for LLM with retry escalation
  */
 
-import type { Message, AgentConfig, OutputContract, ResolvedContextPack } from '@studio/contracts';
+import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio/contracts';
 
 export interface ExecutionContext {
   attempt: number;
@@ -21,6 +21,7 @@ export interface TaskInput {
 
 export interface AgentContext {
   previous_outputs?: Record<string, unknown>;
+  previous_tool_results?: Record<string, ToolCall[]>;
   repo_files?: string[];
   additional_context?: string;
   context_packs?: ResolvedContextPack[];

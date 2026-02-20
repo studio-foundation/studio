@@ -2,7 +2,7 @@
 // Each stage gets the accumulated context from all previous stages
 
 import * as yaml from 'js-yaml';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition, ToolCall } from '@studio/contracts';
 import type { AgentContext } from '@studio/runner';
 
 export type PipelineInput = string | Record<string, unknown>;
@@ -17,6 +17,7 @@ export interface GroupFeedback {
 export interface PipelineContext {
   input: PipelineInput;
   stageOutputs: Map<string, unknown>;
+  stageToolResults: Map<string, ToolCall[]>;
   repoPath?: string;
   groupFeedback?: GroupFeedback;
 }
@@ -25,6 +26,7 @@ export function createInitialContext(input: PipelineInput, repoPath?: string): P
   return {
     input,
     stageOutputs: new Map(),
+    stageToolResults: new Map(),
     repoPath,
   };
 }
@@ -36,6 +38,14 @@ export function addStageOutput(
 ): PipelineContext {
   context.stageOutputs.set(stageName, output);
   return context;
+}
+
+export function addStageToolResults(
+  context: PipelineContext,
+  stageName: string,
+  toolCalls: ToolCall[]
+): void {
+  context.stageToolResults.set(stageName, toolCalls);
 }
 
 export function setGroupFeedback(
@@ -105,6 +115,27 @@ export function getContextForStage(
 
           agentContext.additional_context =
             (agentContext.additional_context || '') + '\n' + lines.join('\n');
+        }
+        break;
+
+      case 'previous_stage_tool_results':
+        if (previousStageName) {
+          const toolResults = context.stageToolResults.get(previousStageName);
+          if (toolResults) {
+            agentContext.previous_tool_results = {
+              ...agentContext.previous_tool_results,
+              [previousStageName]: toolResults,
+            };
+          }
+        }
+        break;
+
+      case 'all_stage_tool_results':
+        if (context.stageToolResults.size > 0) {
+          agentContext.previous_tool_results = {
+            ...agentContext.previous_tool_results,
+            ...Object.fromEntries(context.stageToolResults),
+          };
         }
         break;
 
