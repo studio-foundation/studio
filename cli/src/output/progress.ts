@@ -8,8 +8,10 @@ export class ProgressDisplay {
   private spinner: Ora | null = null;
   private spinnerText = '';
   private toolSpinner: Ora | null = null;
+  private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private displayMode: 'quiet' | 'verbose' | 'live';
+  private isStreamingTokens = false;
 
   private get verbose(): boolean { return this.displayMode === 'verbose'; }
   private get live(): boolean { return this.displayMode === 'live'; }
@@ -36,6 +38,7 @@ export class ProgressDisplay {
         this.spinnerText = `${index} ${label}`;
         if (this.live) {
           console.log(chalk.cyan(`${this.spinnerText}...`));
+          this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
         } else {
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
         }
@@ -49,6 +52,12 @@ export class ProgressDisplay {
         const attemptsStr = `${event.attempts} attempt${event.attempts !== 1 ? 's' : ''}`;
 
         if (this.live) {
+          if (this.isStreamingTokens) {
+            process.stdout.write('\n');
+            this.isStreamingTokens = false;
+          }
+          this.thinkingSpinner?.stop();
+          this.thinkingSpinner = null;
           if (event.status === 'success') {
             console.log(chalk.green(`  ✓`) + chalk.gray(` (${attemptsStr}, ${duration})`));
           } else if (event.status === 'rejected') {
@@ -123,8 +132,14 @@ export class ProgressDisplay {
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
         // Stop any active spinners before printing retry info
+        if (this.isStreamingTokens) {
+          process.stdout.write('\n');
+          this.isStreamingTokens = false;
+        }
         this.toolSpinner?.stop();
         this.toolSpinner = null;
+        this.thinkingSpinner?.stop();
+        this.thinkingSpinner = null;
         this.spinner?.stop();
         this.spinner = null;
 
@@ -197,8 +212,26 @@ export class ProgressDisplay {
         }
       },
 
+      onAgentToken: (event) => {
+        if (this.jsonMode || !this.live) return;
+        if (this.thinkingSpinner) {
+          this.thinkingSpinner.stop();
+          this.thinkingSpinner = null;
+          process.stdout.write('  '); // indent to match spinner position
+        }
+        this.isStreamingTokens = true;
+        process.stdout.write(chalk.dim(event.token));
+      },
+
       onToolCallStart: (event) => {
         if (this.jsonMode || !this.live) return;
+        // End any in-progress token stream line before starting tool spinner
+        if (this.isStreamingTokens) {
+          process.stdout.write('\n');
+          this.isStreamingTokens = false;
+        }
+        this.thinkingSpinner?.stop();
+        this.thinkingSpinner = null;
         const icon = getToolIcon(event.tool);
         const params = summarizeToolParams(event.tool, event.params);
         this.currentToolText = `${icon} ${event.tool}${params}`;
@@ -218,6 +251,8 @@ export class ProgressDisplay {
           this.toolSpinner?.succeed(chalk.white(this.currentToolText) + chalk.gray(` → ${summary}`));
         }
         this.toolSpinner = null;
+        // Restart thinking spinner even on error — LLM still processes the result and may retry
+        this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
       },
 
       onPipelineComplete: (event) => {

@@ -6,7 +6,7 @@ import type { LLMRequest, LLMResponse } from '@studio/contracts';
 
 export interface Provider {
   readonly name: string;
-  call(request: LLMRequest): Promise<LLMResponse>;
+  call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse>;
 }
 
 export interface ToolCallOutcome {
@@ -22,7 +22,8 @@ export interface ToolCallOutcome {
 export interface AgentLoopProvider extends Provider {
   runAgentLoop(
     request: LLMRequest,
-    executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>
+    executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>,
+    onToken?: (token: string) => void
   ): Promise<AgentLoopResult>;
 }
 
