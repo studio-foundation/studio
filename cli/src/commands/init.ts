@@ -690,7 +690,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     // Step 9: Install selected tools
     if (selectedTools.length > 0) {
-      await toolsAddDirect(studioDir, 'default', selectedTools);
+      await toolsAddDirect(studioDir, selectedTools);
     }
 
     // Step 10: Install dependencies (if requested)

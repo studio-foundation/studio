@@ -85,7 +85,6 @@ program
 program
   .command('tools <action> [args...]')
   .description('Manage Studio tools (list, add, remove, info)')
-  .option('--project <name>', 'Target project name')
   .action(toolsCommand);
 
 program

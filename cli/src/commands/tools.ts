@@ -2,13 +2,13 @@ import { readdir, readFile, writeFile, unlink, mkdir, access } from 'node:fs/pro
 import { resolve } from 'node:path';
 import chalk from 'chalk';
 import { load } from 'js-yaml';
-import { select, checkbox } from '@inquirer/prompts';
+import { checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
 
 const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
 
-export function getToolsDir(studioDir: string, project: string): string {
-  return resolve(studioDir, 'projects', project, 'tools');
+export function getToolsDir(studioDir: string): string {
+  return resolve(studioDir, 'tools');
 }
 
 export async function listAvailableTools(): Promise<{ name: string; description: string }[]> {
@@ -29,10 +29,9 @@ export async function listAvailableTools(): Promise<{ name: string; description:
 
 export async function toolsAddDirect(
   studioDir: string,
-  project: string,
   toolNames: string[]
 ): Promise<{ installed: string[]; skipped: string[] }> {
-  const toolsDir = getToolsDir(studioDir, project);
+  const toolsDir = getToolsDir(studioDir);
   await mkdir(toolsDir, { recursive: true });
 
   const installed: string[] = [];
@@ -74,9 +73,7 @@ export async function listTools(toolsDir: string): Promise<string[]> {
   }
 }
 
-async function resolveProjectToolsDir(
-  projectName?: string
-): Promise<{ toolsDir: string; project: string }> {
+async function resolveToolsDir(): Promise<string> {
   const config = await loadConfig();
   const studioDir = config.resolvedStudioDir;
 
@@ -85,53 +82,24 @@ async function resolveProjectToolsDir(
     process.exit(1);
   }
 
-  // Discover project name if not provided
-  let project = projectName;
-  if (!project) {
-    const projectsDir = resolve(studioDir, 'projects');
-    try {
-      const entries = await readdir(projectsDir, { withFileTypes: true });
-      const projects = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-      if (projects.length === 1) {
-        project = projects[0]!;
-      } else if (projects.length === 0) {
-        console.error('Error: No projects found in .studio/projects/. Create one first.');
-        process.exit(1);
-      } else {
-        console.error(
-          `Error: Multiple projects found. Specify one with --project <name>: ${projects.join(', ')}`
-        );
-        process.exit(1);
-      }
-    } catch {
-      console.error('Error: Cannot read .studio/projects/');
-      process.exit(1);
-    }
-  }
-
-  return { toolsDir: getToolsDir(studioDir, project!), project: project! };
-}
-
-interface ToolsOptions {
-  project?: string;
+  return getToolsDir(studioDir);
 }
 
 export async function toolsCommand(
   action: string,
-  args: string[],
-  options: ToolsOptions
+  args: string[]
 ): Promise<void> {
   try {
     switch (action) {
       case 'list': {
-        const { toolsDir, project } = await resolveProjectToolsDir(options.project);
+        const toolsDir = await resolveToolsDir();
         const tools = await listTools(toolsDir);
 
         if (tools.length === 0) {
-          console.log(chalk.yellow(`No tools installed for project '${project}'`));
-          console.log(`  Run: studio tools add <name> --project ${project}`);
+          console.log(chalk.yellow('No tools installed.'));
+          console.log('  Run: studio tools add <name>');
         } else {
-          console.log(`\nInstalled tools (${project}):`);
+          console.log('\nInstalled tools:');
           for (const t of tools) {
             console.log(`  - ${t}`);
           }
@@ -150,38 +118,9 @@ export async function toolsCommand(
             process.exit(1);
           }
 
-          // Discover projects
-          const projectsDir = resolve(studioDir, 'projects');
-          let projectEntries: string[];
-          try {
-            const entries = await readdir(projectsDir, { withFileTypes: true });
-            projectEntries = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-          } catch {
-            projectEntries = [];
-          }
-
-          if (projectEntries.length === 0) {
-            console.error(chalk.red("No projects found. Run 'studio project add' first."));
-            process.exit(1);
-          }
-
-          // Select project
-          let selectedProject: string;
-          if (options.project) {
-            selectedProject = options.project;
-          } else if (projectEntries.length === 1) {
-            selectedProject = projectEntries[0]!;
-          } else {
-            selectedProject = await select({
-              message: 'Which project?',
-              choices: projectEntries.map((p) => ({ value: p, name: p })),
-            });
-          }
-
-          // Select tools via checkbox
           console.log('');
           const available = await listAvailableTools();
-          const alreadyInstalled = await listTools(getToolsDir(studioDir, selectedProject));
+          const alreadyInstalled = await listTools(getToolsDir(studioDir));
 
           const choices = available.map((t) => ({
             value: t.name,
@@ -199,9 +138,8 @@ export async function toolsCommand(
             break;
           }
 
-          // Install
           console.log('\nInstalling tools...');
-          const { installed, skipped } = await toolsAddDirect(studioDir, selectedProject, selected);
+          const { installed, skipped } = await toolsAddDirect(studioDir, selected);
 
           for (const name of installed) {
             console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
@@ -210,16 +148,15 @@ export async function toolsCommand(
             console.log(chalk.yellow(`  ⚠ ${name} already installed, skipping`));
           }
           console.log('');
-          console.log(`Done! ${installed.length} tool${installed.length !== 1 ? 's' : ''} installed in '${selectedProject}'.`);
+          console.log(`Done! ${installed.length} tool${installed.length !== 1 ? 's' : ''} installed.`);
           break;
         }
 
         // Direct mode
-        const { project } = await resolveProjectToolsDir(options.project);
         const config = await loadConfig();
         const studioDir = config.resolvedStudioDir!;
 
-        const { installed, skipped } = await toolsAddDirect(studioDir, project, args);
+        const { installed, skipped } = await toolsAddDirect(studioDir, args);
 
         for (const name of installed) {
           console.log(chalk.green(`  ✓ ${name}.tool.yaml`));
@@ -229,7 +166,7 @@ export async function toolsCommand(
         }
         console.log('');
         if (installed.length > 0) {
-          console.log(`Done! ${installed.length} tool${installed.length > 1 ? 's' : ''} installed in '${project}'.`);
+          console.log(`Done! ${installed.length} tool${installed.length > 1 ? 's' : ''} installed.`);
         } else {
           console.log('No new tools installed.');
         }
@@ -239,16 +176,16 @@ export async function toolsCommand(
       case 'remove': {
         const name = args[0];
         if (!name) {
-          console.error('Usage: studio tools remove <name> --project <project>');
+          console.error('Usage: studio tools remove <name>');
           process.exit(1);
         }
-        const { toolsDir, project } = await resolveProjectToolsDir(options.project);
+        const toolsDir = await resolveToolsDir();
         const toolPath = resolve(toolsDir, `${name}.tool.yaml`);
         try {
           await unlink(toolPath);
-          console.log(chalk.green(`✓ Removed tool '${name}' from project '${project}'`));
+          console.log(chalk.green(`✓ Removed tool '${name}'`));
         } catch {
-          console.error(`Error: Tool '${name}' not found in project '${project}'`);
+          console.error(`Error: Tool '${name}' not found`);
           process.exit(1);
         }
         break;
@@ -257,10 +194,10 @@ export async function toolsCommand(
       case 'info': {
         const name = args[0];
         if (!name) {
-          console.error('Usage: studio tools info <name> --project <project>');
+          console.error('Usage: studio tools info <name>');
           process.exit(1);
         }
-        const { toolsDir } = await resolveProjectToolsDir(options.project);
+        const toolsDir = await resolveToolsDir();
         const toolPath = resolve(toolsDir, `${name}.tool.yaml`);
         try {
           const content = await readFile(toolPath, 'utf-8');

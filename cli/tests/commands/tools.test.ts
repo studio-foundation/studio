@@ -11,12 +11,12 @@ afterEach(async () => { await rm(TMP, { recursive: true, force: true }); });
 
 describe('listTools', () => {
   it('returns empty array when no tools dir', async () => {
-    const result = await listTools(resolve(STUDIO_DIR, 'projects', 'myproject', 'tools'));
+    const result = await listTools(resolve(STUDIO_DIR, 'tools'));
     expect(result).toEqual([]);
   });
 
   it('finds .tool.yaml files', async () => {
-    const toolsDir = resolve(STUDIO_DIR, 'projects', 'myproject', 'tools');
+    const toolsDir = resolve(STUDIO_DIR, 'tools');
     await mkdir(toolsDir, { recursive: true });
     await writeFile(resolve(toolsDir, 'git.tool.yaml'), 'name: git\n');
     await writeFile(resolve(toolsDir, 'other.txt'), 'ignored\n');
@@ -26,15 +26,14 @@ describe('listTools', () => {
 });
 
 describe('getToolsDir', () => {
-  it('resolves tools dir from studioDir and project', () => {
-    const dir = getToolsDir(STUDIO_DIR, 'software');
-    expect(dir).toBe(resolve(STUDIO_DIR, 'projects', 'software', 'tools'));
+  it('resolves tools dir from studioDir', () => {
+    const dir = getToolsDir(STUDIO_DIR);
+    expect(dir).toBe(resolve(STUDIO_DIR, 'tools'));
   });
 });
 
 const TOOLS_TMP = resolve('/tmp', '.studio-tools-add-test-' + Math.floor(Date.now() / 1000));
 const TOOLS_STUDIO_DIR = resolve(TOOLS_TMP, '.studio');
-const TEST_PROJECT = 'software';
 
 async function fileExists(p: string): Promise<boolean> {
   try { await access(p); return true; } catch { return false; }
@@ -42,42 +41,42 @@ async function fileExists(p: string): Promise<boolean> {
 
 describe('toolsAddDirect', () => {
   beforeEach(async () => {
-    await mkdir(resolve(TOOLS_STUDIO_DIR, 'projects', TEST_PROJECT, 'tools'), { recursive: true });
+    await mkdir(TOOLS_STUDIO_DIR, { recursive: true });
   });
   afterEach(async () => {
     await rm(TOOLS_TMP, { recursive: true, force: true });
   });
 
   it('installs a single valid tool', async () => {
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['git']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git']);
     expect(result.installed).toEqual(['git']);
     expect(result.skipped).toEqual([]);
-    const toolPath = resolve(TOOLS_STUDIO_DIR, 'projects', TEST_PROJECT, 'tools', 'git.tool.yaml');
+    const toolPath = resolve(TOOLS_STUDIO_DIR, 'tools', 'git.tool.yaml');
     expect(await fileExists(toolPath)).toBe(true);
   });
 
   it('installs multiple tools in one call', async () => {
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['git', 'shell']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git', 'shell']);
     expect(result.installed).toContain('git');
     expect(result.installed).toContain('shell');
     expect(result.skipped).toEqual([]);
   });
 
   it('skips already-installed tool and returns it in skipped list', async () => {
-    await toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['git']);
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['git', 'shell']);
+    await toolsAddDirect(TOOLS_STUDIO_DIR, ['git']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git', 'shell']);
     expect(result.installed).toEqual(['shell']);
     expect(result.skipped).toEqual(['git']);
   });
 
   it('throws on unknown tool name', async () => {
-    await expect(toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['nonexistent'])).rejects.toThrow("Unknown tool 'nonexistent'");
+    await expect(toolsAddDirect(TOOLS_STUDIO_DIR, ['nonexistent'])).rejects.toThrow("Unknown tool 'nonexistent'");
   });
 
   it('creates tools dir if it does not exist', async () => {
-    await rm(resolve(TOOLS_STUDIO_DIR, 'projects', TEST_PROJECT, 'tools'), { recursive: true, force: true });
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, TEST_PROJECT, ['search']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['search']);
     expect(result.installed).toEqual(['search']);
+    expect(await fileExists(resolve(TOOLS_STUDIO_DIR, 'tools', 'search.tool.yaml'))).toBe(true);
   });
 });
 
