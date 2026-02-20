@@ -143,8 +143,10 @@ export async function writeProviderToConfig(
 }
 
 /**
- * Direct init (non-interactive) — creates structure and writes config.
- * Used when all CLI flags are provided (CI/CD mode).
+ * Direct init (non-interactive) — creates .studio/ structure and writes config.
+ * @deprecated Use generateFullApp() for full app generation (src/, prisma/, git init).
+ * This function only creates the .studio/ workspace without app scaffold files.
+ * Kept for backward compatibility.
  */
 export async function directInit(
   cwd: string,
@@ -287,13 +289,15 @@ interface GenerateFullAppOptions {
  * 4. Initializes a git repository (unless skipGit)
  *
  * Does NOT write provider config — call writeProviderToConfig separately.
+ *
+ * @returns `{ gitInitialized: true }` if git was initialized, `{ gitInitialized: false }` if skipped.
  */
 export async function generateFullApp(
   cwd: string,
   projectName: string,
   templateName: string,
   options: GenerateFullAppOptions = {}
-): Promise<void> {
+): Promise<{ gitInitialized: boolean }> {
   const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
 
   // 1. Validate template
@@ -318,9 +322,12 @@ export async function generateFullApp(
   await generateAppFiles(templateDir, cwd, vars);
 
   // 4. Initialize git repo (unless already initialized or skipped)
+  let gitInitialized = false;
   if (!options.skipGit) {
-    await initGitRepo(cwd);
+    gitInitialized = await initGitRepo(cwd);
   }
+
+  return { gitInitialized };
 }
 
 interface InitOptions {
@@ -402,10 +409,11 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const projectName = nameArg ?? options.project ?? basename(cwd);
       const spinner = ora('Creating project...').start();
 
+      let gitInitialized = false;
       try {
-        await generateFullApp(cwd, projectName, options.template!, {
+        ({ gitInitialized } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
-        });
+        }));
         if (options.provider !== 'later' && options.apiKey) {
           const studioDir = resolve(cwd, '.studio');
           await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
@@ -422,7 +430,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log(chalk.green(`  ✓ package.json`));
       console.log(chalk.green(`  ✓ README.md`));
       console.log(chalk.green(`  ✓ .studio/config.yaml`));
-      console.log(chalk.green(`  ✓ git initialized`));
+      if (gitInitialized) {
+        console.log(chalk.green(`  ✓ git initialized`));
+      }
       console.log(chalk.green(`  ✓ Updated .gitignore`));
       console.log('');
 
@@ -564,8 +574,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     const studioDir = resolve(cwd, '.studio');
 
+    let gitInitialized = false;
     try {
-      await generateFullApp(cwd, projectName, templateName, { noTools: true });
+      ({ gitInitialized } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -589,7 +600,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     console.log(chalk.green(`  ✓ package.json`));
     console.log(chalk.green(`  ✓ README.md`));
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
-    console.log(chalk.green(`  ✓ git initialized`));
+    if (gitInitialized) {
+      console.log(chalk.green(`  ✓ git initialized`));
+    }
     console.log(chalk.green(`  ✓ Updated .gitignore`));
     if (selectedTools.length > 0) {
       console.log(chalk.green(`  ✓ Installed tools: ${selectedTools.join(', ')}`));

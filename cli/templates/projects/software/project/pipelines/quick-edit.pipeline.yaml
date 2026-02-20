@@ -18,6 +18,7 @@ stages:
   - name: edit
     kind: code
     agent: coder
+    contract: quick-edit-output
     ralph:
       max_attempts: 2
     context:

@@ -491,7 +491,8 @@ describe('generateFullApp', () => {
 
   it('initializes a git repository', async () => {
     const { generateFullApp } = await import('../../src/commands/init.js');
-    await generateFullApp(TMP, 'my-app', 'software');
+    const result = await generateFullApp(TMP, 'my-app', 'software');
+    expect(result.gitInitialized).toBe(true);
     expect(await exists(resolve(TMP, '.git'))).toBe(true);
   });
 
@@ -502,8 +503,8 @@ describe('generateFullApp', () => {
 
   it('skips git init when skipGit option is true', async () => {
     const { generateFullApp } = await import('../../src/commands/init.js');
-    await generateFullApp(TMP, 'my-app', 'software', { skipGit: true });
-
+    const result = await generateFullApp(TMP, 'my-app', 'software', { skipGit: true });
+    expect(result.gitInitialized).toBe(false);
     expect(await exists(resolve(TMP, '.git'))).toBe(false);
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
   });

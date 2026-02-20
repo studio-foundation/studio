@@ -6,7 +6,7 @@ Generated from the `{{TEMPLATE_NAME}}` Studio template.
 
 ```bash
 npm install
-studio run {{TEMPLATE_NAME}}/feature-builder --input "Your task description"
+studio run {{PROJECT_NAME}}/feature-builder --input "Your task description"
 ```
 
 ## Pipelines
