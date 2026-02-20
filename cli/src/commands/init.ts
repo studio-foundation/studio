@@ -412,7 +412,8 @@ function printTemplateCard(template: TemplateMetadata): void {
   if (template.tools_included?.length) {
     lines.push(`Tools:     ${template.tools_included.join(', ')}`);
   }
-  const innerWidth = Math.max(...lines.map((l) => l.length));
+  const minWidth = `─ ${template.name} `.length;
+  const innerWidth = Math.max(minWidth, ...lines.map((l) => l.length));
   const bar = '─'.repeat(innerWidth + 4);
   const templateLabel = `─ ${template.name} `;
   const rightBar = '─'.repeat(Math.max(0, bar.length - templateLabel.length));
@@ -700,6 +701,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         installSpinner.succeed('Dependencies installed');
       } else {
         installSpinner.warn(`Install failed — run \`${pkgManager} install\` manually`);
+        if (installResult.stderr) {
+          console.error(installResult.stderr);
+        }
       }
     }
 
