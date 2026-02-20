@@ -223,6 +223,18 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
   return true;
 }
 
+/**
+ * Validate a project name for use as a directory name.
+ * Returns true if valid, or an error string to display.
+ */
+export function validateProjectName(name: string): true | string {
+  if (!name.trim()) return 'Project name cannot be empty';
+  if (/\s/.test(name)) return 'Project name cannot contain spaces';
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9\-_.]*$/.test(name))
+    return 'Project name must start with a letter or digit and contain only letters, digits, hyphens, underscores, or dots';
+  return true;
+}
+
 // App scaffold items to copy from template root → target root
 const APP_SCAFFOLD_ITEMS = ['src', 'prisma', 'package.json', 'README.md'];
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm, readFile, writeFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import * as yaml from 'js-yaml';
@@ -507,5 +507,40 @@ describe('generateFullApp', () => {
     expect(result.gitInitialized).toBe(false);
     expect(await exists(resolve(TMP, '.git'))).toBe(false);
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
+  });
+});
+
+describe('validateProjectName', () => {
+  let validateProjectName: (name: string) => true | string;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/commands/init.js');
+    validateProjectName = mod.validateProjectName;
+  });
+
+  it('accepts valid names', () => {
+    expect(validateProjectName('my-app')).toBe(true);
+    expect(validateProjectName('my_project')).toBe(true);
+    expect(validateProjectName('MyApp123')).toBe(true);
+    expect(validateProjectName('app.v2')).toBe(true);
+  });
+
+  it('rejects empty string', () => {
+    expect(validateProjectName('')).toBeTypeOf('string');
+  });
+
+  it('rejects names with spaces', () => {
+    expect(validateProjectName('my app')).toBeTypeOf('string');
+    expect(validateProjectName('my\tapp')).toBeTypeOf('string');
+  });
+
+  it('rejects names starting with a hyphen', () => {
+    expect(validateProjectName('-bad')).toBeTypeOf('string');
+  });
+
+  it('rejects names with special characters', () => {
+    expect(validateProjectName('my@app')).toBeTypeOf('string');
+    expect(validateProjectName('app!')).toBeTypeOf('string');
+    expect(validateProjectName('app/dir')).toBeTypeOf('string');
   });
 });
