@@ -2,7 +2,6 @@ import { mkdir, access, cp } from 'node:fs/promises';
 import { resolve, join, relative, sep } from 'node:path';
 import chalk from 'chalk';
 import { input, select } from '@inquirer/prompts';
-import { findStudioDir } from '../studio-dir.js';
 import { listTemplates } from './templates.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
@@ -153,7 +152,7 @@ export async function projectAddWizard(studioDir: string): Promise<void> {
  * This command is deprecated — the flat .studio/ structure no longer uses projects/ subdirs.
  */
 export async function projectCommand(
-  action: string,
+  _action: string,
   _args: string[],
   _options: { template?: string; description?: string }
 ): Promise<void> {
