@@ -1,0 +1,21 @@
+name: quick-fix
+description: Apply a targeted fix or patch to existing code
+version: 1
+
+input_schema:
+  type: structured
+  fields:
+    - name: description
+      type: text
+      required: true
+      prompt: "Describe the fix to apply"
+
+stages:
+  - name: code-fix
+    kind: code
+    agent: coder
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
