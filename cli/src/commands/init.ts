@@ -12,6 +12,7 @@ import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { listAvailableTools, toolsAddDirect } from './tools.js';
+import { validateTemplateDir } from './template/validate.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -271,6 +272,55 @@ export async function initGitRepo(cwd: string): Promise<boolean> {
     throw new Error(`git init failed: ${stderr}`);
   }
   return true;
+}
+
+interface GenerateFullAppOptions {
+  noTools?: boolean;
+  skipGit?: boolean;
+}
+
+/**
+ * Generate a complete app from a template:
+ * 1. Validates the template structure
+ * 2. Creates .studio/ workspace
+ * 3. Copies app scaffold files (src/, prisma/, package.json, README.md)
+ * 4. Initializes a git repository (unless skipGit)
+ *
+ * Does NOT write provider config — call writeProviderToConfig separately.
+ */
+export async function generateFullApp(
+  cwd: string,
+  projectName: string,
+  templateName: string,
+  options: GenerateFullAppOptions = {}
+): Promise<void> {
+  const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
+
+  // 1. Validate template
+  const validation = await validateTemplateDir(templateDir);
+  if (!validation.valid) {
+    const allErrors = [...validation.structuralErrors, ...validation.semanticErrors];
+    throw new Error(
+      `Template '${templateName}' failed validation:\n` +
+      allErrors.map((e) => `  • ${e}`).join('\n')
+    );
+  }
+
+  // 2. Create .studio/ workspace
+  await createStudioStructure(cwd, projectName, templateName, !options.noTools);
+
+  // 3. Copy app scaffold files with placeholder replacement
+  const vars = {
+    PROJECT_NAME: projectName,
+    TEMPLATE_NAME: templateName,
+    YEAR: String(new Date().getFullYear()),
+  };
+  await generateAppFiles(templateDir, cwd, vars);
+
+  // 4. Initialize git repo (unless already initialized or skipped)
+  if (!options.skipGit) {
+    await initGitRepo(cwd);
+  }
 }
 
 interface InitOptions {

@@ -468,3 +468,43 @@ describe('initGitRepo', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('generateFullApp', () => {
+  it('creates .studio/ AND src/ AND package.json AND README.md', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'my-app', 'software');
+
+    expect(await exists(resolve(TMP, '.studio', 'projects', 'my-app', 'pipelines'))).toBe(true);
+    expect(await exists(resolve(TMP, 'src', 'index.ts'))).toBe(true);
+    expect(await exists(resolve(TMP, 'package.json'))).toBe(true);
+    expect(await exists(resolve(TMP, 'README.md'))).toBe(true);
+    expect(await exists(resolve(TMP, 'prisma', 'schema.prisma'))).toBe(true);
+  });
+
+  it('applies PROJECT_NAME placeholder in package.json', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'cool-app', 'software');
+
+    const pkg = JSON.parse(await readFile(resolve(TMP, 'package.json'), 'utf-8'));
+    expect(pkg.name).toBe('cool-app');
+  });
+
+  it('initializes a git repository', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'my-app', 'software');
+    expect(await exists(resolve(TMP, '.git'))).toBe(true);
+  });
+
+  it('throws when template does not exist', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await expect(generateFullApp(TMP, 'my-app', 'nonexistent-template')).rejects.toThrow();
+  });
+
+  it('skips git init when skipGit option is true', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'my-app', 'software', { skipGit: true });
+
+    expect(await exists(resolve(TMP, '.git'))).toBe(false);
+    expect(await exists(resolve(TMP, '.studio'))).toBe(true);
+  });
+});
