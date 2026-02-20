@@ -447,3 +447,24 @@ describe('generateAppFiles', () => {
     expect(generated).toContain('prisma/'); // directories have trailing slash
   });
 });
+
+describe('initGitRepo', () => {
+  it('creates a .git/ directory in cwd', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    await initGitRepo(TMP);
+    expect(await exists(resolve(TMP, '.git'))).toBe(true);
+  });
+
+  it('returns true when it initializes git', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    const result = await initGitRepo(TMP);
+    expect(result).toBe(true);
+  });
+
+  it('returns false (skips) when .git/ already exists', async () => {
+    const { initGitRepo } = await import('../../src/commands/init.js');
+    await initGitRepo(TMP);
+    const result = await initGitRepo(TMP);
+    expect(result).toBe(false);
+  });
+});

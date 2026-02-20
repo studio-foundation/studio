@@ -1,5 +1,6 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile } from 'node:fs/promises';
 import { resolve, join, basename } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -252,6 +253,24 @@ async function copyDirWithPlaceholders(
       }
     }
   }
+}
+
+/**
+ * Run `git init` in `cwd` unless `.git/` already exists.
+ * Returns true if git was initialized, false if skipped.
+ * Throws if `git init` exits with non-zero status.
+ */
+export async function initGitRepo(cwd: string): Promise<boolean> {
+  const gitDir = join(cwd, '.git');
+  const alreadyGit = await access(gitDir).then(() => true).catch(() => false);
+  if (alreadyGit) return false;
+
+  const result = spawnSync('git', ['init'], { cwd, encoding: 'utf-8' });
+  if (result.status !== 0) {
+    const stderr = (result.stderr ?? '').trim();
+    throw new Error(`git init failed: ${stderr}`);
+  }
+  return true;
 }
 
 interface InitOptions {
