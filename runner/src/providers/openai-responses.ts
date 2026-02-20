@@ -13,6 +13,7 @@ import OpenAI from 'openai';
 import type {
   ResponseInputItem,
   ResponseFunctionToolCall,
+  ResponseOutputItem,
   FunctionTool,
 } from 'openai/resources/responses/responses.js';
 
@@ -70,57 +71,127 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
     const MAX_ITERATIONS = 20;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await this.client.responses.create({
-        model: request.model,
-        input,
-        tools: tools.length > 0 ? tools : undefined,
-        temperature: request.temperature,
-        max_output_tokens: request.max_tokens ?? undefined,
-      });
+      let outputItems: ResponseOutputItem[];
+      let responseText = '';
 
-      if (response.usage) {
-        tokenAccumulator.prompt_tokens += response.usage.input_tokens;
-        tokenAccumulator.completion_tokens += response.usage.output_tokens;
-        tokenAccumulator.total_tokens += response.usage.total_tokens;
+      if (onToken) {
+        // Streaming path — emit text deltas as they arrive, then get the completed response
+        const stream = this.client.responses.stream({
+          model: request.model,
+          input,
+          tools: tools.length > 0 ? tools : undefined,
+          temperature: request.temperature,
+          max_output_tokens: request.max_tokens ?? undefined,
+        });
+
+        for await (const event of stream) {
+          if (event.type === 'response.output_text.delta') {
+            onToken(event.delta);
+            responseText += event.delta;
+          }
+        }
+
+        const finalResponse = await stream.finalResponse();
+
+        if (finalResponse.usage) {
+          tokenAccumulator.prompt_tokens += finalResponse.usage.input_tokens;
+          tokenAccumulator.completion_tokens += finalResponse.usage.output_tokens;
+          tokenAccumulator.total_tokens += finalResponse.usage.total_tokens;
+        }
+
+        outputItems = finalResponse.output;
+
+        // Find all function calls in the output
+        const functionCalls = outputItems.filter(
+          (item): item is ResponseFunctionToolCall => item.type === 'function_call'
+        );
+
+        if (functionCalls.length === 0) {
+          // No tool calls — done
+          return {
+            content: responseText,
+            tool_calls: allToolCalls,
+            finish_reason: 'stop',
+            usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+          };
+        }
+
+        // Execute all tool calls
+        const toolOutputs: ResponseInputItem[] = [];
+        for (const fc of functionCalls) {
+          const args = JSON.parse(fc.arguments) as Record<string, unknown>;
+          const outcome = await executeTool(fc.name, args, fc.call_id);
+
+          allToolCalls.push({ id: fc.call_id, name: fc.name, arguments: args, ...outcome });
+
+          toolOutputs.push({
+            type: 'function_call_output',
+            call_id: fc.call_id,
+            output: outcome.error ? `Error: ${outcome.error}` : JSON.stringify(outcome.result),
+          } as ResponseInputItem.FunctionCallOutput);
+        }
+
+        // Extend input: previous input + this response's output items + tool results
+        // ResponseOutputItem is a subset of the ResponseInputItem union, so the cast is safe
+        input = [
+          ...input,
+          ...(outputItems as unknown as ResponseInputItem[]),
+          ...toolOutputs,
+        ];
+      } else {
+        // Non-streaming path — existing code unchanged
+        const response = await this.client.responses.create({
+          model: request.model,
+          input,
+          tools: tools.length > 0 ? tools : undefined,
+          temperature: request.temperature,
+          max_output_tokens: request.max_tokens ?? undefined,
+        });
+
+        if (response.usage) {
+          tokenAccumulator.prompt_tokens += response.usage.input_tokens;
+          tokenAccumulator.completion_tokens += response.usage.output_tokens;
+          tokenAccumulator.total_tokens += response.usage.total_tokens;
+        }
+
+        // Find all function calls in the output
+        const functionCalls = response.output.filter(
+          (item): item is ResponseFunctionToolCall => item.type === 'function_call'
+        );
+
+        if (functionCalls.length === 0) {
+          // No tool calls — done
+          return {
+            content: response.output_text ?? '',
+            tool_calls: allToolCalls,
+            finish_reason: 'stop',
+            usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+          };
+        }
+
+        // Execute all tool calls
+        const toolOutputs: ResponseInputItem[] = [];
+        for (const fc of functionCalls) {
+          const args = JSON.parse(fc.arguments) as Record<string, unknown>;
+          const outcome = await executeTool(fc.name, args, fc.call_id);
+
+          allToolCalls.push({ id: fc.call_id, name: fc.name, arguments: args, ...outcome });
+
+          toolOutputs.push({
+            type: 'function_call_output',
+            call_id: fc.call_id,
+            output: outcome.error ? `Error: ${outcome.error}` : JSON.stringify(outcome.result),
+          } as ResponseInputItem.FunctionCallOutput);
+        }
+
+        // Extend input: previous input + this response's output items + tool results
+        // ResponseOutputItem is a subset of the ResponseInputItem union, so the cast is safe
+        input = [
+          ...input,
+          ...(response.output as unknown as ResponseInputItem[]),
+          ...toolOutputs,
+        ];
       }
-
-      // Find all function calls in the output
-      const functionCalls = response.output.filter(
-        (item): item is ResponseFunctionToolCall => item.type === 'function_call'
-      );
-
-      if (functionCalls.length === 0) {
-        // No tool calls — done
-        return {
-          content: response.output_text ?? '',
-          tool_calls: allToolCalls,
-          finish_reason: 'stop',
-          usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
-        };
-      }
-
-      // Execute all tool calls
-      const toolOutputs: ResponseInputItem[] = [];
-      for (const fc of functionCalls) {
-        const args = JSON.parse(fc.arguments) as Record<string, unknown>;
-        const outcome = await executeTool(fc.name, args, fc.call_id);
-
-        allToolCalls.push({ id: fc.call_id, name: fc.name, arguments: args, ...outcome });
-
-        toolOutputs.push({
-          type: 'function_call_output',
-          call_id: fc.call_id,
-          output: outcome.error ? `Error: ${outcome.error}` : JSON.stringify(outcome.result),
-        } as ResponseInputItem.FunctionCallOutput);
-      }
-
-      // Extend input: previous input + this response's output items + tool results
-      // ResponseOutputItem is a subset of the ResponseInputItem union, so the cast is safe
-      input = [
-        ...input,
-        ...(response.output as unknown as ResponseInputItem[]),
-        ...toolOutputs,
-      ];
     }
 
     throw new Error(`Maximum tool calling iterations (${MAX_ITERATIONS}) reached.`);
