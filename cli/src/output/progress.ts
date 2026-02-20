@@ -23,6 +23,19 @@ export class ProgressDisplay {
     this.displayMode = displayMode;
   }
 
+  interrupt(): void {
+    if (this.isStreamingTokens) {
+      process.stdout.write('\n');
+      this.isStreamingTokens = false;
+    }
+    this.toolSpinner?.stop();
+    this.toolSpinner = null;
+    this.thinkingSpinner?.stop();
+    this.thinkingSpinner = null;
+    this.spinner?.stop();
+    this.spinner = null;
+  }
+
   getEvents(): EngineEvents {
     return {
       onPipelineStart: (event) => {

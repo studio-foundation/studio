@@ -328,6 +328,14 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       events
     );
 
+    const onInterrupt = () => {
+      progress.interrupt();
+      runLogger.close();
+      process.stderr.write('\n' + chalk.yellow('⚠ Interrupted') + '\n');
+      process.exit(130);
+    };
+    process.once('SIGINT', onInterrupt);
+
     let result;
     try {
       result = await engine.run({
@@ -336,6 +344,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         anonymize: options.anonymize,
       });
     } finally {
+      process.off('SIGINT', onInterrupt);
       runLogger.close();
     }
 
