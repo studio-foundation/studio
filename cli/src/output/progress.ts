@@ -8,6 +8,7 @@ export class ProgressDisplay {
   private spinner: Ora | null = null;
   private spinnerText = '';
   private toolSpinner: Ora | null = null;
+  private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private displayMode: 'quiet' | 'verbose' | 'live';
 
@@ -36,6 +37,7 @@ export class ProgressDisplay {
         this.spinnerText = `${index} ${label}`;
         if (this.live) {
           console.log(chalk.cyan(`${this.spinnerText}...`));
+          this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
         } else {
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
         }
@@ -49,6 +51,8 @@ export class ProgressDisplay {
         const attemptsStr = `${event.attempts} attempt${event.attempts !== 1 ? 's' : ''}`;
 
         if (this.live) {
+          this.thinkingSpinner?.stop();
+          this.thinkingSpinner = null;
           if (event.status === 'success') {
             console.log(chalk.green(`  ✓`) + chalk.gray(` (${attemptsStr}, ${duration})`));
           } else if (event.status === 'rejected') {
@@ -125,6 +129,8 @@ export class ProgressDisplay {
         // Stop any active spinners before printing retry info
         this.toolSpinner?.stop();
         this.toolSpinner = null;
+        this.thinkingSpinner?.stop();
+        this.thinkingSpinner = null;
         this.spinner?.stop();
         this.spinner = null;
 
@@ -199,6 +205,8 @@ export class ProgressDisplay {
 
       onToolCallStart: (event) => {
         if (this.jsonMode || !this.live) return;
+        this.thinkingSpinner?.stop();
+        this.thinkingSpinner = null;
         const icon = getToolIcon(event.tool);
         const params = summarizeToolParams(event.tool, event.params);
         this.currentToolText = `${icon} ${event.tool}${params}`;
@@ -218,6 +226,8 @@ export class ProgressDisplay {
           this.toolSpinner?.succeed(chalk.white(this.currentToolText) + chalk.gray(` → ${summary}`));
         }
         this.toolSpinner = null;
+        // Restart thinking spinner even on error — LLM still processes the result and may retry
+        this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
       },
 
       onPipelineComplete: (event) => {
