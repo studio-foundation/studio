@@ -80,27 +80,21 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     }
   }
 
-  const projectDir = join(templatePath, 'project');
-  if (!(await pathExists(projectDir))) {
-    structuralErrors.push('project/ directory not found');
-    return { valid: false, structuralErrors, semanticErrors: [], warnings };
-  }
-
-  const pipelinesDir = join(projectDir, 'pipelines');
+  const pipelinesDir = join(templatePath, 'pipelines');
   const pipelineFiles = (await listYamlFiles(pipelinesDir)).filter((f) => f.endsWith('.pipeline.yaml'));
   if (pipelineFiles.length < 2) {
-    structuralErrors.push(`project/pipelines/: found ${pipelineFiles.length} pipeline(s), need at least 2`);
+    structuralErrors.push(`pipelines/: found ${pipelineFiles.length} pipeline(s), need at least 2`);
   }
 
-  const agentsDir = join(projectDir, 'agents');
+  const agentsDir = join(templatePath, 'agents');
   const agentFiles = (await listYamlFiles(agentsDir)).filter((f) => f.endsWith('.agent.yaml'));
   if (agentFiles.length < 1) {
-    structuralErrors.push('project/agents/: no .agent.yaml files found (need at least 1)');
+    structuralErrors.push('agents/: no .agent.yaml files found (need at least 1)');
   }
 
-  const contractsDir = join(projectDir, 'contracts');
+  const contractsDir = join(templatePath, 'contracts');
   if (!(await pathExists(contractsDir))) {
-    structuralErrors.push('project/contracts/ directory not found');
+    structuralErrors.push('contracts/ directory not found');
   }
 
   if (structuralErrors.length > 0) {
@@ -119,7 +113,7 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     [pipelinesDir, 'pipelines'],
     [agentsDir, 'agents'],
     [contractsDir, 'contracts'],
-    [join(projectDir, 'tools'), 'tools'],
+    [join(templatePath, 'tools'), 'tools'],
   ];
 
   const parsedPipelines: Array<{ file: string; parsed: Record<string, unknown> }> = [];
