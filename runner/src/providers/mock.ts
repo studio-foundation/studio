@@ -35,6 +35,9 @@ export class MockProvider implements AgentLoopProvider {
       );
     }
 
+    // Emit a fake token to exercise the streaming pipeline in tests
+    onToken?.('...');
+
     const toolCallResults: AgentLoopResult['tool_calls'] = [];
 
     for (const tc of config.tool_calls) {
