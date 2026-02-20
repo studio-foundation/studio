@@ -6,6 +6,6 @@
   "tags": ["software", "code", "development"],
   "type": "template",
   "studio_version": ">=7.0.0",
-  "pipelines": ["feature-builder"],
+  "pipelines": ["feature-builder", "quick-edit"],
   "tools_included": ["repo-manager", "search", "shell"]
 }
