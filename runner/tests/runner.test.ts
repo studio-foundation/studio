@@ -608,6 +608,41 @@ describe('runAgent — callbacks', () => {
     expect(thinkingEvents).toHaveLength(0);
   });
 
+  it('should propagate onAgentToken when provider emits tokens', async () => {
+    const receivedTokens: string[] = [];
+
+    class TokenStreamingProvider implements Provider {
+      readonly name = 'mock';
+      async call(_request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
+        onToken?.('Hello');
+        onToken?.(' world');
+        return {
+          content: '{"result": "streamed"}',
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        };
+      }
+    }
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(new TokenStreamingProvider());
+    const toolRegistry = new ToolRegistry();
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'stream test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: {
+        onAgentToken: (event) => receivedTokens.push(event.token),
+      },
+    });
+
+    expect(receivedTokens).toEqual(['Hello', ' world']);
+  });
+
   it('works fine when no callbacks are provided', async () => {
     const mockProvider = new MockProvider([
       {
