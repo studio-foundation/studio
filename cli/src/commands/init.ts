@@ -1,10 +1,11 @@
-import { mkdir, writeFile, readFile, access, rename } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile } from 'node:fs/promises';
+import { resolve, join, basename, dirname } from 'node:path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
 import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
 import { findStudioDir } from '../studio-dir.js';
+import { applyPlaceholders } from '../utils/placeholders.js';
 import { listTemplates } from './templates.js';
 import { createProjectDir } from './project.js';
 import { validateApiKeyLive } from '../provider-validator.js';
@@ -173,6 +174,83 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
     }
   }
   return true;
+}
+
+// App scaffold items to copy from template root → target root
+const APP_SCAFFOLD_ITEMS = ['src', 'prisma', 'package.json', 'README.md'];
+
+/**
+ * Copy app scaffold files (src/, prisma/, package.json, README.md) from
+ * `templateDir` to `targetDir`, applying placeholder replacement to all
+ * text file contents. Items missing from the template are silently skipped.
+ *
+ * @returns List of top-level items that were generated (e.g. ['src/', 'package.json'])
+ */
+export async function generateAppFiles(
+  templateDir: string,
+  targetDir: string,
+  vars: Record<string, string>
+): Promise<string[]> {
+  const generated: string[] = [];
+
+  for (const item of APP_SCAFFOLD_ITEMS) {
+    const src = join(templateDir, item);
+    const dest = join(targetDir, item);
+
+    let stat;
+    try {
+      stat = await lstat(src);
+    } catch {
+      continue; // Not present in this template — skip
+    }
+
+    if (stat.isDirectory()) {
+      await copyDirWithPlaceholders(src, dest, vars);
+      generated.push(item + '/');
+    } else {
+      const content = await readFile(src, 'utf-8');
+      const replaced = applyPlaceholders(content, vars);
+      await mkdir(dirname(dest), { recursive: true });
+      await writeFile(dest, replaced, 'utf-8');
+      generated.push(item);
+    }
+  }
+
+  return generated;
+}
+
+/**
+ * Recursively copy a directory, applying placeholder replacement to all text file contents.
+ * Binary files are copied as-is.
+ */
+async function copyDirWithPlaceholders(
+  src: string,
+  dest: string,
+  vars: Record<string, string>
+): Promise<void> {
+  await mkdir(dest, { recursive: true });
+  const entries = await readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = join(src, entry.name);
+    const destPath = join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirWithPlaceholders(srcPath, destPath, vars);
+    } else {
+      try {
+        const content = await readFile(srcPath, 'utf-8');
+        const replaced = applyPlaceholders(content, vars);
+        await writeFile(destPath, replaced, 'utf-8');
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('Unresolved placeholder')) {
+          throw err;
+        }
+        // Binary file — copy as-is
+        await copyFile(srcPath, destPath);
+      }
+    }
+  }
 }
 
 interface InitOptions {

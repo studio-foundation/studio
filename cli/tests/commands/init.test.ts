@@ -355,3 +355,93 @@ describe('writeProviderToConfig', () => {
     expect(providers.anthropic.apiKey).toBe('sk-ant-second');
   });
 });
+
+describe('generateAppFiles', () => {
+  it('copies src/ with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const srcIndex = await readFile(resolve(TMP, 'src', 'index.ts'), 'utf-8');
+    expect(srcIndex).toContain('my-app');
+    expect(srcIndex).not.toContain('{{PROJECT_NAME}}');
+  });
+
+  it('copies package.json with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'cool-project',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const pkg = JSON.parse(await readFile(resolve(TMP, 'package.json'), 'utf-8'));
+    expect(pkg.name).toBe('cool-project');
+  });
+
+  it('copies README.md with placeholder replacement', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    const readme = await readFile(resolve(TMP, 'README.md'), 'utf-8');
+    expect(readme).toContain('my-app');
+    expect(readme).toContain('software');
+    expect(readme).not.toContain('{{PROJECT_NAME}}');
+  });
+
+  it('copies prisma/schema.prisma', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    expect(await exists(resolve(TMP, 'prisma', 'schema.prisma'))).toBe(true);
+  });
+
+  it('skips items not present in template (blank template has no src/)', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/blank', import.meta.url).pathname;
+
+    await expect(
+      generateAppFiles(templateDir, TMP, {
+        PROJECT_NAME: 'x',
+        TEMPLATE_NAME: 'blank',
+        YEAR: '2026',
+      })
+    ).resolves.not.toThrow();
+
+    // blank template has no src/ so it should not be created
+    expect(await exists(resolve(TMP, 'src'))).toBe(false);
+  });
+
+  it('returns list of generated top-level items', async () => {
+    const { generateAppFiles } = await import('../../src/commands/init.js');
+    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+
+    const generated = await generateAppFiles(templateDir, TMP, {
+      PROJECT_NAME: 'my-app',
+      TEMPLATE_NAME: 'software',
+      YEAR: '2026',
+    });
+
+    expect(generated).toContain('package.json');
+    expect(generated).toContain('README.md');
+  });
+});
