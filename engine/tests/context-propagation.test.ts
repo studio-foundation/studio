@@ -24,6 +24,7 @@ describe('createInitialContext', () => {
     const ctx = createInitialContext('Build a FAQ page');
     expect(ctx.input).toBe('Build a FAQ page');
     expect(ctx.stageOutputs.size).toBe(0);
+    expect(ctx.stageToolResults.size).toBe(0);
   });
 
   it('optionally includes repoPath', () => {
