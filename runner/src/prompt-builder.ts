@@ -147,7 +147,8 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
     }
   }
 
-  // Add previous stage tool results if any
+  // Add previous stage tool results (discoveries) — placed last before the task
+  // so they have high recency salience for the LLM
   if (context.previous_tool_results && Object.keys(context.previous_tool_results).length > 0) {
     userContent += renderToolResults(context.previous_tool_results);
   }
