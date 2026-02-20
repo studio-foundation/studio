@@ -1,5 +1,5 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
-import { resolve, join, basename, relative, sep } from 'node:path';
+import { resolve, join, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
@@ -62,24 +62,21 @@ async function copyTemplateToStudio(
 
     await mkdir(studioDir, { recursive: true });
 
-    if (withTools) {
-      await cp(templateDir, studioDir, {
-        recursive: true,
-        filter: (src) => !src.endsWith('metadata.json'),
-      });
-    } else {
-      await cp(templateDir, studioDir, {
-        recursive: true,
-        filter: (src) => {
-          const rel = relative(templateDir, src);
-          return !rel.endsWith('metadata.json') && rel !== 'tools' && !rel.startsWith('tools' + sep);
-        },
-      });
-    }
-
-    // Ensure all standard subdirs exist (template may not include all of them)
+    // Copy only the studio-specific subdirs into .studio/ — never the app scaffold
+    // files (src/, prisma/, package.json, README.md); those are handled by generateAppFiles.
     for (const sub of STUDIO_SUBDIRS) {
-      await mkdir(join(studioDir, sub), { recursive: true });
+      if (!withTools && sub === 'tools') continue;
+      const srcDir = join(templateDir, sub);
+      const destDir = join(studioDir, sub);
+      const srcExists = await access(srcDir).then(() => true).catch(() => false);
+      if (srcExists) {
+        await cp(srcDir, destDir, { recursive: true });
+      }
+      // Always ensure the subdir exists even if the template doesn't include it
+      await mkdir(destDir, { recursive: true });
+    }
+    if (!withTools) {
+      await mkdir(join(studioDir, 'tools'), { recursive: true });
     }
   } else {
     for (const sub of STUDIO_SUBDIRS) {
