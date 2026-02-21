@@ -20,7 +20,10 @@ describe('ToolExecutor', () => {
     const testTool: Tool = {
       name: 'test_tool',
       description: 'A test tool',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        properties: { foo: { type: 'string' } },
+      },
       execute: async (args) => ({
         success: true,
         output: { result: 'hello world', args }

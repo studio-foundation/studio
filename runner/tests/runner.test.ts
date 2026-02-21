@@ -87,7 +87,11 @@ describe('runAgent', () => {
     toolRegistry.register({
       name: 'get_weather',
       description: 'Get weather for a city',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        properties: { city: { type: 'string' } },
+        required: ['city'],
+      },
       execute: async ({ city }) => ({
         success: true,
         output: { city, temperature: 20, condition: 'sunny' }
@@ -309,7 +313,10 @@ describe('runAgent — callbacks', () => {
     toolRegistry.register({
       name: 'echo_tool',
       description: 'Echoes input',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        properties: { msg: { type: 'string' } },
+      },
       execute: async (args) => ({ success: true, output: args }),
     });
 
@@ -422,7 +429,10 @@ describe('runAgent — callbacks', () => {
     toolRegistry.register({
       name: 'loop_tool',
       description: 'Loop path tool',
-      parameters: {},
+      parameters: {
+        type: 'object',
+        properties: { x: { type: 'number' } },
+      },
       execute: async (args) => ({ success: true, output: args }),
     });
 
