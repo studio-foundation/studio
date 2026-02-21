@@ -367,7 +367,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       progress.interrupt();
       runLogger.close();
       process.stderr.write('\n' + chalk.yellow('⚠ Interrupted') + '\n');
-      process.exit(130);
+      // Close MCP servers before exiting to avoid orphaned child processes
+      void Promise.allSettled(mcpClients.map((c) => c.close())).then(() => {
+        process.exit(130);
+      });
     };
     process.once('SIGINT', onInterrupt);
 

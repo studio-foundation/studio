@@ -32,7 +32,12 @@ export class MCPClient {
   resolveEnv(env: Record<string, string>): Record<string, string> {
     const result: Record<string, string> = {};
     for (const [key, val] of Object.entries(env)) {
-      result[key] = val.replace(/\$\{([^}]+)\}/g, (_, v: string) => process.env[v] ?? '');
+      result[key] = val.replace(/\$\{([^}]+)\}/g, (_, v: string) => {
+        if (process.env[v] === undefined) {
+          console.warn(`Warning: env var '${v}' not set (referenced in MCP server config for plugin '${this.pluginName}')`);
+        }
+        return process.env[v] ?? '';
+      });
     }
     return result;
   }
@@ -52,7 +57,13 @@ export class MCPClient {
       execute: async (args: Record<string, unknown>) => {
         try {
           const result = await this.client.callTool({ name: t.name, arguments: args });
-          return { success: true, output: result.content };
+          // Extract text content from MCP result (filter out images/resources for now)
+          const rawContent = result.content as Array<{ type: string; text?: string }>;
+          const text = (rawContent ?? [])
+            .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+            .map((c) => c.text)
+            .join('\n');
+          return { success: true, output: text || JSON.stringify(result.content) };
         } catch (err) {
           return {
             success: false,
