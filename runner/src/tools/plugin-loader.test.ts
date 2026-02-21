@@ -42,6 +42,7 @@ commands:
 `);
     const promise = loadProjectTools(toolsDir, '/tmp');
     await expect(promise).rejects.toThrow(ToolYamlError);
+    await expect(promise).rejects.toThrow(ToolYamlError);
     await expect(promise).rejects.toThrow(
       "template uses {{search_query}} but no such parameter is declared"
     );
@@ -99,6 +100,7 @@ commands:
       command: 'curl {{typo}}'
 `);
     const promise = loadProjectTools(toolsDir, '/tmp');
+    await expect(promise).rejects.toThrow(ToolYamlError);
     await expect(promise).rejects.toThrow(
       "err-msg.tool.yaml › command 'err_msg-run'"
     );
@@ -119,8 +121,9 @@ commands:
       type: shell
       command: 'curl {{typo}}'
 `);
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(ToolYamlError);
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(
+    const promise = loadProjectTools(toolsDir, '/tmp');
+    await expect(promise).rejects.toThrow(ToolYamlError);
+    await expect(promise).rejects.toThrow(
       "Declared parameters: (none)"
     );
   });
