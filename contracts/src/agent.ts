@@ -7,6 +7,7 @@ export interface AgentConfig {
   model: string;
   system_prompt?: string;
   tools?: string[];
+  plugins?: string[];
   temperature?: number;
   max_tokens?: number;
   anonymize?: boolean;  // Enable PII anonymization for this agent
