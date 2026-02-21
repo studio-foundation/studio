@@ -11,6 +11,7 @@ import { createShellTools } from './builtin/shell.js';
 import { createSearchTools } from './builtin/search.js';
 import { createPatchTools } from './builtin/patch.js';
 import { createGitTools } from './builtin/git.js';
+import { ToolYamlError } from './errors.js';
 
 export interface LoadedPlugin {
   name: string;
@@ -51,6 +52,36 @@ function buildJsonSchema(
     properties,
     ...(required.length > 0 ? { required } : {}),
   };
+}
+
+/** Template keywords that appear as {{word}} but are not parameter names. */
+const TEMPLATE_KEYWORDS = new Set(['else']);
+
+/**
+ * Validate that every {{placeholder}} in a shell command template
+ * is declared in the command's parameters.
+ * Throws ToolYamlError if any undeclared placeholder is found.
+ */
+function validateShellTemplate(fileName: string, cmd: ToolCommandDef): void {
+  const exec = cmd.execute as { type: string; command?: string };
+  if (exec.type !== 'shell' || !exec.command) return;
+
+  const declared = new Set(Object.keys(cmd.parameters ?? {}));
+  const used = new Set<string>();
+
+  for (const match of exec.command.matchAll(/\{\{(\w+)\}\}/g)) {
+    const name = match[1];
+    if (!TEMPLATE_KEYWORDS.has(name)) used.add(name);
+  }
+
+  const unknown = [...used].filter(p => !declared.has(p));
+  if (unknown.length > 0) {
+    throw new ToolYamlError(
+      `${fileName} › command '${cmd.name}':\n` +
+      `  template uses ${unknown.map(p => `{{${p}}}`).join(', ')} but no such parameter is declared.\n` +
+      `  Declared parameters: ${[...declared].join(', ') || '(none)'}`
+    );
+  }
 }
 
 /** Create a Tool that renders the command template and runs it in a shell. */
@@ -100,6 +131,7 @@ export async function loadProjectTools(
         if (tool) tools.push(tool);
         // If unknown builtin name, skip silently (no crash)
       } else {
+        validateShellTemplate(file, cmd);
         tools.push(createShellTool(cmd, repoPath));
       }
     }
