@@ -10,9 +10,9 @@ post_validation:
     field: status
     approved_values:
       - approved
-      - approved_with_notes
     rejected_values:
       - rejected
       - needs_revision
+      - approved_with_notes
     details_field: issues
     summary_field: summary
