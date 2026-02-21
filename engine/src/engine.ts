@@ -87,6 +87,12 @@ export interface EngineConfig {
   toolRegistry: ToolRegistry;
   db?: RunStore;
   providerOverride?: string;
+  /**
+   * Skills content from active plugins, keyed by plugin name.
+   * Each entry is an array of formatted markdown strings to inject
+   * into the system prompt of agents that declare the plugin.
+   */
+  pluginSkills?: Record<string, string[]>;
 }
 
 interface ProjectPaths {
@@ -341,6 +347,14 @@ export class PipelineEngine {
     const agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
     if (this.config.providerOverride) {
       agentConfig.provider = this.config.providerOverride;
+    }
+    // Inject plugin skills into system_prompt for agents that declare plugins
+    if (agentConfig.plugins?.length && this.config.pluginSkills) {
+      const skillChunks = agentConfig.plugins
+        .flatMap((p) => this.config.pluginSkills![p] ?? []);
+      if (skillChunks.length > 0) {
+        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+      }
     }
 
     // Load output contract if specified
