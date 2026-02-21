@@ -130,7 +130,10 @@ export function getToolIcon(tool: string): string {
 export function summarizeToolParams(tool: string, params: Record<string, unknown>): string {
   if (tool.includes('read_file') || tool.includes('write_file')) return `(${params.path})`;
   if (tool.includes('list_files')) return params.path ? `(${params.path})` : '';
-  if (tool.includes('search')) return `("${params.pattern}")`;
+  if (tool.includes('search')) {
+    const term = params.query ?? params.pattern;
+    return term ? `("${term}")` : '';
+  }
   if (tool.includes('run_command')) return `("${params.command}")`;
   return '';
 }
