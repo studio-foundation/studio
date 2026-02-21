@@ -43,3 +43,7 @@ export type { LoadedPlugin } from './tools/plugin-loader.js';
 // Anonymization middleware
 export { AnonymizationMiddleware } from './middleware/anonymization.js';
 export type { AnonymizerOptions } from '@studio/anonymizer';
+
+// Plugin system (Claude Code plugin compatibility)
+export { loadPlugins, MCPClient } from './plugins/index.js';
+export type { PluginManifest, MCPServerDef, SkillContent } from './plugins/index.js';
