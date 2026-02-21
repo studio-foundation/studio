@@ -1,11 +1,12 @@
 import { execSync } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import { homedir } from 'node:os';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
 import { PipelineEngine, loadPipelineByName } from '@studio/engine';
-import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { formatResult } from '../output/formatter.js';
@@ -252,7 +253,8 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       const effectiveBranch = pipelineDef.repo?.branch;
 
       if (repoUrl) {
-        const projectsDir = config.paths?.projects_dir || process.env.STUDIO_PROJECTS_DIR;
+        const rawProjectsDir = config.paths?.projects_dir || process.env.STUDIO_PROJECTS_DIR;
+        const projectsDir = rawProjectsDir?.replace(/^~/, homedir());
         if (!projectsDir) {
           console.error('Error: STUDIO_PROJECTS_DIR is not set. Set it in .env or .studiorc.yaml paths.projects_dir');
           process.exit(1);
@@ -307,6 +309,34 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       toolRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
     }
 
+    // Load plugins from .studio/plugins/ and start MCP servers
+    const pluginsDir = resolve(configsDir, 'plugins');
+    const pluginManifests = await loadPlugins(pluginsDir);
+    const mcpClients: MCPClient[] = [];
+    for (const manifest of pluginManifests) {
+      for (const [serverName, serverDef] of Object.entries(manifest.mcpServers)) {
+        const client = new MCPClient(manifest.name, serverName, serverDef);
+        try {
+          await client.start();
+          const mcpTools = await client.getTools();
+          toolRegistry.registerPlugin(`${manifest.name}-${serverName}`, mcpTools);
+          mcpClients.push(client);
+        } catch (err) {
+          console.warn(chalk.yellow(`⚠ Plugin '${manifest.name}': failed to start MCP server '${serverName}': ${(err as Error).message}`));
+        }
+      }
+    }
+
+    // Build skill map for engine skill injection
+    const pluginSkills: Record<string, string[]> = {};
+    for (const manifest of pluginManifests) {
+      if (manifest.skills.length > 0) {
+        pluginSkills[manifest.name] = manifest.skills.map(
+          (s) => `## Skill: ${s.name}\n\n${s.content}`
+        );
+      }
+    }
+
     if (options.live && options.verbose) {
       console.warn(chalk.yellow('⚠ Warning: --live includes all --verbose output. Ignoring --verbose.\n'));
     }
@@ -327,6 +357,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         repoPath,
         providerRegistry,
         toolRegistry,
+        pluginSkills,
         ...(options.provider ? { providerOverride: options.provider } : {}),
       },
       events
@@ -336,7 +367,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       progress.interrupt();
       runLogger.close();
       process.stderr.write('\n' + chalk.yellow('⚠ Interrupted') + '\n');
-      process.exit(130);
+      // Close MCP servers before exiting to avoid orphaned child processes
+      void Promise.allSettled(mcpClients.map((c) => c.close())).then(() => {
+        process.exit(130);
+      });
     };
     process.once('SIGINT', onInterrupt);
 
@@ -350,6 +384,8 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     } finally {
       process.off('SIGINT', onInterrupt);
       runLogger.close();
+      // Stop all MCP servers (even if pipeline failed)
+      await Promise.allSettled(mcpClients.map((c) => c.close()));
     }
 
     if (options.json) {

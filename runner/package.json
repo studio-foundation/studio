@@ -10,20 +10,27 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
-  "keywords": ["llm", "agent", "tools", "openai", "anthropic"],
+  "keywords": [
+    "llm",
+    "agent",
+    "tools",
+    "openai",
+    "anthropic"
+  ],
   "author": "Ariane Guay",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.33.1",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@studio/anonymizer": "workspace:*",
     "@studio/contracts": "workspace:*",
-    "openai": "^4.77.0",
-    "@anthropic-ai/sdk": "^0.33.1",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "openai": "^4.77.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
-    "@types/node": "^22.10.5",
     "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
 }

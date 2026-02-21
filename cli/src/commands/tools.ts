@@ -92,7 +92,13 @@ export async function toolsCommand(
   try {
     switch (action) {
       case 'list': {
-        const toolsDir = await resolveToolsDir();
+        const config = await loadConfig();
+        const studioDir = config.resolvedStudioDir;
+        if (!studioDir) {
+          console.error("Error: No .studio/ directory found. Run 'studio init' first.");
+          process.exit(1);
+        }
+        const toolsDir = getToolsDir(studioDir);
         const tools = await listTools(toolsDir);
 
         if (tools.length === 0) {
@@ -103,8 +109,24 @@ export async function toolsCommand(
           for (const t of tools) {
             console.log(`  - ${t}`);
           }
-          console.log('');
         }
+
+        // Show installed plugins (from .studio/plugins/)
+        const { loadPlugins: loadPluginManifests } = await import('@studio/runner');
+        const pluginsDir = resolve(studioDir, 'plugins');
+        const manifests = await loadPluginManifests(pluginsDir);
+        if (manifests.length > 0) {
+          console.log('\nInstalled plugins:');
+          for (const m of manifests) {
+            const serverNames = Object.keys(m.mcpServers);
+            const skillCount = m.skills.length;
+            const parts: string[] = [];
+            if (serverNames.length > 0) parts.push(`MCP: ${serverNames.join(', ')}`);
+            if (skillCount > 0) parts.push(`${skillCount} skill${skillCount !== 1 ? 's' : ''}`);
+            console.log(`  - ${m.name}${parts.length > 0 ? ` (${parts.join('; ')})` : ''}`);
+          }
+        }
+        console.log('');
         break;
       }
 
