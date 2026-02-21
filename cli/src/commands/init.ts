@@ -345,14 +345,15 @@ interface GenerateFullAppOptions {
  *
  * Does NOT write provider config — call writeProviderToConfig separately.
  *
- * @returns `{ gitInitialized: true }` if git was initialized, `{ gitInitialized: false }` if skipped.
+ * @returns `{ gitInitialized, generatedFiles }` — gitInitialized is true if git was initialized,
+ *          generatedFiles is the list of top-level scaffold items actually created (e.g. ['src/', 'package.json']).
  */
 export async function generateFullApp(
   cwd: string,
   projectName: string,
   templateName: string,
   options: GenerateFullAppOptions = {}
-): Promise<{ gitInitialized: boolean }> {
+): Promise<{ gitInitialized: boolean; generatedFiles: string[] }> {
   const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
 
   // 1. Validate template
@@ -374,7 +375,7 @@ export async function generateFullApp(
     TEMPLATE_NAME: templateName,
     YEAR: String(new Date().getFullYear()),
   };
-  await generateAppFiles(templateDir, cwd, vars);
+  const generatedFiles = await generateAppFiles(templateDir, cwd, vars);
 
   // 4. Initialize git repo (unless already initialized or skipped)
   let gitInitialized = false;
@@ -382,7 +383,7 @@ export async function generateFullApp(
     gitInitialized = await initGitRepo(cwd);
   }
 
-  return { gitInitialized };
+  return { gitInitialized, generatedFiles };
 }
 
 interface InitOptions {
@@ -494,9 +495,10 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       const spinner = ora('Creating project...').start();
 
       let gitInitialized = false;
+      let generatedFiles: string[] = [];
       try {
         const projectName = nameArg ?? options.project ?? basename(cwd);
-        ({ gitInitialized } = await generateFullApp(cwd, projectName, options.template!, {
+        ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
         if (options.provider !== 'later' && options.apiKey) {
@@ -511,10 +513,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
       console.log(chalk.green(`  ✓ .studio/config.yaml`));
       console.log(chalk.green(`  ✓ .studio/pipelines/`));
-      console.log(chalk.green(`  ✓ src/`));
-      console.log(chalk.green(`  ✓ prisma/schema.prisma`));
-      console.log(chalk.green(`  ✓ package.json`));
-      console.log(chalk.green(`  ✓ README.md`));
+      for (const f of generatedFiles) {
+        console.log(chalk.green(`  ✓ ${f}`));
+      }
       if (gitInitialized) {
         console.log(chalk.green(`  ✓ git initialized`));
       }
@@ -675,8 +676,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const studioDir = resolve(cwd, '.studio');
 
     let gitInitialized = false;
+    let generatedFiles: string[] = [];
     try {
-      ({ gitInitialized } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
+      ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
       if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
@@ -710,10 +712,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     // Step 11: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
     console.log(chalk.green(`  ✓ .studio/pipelines/`));
-    console.log(chalk.green(`  ✓ src/`));
-    console.log(chalk.green(`  ✓ prisma/schema.prisma`));
-    console.log(chalk.green(`  ✓ package.json`));
-    console.log(chalk.green(`  ✓ README.md`));
+    for (const f of generatedFiles) {
+      console.log(chalk.green(`  ✓ ${f}`));
+    }
     if (gitInitialized) {
       console.log(chalk.green(`  ✓ git initialized`));
     }
