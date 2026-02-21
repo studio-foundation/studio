@@ -54,7 +54,9 @@ function buildJsonSchema(
   };
 }
 
-/** Template keywords that appear as {{word}} but are not parameter names. */
+/** Template keywords that appear as {{word}} but are not parameter names.
+ *  Note: block tags like {{#if}} and {{/if}} are already excluded because
+ *  '#' and '/' are not matched by [\w-]+. */
 const TEMPLATE_KEYWORDS = new Set(['else']);
 
 /**
@@ -69,7 +71,7 @@ function validateShellTemplate(fileName: string, cmd: ToolCommandDef): void {
   const declared = new Set(Object.keys(cmd.parameters ?? {}));
   const used = new Set<string>();
 
-  for (const match of exec.command.matchAll(/\{\{(\w+)\}\}/g)) {
+  for (const match of exec.command.matchAll(/\{\{([\w-]+)\}\}/g)) {
     const name = match[1];
     if (!TEMPLATE_KEYWORDS.has(name)) used.add(name);
   }

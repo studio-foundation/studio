@@ -40,8 +40,9 @@ commands:
       type: shell
       command: 'curl "https://api.example.com?q={{search_query}}"'
 `);
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(ToolYamlError);
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(
+    const promise = loadProjectTools(toolsDir, '/tmp');
+    await expect(promise).rejects.toThrow(ToolYamlError);
+    await expect(promise).rejects.toThrow(
       "template uses {{search_query}} but no such parameter is declared"
     );
   });
@@ -97,11 +98,30 @@ commands:
       type: shell
       command: 'curl {{typo}}'
 `);
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(
+    const promise = loadProjectTools(toolsDir, '/tmp');
+    await expect(promise).rejects.toThrow(
       "err-msg.tool.yaml › command 'err_msg-run'"
     );
-    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(
+    await expect(promise).rejects.toThrow(
       "Declared parameters: query"
+    );
+  });
+
+  it('error message shows (none) when command has no parameters declared', async () => {
+    const toolsDir = await writeToolYaml('no-params', `
+name: no_params
+version: 1
+commands:
+  - name: no_params-run
+    description: Run
+    parameters: {}
+    execute:
+      type: shell
+      command: 'curl {{typo}}'
+`);
+    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(ToolYamlError);
+    await expect(loadProjectTools(toolsDir, '/tmp')).rejects.toThrow(
+      "Declared parameters: (none)"
     );
   });
 });
