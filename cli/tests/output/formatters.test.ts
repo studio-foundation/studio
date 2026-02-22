@@ -210,8 +210,13 @@ describe('formatStageOutput', () => {
     expect(result).toContain('Passed : true');
   });
 
-  it('renders null and undefined as dash', () => {
+  it('renders null as dash', () => {
     const result = formatStageOutput({ value: null });
+    expect(result).toBe('Value : —');
+  });
+
+  it('renders undefined as dash', () => {
+    const result = formatStageOutput({ value: undefined });
     expect(result).toBe('Value : —');
   });
 
