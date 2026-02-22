@@ -54,12 +54,7 @@ async function cloneRepo(
   return clonePath;
 }
 
-function inputSummary(input: string | Record<string, unknown>): string {
-  const s = typeof input === 'string' ? input : JSON.stringify(input);
-  return s.length > 200 ? s.slice(0, 200) + '...' : s;
-}
-
-function mergeEvents(
+export function mergeEvents(
   progressEvents: EngineEvents,
   logger: ReturnType<typeof createRunLogger>,
   pipeline: string,
@@ -74,7 +69,7 @@ function mergeEvents(
         event: 'pipeline_start',
         run_id: e.run_id,
         pipeline,
-        input_summary: inputSummary(input),
+        input,
       });
     },
     onPipelineComplete: (e) => {
@@ -82,6 +77,7 @@ function mergeEvents(
       logger.log({
         event: 'pipeline_complete',
         run_id: e.run_id,
+        pipeline_name: e.pipeline_name,
         status: e.status,
         duration_ms: e.duration_ms,
         total_tokens: e.total_tokens,
@@ -94,7 +90,6 @@ function mergeEvents(
       progressEvents.onStageStart?.(e);
       logger.log({
         event: 'stage_start',
-        run_id: undefined,
         stage: e.stage_name,
         stage_index: e.stage_index,
         total_stages: e.total_stages,
@@ -102,18 +97,8 @@ function mergeEvents(
     },
     onStageComplete: (e) => {
       progressEvents.onStageComplete?.(e);
-      const output = e.output;
-      const output_fields =
-        output && typeof output === 'object' && !Array.isArray(output)
-          ? Object.keys(output as Record<string, unknown>)
-          : undefined;
-      const output_summary =
-        output !== undefined
-          ? (typeof output === 'string' ? output : JSON.stringify(output)).slice(0, 200)
-          : undefined;
       logger.log({
         event: 'stage_complete',
-        run_id: undefined,
         stage: e.stage_name,
         status: e.status,
         attempts: e.attempts,
@@ -125,9 +110,8 @@ function mergeEvents(
               total: e.token_usage.total_tokens,
             }
           : undefined,
-        tool_calls: e.tool_calls?.length ?? 0,
-        output_fields,
-        ...(output_summary ? { output_summary } : {}),
+        tool_calls: e.tool_calls,
+        output: e.output,
         ...(e.rejection_reason ? { rejection_reason: e.rejection_reason } : {}),
         ...(e.rejection_details?.length ? { rejection_details: e.rejection_details } : {}),
       });
@@ -136,18 +120,18 @@ function mergeEvents(
       progressEvents.onTaskRetry?.(e);
       logger.log({
         event: 'stage_retry',
-        run_id: undefined,
         stage: e.stage,
         attempt: e.attempt,
-        max_attempts: 5,
-        failure_reason: e.failures?.length ? e.failures[0] : undefined,
+        max_attempts: e.max_attempts,
+        failures: e.failures,
+        ...(e.agent_output_raw ? { agent_output_raw: e.agent_output_raw } : {}),
+        ...(e.tool_calls_count !== undefined ? { tool_calls_count: e.tool_calls_count } : {}),
       });
     },
     onGroupStart: (e) => {
       progressEvents.onGroupStart?.(e);
       logger.log({
         event: 'group_start',
-        run_id: undefined,
         group: e.group_name,
         max_iterations: e.max_iterations,
       });
@@ -156,7 +140,6 @@ function mergeEvents(
       progressEvents.onGroupIteration?.(e);
       logger.log({
         event: 'group_iteration',
-        run_id: undefined,
         group: e.group_name,
         iteration: e.iteration,
         max_iterations: e.max_iterations,
@@ -166,7 +149,6 @@ function mergeEvents(
       progressEvents.onGroupFeedback?.(e);
       logger.log({
         event: 'group_feedback',
-        run_id: undefined,
         group: e.group_name,
         iteration: e.iteration,
         rejection_reason: e.rejection_reason,
@@ -177,14 +159,29 @@ function mergeEvents(
       progressEvents.onGroupComplete?.(e);
       logger.log({
         event: 'group_complete',
-        run_id: undefined,
         group: e.group_name,
         iterations: e.iterations,
         status: e.status,
       });
     },
-    onToolCallStart: (e) => progressEvents.onToolCallStart?.(e),
-    onToolCallComplete: (e) => progressEvents.onToolCallComplete?.(e),
+    onToolCallStart: (e) => {
+      progressEvents.onToolCallStart?.(e);
+      logger.log({
+        event: 'tool_call_start',
+        tool: e.tool,
+        params: e.params,
+      });
+    },
+    onToolCallComplete: (e) => {
+      progressEvents.onToolCallComplete?.(e);
+      logger.log({
+        event: 'tool_call_complete',
+        tool: e.tool,
+        result: e.result,
+        ...(e.error ? { error: e.error } : {}),
+        duration_ms: e.duration_ms,
+      });
+    },
     onAgentThinking: (e) => progressEvents.onAgentThinking?.(e),
     onAgentProgress: (e) => progressEvents.onAgentProgress?.(e),
   };
