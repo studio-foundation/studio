@@ -16,10 +16,16 @@ export interface InputSchema {
   fields: InputField[];
 }
 
+export interface StartupCommand {
+  command: string;
+  inject_as: string;
+}
+
 export interface PipelineDefinition {
   name: string;
   description: string;
   version: number;
+  on_pipeline_start?: StartupCommand[];
   input_schema?: InputSchema;
   repo?: {
     url: string;
