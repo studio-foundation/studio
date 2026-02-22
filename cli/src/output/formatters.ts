@@ -94,33 +94,6 @@ export function summarizeToolCalls(toolCalls: ToolCallSummary[]): string {
   return parts.join(', ');
 }
 
-// ── Output summary ────────────────────────────────────────────────────────────
-
-/**
- * Extracts a human-readable summary from a stage output object.
- * Prefers `summary` > `description` > field listing.
- * Never returns raw JSON.
- */
-export function summarizeOutput(output: unknown): string | null {
-  if (output === null || output === undefined) return null;
-  if (typeof output !== 'object' || Array.isArray(output)) return null;
-
-  const o = output as Record<string, unknown>;
-  const keys = Object.keys(o);
-  if (keys.length === 0) return null;
-
-  const truncate = (s: string) => s.length > 150 ? s.slice(0, 150) + '...' : s;
-
-  if (typeof o.summary === 'string' && o.summary.length > 0) {
-    return truncate(o.summary);
-  }
-  if (typeof o.description === 'string' && o.description.length > 0) {
-    return truncate(o.description);
-  }
-
-  return `${keys.length} field${keys.length !== 1 ? 's' : ''}: ${keys.join(', ')}`;
-}
-
 // ── Live mode helpers ─────────────────────────────────────────────────────────
 
 export function getToolIcon(tool: string): string {

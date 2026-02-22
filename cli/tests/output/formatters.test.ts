@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import {
   humanReadableStageName,
   summarizeToolCalls,
-  summarizeOutput,
   getToolIcon,
   summarizeToolParams,
   summarizeToolResult,
@@ -88,42 +87,6 @@ describe('summarizeToolCalls', () => {
       { name: 'search-search_codebase', arguments_summary: 'useState' },
     ];
     expect(summarizeToolCalls(calls)).toBe('Searched 1 time');
-  });
-});
-
-describe('summarizeOutput', () => {
-  it('returns null for null/undefined', () => {
-    expect(summarizeOutput(null)).toBeNull();
-    expect(summarizeOutput(undefined)).toBeNull();
-  });
-
-  it('returns null for non-object', () => {
-    expect(summarizeOutput('hello')).toBeNull();
-    expect(summarizeOutput(42)).toBeNull();
-  });
-
-  it('prefers the summary field when present', () => {
-    const output = { summary: 'Added FAQ section with 3 questions', files_changed: ['src/about.tsx'] };
-    expect(summarizeOutput(output)).toBe('Added FAQ section with 3 questions');
-  });
-
-  it('truncates long summary strings', () => {
-    const long = 'x'.repeat(200);
-    expect(summarizeOutput({ summary: long })).toHaveLength(153); // 150 + '...'
-  });
-
-  it('falls back to description field', () => {
-    const output = { description: 'Some description', count: 3 };
-    expect(summarizeOutput(output)).toBe('Some description');
-  });
-
-  it('falls back to field count when no summary or description', () => {
-    const output = { files_changed: [], requirements: [], acceptance_criteria: [] };
-    expect(summarizeOutput(output)).toBe('3 fields: files_changed, requirements, acceptance_criteria');
-  });
-
-  it('returns null for empty object', () => {
-    expect(summarizeOutput({})).toBeNull();
   });
 });
 
