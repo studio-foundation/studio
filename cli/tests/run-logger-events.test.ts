@@ -186,3 +186,89 @@ describe('mergeEvents — stage_retry', () => {
     expect(entry.tool_calls_count).toBe(0);
   });
 });
+
+describe('mergeEvents — tool call events', () => {
+  it('logs tool_call_start with tool name and params', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    events.onToolCallStart!({
+      tool: 'repo_manager-write_file',
+      params: { path: 'src/index.ts', content: 'console.log("hello")' },
+      timestamp: Date.now(),
+    });
+
+    const entry = entries.find(e => e.event === 'tool_call_start')!;
+    expect(entry.tool).toBe('repo_manager-write_file');
+    expect(entry.params).toEqual({ path: 'src/index.ts', content: 'console.log("hello")' });
+  });
+
+  it('logs tool_call_complete with result and duration', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    events.onToolCallComplete!({
+      tool: 'repo_manager-write_file',
+      result: { success: true, path: 'src/index.ts' },
+      duration_ms: 42,
+      timestamp: Date.now(),
+    });
+
+    const entry = entries.find(e => e.event === 'tool_call_complete')!;
+    expect(entry.tool).toBe('repo_manager-write_file');
+    expect(entry.result).toEqual({ success: true, path: 'src/index.ts' });
+    expect(entry.duration_ms).toBe(42);
+    expect(entry).not.toHaveProperty('error');
+  });
+
+  it('logs tool_call_complete with error', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    events.onToolCallComplete!({
+      tool: 'shell-run_command',
+      result: null,
+      error: 'Command failed with exit code 1',
+      duration_ms: 150,
+      timestamp: Date.now(),
+    });
+
+    const entry = entries.find(e => e.event === 'tool_call_complete')!;
+    expect(entry.error).toBe('Command failed with exit code 1');
+  });
+
+  it('still forwards tool call events to progress display', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger } = createCapturingLogger();
+    const startSpy = vi.fn();
+    const completeSpy = vi.fn();
+    const progressEvents: EngineEvents = {
+      onToolCallStart: startSpy,
+      onToolCallComplete: completeSpy,
+    };
+
+    const events = mergeEvents(progressEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    const startEvent = { tool: 'test', params: {}, timestamp: Date.now() };
+    const completeEvent = { tool: 'test', result: 'ok', duration_ms: 1, timestamp: Date.now() };
+
+    events.onToolCallStart!(startEvent);
+    events.onToolCallComplete!(completeEvent);
+
+    expect(startSpy).toHaveBeenCalledWith(startEvent);
+    expect(completeSpy).toHaveBeenCalledWith(completeEvent);
+  });
+});

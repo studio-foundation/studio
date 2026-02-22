@@ -169,8 +169,24 @@ export function mergeEvents(
         status: e.status,
       });
     },
-    onToolCallStart: (e) => progressEvents.onToolCallStart?.(e),
-    onToolCallComplete: (e) => progressEvents.onToolCallComplete?.(e),
+    onToolCallStart: (e) => {
+      progressEvents.onToolCallStart?.(e);
+      logger.log({
+        event: 'tool_call_start',
+        tool: e.tool,
+        params: e.params,
+      });
+    },
+    onToolCallComplete: (e) => {
+      progressEvents.onToolCallComplete?.(e);
+      logger.log({
+        event: 'tool_call_complete',
+        tool: e.tool,
+        result: e.result,
+        ...(e.error ? { error: e.error } : {}),
+        duration_ms: e.duration_ms,
+      });
+    },
     onAgentThinking: (e) => progressEvents.onAgentThinking?.(e),
     onAgentProgress: (e) => progressEvents.onAgentProgress?.(e),
   };
