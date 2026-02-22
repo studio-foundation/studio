@@ -15,28 +15,44 @@ export interface HookResult {
 }
 
 /**
- * Renders {{tool.argName}} placeholders from tool call arguments.
- * Only substitutes {{tool.<word>}} patterns — other placeholders are left unchanged.
- * Unknown args → empty string.
+ * Renders {{tool.argName}} and {{output.field}} placeholders.
+ * Arrays in outputContext are space-joined for CLI argument passing.
+ * Unknown keys → empty string.
+ *
+ * Note: values are substituted verbatim into the command string.
+ * Hook commands are authored by pipeline owners (trusted), not end users.
+ * Do not use with untrusted input sources.
  */
 export function renderHookCommand(
   command: string,
-  toolArgs: Record<string, unknown>
+  toolArgs: Record<string, unknown>,
+  outputContext: Record<string, unknown> = {}
 ): string {
-  return command.replace(
-    /\{\{tool\.(\w+)\}\}/g,
-    (_, key: string) => (toolArgs[key] !== undefined ? String(toolArgs[key]) : '')
-  );
+  return command
+    .replace(
+      /\{\{tool\.(\w+)\}\}/g,
+      (_, key: string) => (toolArgs[key] !== undefined ? String(toolArgs[key]) : '')
+    )
+    .replace(/\{\{output\.(\w+)\}\}/g, (_, key: string) => {
+      const val = outputContext[key];
+      if (val === undefined) return '';
+      if (Array.isArray(val)) return val.join(' ');
+      return String(val);
+    });
 }
 
 /**
  * Run a stage-level hook command (on_stage_start, on_stage_complete).
+ * outputContext provides {{output.<field>}} substitution values.
+ * on_stage_start hooks omit outputContext (no output available before the stage runs).
  */
 export async function runStageHook(
   hook: StageHookDef,
-  cwd: string
+  cwd: string,
+  outputContext: Record<string, unknown> = {}
 ): Promise<HookResult> {
-  return execHook(hook.command, cwd);
+  const command = renderHookCommand(hook.command, {}, outputContext);
+  return execHook(command, cwd);
 }
 
 /**
