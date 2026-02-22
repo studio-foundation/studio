@@ -66,9 +66,28 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
     }
   }
 
+  // Parse on_pipeline_start commands
+  let on_pipeline_start: import('@studio/contracts').StartupCommand[] | undefined;
+  if (Array.isArray(parsed.on_pipeline_start)) {
+    on_pipeline_start = [];
+    for (const cmd of parsed.on_pipeline_start as any[]) {
+      if (!cmd.command || typeof cmd.command !== 'string') {
+        throw new Error(`on_pipeline_start entry missing 'command'${context}`);
+      }
+      if (!cmd.inject_as || typeof cmd.inject_as !== 'string') {
+        throw new Error(`on_pipeline_start entry missing 'inject_as'${context}`);
+      }
+      on_pipeline_start.push({ command: cmd.command, inject_as: cmd.inject_as });
+    }
+    if (on_pipeline_start.length === 0) {
+      on_pipeline_start = undefined;
+    }
+  }
+
   return {
     ...parsed,
     stages,
+    on_pipeline_start,
   } as unknown as PipelineDefinition;
 }
 
