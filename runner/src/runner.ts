@@ -113,6 +113,21 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           timestamp: tcStart,
         });
 
+        // pre_tool_use: check if hook wants to block this tool call
+        if (config.callbacks?.onPreToolUse) {
+          const preResult = await config.callbacks.onPreToolUse({ tool: name, params: args, timestamp: tcStart });
+          if (preResult.blocked) {
+            const blockedCall: ToolCall = {
+              id: callId,
+              name,
+              arguments: args,
+              error: preResult.error ?? 'Pre-tool hook blocked execution',
+            };
+            allToolCalls.push(blockedCall);
+            return { result: undefined, error: blockedCall.error };
+          }
+        }
+
         const executed = await toolExecutor.execute({ id: callId, name, arguments: args });
         allToolCalls.push(executed);
 
@@ -123,6 +138,17 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           duration_ms: Date.now() - tcStart,
           timestamp: Date.now(),
         });
+
+        // post_tool_use: notify (append_message not injected in agent loop path — provider controls conversation)
+        if (config.callbacks?.onPostToolUse) {
+          await config.callbacks.onPostToolUse({
+            tool: name,
+            params: args,
+            result: executed.result,
+            error: executed.error,
+            timestamp: Date.now(),
+          });
+        }
 
         // Injection point 2: Anonymize tool results before returning to LLM
         let result = executed.result;
@@ -202,6 +228,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
 
     // Execute each tool call
     const executedToolCalls: ToolCall[] = [];
+    const appendMessages = new Map<string, string>(); // tc.id → post-hook message
+
     for (const tc of response.tool_calls) {
       const tcStart = Date.now();
       config.callbacks?.onToolCallStart?.({
@@ -210,11 +238,34 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
         timestamp: tcStart,
       });
 
-      const executed = await toolExecutor.execute({
-        id: tc.id,
-        name: tc.name,
-        arguments: tc.arguments,
-      });
+      // pre_tool_use: check if hook wants to block this tool call
+      let executed!: ToolCall;
+      let wasBlocked = false;
+      if (config.callbacks?.onPreToolUse) {
+        const preResult = await config.callbacks.onPreToolUse({
+          tool: tc.name,
+          params: tc.arguments,
+          timestamp: tcStart,
+        });
+        if (preResult.blocked) {
+          wasBlocked = true;
+          executed = {
+            id: tc.id,
+            name: tc.name,
+            arguments: tc.arguments,
+            error: preResult.error ?? 'Pre-tool hook blocked execution',
+          };
+        }
+      }
+
+      if (!wasBlocked) {
+        executed = await toolExecutor.execute({
+          id: tc.id,
+          name: tc.name,
+          arguments: tc.arguments,
+        });
+      }
+
       executedToolCalls.push(executed);
       allToolCalls.push(executed);
 
@@ -225,6 +276,20 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
         duration_ms: Date.now() - tcStart,
         timestamp: Date.now(),
       });
+
+      // post_tool_use: only called if tool was not blocked
+      if (!wasBlocked && config.callbacks?.onPostToolUse) {
+        const postResult = await config.callbacks.onPostToolUse({
+          tool: tc.name,
+          params: tc.arguments,
+          result: executed.result,
+          error: executed.error,
+          timestamp: Date.now(),
+        });
+        if (postResult.append_message) {
+          appendMessages.set(tc.id, postResult.append_message);
+        }
+      }
     }
 
     // Add assistant message with tool calls to conversation
@@ -236,10 +301,17 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     // Add tool results as user messages
     // Format them clearly so the LLM can understand the results
     const toolResultsMessage = executedToolCalls.map(tc => {
+      let msg: string;
       if (tc.error) {
-        return `Tool ${tc.name} (id: ${tc.id}) failed: ${tc.error}`;
+        msg = `Tool ${tc.name} (id: ${tc.id}) failed: ${tc.error}`;
+      } else {
+        msg = `Tool ${tc.name} (id: ${tc.id}) result: ${JSON.stringify(tc.result)}`;
       }
-      return `Tool ${tc.name} (id: ${tc.id}) result: ${JSON.stringify(tc.result)}`;
+      const appendMsg = appendMessages.get(tc.id);
+      if (appendMsg) {
+        msg += `\n\nPost-hook note: ${appendMsg}`;
+      }
+      return msg;
     }).join('\n\n');
 
     const toolResultContent = `Tool execution results:\n\n${toolResultsMessage}`;
