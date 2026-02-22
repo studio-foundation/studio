@@ -34,6 +34,28 @@ export interface PipelineDefinition {
   stages: PipelineEntry[];
 }
 
+// Lifecycle hooks — configurable shell commands at stage/tool lifecycle points
+
+export type HookOnFailure = 'warn' | 'reject' | 'fail';
+
+export interface StageHookDef {
+  command: string;
+  on_failure?: HookOnFailure;  // default: 'warn'
+}
+
+export interface ToolHookDef {
+  matcher: string;             // exact tool name to match (e.g. "repo_manager-write_file")
+  command: string;
+  on_failure?: HookOnFailure;  // default: 'warn'
+}
+
+export interface StageHooks {
+  on_stage_start?: StageHookDef[];
+  on_stage_complete?: StageHookDef[];
+  pre_tool_use?: ToolHookDef[];
+  post_tool_use?: ToolHookDef[];
+}
+
 export interface StageDefinition {
   name: string;
   kind: StageKind;
@@ -51,6 +73,7 @@ export interface StageDefinition {
   tools?: {
     required?: string[];
   };
+  hooks?: StageHooks;
 }
 
 // A pipeline entry is either a stage or a group of stages
