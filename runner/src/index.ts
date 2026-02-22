@@ -11,6 +11,7 @@ export { buildPrompt } from './prompt-builder.js';
 export type {
   TaskInput,
   AgentContext,
+  GroupFeedbackContext,
   ExecutionContext,
   PromptBuildConfig
 } from './prompt-builder.js';

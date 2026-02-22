@@ -334,3 +334,68 @@ describe('buildPrompt — previous_tool_results', () => {
     expect(userContent).not.toContain('Previous Stage Discoveries');
   });
 });
+
+describe('buildPrompt — group_feedback', () => {
+  const baseAgent: AgentConfig = {
+    name: 'test',
+    provider: 'mock',
+    model: 'mock',
+    system_prompt: 'You are helpful.',
+  };
+
+  it('renders group feedback as the first section in user message', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Generate code.' },
+      context: {
+        additional_context: 'Build a dark mode toggle',
+        group_feedback: {
+          iteration: 1,
+          max_iterations: 3,
+          rejection_reason: 'Missing localStorage persistence',
+          rejection_details: ['No localStorage.setItem call', 'Theme not restored on load'],
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).toContain('REVISION REQUIRED');
+    expect(userContent).toContain('Iteration 2/3');
+    expect(userContent).toContain('Missing localStorage persistence');
+    expect(userContent).toContain('No localStorage.setItem call');
+    expect(userContent).toContain('Theme not restored on load');
+    // Feedback appears BEFORE additional context and task
+    expect(userContent.indexOf('REVISION REQUIRED')).toBeLessThan(userContent.indexOf('Additional Context'));
+    expect(userContent.indexOf('REVISION REQUIRED')).toBeLessThan(userContent.indexOf('## Task'));
+  });
+
+  it('renders feedback without details when rejection_details is empty', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Generate code.' },
+      context: {
+        group_feedback: {
+          iteration: 0,
+          max_iterations: 3,
+          rejection_reason: 'Code quality too low',
+        },
+      },
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).toContain('REVISION REQUIRED');
+    expect(userContent).toContain('Code quality too low');
+    expect(userContent).not.toContain('Issues to fix');
+  });
+
+  it('skips feedback section when group_feedback is absent', () => {
+    const messages = buildPrompt({
+      agent: baseAgent,
+      task: { description: 'Generate code.' },
+      context: {},
+    });
+
+    const userContent = messages.find(m => m.role === 'user')!.content as string;
+    expect(userContent).not.toContain('REVISION REQUIRED');
+  });
+});

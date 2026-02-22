@@ -98,25 +98,12 @@ export function getContextForStage(
 
       case 'group_feedback':
         if (context.groupFeedback) {
-          const fb = context.groupFeedback;
-          const lines = [
-            `\n## FEEDBACK (Iteration ${fb.iteration + 1}/${fb.max_iterations})`,
-            ``,
-            `The previous output was REJECTED.`,
-            `Reason: ${fb.rejection_reason}`,
-          ];
-
-          if (fb.rejection_details?.length) {
-            lines.push(``, `Issues:`);
-            for (const detail of fb.rejection_details) {
-              lines.push(`  - ${detail}`);
-            }
-          }
-
-          lines.push(``, `Address all issues listed above.`);
-
-          agentContext.additional_context =
-            (agentContext.additional_context || '') + '\n' + lines.join('\n');
+          agentContext.group_feedback = {
+            iteration: context.groupFeedback.iteration,
+            max_iterations: context.groupFeedback.max_iterations,
+            rejection_reason: context.groupFeedback.rejection_reason,
+            rejection_details: context.groupFeedback.rejection_details,
+          };
         }
         break;
 
