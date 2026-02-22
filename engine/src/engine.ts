@@ -581,6 +581,7 @@ export class PipelineEngine {
         this.events?.onTaskRetry?.({
           stage: stageDef.name,
           attempt: event.attempt,
+          max_attempts: stageDef.ralph?.max_attempts ?? 3,
           failures: event.allFailures,
           agent_output_raw: rawOutput,
           tool_calls_count: event.result.tool_calls_count,

@@ -52,6 +52,7 @@ export interface StageCompleteEvent {
 export interface StageRetryEvent {
   stage: string;
   attempt: number;
+  max_attempts: number;
   failures: string[];
   agent_output_raw?: string;
   tool_calls_count?: number;
