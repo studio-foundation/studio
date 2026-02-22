@@ -10,17 +10,22 @@ export class ProgressDisplay {
   private toolSpinner: Ora | null = null;
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
-  private displayMode: 'quiet' | 'verbose' | 'live';
   private isStreamingTokens = false;
 
-  private get verbose(): boolean { return this.displayMode === 'verbose'; }
-  private get live(): boolean { return this.displayMode === 'live'; }
+  readonly live: boolean;
+  readonly verbose: boolean;
 
   constructor(
     private jsonMode: boolean,
-    displayMode: 'quiet' | 'verbose' | 'live'
+    mode: 'quiet' | 'verbose' | 'live' | { live: boolean; verbose: boolean }
   ) {
-    this.displayMode = displayMode;
+    if (typeof mode === 'string') {
+      this.live = mode === 'live';
+      this.verbose = mode === 'verbose';
+    } else {
+      this.live = mode.live;
+      this.verbose = mode.verbose;
+    }
   }
 
   interrupt(): void {

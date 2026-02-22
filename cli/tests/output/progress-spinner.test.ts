@@ -128,3 +128,24 @@ describe('ProgressDisplay — token streaming (live mode)', () => {
     writeSpy.mockRestore();
   });
 });
+
+describe('ProgressDisplay — constructor accepts live + verbose booleans', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('accepts {live: true, verbose: false} and behaves like live mode', () => {
+    const d = new ProgressDisplay(false, { live: true, verbose: false });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    expect(ora).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
+  });
+
+  it('accepts {live: false, verbose: false} and behaves like quiet mode', () => {
+    const d = new ProgressDisplay(false, { live: false, verbose: false });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    // quiet mode: uses regular spinner, no thinking spinner
+    expect(ora).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
+  });
+});
