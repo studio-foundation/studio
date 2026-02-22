@@ -22,6 +22,12 @@ stages:
   - name: code-generation
     kind: code
     agent: coder
+    hooks:
+      on_stage_complete:
+        - command: "npx tsc --noEmit"
+          on_failure: reject
+        - command: "npx eslint --rule 'no-empty: error' --rule 'no-unused-vars: warn' {{output.files_changed}}"
+          on_failure: reject
     ralph:
       max_attempts: 3
     context:
