@@ -617,8 +617,11 @@ export class PipelineEngine {
 
     // Run on_stage_complete hooks — only when stage succeeded (including post-validation)
     if (stageStatus === 'success' && stageHooks?.on_stage_complete?.length) {
+      const stageOutput = ralphResult.status === 'success'
+        ? (ralphResult.result?.output as Record<string, unknown> ?? {})
+        : {};
       for (const hook of stageHooks.on_stage_complete) {
-        const hookResult = await runStageHook(hook, hookCwd);
+        const hookResult = await runStageHook(hook, hookCwd, stageOutput);
         if (!hookResult.success) {
           const onFailure = hook.on_failure ?? 'warn';
           if (onFailure === 'reject') {

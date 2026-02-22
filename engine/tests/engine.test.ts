@@ -116,6 +116,26 @@ schema:
   required_fields:
     - summary
 `);
+  writeFileSync(join(PIPELINES_DIR, 'hook-output-template.pipeline.yaml'), `
+name: hook-output-template
+description: Pipeline that verifies on_stage_complete hook receives stage output as template context
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    hooks:
+      on_stage_complete:
+        - command: "sh -c 'echo {{output.files_changed}} | grep -qx file.ts'"
+          on_failure: reject
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+`);
 }
 
 // Setup fixtures before all tests
@@ -318,5 +338,20 @@ describe('PipelineEngine', () => {
     expect(typeof e.total_tokens).toBe('number');
     expect(typeof e.total_tool_calls).toBe('number');
     expect(typeof e.duration_ms).toBe('number');
+  });
+
+  it('on_stage_complete hook receives stage output as template context', async () => {
+    const engine = createTestEngine();
+    const result = await engine.run({
+      pipeline: 'hook-output-template',
+      input: 'test',
+    });
+
+    // The hook checks {{output.files_changed}} == 'file.ts'
+    // The mock provider returns files_changed: ['file.ts'] → renders as 'file.ts'
+    // Without the fix: template not resolved → hook fails → stage rejected
+    // With the fix: template resolves correctly → hook passes → stage succeeds
+    expect(result.status).toBe('success');
+    expect(result.stages[0].status).toBe('success');
   });
 });
