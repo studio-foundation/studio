@@ -1,0 +1,65 @@
+name: feature-builder
+version: 1
+description: "Full-stack feature development pipeline with QA review loop"
+
+# on_pipeline_start:           # Run commands once before any stage starts
+#   - command: "git status --short"
+#     inject_as: git_status
+#   - command: "git log --oneline -5"
+#     inject_as: recent_commits
+#   - command: "cat package.json | jq '.scripts' 2>/dev/null || echo '{}'"
+#     inject_as: available_scripts
+
+stages:
+  - name: brief-analysis
+    kind: analysis
+    agent: analyst
+    contract: brief-analysis
+    context:
+      include:
+        - input
+        # - pipeline_start_context  # Uncomment to include git_status, recent_commits, etc.
+    ralph:
+      max_attempts: 3
+      retry_delay_ms: 1000
+
+  - name: implementation-plan
+    kind: planning
+    agent: analyst
+    contract: implementation-plan
+    context:
+      include:
+        - input
+        - previous_stage_output
+    ralph:
+      max_attempts: 3
+      retry_delay_ms: 1000
+
+  - group: implementation-review
+    max_iterations: 3
+    stages:
+      - name: code-generation
+        kind: code_generation
+        agent: coder
+        contract: code-generation
+        context:
+          include:
+            - input
+            - all_stage_outputs
+            - group_feedback
+            # - pipeline_start_context  # Uncomment to include git_status, recent_commits, etc.
+        ralph:
+          max_attempts: 3
+          retry_delay_ms: 1000
+
+      - name: qa-review
+        kind: qa
+        agent: analyst
+        contract: qa-review
+        context:
+          include:
+            - input
+            - previous_stage_output
+        ralph:
+          max_attempts: 2
+          retry_delay_ms: 500

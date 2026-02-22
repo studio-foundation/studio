@@ -25,6 +25,7 @@ export interface AgentContext {
   repo_files?: string[];
   additional_context?: string;
   context_packs?: ResolvedContextPack[];
+  startup_context?: Record<string, string>;
 }
 
 export interface PromptBuildConfig {
@@ -133,6 +134,14 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
   // Add additional context
   if (context.additional_context) {
     userContent += `## Additional Context\n\n${context.additional_context}\n\n`;
+  }
+
+  // Render pipeline startup context — each key as a ### section
+  if (context.startup_context && Object.keys(context.startup_context).length > 0) {
+    userContent += '## Pipeline Startup Context\n\n';
+    for (const [key, value] of Object.entries(context.startup_context)) {
+      userContent += `### ${key}\n\`\`\`\n${value}\n\`\`\`\n\n`;
+    }
   }
 
   // Add context packs — each as a top-level ## section, sections as ###

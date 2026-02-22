@@ -41,6 +41,7 @@ import { loadPipelineByName } from './pipeline/loader.js';
 import { loadAgentProfile } from './pipeline/agent-loader.js';
 import { loadContract } from './pipeline/contract-loader.js';
 import { loadSkillFiles } from './pipeline/skill-loader.js';
+import { executeStartupCommands } from './pipeline/startup-executor.js';
 import {
   createInitialContext,
   addStageOutput,
@@ -190,6 +191,15 @@ export class PipelineEngine {
 
     // 3. Initialize context
     const pipelineContext = createInitialContext(input.input, this.config.repoPath);
+
+    // Run on_pipeline_start commands to bootstrap dynamic context
+    if (pipeline.on_pipeline_start?.length) {
+      const cwd = this.config.repoPath ?? this.config.configsDir;
+      pipelineContext.startupContext = await executeStartupCommands(
+        pipeline.on_pipeline_start,
+        cwd
+      );
+    }
 
     // 4. Execute stages sequentially (handling groups)
     const totalStages = countTotalStages(pipeline.stages);
