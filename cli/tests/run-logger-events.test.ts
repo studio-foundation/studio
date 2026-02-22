@@ -58,3 +58,30 @@ describe('mergeEvents — pipeline_start', () => {
     expect(entry.input).toBe(largeString);
   });
 });
+
+describe('mergeEvents — pipeline_complete', () => {
+  it('logs pipeline_name from event', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, logger, 'feature-builder', 'test input');
+    // Must call onPipelineStart first to initialize logger
+    events.onPipelineStart!({ pipeline_name: 'feature-builder', run_id: 'run-12345678' });
+    events.onPipelineComplete!({
+      pipeline_name: 'feature-builder',
+      run_id: 'run-12345678',
+      status: 'success',
+      duration_ms: 12345,
+      total_tokens: 5000,
+      total_tool_calls: 7,
+    });
+
+    const entry = entries.find(e => e.event === 'pipeline_complete')!;
+    expect(entry.pipeline_name).toBe('feature-builder');
+    expect(entry.status).toBe('success');
+    expect(entry.duration_ms).toBe(12345);
+    expect(entry.total_tokens).toBe(5000);
+    expect(entry.total_tool_calls).toBe(7);
+  });
+});

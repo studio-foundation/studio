@@ -77,6 +77,7 @@ export function mergeEvents(
       logger.log({
         event: 'pipeline_complete',
         run_id: e.run_id,
+        pipeline_name: e.pipeline_name,
         status: e.status,
         duration_ms: e.duration_ms,
         total_tokens: e.total_tokens,
