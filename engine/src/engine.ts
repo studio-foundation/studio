@@ -42,6 +42,7 @@ import { loadAgentProfile } from './pipeline/agent-loader.js';
 import { loadContract } from './pipeline/contract-loader.js';
 import { loadSkillFiles } from './pipeline/skill-loader.js';
 import { executeStartupCommands } from './pipeline/startup-executor.js';
+import { runStageHook, runToolHook } from './pipeline/hook-executor.js';
 import {
   createInitialContext,
   addStageOutput,
@@ -378,6 +379,9 @@ export class PipelineEngine {
       }
     }
 
+    const stageHooks = stageDef.hooks;
+    const hookCwd = this.config.repoPath ?? this.config.configsDir;
+
     // Load output contract if specified
     let contract: OutputContract | null = null;
     if (stageDef.contract) {
@@ -417,6 +421,89 @@ export class PipelineEngine {
       ? new AnonymizationMiddleware()
       : null;
 
+    // Run on_stage_start hooks before the ralph loop
+    if (stageHooks?.on_stage_start?.length) {
+      for (const hook of stageHooks.on_stage_start) {
+        const hookResult = await runStageHook(hook, hookCwd);
+        if (!hookResult.success) {
+          const onFailure = hook.on_failure ?? 'warn';
+          if (onFailure === 'fail') {
+            stageRun.status = 'failed';
+            stageRun.completed_at = new Date().toISOString();
+            stageRun.tasks = [];
+            this.events?.onStageComplete?.({
+              stage_name: stageDef.name,
+              stage_index: stageIndex,
+              total_stages: totalStages,
+              status: 'failed',
+              attempts: 0,
+              duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
+            });
+            this.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
+            return { stageRun, status: 'failed' };
+          } else if (onFailure === 'reject') {
+            stageRun.status = 'rejected';
+            stageRun.completed_at = new Date().toISOString();
+            stageRun.tasks = [];
+            this.events?.onStageComplete?.({
+              stage_name: stageDef.name,
+              stage_index: stageIndex,
+              total_stages: totalStages,
+              status: 'rejected',
+              attempts: 0,
+              duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
+            });
+            this.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
+            return {
+              stageRun,
+              status: 'rejected',
+              postValidation: {
+                accepted: false,
+                rejection_reason: `on_stage_start hook failed: ${hook.command}`,
+                rejection_details: hookResult.stderr ? [hookResult.stderr] : [],
+              },
+            };
+          } else {
+            // warn (default)
+            console.warn(`[on_stage_start] hook failed for stage "${stageDef.name}": ${hookResult.stderr}`);
+          }
+        }
+      }
+    }
+
+    // Build tool hook callbacks for runAgent
+    const onPreToolUse = stageHooks?.pre_tool_use?.length
+      ? async (event: { tool: string; params: Record<string, unknown>; timestamp: number }) => {
+          const matchingHooks = stageHooks!.pre_tool_use!.filter(h => h.matcher === event.tool);
+          // Fail-fast: first matching hook that fails blocks the tool call; remaining hooks are skipped
+          for (const hook of matchingHooks) {
+            const hookResult = await runToolHook(hook, event.params, hookCwd);
+            if (!hookResult.success) {
+              return { blocked: true, error: `Pre-hook failed: ${hookResult.stderr || hookResult.stdout}` };
+            }
+          }
+          return { blocked: false };
+        }
+      : undefined;
+
+    const onPostToolUse = stageHooks?.post_tool_use?.length
+      ? async (event: { tool: string; params: Record<string, unknown>; result: unknown; error?: string; timestamp: number }) => {
+          const matchingHooks = stageHooks!.post_tool_use!.filter(h => h.matcher === event.tool);
+          for (const hook of matchingHooks) {
+            const hookResult = await runToolHook(hook, event.params, hookCwd);
+            if (!hookResult.success) {
+              const onFailure = hook.on_failure ?? 'warn';
+              if (onFailure === 'reject') {
+                return { append_message: `Post-hook failed: ${hookResult.stderr || hookResult.stdout}` };
+              } else {
+                console.warn(`[post_tool_use] hook failed for "${event.tool}" in stage "${stageDef.name}": ${hookResult.stderr}`);
+              }
+            }
+          }
+          return {};
+        }
+      : undefined;
+
     // Execute ralph loop
     const ralphResult = await ralph<AgentRunResult>({
       executor: async (execContext: RalphExecutionContext) => {
@@ -448,19 +535,23 @@ export class PipelineEngine {
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
           anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
-          callbacks: this.events ? {
-            onToolCallStart: this.events.onToolCallStart,
-            onToolCallComplete: this.events.onToolCallComplete,
-            onAgentThinking: this.events.onAgentThinking
-              ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
-              : undefined,
-            onAgentProgress: this.events.onAgentProgress
-              ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
-              : undefined,
-            onAgentToken: this.events.onAgentToken
-              ? (e) => this.events!.onAgentToken!({ stage: stageDef.name, ...e })
-              : undefined,
-          } : undefined,
+          callbacks: {
+            ...(this.events ? {
+              onToolCallStart: this.events.onToolCallStart,
+              onToolCallComplete: this.events.onToolCallComplete,
+              onAgentThinking: this.events.onAgentThinking
+                ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
+                : undefined,
+              onAgentProgress: this.events.onAgentProgress
+                ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
+                : undefined,
+              onAgentToken: this.events.onAgentToken
+                ? (e) => this.events!.onAgentToken!({ stage: stageDef.name, ...e })
+                : undefined,
+            } : {}),
+            ...(onPreToolUse ? { onPreToolUse } : {}),
+            ...(onPostToolUse ? { onPostToolUse } : {}),
+          },
         });
 
         // Record agent run
@@ -521,6 +612,36 @@ export class PipelineEngine {
 
       if (!postResult.accepted) {
         stageStatus = 'rejected';
+      }
+    }
+
+    // Run on_stage_complete hooks — only when stage succeeded (including post-validation)
+    if (stageStatus === 'success' && stageHooks?.on_stage_complete?.length) {
+      for (const hook of stageHooks.on_stage_complete) {
+        const hookResult = await runStageHook(hook, hookCwd);
+        if (!hookResult.success) {
+          const onFailure = hook.on_failure ?? 'warn';
+          if (onFailure === 'reject') {
+            stageStatus = 'rejected';
+            postResult = {
+              accepted: false,
+              rejection_reason: `on_stage_complete hook failed: ${hook.command}`,
+              rejection_details: hookResult.stderr ? [hookResult.stderr] : [],
+            };
+            break;
+          } else if (onFailure === 'fail') {
+            stageStatus = 'failed';
+            postResult = {
+              accepted: false,
+              rejection_reason: `on_stage_complete hook failed: ${hook.command}`,
+              rejection_details: hookResult.stderr ? [hookResult.stderr] : [],
+            };
+            break;
+          } else {
+            // warn (default)
+            console.warn(`[on_stage_complete] hook failed for stage "${stageDef.name}": ${hookResult.stderr}`);
+          }
+        }
       }
     }
 

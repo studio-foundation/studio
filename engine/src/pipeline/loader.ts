@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand } from '@studio/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand, StageHooks } from '@studio/contracts';
 
 export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   let content: string;
@@ -57,12 +57,12 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
       stages.push({
         group: entry.group,
         max_iterations: entry.max_iterations ?? 3,
-        stages: entry.stages,
+        stages: entry.stages.map((s: any) => ({ ...s, hooks: parseStageHooks(s) })),
       } as StageGroup);
     } else {
       // Simple stage
       validateStageFields(entry, context);
-      stages.push(entry as StageDefinition);
+      stages.push({ ...entry, hooks: parseStageHooks(entry) } as StageDefinition);
     }
   }
 
@@ -89,6 +89,43 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
     stages,
     on_pipeline_start,
   } as unknown as PipelineDefinition;
+}
+
+function parseStageHooks(entry: any): StageHooks | undefined {
+  if (!entry.hooks || typeof entry.hooks !== 'object') return undefined;
+  const h = entry.hooks;
+  const result: StageHooks = {};
+
+  if (Array.isArray(h.on_stage_start)) {
+    result.on_stage_start = h.on_stage_start.map((hk: any) => ({
+      command: String(hk.command ?? ''),
+      on_failure: hk.on_failure ?? 'warn',
+    }));
+  }
+  if (Array.isArray(h.on_stage_complete)) {
+    result.on_stage_complete = h.on_stage_complete.map((hk: any) => ({
+      command: String(hk.command ?? ''),
+      on_failure: hk.on_failure ?? 'warn',
+    }));
+  }
+  if (Array.isArray(h.pre_tool_use)) {
+    result.pre_tool_use = h.pre_tool_use.map((hk: any) => ({
+      matcher: String(hk.matcher ?? ''),
+      command: String(hk.command ?? ''),
+      on_failure: hk.on_failure ?? 'warn',
+    }));
+  }
+  if (Array.isArray(h.post_tool_use)) {
+    result.post_tool_use = h.post_tool_use.map((hk: any) => ({
+      matcher: String(hk.matcher ?? ''),
+      command: String(hk.command ?? ''),
+      on_failure: hk.on_failure ?? 'warn',
+    }));
+  }
+
+  const hasAny = result.on_stage_start || result.on_stage_complete
+    || result.pre_tool_use || result.post_tool_use;
+  return hasAny ? result : undefined;
 }
 
 function validateStageFields(stage: any, context: string): void {

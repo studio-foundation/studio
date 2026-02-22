@@ -43,4 +43,27 @@ export interface RunnerCallbacks {
   onAgentThinking?: (event: AgentThinkingEvent) => void;
   onAgentProgress?: (event: AgentProgressEvent) => void;
   onAgentToken?: (event: AgentTokenEvent) => void;
+
+  /**
+   * Called before tool execution. Return { blocked: true, error } to prevent the tool from running.
+   * The error is surfaced as the tool result so the LLM can react and RALPH loop continues.
+   */
+  onPreToolUse?: (event: {
+    tool: string;
+    params: Record<string, unknown>;
+    timestamp: number;
+  }) => Promise<{ blocked: boolean; error?: string }>;
+
+  /**
+   * Called after tool execution (only if the tool was not blocked).
+   * Return { append_message } to inject a note into the conversation after the tool result.
+   * Only effective in the standard (Chat Completions) provider path.
+   */
+  onPostToolUse?: (event: {
+    tool: string;
+    params: Record<string, unknown>;
+    result: unknown;
+    error?: string;
+    timestamp: number;
+  }) => Promise<{ append_message?: string }>;
 }
