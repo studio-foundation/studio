@@ -19,11 +19,19 @@ export interface TaskInput {
   contract_name?: string;
 }
 
+export interface GroupFeedbackContext {
+  iteration: number;
+  max_iterations: number;
+  rejection_reason: string;
+  rejection_details?: string[];
+}
+
 export interface AgentContext {
   previous_outputs?: Record<string, unknown>;
   previous_tool_results?: Record<string, ToolCall[]>;
   repo_files?: string[];
   additional_context?: string;
+  group_feedback?: GroupFeedbackContext;
   context_packs?: ResolvedContextPack[];
   startup_context?: Record<string, string>;
 }
@@ -117,6 +125,22 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
 
   // Build user message with context
   let userContent = '';
+
+  // Group feedback FIRST — must be the most prominent thing the model sees
+  if (context.group_feedback) {
+    const fb = context.group_feedback;
+    userContent += `## ⚠️ REVISION REQUIRED — Iteration ${fb.iteration + 1}/${fb.max_iterations}\n\n`;
+    userContent += `Your previous implementation was **REJECTED**. You MUST address ALL issues below before proceeding.\n\n`;
+    userContent += `**Reason:** ${fb.rejection_reason}\n\n`;
+    if (fb.rejection_details?.length) {
+      userContent += `**Issues to fix:**\n`;
+      for (const detail of fb.rejection_details) {
+        userContent += `- ${detail}\n`;
+      }
+      userContent += '\n';
+    }
+    userContent += `DO NOT repeat the same approach. Each issue above MUST be resolved in your new implementation.\n\n---\n\n`;
+  }
 
   // Add previous outputs if any
   if (context.previous_outputs && Object.keys(context.previous_outputs).length > 0) {

@@ -174,7 +174,7 @@ describe('group feedback', () => {
     expect(ctx.groupFeedback).toBeUndefined();
   });
 
-  it('getContextForStage injects group_feedback into additional_context', () => {
+  it('getContextForStage populates group_feedback as dedicated field', () => {
     const ctx = createInitialContext('Build a FAQ');
     setGroupFeedback(ctx, {
       iteration: 1,
@@ -188,13 +188,14 @@ describe('group feedback', () => {
     });
     const agentCtx = getContextForStage(ctx, stage);
 
-    expect(agentCtx.additional_context).toContain('Build a FAQ');
-    expect(agentCtx.additional_context).toContain('FEEDBACK');
-    expect(agentCtx.additional_context).toContain('Iteration 2/3');
-    expect(agentCtx.additional_context).toContain('Props not passed to component');
-    expect(agentCtx.additional_context).toContain('Missing onClick handler');
-    expect(agentCtx.additional_context).toContain('Wrong prop type');
-    expect(agentCtx.additional_context).toContain('Address all issues');
+    // Input goes to additional_context, feedback goes to dedicated field
+    expect(agentCtx.additional_context).toBe('Build a FAQ');
+    expect(agentCtx.group_feedback).toEqual({
+      iteration: 1,
+      max_iterations: 3,
+      rejection_reason: 'Props not passed to component',
+      rejection_details: ['Missing onClick handler', 'Wrong prop type'],
+    });
   });
 
   it('group_feedback is ignored when no feedback is set', () => {
@@ -204,8 +205,9 @@ describe('group feedback', () => {
     });
     const agentCtx = getContextForStage(ctx, stage);
 
-    // Only input is present, no feedback text
+    // Only input is present, no feedback
     expect(agentCtx.additional_context).toBe('Build a FAQ');
+    expect(agentCtx.group_feedback).toBeUndefined();
   });
 });
 
