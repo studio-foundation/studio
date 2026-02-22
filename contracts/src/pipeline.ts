@@ -46,7 +46,7 @@ export interface StageHookDef {
 export interface ToolHookDef {
   matcher: string;             // exact tool name to match (e.g. "repo_manager-write_file")
   command: string;
-  on_failure?: HookOnFailure;  // default: 'warn'
+  on_failure?: 'warn' | 'reject';  // default: 'warn' — 'fail' not supported at tool boundary
 }
 
 export interface StageHooks {
