@@ -3,7 +3,37 @@ import { runAgent } from './runner.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
-import type { AgentConfig } from '@studio/contracts';
+import type { AgentConfig, LLMRequest, LLMResponse } from '@studio/contracts';
+import type { Provider } from './providers/provider.js';
+
+/**
+ * A minimal Chat Completions-style provider (NOT AgentLoopProvider).
+ * First call returns one tool call; second call returns the final content.
+ * Tracks the messages received on each call so tests can assert on them.
+ */
+class StandardProvider implements Provider {
+  readonly name = 'standard-mock';
+  private callCount = 0;
+  public receivedMessages: unknown[] = [];
+
+  async call(request: LLMRequest): Promise<LLMResponse> {
+    this.receivedMessages = request.messages as unknown[];
+    this.callCount++;
+    if (this.callCount === 1) {
+      return {
+        content: '',
+        tool_calls: [{ id: 'call-1', name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hello' } }],
+        finish_reason: 'tool_calls',
+      };
+    }
+    // Second call: final response
+    return {
+      content: JSON.stringify({ summary: 'done' }),
+      tool_calls: [],
+      finish_reason: 'stop',
+    };
+  }
+}
 
 function makeConfig(toolCallName: string, toolCallArgs: Record<string, unknown>) {
   const toolRegistry = new ToolRegistry();
@@ -139,5 +169,54 @@ describe('runner — onPostToolUse callback', () => {
     expect(onPostToolUse).toHaveBeenCalled();
     // Result still succeeds
     expect(result.tool_calls_count).toBe(1);
+  });
+
+  it('injects append_message into conversation in standard (Chat Completions) path', async () => {
+    const toolRegistry = new ToolRegistry();
+    const mockExecute = vi.fn().mockResolvedValue({ success: true, output: 'wrote file' });
+    toolRegistry.register({
+      name: 'repo_manager-write_file',
+      description: 'A test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string' },
+          content: { type: 'string' },
+        },
+      },
+      execute: mockExecute,
+    });
+
+    const standardProvider = new StandardProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(standardProvider);
+
+    const agent: AgentConfig = {
+      name: 'test-agent',
+      provider: 'standard-mock',
+      model: 'mock',
+    };
+
+    const onPostToolUse = vi.fn().mockResolvedValue({
+      append_message: 'prettier ran and formatted the file',
+    });
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'write a file', contract_name: 'test-stage' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: { onPostToolUse },
+    });
+
+    expect(onPostToolUse).toHaveBeenCalledOnce();
+    expect(result.tool_calls_count).toBe(1);
+
+    // Verify the post-hook message was injected into the conversation.
+    // The second call to provider.call() should include the tool result message with the append.
+    const secondCallMessages = standardProvider.receivedMessages as Array<{ role: string; content: string }>;
+    const toolResultMessage = secondCallMessages.find(m => m.role === 'user' && m.content.includes('Tool execution results'));
+    expect(toolResultMessage?.content).toContain('Post-hook note: prettier ran and formatted the file');
   });
 });
