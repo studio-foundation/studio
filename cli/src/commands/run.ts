@@ -98,18 +98,8 @@ export function mergeEvents(
     },
     onStageComplete: (e) => {
       progressEvents.onStageComplete?.(e);
-      const output = e.output;
-      const output_fields =
-        output && typeof output === 'object' && !Array.isArray(output)
-          ? Object.keys(output as Record<string, unknown>)
-          : undefined;
-      const output_summary =
-        output !== undefined
-          ? (typeof output === 'string' ? output : JSON.stringify(output)).slice(0, 200)
-          : undefined;
       logger.log({
         event: 'stage_complete',
-        run_id: undefined,
         stage: e.stage_name,
         status: e.status,
         attempts: e.attempts,
@@ -121,9 +111,8 @@ export function mergeEvents(
               total: e.token_usage.total_tokens,
             }
           : undefined,
-        tool_calls: e.tool_calls?.length ?? 0,
-        output_fields,
-        ...(output_summary ? { output_summary } : {}),
+        tool_calls: e.tool_calls,
+        output: e.output,
         ...(e.rejection_reason ? { rejection_reason: e.rejection_reason } : {}),
         ...(e.rejection_details?.length ? { rejection_details: e.rejection_details } : {}),
       });
