@@ -1,6 +1,15 @@
 // cli/src/output/formatters.ts
 import type { ToolCallSummary } from '@studio/engine';
 
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+function titleCase(key: string): string {
+  return key
+    .split(/[-_]/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 // ── Stage name mapping ────────────────────────────────────────────────────────
 
 const STAGE_NAME_PATTERNS: Array<[RegExp, string]> = [
@@ -22,10 +31,7 @@ export function humanReadableStageName(stageName: string): string {
   for (const [pattern, label] of STAGE_NAME_PATTERNS) {
     if (pattern.test(stageName)) return label;
   }
-  return stageName
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return titleCase(stageName);
 }
 
 // ── Tool call grouping ────────────────────────────────────────────────────────
@@ -165,13 +171,6 @@ function circledIndex(i: number): string {
   return i < CIRCLED_DIGITS.length ? CIRCLED_DIGITS[i] : `(${i + 1})`;
 }
 
-function titleCase(key: string): string {
-  return key
-    .split(/[-_]/)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
 function isPrimitive(value: unknown): value is string | number | boolean | null | undefined {
   return value === null || value === undefined || typeof value !== 'object';
 }
@@ -259,6 +258,6 @@ function formatObjectFields(obj: Record<string, unknown>, indent: number, maxDep
  * Detects types dynamically — no hardcoded field names.
  * Returns plain text (no ANSI colors).
  */
-export function formatStageOutput(output: Record<string, unknown>, indent = 0, maxDepth = 4): string {
-  return formatObjectFields(output, indent, maxDepth);
+export function formatStageOutput(output: Record<string, unknown>, maxDepth = 4): string {
+  return formatObjectFields(output, 0, maxDepth);
 }
