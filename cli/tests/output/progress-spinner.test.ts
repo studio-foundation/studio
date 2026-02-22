@@ -148,4 +148,40 @@ describe('ProgressDisplay — constructor accepts live + verbose booleans', () =
     // quiet mode: uses regular spinner, no thinking spinner
     expect(ora).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
   });
+
+  it('prints full tool result in live+verbose mode', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = new ProgressDisplay(false, { live: true, verbose: true });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onToolCallStart!(toolCallStartEvent());
+    events.onToolCallComplete!({
+      tool: 'repo_manager-read_file',
+      result: { content: 'const x = 1;\nconst y = 2;' },
+      duration_ms: 50,
+      timestamp: Date.now(),
+    });
+    // Should print full content, not just "2 lines"
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(allOutput).toContain('const x = 1;');
+    expect(allOutput).toContain('const y = 2;');
+    logSpy.mockRestore();
+  });
+
+  it('does NOT print full tool result in live-only mode', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = new ProgressDisplay(false, { live: true, verbose: false });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onToolCallStart!(toolCallStartEvent());
+    events.onToolCallComplete!({
+      tool: 'repo_manager-read_file',
+      result: { content: 'const x = 1;\nconst y = 2;' },
+      duration_ms: 50,
+      timestamp: Date.now(),
+    });
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(allOutput).not.toContain('const x = 1;');
+    logSpy.mockRestore();
+  });
 });

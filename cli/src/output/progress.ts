@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
-import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput } from './formatters.js';
+import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult } from './formatters.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -260,6 +260,15 @@ export class ProgressDisplay {
           this.toolSpinner?.succeed(chalk.white(this.currentToolText) + chalk.gray(` → ${summary}`));
         }
         this.toolSpinner = null;
+
+        // Verbose: print full tool result below the spinner line
+        if (this.verbose && !event.error) {
+          const full = formatToolResult(event.result);
+          for (const line of full.split('\n')) {
+            console.log(chalk.gray(line));
+          }
+        }
+
         // Restart thinking spinner even on error — LLM still processes the result and may retry
         this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
       },
