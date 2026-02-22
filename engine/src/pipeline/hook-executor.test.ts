@@ -25,6 +25,47 @@ describe('renderHookCommand', () => {
     // {{other}} is not a {{tool.*}} pattern — left as-is
     expect(result).toBe('echo {{other}}');
   });
+
+  it('substitutes {{output.field}} with value from outputContext', () => {
+    const result = renderHookCommand(
+      'npx eslint {{output.files_changed}}',
+      {},
+      { files_changed: 'src/foo.ts' }
+    );
+    expect(result).toBe('npx eslint src/foo.ts');
+  });
+
+  it('space-joins array values from outputContext', () => {
+    const result = renderHookCommand(
+      'npx eslint {{output.files_changed}}',
+      {},
+      { files_changed: ['src/foo.ts', 'src/bar.ts'] }
+    );
+    expect(result).toBe('npx eslint src/foo.ts src/bar.ts');
+  });
+
+  it('returns empty string for missing output field', () => {
+    const result = renderHookCommand(
+      'npx eslint {{output.missing}}',
+      {},
+      {}
+    );
+    expect(result).toBe('npx eslint ');
+  });
+
+  it('handles mixed {{tool.*}} and {{output.*}} in same command', () => {
+    const result = renderHookCommand(
+      'run {{tool.script}} on {{output.files_changed}}',
+      { script: 'check.sh' },
+      { files_changed: 'src/foo.ts' }
+    );
+    expect(result).toBe('run check.sh on src/foo.ts');
+  });
+
+  it('leaves {{tool.*}} unchanged when outputContext not provided', () => {
+    const result = renderHookCommand('echo {{tool.path}}', { path: 'x.ts' });
+    expect(result).toBe('echo x.ts');
+  });
 });
 
 describe('runStageHook', () => {

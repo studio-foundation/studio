@@ -15,18 +15,26 @@ export interface HookResult {
 }
 
 /**
- * Renders {{tool.argName}} placeholders from tool call arguments.
- * Only substitutes {{tool.<word>}} patterns — other placeholders are left unchanged.
- * Unknown args → empty string.
+ * Renders {{tool.argName}} and {{output.field}} placeholders.
+ * Arrays in outputContext are space-joined (CLI-safe).
+ * Unknown keys → empty string.
  */
 export function renderHookCommand(
   command: string,
-  toolArgs: Record<string, unknown>
+  toolArgs: Record<string, unknown>,
+  outputContext: Record<string, unknown> = {}
 ): string {
-  return command.replace(
-    /\{\{tool\.(\w+)\}\}/g,
-    (_, key: string) => (toolArgs[key] !== undefined ? String(toolArgs[key]) : '')
-  );
+  return command
+    .replace(
+      /\{\{tool\.(\w+)\}\}/g,
+      (_, key: string) => (toolArgs[key] !== undefined ? String(toolArgs[key]) : '')
+    )
+    .replace(/\{\{output\.(\w+)\}\}/g, (_, key: string) => {
+      const val = outputContext[key];
+      if (val === undefined) return '';
+      if (Array.isArray(val)) return val.join(' ');
+      return String(val);
+    });
 }
 
 /**
