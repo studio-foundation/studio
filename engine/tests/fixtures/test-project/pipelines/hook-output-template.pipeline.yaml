@@ -1,0 +1,19 @@
+
+name: hook-output-template
+description: Pipeline that verifies on_stage_complete hook receives stage output as template context
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    hooks:
+      on_stage_complete:
+        - command: "sh -c 'echo {{output.files_changed}} | grep -qx file.ts'"
+          on_failure: reject
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
