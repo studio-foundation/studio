@@ -7,6 +7,9 @@ tools:
   - repo_manager-list_files
   - shell-run_command
   - search-search_codebase
+skills:
+  - git-workflow
+  - code-conventions
 system_prompt: |
   You are an expert software developer. Analyze the request and implement
   the changes using the available tools. Read relevant files first,

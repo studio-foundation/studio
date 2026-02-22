@@ -40,6 +40,7 @@ import {
 import { loadPipelineByName } from './pipeline/loader.js';
 import { loadAgentProfile } from './pipeline/agent-loader.js';
 import { loadContract } from './pipeline/contract-loader.js';
+import { loadSkillFiles } from './pipeline/skill-loader.js';
 import {
   createInitialContext,
   addStageOutput,
@@ -353,6 +354,16 @@ export class PipelineEngine {
       const skillChunks = agentConfig.plugins
         .flatMap((p) => this.config.pluginSkills![p] ?? []);
       if (skillChunks.length > 0) {
+        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+      }
+    }
+
+    // Inject project skills (.studio/skills/*.skill.md) for agents that declare skills
+    if (agentConfig.skills?.length) {
+      const skillsDir = join(paths.projectDir, 'skills');
+      const loaded = await loadSkillFiles(agentConfig.skills, skillsDir);
+      if (loaded.length > 0) {
+        const skillChunks = loaded.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
         agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
       }
     }
