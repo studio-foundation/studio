@@ -20,6 +20,7 @@ export interface PipelineContext {
   stageToolResults: Map<string, ToolCall[]>;
   repoPath?: string;
   groupFeedback?: GroupFeedback;
+  startupContext?: Record<string, string>;
 }
 
 export function createInitialContext(input: PipelineInput, repoPath?: string): PipelineContext {
@@ -144,6 +145,12 @@ export function getContextForStage(
       case 'repo_structure':
         // Mark that repo files are needed — the engine populates this
         agentContext.repo_files = agentContext.repo_files ?? [];
+        break;
+
+      case 'pipeline_start_context':
+        if (context.startupContext && Object.keys(context.startupContext).length > 0) {
+          (agentContext as any).startup_context = context.startupContext;
+        }
         break;
     }
   }
