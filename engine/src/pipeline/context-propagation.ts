@@ -149,7 +149,7 @@ export function getContextForStage(
 
       case 'pipeline_start_context':
         if (context.startupContext && Object.keys(context.startupContext).length > 0) {
-          (agentContext as any).startup_context = context.startupContext;
+          agentContext.startup_context = context.startupContext;
         }
         break;
     }
