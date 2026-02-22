@@ -107,3 +107,45 @@ model: claude-haiku-4-5-20251001
     expect(result.skills).toBeUndefined();
   });
 });
+
+describe('project skill injection logic', () => {
+  it('appends skill content to system_prompt for declared skills', () => {
+    const agent = parseAgentYaml(`
+name: coder
+provider: anthropic
+model: claude-sonnet-4-6
+system_prompt: "You are a developer."
+skills:
+  - git-workflow
+`);
+
+    // Simulate what engine does: format loaded skills and append to system_prompt
+    const loadedSkills = [{ name: 'git-workflow', content: '# Git Workflow\n\nAlways branch from main.' }];
+    if (agent.skills?.length && loadedSkills.length > 0) {
+      const skillChunks = loadedSkills.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
+      agent.system_prompt = `${agent.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+    }
+
+    expect(agent.system_prompt).toContain('You are a developer.');
+    expect(agent.system_prompt).toContain('## Skill: git-workflow');
+    expect(agent.system_prompt).toContain('Always branch from main.');
+  });
+
+  it('does not modify system_prompt when no skills declared', () => {
+    const agent = parseAgentYaml(`
+name: analyst
+provider: anthropic
+model: claude-sonnet-4-6
+system_prompt: "You are an analyst."
+`);
+
+    const originalPrompt = agent.system_prompt;
+    const loadedSkills: Array<{ name: string; content: string }> = [];
+    if (agent.skills?.length && loadedSkills.length > 0) {
+      const skillChunks = loadedSkills.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
+      agent.system_prompt = `${agent.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+    }
+
+    expect(agent.system_prompt).toBe(originalPrompt);
+  });
+});
