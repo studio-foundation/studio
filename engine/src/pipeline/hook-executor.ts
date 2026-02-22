@@ -39,12 +39,15 @@ export function renderHookCommand(
 
 /**
  * Run a stage-level hook command (on_stage_start, on_stage_complete).
+ * outputContext provides {{output.<field>}} substitution values (for on_stage_complete).
  */
 export async function runStageHook(
   hook: StageHookDef,
-  cwd: string
+  cwd: string,
+  outputContext: Record<string, unknown> = {}
 ): Promise<HookResult> {
-  return execHook(hook.command, cwd);
+  const command = renderHookCommand(hook.command, {}, outputContext);
+  return execHook(command, cwd);
 }
 
 /**

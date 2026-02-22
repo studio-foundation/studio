@@ -87,6 +87,16 @@ describe('runStageHook', () => {
     expect(result.success).toBe(false);
     expect(result.stderr).toContain('boom');
   });
+
+  it('resolves {{output.files_changed}} from outputContext in command', async () => {
+    const result = await runStageHook(
+      { command: 'echo {{output.files_changed}}', on_failure: 'warn' },
+      '/tmp',
+      { files_changed: ['src/foo.ts', 'src/bar.ts'] }
+    );
+    expect(result.success).toBe(true);
+    expect(result.stdout).toBe('src/foo.ts src/bar.ts');
+  });
 });
 
 describe('runToolHook', () => {
