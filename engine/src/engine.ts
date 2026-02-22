@@ -437,7 +437,7 @@ export class PipelineEngine {
               total_stages: totalStages,
               status: 'failed',
               attempts: 0,
-              duration_ms: 0,
+              duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
             });
             this.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
             return { stageRun, status: 'failed' };
@@ -451,7 +451,7 @@ export class PipelineEngine {
               total_stages: totalStages,
               status: 'rejected',
               attempts: 0,
-              duration_ms: 0,
+              duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
             });
             this.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
             return {
@@ -475,6 +475,7 @@ export class PipelineEngine {
     const onPreToolUse = stageHooks?.pre_tool_use?.length
       ? async (event: { tool: string; params: Record<string, unknown>; timestamp: number }) => {
           const matchingHooks = stageHooks!.pre_tool_use!.filter(h => h.matcher === event.tool);
+          // Fail-fast: first matching hook that fails blocks the tool call; remaining hooks are skipped
           for (const hook of matchingHooks) {
             const hookResult = await runToolHook(hook, event.params, hookCwd);
             if (!hookResult.success) {
@@ -630,6 +631,11 @@ export class PipelineEngine {
             break;
           } else if (onFailure === 'fail') {
             stageStatus = 'failed';
+            postResult = {
+              accepted: false,
+              rejection_reason: `on_stage_complete hook failed: ${hook.command}`,
+              rejection_details: hookResult.stderr ? [hookResult.stderr] : [],
+            };
             break;
           } else {
             // warn (default)
