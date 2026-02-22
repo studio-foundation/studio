@@ -136,6 +136,33 @@ export function summarizeToolResult(result: unknown, error?: string): string {
   return 'Done';
 }
 
+// ── Verbose tool result formatting ───────────────────────────────────────────
+
+/**
+ * Formats the full result of a tool call for verbose display.
+ * Each line is indented with 2 spaces.
+ */
+export function formatToolResult(result: unknown, error?: string): string {
+  if (error) return `  (error) ${error}`;
+  if (result === null || result === undefined) return '  (empty)';
+
+  if (typeof result === 'string') {
+    return result.split('\n').map(line => `  ${line}`).join('\n');
+  }
+
+  if (result !== null && typeof result === 'object' && !Array.isArray(result)) {
+    const obj = result as Record<string, unknown>;
+    if (typeof obj.content === 'string') {
+      if (obj.content.length === 0) return '  (empty content)';
+      return obj.content.split('\n').map(line => `  ${line}`).join('\n');
+    }
+  }
+
+  // Arrays and other objects: indented JSON
+  const json = JSON.stringify(result, null, 2);
+  return json.split('\n').map(line => `  ${line}`).join('\n');
+}
+
 // ── Stage output formatting ─────────────────────────────────────────────────
 
 const CIRCLED_DIGITS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];

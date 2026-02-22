@@ -7,6 +7,7 @@ import {
   summarizeToolParams,
   summarizeToolResult,
   formatStageOutput,
+  formatToolResult,
 } from '../../src/output/formatters.js';
 import type { ToolCallSummary } from '@studio/engine';
 
@@ -321,5 +322,54 @@ describe('formatStageOutput', () => {
     });
     expect(result).toContain('① src/app.ts');
     expect(result).toContain('② src/theme.ts');
+  });
+});
+
+describe('formatToolResult', () => {
+  it('formats a plain string with indentation', () => {
+    const result = formatToolResult('line1\nline2\nline3');
+    expect(result).toBe('  line1\n  line2\n  line3');
+  });
+
+  it('formats a single-line string', () => {
+    const result = formatToolResult('short result');
+    expect(result).toBe('  short result');
+  });
+
+  it('extracts .content from read_file-style results', () => {
+    const result = formatToolResult({ content: 'file content\nline 2' });
+    expect(result).toBe('  file content\n  line 2');
+  });
+
+  it('formats arrays as JSON', () => {
+    const result = formatToolResult(['a.ts', 'b.ts']);
+    expect(result).toContain('a.ts');
+    expect(result).toContain('b.ts');
+  });
+
+  it('formats objects without .content as indented JSON', () => {
+    const result = formatToolResult({ written: true, path: 'src/app.ts' });
+    expect(result).toContain('"written": true');
+    expect(result).toContain('"path": "src/app.ts"');
+  });
+
+  it('returns "  (error)" for error strings', () => {
+    const result = formatToolResult(undefined, 'file not found');
+    expect(result).toBe('  (error) file not found');
+  });
+
+  it('returns "  (empty)" for null', () => {
+    const result = formatToolResult(null);
+    expect(result).toBe('  (empty)');
+  });
+
+  it('returns "  (empty)" for undefined without error', () => {
+    const result = formatToolResult(undefined);
+    expect(result).toBe('  (empty)');
+  });
+
+  it('formats object with .content as empty string', () => {
+    const result = formatToolResult({ content: '' });
+    expect(result).toBe('  (empty content)');
   });
 });
