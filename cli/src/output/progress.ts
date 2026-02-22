@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
-import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput } from './formatters.js';
+import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult } from './formatters.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -10,17 +10,22 @@ export class ProgressDisplay {
   private toolSpinner: Ora | null = null;
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
-  private displayMode: 'quiet' | 'verbose' | 'live';
   private isStreamingTokens = false;
 
-  private get verbose(): boolean { return this.displayMode === 'verbose'; }
-  private get live(): boolean { return this.displayMode === 'live'; }
+  readonly live: boolean;
+  readonly verbose: boolean;
 
   constructor(
     private jsonMode: boolean,
-    displayMode: 'quiet' | 'verbose' | 'live'
+    mode: 'quiet' | 'verbose' | 'live' | { live: boolean; verbose: boolean }
   ) {
-    this.displayMode = displayMode;
+    if (typeof mode === 'string') {
+      this.live = mode === 'live';
+      this.verbose = mode === 'verbose';
+    } else {
+      this.live = mode.live;
+      this.verbose = mode.verbose;
+    }
   }
 
   interrupt(): void {
@@ -116,9 +121,10 @@ export class ProgressDisplay {
           if (summary) console.log(chalk.gray(`  ${summary}`));
         }
 
-        // Formatted output: all modes
+        // Formatted output: all modes (verbose uses unlimited depth)
         if (event.status !== 'rejected' && event.output && typeof event.output === 'object') {
-          const formatted = formatStageOutput(event.output as Record<string, unknown>);
+          const depth = this.verbose ? Infinity : 4;
+          const formatted = formatStageOutput(event.output as Record<string, unknown>, depth);
           if (formatted) {
             for (const line of formatted.split('\n')) {
               console.log(chalk.gray(`  ${line}`));
@@ -126,7 +132,7 @@ export class ProgressDisplay {
           }
         }
 
-        // Verbose extras: token breakdown
+        // Token breakdown: verbose mode (both standalone and live+verbose)
         if (this.verbose && event.token_usage) {
           const u = event.token_usage;
           console.log(chalk.gray(`  Tokens: ${u.prompt_tokens} prompt + ${u.completion_tokens} completion = ${u.total_tokens} total`));
@@ -255,6 +261,15 @@ export class ProgressDisplay {
           this.toolSpinner?.succeed(chalk.white(this.currentToolText) + chalk.gray(` → ${summary}`));
         }
         this.toolSpinner = null;
+
+        // Verbose: print full tool result below the spinner line
+        if (this.verbose && !event.error) {
+          const full = formatToolResult(event.result);
+          for (const line of full.split('\n')) {
+            console.log(chalk.gray(line));
+          }
+        }
+
         // Restart thinking spinner even on error — LLM still processes the result and may retry
         this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
       },
