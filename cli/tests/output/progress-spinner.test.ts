@@ -184,4 +184,49 @@ describe('ProgressDisplay — constructor accepts live + verbose booleans', () =
     expect(allOutput).not.toContain('const x = 1;');
     logSpy.mockRestore();
   });
+
+  it('shows token breakdown in live+verbose mode', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = new ProgressDisplay(false, { live: true, verbose: true });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onStageComplete!({
+      ...stageCompleteEvent(),
+      token_usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 },
+    });
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(allOutput).toContain('Tokens:');
+    expect(allOutput).toContain('1500');
+    logSpy.mockRestore();
+  });
+
+  it('does NOT show token breakdown in live-only mode', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = new ProgressDisplay(false, { live: true, verbose: false });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onStageComplete!({
+      ...stageCompleteEvent(),
+      token_usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 },
+    });
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(allOutput).not.toContain('Tokens:');
+    logSpy.mockRestore();
+  });
+
+  it('passes maxDepth Infinity to formatStageOutput in live+verbose mode', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = new ProgressDisplay(false, { live: true, verbose: true });
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onStageComplete!({
+      ...stageCompleteEvent(),
+      output: { a: { b: { c: { d: { e: 'deep value' } } } } },
+    });
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    // With Infinity depth, 'deep value' should appear as-is, not as JSON
+    expect(allOutput).toContain('deep value');
+    expect(allOutput).not.toContain('{"e":"deep value"}');
+    logSpy.mockRestore();
+  });
 });

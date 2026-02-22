@@ -121,9 +121,10 @@ export class ProgressDisplay {
           if (summary) console.log(chalk.gray(`  ${summary}`));
         }
 
-        // Formatted output: all modes
+        // Formatted output: all modes (verbose uses unlimited depth)
         if (event.status !== 'rejected' && event.output && typeof event.output === 'object') {
-          const formatted = formatStageOutput(event.output as Record<string, unknown>);
+          const depth = this.verbose ? Infinity : 4;
+          const formatted = formatStageOutput(event.output as Record<string, unknown>, depth);
           if (formatted) {
             for (const line of formatted.split('\n')) {
               console.log(chalk.gray(`  ${line}`));
@@ -131,7 +132,7 @@ export class ProgressDisplay {
           }
         }
 
-        // Verbose extras: token breakdown
+        // Token breakdown: verbose mode (both standalone and live+verbose)
         if (this.verbose && event.token_usage) {
           const u = event.token_usage;
           console.log(chalk.gray(`  Tokens: ${u.prompt_tokens} prompt + ${u.completion_tokens} completion = ${u.total_tokens} total`));
