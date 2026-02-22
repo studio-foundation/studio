@@ -17,15 +17,67 @@ contracts ← cli
 
 | Module | Purpose |
 |--------|---------|
-| `pipeline.ts` | `PipelineDefinition`, `StageDefinition`, `GroupDefinition` |
+| `pipeline.ts` | `PipelineDefinition`, `StageDefinition`, `StageGroup`, `StageHooks`, `ToolHookDef`, `StageHookDef`, `StartupCommand` |
 | `stage.ts` | `StageStatus`, `StageResult`, `StageOutput` |
 | `task.ts` | `TaskDefinition`, `RalphSettings` |
-| `agent.ts` | `AgentProfile`, `AgentConfig` |
+| `agent.ts` | `AgentProfile`, `AgentConfig` (includes `plugins`, `skills`, `anonymize`) |
 | `run.ts` | `RunRecord`, `RunStatus`, `RunSummary` |
 | `validation.ts` | `OutputContract`, `ValidationResult`, `ToolCallConstraints` |
 | `provider.ts` | `LLMResponse`, `ToolCall`, `TokenUsage` |
 | `errors.ts` | `StudioError` and subtypes |
 | `context-pack.ts` | `ContextPack`, `ContextPackDefinition` |
+| `tool-plugin.ts` | `ToolPlugin`, `ToolPluginCommand` |
+| `runner-events.ts` | Callback interfaces for streaming: `onToolCallStart`, `onToolCallComplete`, `onAgentThinking`, `onAgentToken` |
+
+## Key types
+
+### Hooks (pipeline.ts)
+
+```typescript
+// Stage-level hook (on_stage_start, on_stage_complete)
+interface StageHookDef {
+  command: string;
+  on_failure?: 'warn' | 'reject' | 'fail';  // default: 'warn'
+}
+
+// Tool-level hook (pre_tool_use, post_tool_use)
+interface ToolHookDef {
+  matcher: string;  // exact tool name, e.g. "repo_manager-write_file"
+  command: string;
+  on_failure?: 'warn' | 'reject';
+}
+
+interface StageHooks {
+  on_stage_start?: StageHookDef[];
+  on_stage_complete?: StageHookDef[];
+  pre_tool_use?: ToolHookDef[];
+  post_tool_use?: ToolHookDef[];
+}
+```
+
+### Agent (agent.ts)
+
+```typescript
+interface AgentConfig {
+  name: string;
+  provider: string;
+  model: string;
+  system_prompt?: string;
+  tools?: string[];
+  plugins?: string[];   // Claude Code plugin names
+  skills?: string[];    // .skill.md file names
+  anonymize?: boolean;  // Enable PII anonymization
+}
+```
+
+### on_pipeline_start (pipeline.ts)
+
+```typescript
+interface StartupCommand {
+  command: string;    // Shell command to run
+  inject_as: string;  // Key to inject stdout under
+}
+```
 
 ## Rules
 

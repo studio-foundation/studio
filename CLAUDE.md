@@ -207,6 +207,22 @@ Le CLI est gratuit forever (comme `git`). L'API hosted est le produit monétisab
 
 **Context propagation** — Chaque stage peut configurer exactement quel contexte il reçoit via `context.include: [...]`. Options disponibles : `input` (input initial du pipeline), `previous_stage_output` (output du stage précédent), `all_stage_outputs` (outputs de tous les stages précédents), `group_feedback` (feedback accumulé dans le group), `repo_files` (fichiers du repo si applicable).
 
+**on_pipeline_start** — Commandes shell exécutées au démarrage du pipeline avant tout stage. Leur stdout est injecté dans le contexte de chaque stage. Cas d'usage : git status, fichiers récemment modifiés, état du projet. Configuré dans le YAML du pipeline via `on_pipeline_start: [{command: "git status", inject_as: "git_status"}]`.
+
+**Hooks de lifecycle** — Commandes shell configurables en YAML qui s'exécutent à des points déterministes du lifecycle. Inspirés des hooks Claude Code — la distinction clé : les YAML sont des suggestions, les hooks sont garantis. 4 types de hooks :
+- `on_stage_start` — avant que le stage s'exécute (pas d'output disponible)
+- `on_stage_complete` — après succès du stage (accès à `{{output.field}}`)
+- `pre_tool_use` — avant un tool call spécifique (matcher exact sur le nom du tool, accès à `{{tool.argName}}`)
+- `post_tool_use` — après un tool call spécifique
+
+Chaque hook a un `on_failure`: `warn` (défaut, log et continue), `reject` (stage → rejected, triggerable group retry), `fail` (stage → failed, stop pipeline). Les hooks `pre_tool_use` avec `on_failure: reject` bloquent le tool call.
+
+**Skills (.skill.md)** — Fichiers markdown dans `.studio/skills/` qui décrivent du contexte procédural (conventions, étapes, patterns d'architecture). Injectés automatiquement dans le system prompt des agents qui les déclarent via `skills: [name]` dans l'agent YAML. Pas de code — juste du markdown.
+
+**Plugin Claude Code** — Studio supporte le format plugin Claude Code complet (`.mcp.json`, `skills/`, `agents/`). Un plugin Claude Code existant peut être utilisé dans Studio sans modification. Les agents déclarent les plugins via `plugins: [plugin-name]` dans l'agent YAML.
+
+**PII Anonymization** — Middleware transparent qui remplace les données sensibles (noms, emails, données financières) par des tokens (`[PERSON_1]`, `[EMAIL_1]`) avant l'envoi au LLM. Keymap local stocké dans `.studio/runs/anonymization/<run-id>.keymap.json` pour reconstruire les vraies valeurs après le run. Activé via `--anonymize` sur `studio run`, ou `anonymize: true` dans l'agent YAML.
+
 **Tool plugin** — Un fichier `.tool.yaml` qui définit des commandes disponibles aux agents. Chaque plugin contient ses paramètres, sa logique d'exécution (shell ou builtin), un prompt snippet auto-injecté, et ses contraintes. Créer un tool = juste du YAML, pas de code.
 
 ## State machine
@@ -297,17 +313,31 @@ Si l'output a `status: rejected`, le stage passe en status `rejected` (pas `fail
 ## Pipeline de référence : software/feature-builder
 
 ```yaml
+on_pipeline_start:
+  - command: "git status --short"
+    inject_as: git_status
+  - command: "git log --oneline -5"
+    inject_as: recent_commits
+
 stages:
   - brief-analysis     → agent: analyst, contract: brief-analysis
   - implementation-plan → agent: analyst, contract: implementation-plan
   - group: implementation-review
     max_iterations: 3
     stages:
-      - code-generation    → agent: coder, contract: code-generation
+      - code-generation
+          agent: coder
+          contract: code-generation
+          hooks:
+            on_stage_complete:
+              - command: "npx tsc --noEmit 2>&1 | head -20"
+                on_failure: reject   # TypeScript errors → group retry
+              - command: "grep -rn 'catch.*{\s*}' src/ | head -5"
+                on_failure: warn     # Silent catch → avertissement
       - qa-review          → agent: analyst, contract: qa-review
 ```
 
-2 stages linéaires + 1 group de 2 stages. Le group implementation-review peut itérer jusqu'à 3 fois si QA rejette. Le stage code-generation a accès au `group_feedback` qui contient les rejets précédents de QA.
+2 stages linéaires + 1 group de 2 stages. Le group implementation-review peut itérer jusqu'à 3 fois si QA rejette. Le stage code-generation a accès au `group_feedback` qui contient les rejets précédents de QA. Les hooks `on_stage_complete` sur code-generation font de l'analyse statique déterministe avant que QA commence.
 
 ## Commandes
 
@@ -315,21 +345,29 @@ stages:
 # Usage quotidien
 studio run <pipeline> --input "..."              # Lancer un pipeline
 studio run <pipeline> --input-file X.yaml        # Lancer avec input YAML
+studio run <pipeline> --live                     # Streaming temps réel (tool calls visibles)
+studio run <pipeline> --provider mock            # Run sans API keys (mock provider)
+studio run <pipeline> --anonymize                # Anonymisation PII avant envoi au LLM
 studio status [run-id]                           # Vérifier le status
 studio list projects                             # Lister les projets
 studio list pipelines                            # Lister les pipelines
 
 # Configuration
-studio init --template <type> --name <projet>    # Créer une app complète
-studio config set provider anthropic --api-key $KEY  # Configurer un provider
+studio init                                      # Wizard interactif (template, provider, tools)
+studio init --template <type> --name <projet>    # Mode direct (CI/CD)
+studio config add-provider                       # Ajouter un provider LLM
+studio config set provider anthropic --api-key $KEY
 studio config set default.model claude-haiku-4-20250514
 studio config list                               # Voir la config (API keys masquées)
 
 # Tools
 studio tools list                                # Tools du projet actif
-studio tools add git --project software          # Installer un tool
+studio tools add git                             # Installer un tool (wizard interactif)
 studio tools remove nutrition                    # Supprimer un tool
 studio tools info git                            # Détail d'un tool
+
+# Templates
+studio template validate <path>                  # Valider la structure d'un template
 
 # Validation
 studio validate <contract> <output.json>         # Valider sans LLM
@@ -420,6 +458,81 @@ Le engine émet des events à chaque étape du pipeline. Définis dans `engine/s
 | `onGroupIteration` | Group itère | `iteration`, `max_iterations` |
 | `onGroupFeedback` | Group rejette | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group termine | `iterations`, `status` |
+| `onToolCallStart` | Tool call commence | `tool`, `params` |
+| `onToolCallComplete` | Tool call termine | `tool`, `result`, `error` |
+| `onAgentThinking` | Agent pense (streaming) | `stage`, `text` |
+| `onAgentProgress` | Agent progresse | `stage`, `message` |
+| `onAgentToken` | Token streamé | `stage`, `token` |
+
+---
+
+## Format Hooks (Lifecycle)
+
+Exemple de stage avec hooks dans le pipeline YAML :
+
+```yaml
+stages:
+  - name: code-generation
+    agent: coder
+    contract: code-generation
+    hooks:
+      on_stage_complete:
+        - command: "npx tsc --noEmit 2>&1 | head -20"
+          on_failure: reject         # TypeScript errors → group retry
+        - command: "grep -r 'catch.*{}' {{output.files_changed}}"
+          on_failure: warn           # Silent catch → log warning
+      pre_tool_use:
+        - matcher: repo_manager-write_file
+          command: "echo 'Writing: {{tool.path}}'"
+          on_failure: warn
+      post_tool_use:
+        - matcher: repo_manager-write_file
+          command: "npx eslint --max-warnings 0 {{tool.path}} 2>&1 | head -10"
+          on_failure: warn
+```
+
+**Substitutions disponibles :**
+- `{{output.field}}` — champ de l'output du stage (dans `on_stage_complete`)
+- `{{tool.argName}}` — argument du tool call (dans `pre_tool_use`, `post_tool_use`)
+- Arrays → joint par espace pour les arguments CLI
+
+**Note de sécurité :** Les valeurs sont substituées verbatim. Les hooks sont authored par les propriétaires du pipeline (trusted), pas par les end users.
+
+## Format on_pipeline_start
+
+```yaml
+name: feature-builder
+on_pipeline_start:
+  - command: "git status --short"
+    inject_as: git_status
+  - command: "git diff --name-only HEAD~1"
+    inject_as: recently_changed
+stages:
+  ...
+```
+
+Le stdout de chaque commande est injecté dans le contexte des stages sous la clé `inject_as`.
+
+## Format Skills (.studio/skills/)
+
+```markdown
+# commit-conventions.skill.md
+Commit messages follow conventional commits format:
+- feat: new feature
+- fix: bug fix
+- refactor: code refactoring
+Always include the package scope: feat(engine): ...
+```
+
+Dans l'agent YAML :
+```yaml
+name: coder
+skills:
+  - commit-conventions
+  - react-patterns
+```
+
+Les fichiers `commit-conventions.skill.md` et `react-patterns.skill.md` sont auto-injectés dans le system prompt.
 
 ---
 
@@ -455,7 +568,9 @@ Le **dernier stage** du group doit avoir `post_validation.rejection_detection` d
 
 ```bash
 DEBUG=studio:* studio run feature-builder --input "..."   # Events détaillés
-studio validate software/code-generation output.json               # Valider sans LLM
+studio run feature-builder --input "..." --live           # Tool calls en temps réel
+studio run feature-builder --provider mock                 # Sans API keys (mock provider)
+studio validate software/code-generation output.json       # Valider sans LLM
 ```
 
 ---

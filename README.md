@@ -232,6 +232,14 @@ The pipelines, tools, and contracts are **versioned with your code** in git. You
 
 **Groups** — Multi-stage feedback loops within a pipeline. A group contains multiple stages (e.g., code-generation + qa-review) that execute in iterations. If the last stage rejects (via post-validation), the group reruns from the start with accumulated feedback. Maximum iterations set via `max_iterations`. Groups enable creation-critique-revision workflows without manual intervention.
 
+**Lifecycle Hooks** — Shell commands configurable in YAML that run at deterministic lifecycle points: `on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`. Hooks can block tool calls, trigger group retries (via `on_failure: reject`), or fail pipelines (via `on_failure: fail`). Template variable substitution: `{{output.field}}` for stage output, `{{tool.argName}}` for tool arguments. This is how you add static analysis, linting, or custom validation without touching TypeScript.
+
+**on_pipeline_start** — Shell commands that run before any stage and inject dynamic context (git status, recent changes, environment state) into every stage's context. The structural guarantee of always-fresh context at pipeline start.
+
+**Skills (.skill.md)** — Markdown files in `.studio/skills/` that describe procedural context (conventions, architectural patterns, step-by-step guides). Auto-injected into the system prompt of agents that declare them via `skills: [name]`. Creating a skill requires no code — just markdown.
+
+**PII Anonymization** — Transparent middleware that replaces sensitive data (names, emails, financial data) with tokens before sending to the LLM. A local keymap in `.studio/runs/anonymization/` lets you reconstruct the original values. Activated via `--anonymize` on `studio run`, or `anonymize: true` in agent YAML.
+
 **Tool Plugin** — A `.tool.yaml` file that defines a set of commands available to agents. Each plugin contains its parameters, execution logic (shell or builtin), a prompt snippet, and its constraints. The prompt snippet is automatically injected into the agent's system prompt — the tool documents itself. Creating a tool requires no code — just YAML.
 
 **Templates** — Architectural patterns that generate complete application starters. Each template provides pipelines, tools, contracts, agents, and code structure for a specific type of app (software, finance, analysis, data, conversation).
@@ -338,22 +346,30 @@ pnpm build
 The CLI is the primary interface. Like `git`, it handles both setup and daily use.
 
 ```bash
-# Generate a new app
+# Generate a new app (interactive wizard)
+studio init
+# Or direct mode
 studio init --template <type> --name <project>
 
 # Daily use
-studio run <project/pipeline> --input "..."     # Run a pipeline
-studio run <project/pipeline> --dry-run         # Validate without calling LLMs
-studio status [run-id]                          # Check run status
-studio list pipelines                           # List available pipelines
-studio validate <contract> <output>             # Validate output against contract
+studio run <pipeline> --input "..."            # Run a pipeline
+studio run <pipeline> --live                   # Stream tool calls in real-time
+studio run <pipeline> --provider mock          # Test without API calls
+studio run <pipeline> --anonymize              # Anonymize PII before sending to LLM
+studio status [run-id]                         # Check run status
+studio list pipelines                          # List available pipelines
+studio validate <contract> <output>            # Validate output against contract
 
 # Setup & config
+studio config add-provider                     # Add an LLM provider (wizard)
 studio config set provider anthropic --api-key $KEY
-studio config list                              # Show config (API keys masked)
-studio tools list                               # List tools in current project
-studio tools add git --project software         # Install a tool plugin
-studio tools info git                           # Show tool details
+studio config list                             # Show config (API keys masked)
+studio tools list                              # List tools in current project
+studio tools add git                           # Install a tool plugin (wizard)
+studio tools info git                          # Show tool details
+
+# Templates
+studio template validate <path>               # Validate a template structure
 ```
 
 ---
@@ -413,17 +429,35 @@ Decision-making power must be held primarily by the people directly affected by 
 
 ## Status
 
-Studio v7 is in active development. The RALPH loop, pipeline engine, CLI, group-based feedback loops, and YAML tool plugin system are functional.
+Studio v7 is in active development.
 
-**Current priority:** Code Builder that works end-to-end. Once validated, the `software` template will be extracted and polished for public use.
+**What's functional:**
+- RALPH loop, pipeline engine, group-based feedback loops
+- YAML tool plugin system (`repo_manager`, `shell`, `search`, `git`, `patch`)
+- Lifecycle hooks (`on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`)
+- Dynamic pipeline startup context (`on_pipeline_start` commands)
+- Skills system (`.skill.md` files auto-injected into agent prompts)
+- PII anonymization middleware (`--anonymize`)
+- Real-time streaming CLI (`--live` with token streaming and animated spinners)
+- `studio init` interactive wizard (template selection, provider config, tool selection)
+- `studio init --template` direct mode (CI/CD-friendly)
+- Template system (`software` template complete with full Code Builder pipeline)
+- Multi-provider (Anthropic with prompt caching, OpenAI, Mock)
+- `pnpm monorepo` with `contracts`, `ralph`, `runner`, `engine`, `cli`
+
+**Current priority:** Code Builder end-to-end validation — Linear webhook → pipeline run → commit + PR creation.
 
 Roadmap:
 1. ✅ Kernel (engine, ralph, runner, contracts, cli)
-2. 🚧 Code Builder (reference product validating `software` template)
-3. 📋 Extract and document `software` template
-4. 📋 Build other templates (`finance`, `analysis`, `data`)
-5. 📋 Community registry for custom templates
-6. 📋 Studio Cloud (hosted API)
+2. ✅ `software` template with feature-builder pipeline
+3. ✅ Lifecycle hooks (configurable YAML)
+4. ✅ Skills (.skill.md context injection)
+5. ✅ PII anonymization middleware
+6. ✅ Real-time streaming CLI
+7. 🚧 Code Builder end-to-end (Linear webhook → PR)
+8. 📋 Other templates (`finance`, `analysis`, `data`)
+9. 📋 Community registry for custom templates
+10. 📋 Studio Cloud (hosted API)
 
 ---
 

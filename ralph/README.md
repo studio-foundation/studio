@@ -18,12 +18,18 @@ engine → ralph(executor, contract) → success | exhausted
 
 ```typescript
 import { ralph, RalphConfig, RalphResult } from '@studio/ralph';
+import { validateSchema, validateToolCalls, validateRequiredTools, compose } from '@studio/ralph';
+import { exponentialBackoff, fixedDelay, noDelay } from '@studio/ralph';
 
 const result = await ralph({
   executor: async (context) => runner.runAgent(context),
-  contract: outputContract,
-  config: { max_attempts: 3, retry_strategy: 'exponential' },
-  context: stageContext,
+  validator: compose(
+    (r) => validateSchema(r.output, contract),
+    (r) => validateToolCalls(r.tool_calls_count, requirements),
+  ),
+  maxAttempts: 3,
+  retryStrategy: exponentialBackoff(1000, 30000),
+  onRetry: async (event) => { /* observability hook */ },
 });
 // result.status: 'success' | 'exhausted'
 ```
@@ -31,13 +37,33 @@ const result = await ralph({
 ## How it works
 
 1. Calls `executor` with current context
-2. Validates the output against the contract (`validator.ts`)
-3. If pass → returns `{ status: 'success', output }`
-4. If fail → enriches context with failure feedback (`context-enricher.ts`), waits (retry strategy), retries
+2. Validates the output using the `validator` function (composed validators)
+3. If pass → returns `{ status: 'success', result }`
+4. If fail → calls `onRetry`, waits (retry strategy), retries with failure context
 5. If max attempts reached → returns `{ status: 'exhausted', attempts }`
+
+## Validators
+
+ralph exports composable validators that the engine uses to build per-stage validation:
+
+| Validator | Purpose |
+|-----------|---------|
+| `validateSchema(output, contract)` | Check required fields are present |
+| `validateToolCalls(count, reqs)` | Check minimum tool call count |
+| `validateRequiredTools(calls, reqs)` | Check specific tools were called |
+| `validateCountedTools(calls, reqs)` | OR semantics — any of these count toward minimum |
+| `compose(...validators)` | Combine multiple validators (all must pass) |
+
+## Retry strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `exponentialBackoff(min, max)` | Exponential backoff with jitter |
+| `fixedDelay(ms)` | Fixed wait between attempts |
+| `noDelay()` | No wait (prompt escalation handled by runner) |
 
 ## Rules
 
 - **ralph doesn't know runner.** The `executor` is `() => Promise<T>`. ralph doesn't care what's behind it.
 - **ralph doesn't know engine.** It takes config, it returns a result. No pipeline state, no events.
-- Validation logic lives in `validator.ts`. Context enrichment (building retry feedback) in `context-enricher.ts`.
+- Validation logic is in exported validators — the engine composes them per stage.
