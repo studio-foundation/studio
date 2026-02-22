@@ -7,6 +7,7 @@ import {
   getToolIcon,
   summarizeToolParams,
   summarizeToolResult,
+  formatStageOutput,
 } from '../../src/output/formatters.js';
 import type { ToolCallSummary } from '@studio/engine';
 
@@ -231,5 +232,126 @@ describe('summarizeToolResult', () => {
 
   it('returns "written" for write_file result object', () => {
     expect(summarizeToolResult({ path: 'src/new.ts', written: true })).toBe('written');
+  });
+});
+
+describe('formatStageOutput', () => {
+  it('renders short strings inline', () => {
+    const result = formatStageOutput({ status: 'approved' });
+    expect(result).toBe('Status : approved');
+  });
+
+  it('renders numbers and booleans inline', () => {
+    const result = formatStageOutput({ score: 42, passed: true });
+    expect(result).toContain('Score  : 42');
+    expect(result).toContain('Passed : true');
+  });
+
+  it('renders null and undefined as dash', () => {
+    const result = formatStageOutput({ value: null });
+    expect(result).toBe('Value : —');
+  });
+
+  it('aligns keys to the longest key name', () => {
+    const result = formatStageOutput({ status: 'ok', summary: 'done' });
+    const lines = result.split('\n');
+    // Both ':' should be at the same column
+    const col0 = lines[0].indexOf(':');
+    const col1 = lines[1].indexOf(':');
+    expect(col0).toBe(col1);
+  });
+
+  it('renders long strings on a new line with indent', () => {
+    const longStr = 'The implementation covers all the requested changes and follows the existing patterns in the codebase correctly.';
+    const result = formatStageOutput({ summary: longStr });
+    expect(result).toContain('Summary :');
+    expect(result).toContain('\n');
+    expect(result).toContain(`    ${longStr}`);
+  });
+
+  it('renders short primitive arrays inline', () => {
+    const result = formatStageOutput({ tags: ['ui', 'css', 'dark-mode'] });
+    expect(result).toBe('Tags : ui, css, dark-mode');
+  });
+
+  it('renders long primitive arrays vertically', () => {
+    const items = Array.from({ length: 10 }, (_, i) => `very-long-tag-name-${i}`);
+    const result = formatStageOutput({ tags: items });
+    expect(result).toContain('Tags :');
+    expect(result).toContain('    • very-long-tag-name-0');
+    expect(result).toContain('    • very-long-tag-name-9');
+  });
+
+  it('renders arrays of objects with numbered indices', () => {
+    const result = formatStageOutput({
+      issues: [
+        { title: 'Missing component', suggestion: 'Add it' },
+        { title: 'Bad import', suggestion: 'Fix it' },
+      ],
+    });
+    expect(result).toContain('Issues :');
+    expect(result).toContain('    ① Missing component');
+    expect(result).toContain('        Suggestion : Add it');
+    expect(result).toContain('    ② Bad import');
+    expect(result).toContain('        Suggestion : Fix it');
+  });
+
+  it('uses fallback numbering beyond 10 items', () => {
+    const items = Array.from({ length: 11 }, (_, i) => ({ name: `item-${i}` }));
+    const result = formatStageOutput({ list: items });
+    expect(result).toContain('(11) item-10');
+  });
+
+  it('renders nested objects with indentation', () => {
+    const result = formatStageOutput({
+      details: { author: 'Alice', score: 95 },
+    });
+    expect(result).toContain('Details :');
+    expect(result).toContain('    Author : Alice');
+    expect(result).toContain('    Score  : 95');
+  });
+
+  it('falls back to compact JSON at depth > 4', () => {
+    const deep = { a: { b: { c: { d: { e: 'deep' } } } } };
+    const result = formatStageOutput(deep);
+    // At depth 4, the innermost value should be JSON
+    expect(result).toContain('{"e":"deep"}');
+  });
+
+  it('handles empty object', () => {
+    expect(formatStageOutput({})).toBe('');
+  });
+
+  it('handles empty arrays', () => {
+    const result = formatStageOutput({ items: [] });
+    expect(result).toBe('Items : (empty)');
+  });
+
+  it('renders a realistic QA output', () => {
+    const output = {
+      status: 'approved_with_notes',
+      summary: 'The implementation is mostly complete.',
+      issues: [
+        { title: 'ThemeToggle not in layout', suggestion: 'Add <ThemeToggle /> to header' },
+        { title: 'localStorage not confirmed', suggestion: 'Implement retrieval logic' },
+      ],
+    };
+    const result = formatStageOutput(output);
+    expect(result).toContain('Status  : approved_with_notes');
+    expect(result).toContain('Summary : The implementation is mostly complete.');
+    expect(result).toContain('Issues  :');
+    expect(result).toContain('    ① ThemeToggle not in layout');
+    expect(result).toContain('    ② localStorage not confirmed');
+  });
+
+  it('renders arrays of objects that have a single string field as compact items', () => {
+    const result = formatStageOutput({
+      files_changed: [
+        { path: 'src/app.ts' },
+        { path: 'src/theme.ts' },
+      ],
+    });
+    expect(result).toContain('① src/app.ts');
+    expect(result).toContain('② src/theme.ts');
   });
 });
