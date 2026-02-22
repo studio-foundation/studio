@@ -337,12 +337,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       }
     }
 
-    if (options.live && options.verbose) {
-      console.warn(chalk.yellow('⚠ Warning: --live includes all --verbose output. Ignoring --verbose.\n'));
-    }
-
-    const displayMode = options.live ? 'live' : options.verbose ? 'verbose' : 'quiet';
-    const progress = new ProgressDisplay(!!options.json, displayMode);
+    const progress = new ProgressDisplay(!!options.json, {
+      live: !!options.live,
+      verbose: !!options.verbose,
+    });
     const runLogger = createRunLogger(process.cwd());
     const events = mergeEvents(
       progress.getEvents(),
