@@ -117,6 +117,49 @@ describe('runner — onPreToolUse callback', () => {
     expect(result.tool_calls[0].result).toBe('wrote file');
     expect(mockExecute).toHaveBeenCalledOnce();
   });
+
+  it('blocks tool execution in standard (Chat Completions) path', async () => {
+    const toolRegistry = new ToolRegistry();
+    const mockExecute = vi.fn().mockResolvedValue({ success: true, output: 'wrote file' });
+    toolRegistry.register({
+      name: 'repo_manager-write_file',
+      description: 'A test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string' },
+          content: { type: 'string' },
+        },
+      },
+      execute: mockExecute,
+    });
+
+    const standardProvider = new StandardProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(standardProvider);
+
+    const agent: AgentConfig = {
+      name: 'test-agent',
+      provider: 'standard-mock',
+      model: 'mock',
+    };
+
+    const onPreToolUse = vi.fn().mockResolvedValue({ blocked: true, error: 'standard-path blocked' });
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'write a file', contract_name: 'test-stage' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      callbacks: { onPreToolUse },
+    });
+
+    expect(result.tool_calls).toHaveLength(1);
+    expect(result.tool_calls[0].error).toContain('standard-path blocked');
+    expect(result.tool_calls[0].result).toBeUndefined();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 });
 
 describe('runner — onPostToolUse callback', () => {

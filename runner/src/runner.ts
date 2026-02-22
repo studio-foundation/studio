@@ -269,13 +269,15 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       executedToolCalls.push(executed);
       allToolCalls.push(executed);
 
-      config.callbacks?.onToolCallComplete?.({
-        tool: tc.name,
-        result: executed.result,
-        error: executed.error,
-        duration_ms: Date.now() - tcStart,
-        timestamp: Date.now(),
-      });
+      if (!wasBlocked) {
+        config.callbacks?.onToolCallComplete?.({
+          tool: tc.name,
+          result: executed.result,
+          error: executed.error,
+          duration_ms: Date.now() - tcStart,
+          timestamp: Date.now(),
+        });
+      }
 
       // post_tool_use: only called if tool was not blocked
       if (!wasBlocked && config.callbacks?.onPostToolUse) {
