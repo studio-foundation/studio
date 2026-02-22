@@ -259,6 +259,6 @@ function formatObjectFields(obj: Record<string, unknown>, indent: number, maxDep
  * Detects types dynamically — no hardcoded field names.
  * Returns plain text (no ANSI colors).
  */
-export function formatStageOutput(output: Record<string, unknown>, maxDepth = 4): string {
-  return formatObjectFields(output, 0, maxDepth);
+export function formatStageOutput(output: Record<string, unknown>, indent = 0, maxDepth = 4): string {
+  return formatObjectFields(output, indent, maxDepth);
 }
