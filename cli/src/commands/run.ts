@@ -121,11 +121,12 @@ export function mergeEvents(
       progressEvents.onTaskRetry?.(e);
       logger.log({
         event: 'stage_retry',
-        run_id: undefined,
         stage: e.stage,
         attempt: e.attempt,
-        max_attempts: 5,
-        failure_reason: e.failures?.length ? e.failures[0] : undefined,
+        max_attempts: e.max_attempts,
+        failures: e.failures,
+        ...(e.agent_output_raw ? { agent_output_raw: e.agent_output_raw } : {}),
+        ...(e.tool_calls_count !== undefined ? { tool_calls_count: e.tool_calls_count } : {}),
       });
     },
     onGroupStart: (e) => {

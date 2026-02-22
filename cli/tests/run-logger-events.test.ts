@@ -152,3 +152,37 @@ describe('mergeEvents — stage_complete', () => {
     expect(entry.tool_calls).toBeUndefined();
   });
 });
+
+describe('mergeEvents — stage_retry', () => {
+  it('logs all failures, real max_attempts, and diagnostic fields', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    events.onTaskRetry!({
+      stage: 'code-generation',
+      attempt: 2,
+      max_attempts: 3,
+      failures: [
+        'missing required field: summary',
+        'tool_calls.minimum: expected 1, got 0',
+      ],
+      agent_output_raw: '{"partial": "data"}',
+      tool_calls_count: 0,
+    });
+
+    const entry = entries.find(e => e.event === 'stage_retry')!;
+    expect(entry.stage).toBe('code-generation');
+    expect(entry.attempt).toBe(2);
+    expect(entry.max_attempts).toBe(3);
+    expect(entry.failures).toEqual([
+      'missing required field: summary',
+      'tool_calls.minimum: expected 1, got 0',
+    ]);
+    expect(entry.agent_output_raw).toBe('{"partial": "data"}');
+    expect(entry.tool_calls_count).toBe(0);
+  });
+});
