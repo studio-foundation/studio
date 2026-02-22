@@ -1,6 +1,15 @@
 // cli/src/output/formatters.ts
 import type { ToolCallSummary } from '@studio/engine';
 
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+function titleCase(key: string): string {
+  return key
+    .split(/[-_]/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 // ── Stage name mapping ────────────────────────────────────────────────────────
 
 const STAGE_NAME_PATTERNS: Array<[RegExp, string]> = [
@@ -22,10 +31,7 @@ export function humanReadableStageName(stageName: string): string {
   for (const [pattern, label] of STAGE_NAME_PATTERNS) {
     if (pattern.test(stageName)) return label;
   }
-  return stageName
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return titleCase(stageName);
 }
 
 // ── Tool call grouping ────────────────────────────────────────────────────────
@@ -88,33 +94,6 @@ export function summarizeToolCalls(toolCalls: ToolCallSummary[]): string {
   return parts.join(', ');
 }
 
-// ── Output summary ────────────────────────────────────────────────────────────
-
-/**
- * Extracts a human-readable summary from a stage output object.
- * Prefers `summary` > `description` > field listing.
- * Never returns raw JSON.
- */
-export function summarizeOutput(output: unknown): string | null {
-  if (output === null || output === undefined) return null;
-  if (typeof output !== 'object' || Array.isArray(output)) return null;
-
-  const o = output as Record<string, unknown>;
-  const keys = Object.keys(o);
-  if (keys.length === 0) return null;
-
-  const truncate = (s: string) => s.length > 150 ? s.slice(0, 150) + '...' : s;
-
-  if (typeof o.summary === 'string' && o.summary.length > 0) {
-    return truncate(o.summary);
-  }
-  if (typeof o.description === 'string' && o.description.length > 0) {
-    return truncate(o.description);
-  }
-
-  return `${keys.length} field${keys.length !== 1 ? 's' : ''}: ${keys.join(', ')}`;
-}
-
 // ── Live mode helpers ─────────────────────────────────────────────────────────
 
 export function getToolIcon(tool: string): string {
@@ -155,4 +134,103 @@ export function summarizeToolResult(result: unknown, error?: string): string {
     if (obj.written === true) return 'written';
   }
   return 'Done';
+}
+
+// ── Stage output formatting ─────────────────────────────────────────────────
+
+const CIRCLED_DIGITS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
+
+function circledIndex(i: number): string {
+  return i < CIRCLED_DIGITS.length ? CIRCLED_DIGITS[i] : `(${i + 1})`;
+}
+
+function isPrimitive(value: unknown): value is string | number | boolean | null | undefined {
+  return value === null || value === undefined || typeof value !== 'object';
+}
+
+function formatValue(value: unknown, indent: number, maxDepth: number): string {
+  const pad = '    '.repeat(indent);
+
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean' || typeof value === 'number') return String(value);
+
+  if (typeof value === 'string') {
+    if (value.length <= 80) return value;
+    return `\n${pad}    ${value}`;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '(empty)';
+
+    // Array of primitives
+    if (value.every(isPrimitive)) {
+      const inline = value.map(v => String(v ?? '—')).join(', ');
+      if (inline.length <= 80) return inline;
+      return '\n' + value.map(v => `${pad}    • ${String(v ?? '—')}`).join('\n');
+    }
+
+    // Array of objects
+    return '\n' + value.map((item, i) => {
+      const idx = circledIndex(i);
+      if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+        const obj = item as Record<string, unknown>;
+        const keys = Object.keys(obj);
+        // Single string field: compact rendering
+        if (keys.length === 1 && typeof obj[keys[0]] === 'string') {
+          return `${pad}    ${idx} ${obj[keys[0]]}`;
+        }
+        // First string field as title, rest as sub-fields
+        const firstStrKey = keys.find(k => typeof obj[k] === 'string');
+        if (firstStrKey && indent + 1 < maxDepth) {
+          const title = obj[firstStrKey] as string;
+          const rest = keys.filter(k => k !== firstStrKey);
+          if (rest.length === 0) return `${pad}    ${idx} ${title}`;
+          const subPad = pad + '        ';
+          const maxKeyLen = Math.max(...rest.map(k => titleCase(k).length));
+          const subFields = rest.map(k => {
+            const label = titleCase(k).padEnd(maxKeyLen);
+            const val = formatValue(obj[k], indent + 2, maxDepth);
+            return `${subPad}${label} : ${val}`;
+          }).join('\n');
+          return `${pad}    ${idx} ${title}\n${subFields}`;
+        }
+      }
+      // Fallback: JSON
+      return `${pad}    ${idx} ${JSON.stringify(item)}`;
+    }).join('\n');
+  }
+
+  // Nested object
+  if (typeof value === 'object') {
+    if (indent + 1 >= maxDepth) return JSON.stringify(value);
+    const obj = value as Record<string, unknown>;
+    const formatted = formatObjectFields(obj, indent + 1, maxDepth);
+    return formatted ? '\n' + formatted : '(empty)';
+  }
+
+  return String(value);
+}
+
+function formatObjectFields(obj: Record<string, unknown>, indent: number, maxDepth: number): string {
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return '';
+
+  const pad = '    '.repeat(indent);
+  const labels = keys.map(k => titleCase(k));
+  const maxKeyLen = Math.max(...labels.map(l => l.length));
+
+  return keys.map((key, i) => {
+    const label = labels[i].padEnd(maxKeyLen);
+    const val = formatValue(obj[key], indent, maxDepth);
+    return `${pad}${label} : ${val}`;
+  }).join('\n');
+}
+
+/**
+ * Formats a stage output object as a human-readable string.
+ * Detects types dynamically — no hardcoded field names.
+ * Returns plain text (no ANSI colors).
+ */
+export function formatStageOutput(output: Record<string, unknown>, maxDepth = 4): string {
+  return formatObjectFields(output, 0, maxDepth);
 }

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
-import { humanReadableStageName, summarizeToolCalls, summarizeOutput, getToolIcon, summarizeToolParams, summarizeToolResult } from './formatters.js';
+import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput } from './formatters.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -116,22 +116,13 @@ export class ProgressDisplay {
           if (summary) console.log(chalk.gray(`  ${summary}`));
         }
 
-        // Output summary: all modes
-        if (event.status !== 'rejected' && event.output) {
-          const summary = summarizeOutput(event.output);
-          if (summary) console.log(chalk.gray(`  ${summary}`));
-        }
-
-        // Verbose extras: full JSON output
-        if (this.verbose && event.output) {
-          console.log(chalk.gray('  Output:'));
-          const json = JSON.stringify(event.output, null, 2);
-          const lines = json.split('\n');
-          for (const line of lines.slice(0, 20)) {
-            console.log(chalk.gray(`    ${line}`));
-          }
-          if (lines.length > 20) {
-            console.log(chalk.gray(`    ... (${lines.length - 20} more lines)`));
+        // Formatted output: all modes
+        if (event.status !== 'rejected' && event.output && typeof event.output === 'object') {
+          const formatted = formatStageOutput(event.output as Record<string, unknown>);
+          if (formatted) {
+            for (const line of formatted.split('\n')) {
+              console.log(chalk.gray(`  ${line}`));
+            }
           }
         }
 
