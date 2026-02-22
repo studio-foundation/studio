@@ -90,7 +90,6 @@ export function mergeEvents(
       progressEvents.onStageStart?.(e);
       logger.log({
         event: 'stage_start',
-        run_id: undefined,
         stage: e.stage_name,
         stage_index: e.stage_index,
         total_stages: e.total_stages,
@@ -133,7 +132,6 @@ export function mergeEvents(
       progressEvents.onGroupStart?.(e);
       logger.log({
         event: 'group_start',
-        run_id: undefined,
         group: e.group_name,
         max_iterations: e.max_iterations,
       });
@@ -142,7 +140,6 @@ export function mergeEvents(
       progressEvents.onGroupIteration?.(e);
       logger.log({
         event: 'group_iteration',
-        run_id: undefined,
         group: e.group_name,
         iteration: e.iteration,
         max_iterations: e.max_iterations,
@@ -152,7 +149,6 @@ export function mergeEvents(
       progressEvents.onGroupFeedback?.(e);
       logger.log({
         event: 'group_feedback',
-        run_id: undefined,
         group: e.group_name,
         iteration: e.iteration,
         rejection_reason: e.rejection_reason,
@@ -163,7 +159,6 @@ export function mergeEvents(
       progressEvents.onGroupComplete?.(e);
       logger.log({
         event: 'group_complete',
-        run_id: undefined,
         group: e.group_name,
         iterations: e.iterations,
         status: e.status,

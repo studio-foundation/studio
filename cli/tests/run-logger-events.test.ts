@@ -272,3 +272,55 @@ describe('mergeEvents — tool call events', () => {
     expect(completeSpy).toHaveBeenCalledWith(completeEvent);
   });
 });
+
+describe('mergeEvents — run_id cleanup', () => {
+  it('does not pass explicit run_id: undefined in stage_start payload', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const payloads: Record<string, unknown>[] = [];
+    const fakeLogger = {
+      start: vi.fn(),
+      log: vi.fn((payload: Record<string, unknown>) => {
+        payloads.push(payload);
+      }),
+      close: vi.fn(),
+      getLogPath: () => '/tmp/test.jsonl',
+    };
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, fakeLogger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+    events.onStageStart!({ stage_name: 'analysis', stage_index: 0, total_stages: 2 });
+
+    const stagePayload = payloads.find(p => p.event === 'stage_start')!;
+    // run_id key should not be present in the payload at all
+    expect('run_id' in stagePayload).toBe(false);
+  });
+
+  it('does not pass explicit run_id: undefined in group handlers', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const payloads: Record<string, unknown>[] = [];
+    const fakeLogger = {
+      start: vi.fn(),
+      log: vi.fn((payload: Record<string, unknown>) => {
+        payloads.push(payload);
+      }),
+      close: vi.fn(),
+      getLogPath: () => '/tmp/test.jsonl',
+    };
+    const noopEvents: EngineEvents = {};
+
+    const events = mergeEvents(noopEvents, fakeLogger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+    events.onGroupStart!({ group_name: 'impl-review', max_iterations: 3 });
+    events.onGroupIteration!({ group_name: 'impl-review', iteration: 1, max_iterations: 3 });
+    events.onGroupFeedback!({ group_name: 'impl-review', iteration: 1, rejection_reason: 'bad', rejection_details: [] });
+    events.onGroupComplete!({ group_name: 'impl-review', iterations: 1, status: 'success' });
+
+    const groupPayloads = payloads.filter(p =>
+      ['group_start', 'group_iteration', 'group_feedback', 'group_complete'].includes(p.event as string)
+    );
+    for (const payload of groupPayloads) {
+      expect('run_id' in payload).toBe(false);
+    }
+  });
+});
