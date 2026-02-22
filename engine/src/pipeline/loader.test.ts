@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePipelineYaml } from './loader.js';
+import type { StageDefinition } from '@studio/contracts';
 
 const MINIMAL_STAGE = `
   - name: analyze
@@ -64,5 +65,64 @@ stages:
 ${MINIMAL_STAGE}
 `;
     expect(() => parsePipelineYaml(yaml)).toThrow("on_pipeline_start entry missing 'inject_as'");
+  });
+});
+
+const PIPELINE_WITH_HOOKS = `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: code-gen
+    kind: code
+    agent: coder
+    hooks:
+      on_stage_start:
+        - command: "git stash"
+          on_failure: warn
+      on_stage_complete:
+        - command: "npx tsc --noEmit"
+          on_failure: reject
+      pre_tool_use:
+        - matcher: "repo_manager-write_file"
+          command: "echo pre {{tool.path}}"
+          on_failure: warn
+      post_tool_use:
+        - matcher: "repo_manager-write_file"
+          command: "npx prettier --write {{tool.path}}"
+          on_failure: warn
+`;
+
+describe('parsePipelineYaml — stage hooks', () => {
+  it('parses all four hook types from a stage', () => {
+    const result = parsePipelineYaml(PIPELINE_WITH_HOOKS);
+    const stage = result.stages[0] as StageDefinition;
+    expect(stage.hooks?.on_stage_start).toEqual([
+      { command: 'git stash', on_failure: 'warn' },
+    ]);
+    expect(stage.hooks?.on_stage_complete).toEqual([
+      { command: 'npx tsc --noEmit', on_failure: 'reject' },
+    ]);
+    expect(stage.hooks?.pre_tool_use).toEqual([
+      { matcher: 'repo_manager-write_file', command: 'echo pre {{tool.path}}', on_failure: 'warn' },
+    ]);
+    expect(stage.hooks?.post_tool_use).toEqual([
+      { matcher: 'repo_manager-write_file', command: 'npx prettier --write {{tool.path}}', on_failure: 'warn' },
+    ]);
+  });
+
+  it('returns undefined hooks when stage has no hooks', () => {
+    const yaml = `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: analyze
+    kind: analysis
+    agent: analyst
+`;
+    const result = parsePipelineYaml(yaml);
+    const stage = result.stages[0] as StageDefinition;
+    expect(stage.hooks).toBeUndefined();
   });
 });
