@@ -82,3 +82,28 @@ plugins:
     expect(agent.system_prompt).toBe(originalPrompt);
   });
 });
+
+describe('skills field parsing', () => {
+  it('parses skills field from agent YAML', () => {
+    const yaml = `
+name: coder
+provider: anthropic
+model: claude-sonnet-4-6
+skills:
+  - git-workflow
+  - code-conventions
+`;
+    const result = parseAgentYaml(yaml);
+    expect(result.skills).toEqual(['git-workflow', 'code-conventions']);
+  });
+
+  it('returns undefined skills when not specified', () => {
+    const yaml = `
+name: analyst
+provider: anthropic
+model: claude-haiku-4-5-20251001
+`;
+    const result = parseAgentYaml(yaml);
+    expect(result.skills).toBeUndefined();
+  });
+});
