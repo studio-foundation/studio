@@ -54,12 +54,7 @@ async function cloneRepo(
   return clonePath;
 }
 
-function inputSummary(input: string | Record<string, unknown>): string {
-  const s = typeof input === 'string' ? input : JSON.stringify(input);
-  return s.length > 200 ? s.slice(0, 200) + '...' : s;
-}
-
-function mergeEvents(
+export function mergeEvents(
   progressEvents: EngineEvents,
   logger: ReturnType<typeof createRunLogger>,
   pipeline: string,
@@ -74,7 +69,7 @@ function mergeEvents(
         event: 'pipeline_start',
         run_id: e.run_id,
         pipeline,
-        input_summary: inputSummary(input),
+        input,
       });
     },
     onPipelineComplete: (e) => {
