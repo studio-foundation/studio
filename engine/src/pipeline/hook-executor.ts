@@ -16,8 +16,12 @@ export interface HookResult {
 
 /**
  * Renders {{tool.argName}} and {{output.field}} placeholders.
- * Arrays in outputContext are space-joined (CLI-safe).
+ * Arrays in outputContext are space-joined for CLI argument passing.
  * Unknown keys → empty string.
+ *
+ * Note: values are substituted verbatim into the command string.
+ * Hook commands are authored by pipeline owners (trusted), not end users.
+ * Do not use with untrusted input sources.
  */
 export function renderHookCommand(
   command: string,
@@ -39,7 +43,8 @@ export function renderHookCommand(
 
 /**
  * Run a stage-level hook command (on_stage_start, on_stage_complete).
- * outputContext provides {{output.<field>}} substitution values (for on_stage_complete).
+ * outputContext provides {{output.<field>}} substitution values.
+ * on_stage_start hooks omit outputContext (no output available before the stage runs).
  */
 export async function runStageHook(
   hook: StageHookDef,
