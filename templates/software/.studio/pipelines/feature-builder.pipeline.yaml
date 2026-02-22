@@ -1,5 +1,6 @@
 name: feature-builder
 version: 1
+description: "Full-stack feature development pipeline with QA review loop"
 
 # on_pipeline_start:           # Run commands once before any stage starts
 #   - command: "git status --short"
@@ -11,6 +12,7 @@ version: 1
 
 stages:
   - name: brief-analysis
+    kind: analysis
     agent: analyst
     contract: brief-analysis
     context:
@@ -22,6 +24,7 @@ stages:
       retry_delay_ms: 1000
 
   - name: implementation-plan
+    kind: planning
     agent: analyst
     contract: implementation-plan
     context:
@@ -36,6 +39,7 @@ stages:
     max_iterations: 3
     stages:
       - name: code-generation
+        kind: code_generation
         agent: coder
         contract: code-generation
         context:
@@ -49,6 +53,7 @@ stages:
           retry_delay_ms: 1000
 
       - name: qa-review
+        kind: qa
         agent: analyst
         contract: qa-review
         context:

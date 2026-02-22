@@ -18,6 +18,7 @@ export async function executeStartupCommands(
       const { stdout } = await execAsync(cmd.command, {
         cwd,
         timeout: COMMAND_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024 * 10,
       });
       result[cmd.inject_as] = stdout.trim();
     } catch (err) {

@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition } from '@studio/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand } from '@studio/contracts';
 
 export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   let content: string;
@@ -67,7 +67,7 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
   }
 
   // Parse on_pipeline_start commands
-  let on_pipeline_start: import('@studio/contracts').StartupCommand[] | undefined;
+  let on_pipeline_start: StartupCommand[] | undefined;
   if (Array.isArray(parsed.on_pipeline_start)) {
     on_pipeline_start = [];
     for (const cmd of parsed.on_pipeline_start as any[]) {
