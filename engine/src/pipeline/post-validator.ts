@@ -47,7 +47,14 @@ export function postValidate(
     const fieldValue = o[reject_if_non_empty];
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
       const details = fieldValue
-        .map(item => typeof item === 'string' ? item : (item as Record<string, unknown>)?.description)
+        .map(item => {
+          if (typeof item === 'string') return item;
+          if (typeof item !== 'object' || item === null) return undefined;
+          const obj = item as Record<string, unknown>;
+          const text = obj.description ?? obj.issue ?? obj.message ?? obj.text ?? obj.error;
+          if (typeof text === 'string' && text.length > 0) return text;
+          return Object.values(obj).find((v): v is string => typeof v === 'string' && v.length > 0);
+        })
         .filter((d): d is string => typeof d === 'string');
 
       const summary = summary_field && typeof o[summary_field] === 'string'
@@ -89,8 +96,16 @@ export function postValidate(
         if (typeof item === 'string') {
           details.push(item);
         } else if (typeof item === 'object' && item !== null) {
-          const desc = (item as Record<string, unknown>).description;
-          if (typeof desc === 'string') details.push(desc);
+          const obj = item as Record<string, unknown>;
+          const text = obj.description ?? obj.issue ?? obj.message ?? obj.text ?? obj.error;
+          if (typeof text === 'string' && text.length > 0) {
+            details.push(text);
+          } else {
+            const firstStr = Object.values(obj).find(
+              (v): v is string => typeof v === 'string' && v.length > 0
+            );
+            if (firstStr !== undefined) details.push(firstStr);
+          }
         }
       }
     }

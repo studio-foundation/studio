@@ -204,6 +204,84 @@ describe('postValidate', () => {
     expect(result.rejection_details).toEqual(['Bland seasoning']);
   });
 
+  it('extracts details from objects using "issue" field when "description" is absent', () => {
+    const contract: OutputContract = {
+      name: 'qa',
+      version: 1,
+      post_validation: {
+        rejection_detection: {
+          field: 'status',
+          approved_values: ['approved'],
+          details_field: 'issues',
+        },
+      },
+    };
+    const result = postValidate(
+      {
+        status: 'rejected',
+        issues: [
+          { issue: 'Missing error handling', severity: 'high' },
+          { issue: 'No input validation' },
+        ],
+      },
+      contract,
+    );
+    expect(result.accepted).toBe(false);
+    expect(result.rejection_details).toEqual(['Missing error handling', 'No input validation']);
+  });
+
+  it('extracts details from objects using "message" field as fallback', () => {
+    const contract: OutputContract = {
+      name: 'qa',
+      version: 1,
+      post_validation: {
+        rejection_detection: {
+          field: 'status',
+          approved_values: ['approved'],
+          details_field: 'issues',
+        },
+      },
+    };
+    const result = postValidate(
+      {
+        status: 'rejected',
+        issues: [
+          { message: 'Auth token not refreshed', file: 'src/auth.ts' },
+        ],
+      },
+      contract,
+    );
+    expect(result.accepted).toBe(false);
+    expect(result.rejection_details).toEqual(['Auth token not refreshed']);
+  });
+
+  it('falls back to first string value for objects with unknown field names', () => {
+    const contract: OutputContract = {
+      name: 'qa',
+      version: 1,
+      post_validation: {
+        rejection_detection: {
+          field: 'status',
+          approved_values: ['approved'],
+          details_field: 'issues',
+        },
+      },
+    };
+    const result = postValidate(
+      {
+        status: 'rejected',
+        issues: [
+          { problem: 'Missing test coverage', severity: 'medium' },
+        ],
+      },
+      contract,
+    );
+    expect(result.accepted).toBe(false);
+    expect(result.rejection_details).toHaveLength(1);
+    // Should extract some string value from the object
+    expect(typeof result.rejection_details![0]).toBe('string');
+  });
+
   it('omits rejection_details when no details_field configured', () => {
     const contract: OutputContract = {
       name: 'qa',
