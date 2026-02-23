@@ -11,6 +11,7 @@ import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { formatResult } from '../output/formatter.js';
 import { createRunLogger } from '../run-logger.js';
+import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 
 interface RunOptions {
@@ -339,12 +340,20 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       verbose: !!options.verbose,
     });
     const runLogger = createRunLogger(process.cwd());
-    const events = mergeEvents(
+    const fileCollector = new FileChangeCollector();
+    const baseEvents = mergeEvents(
       progress.getEvents(),
       runLogger,
       pipelineName,
       input
     );
+    const events: EngineEvents = {
+      ...baseEvents,
+      onToolCallComplete: (e) => {
+        fileCollector.onToolCallComplete(e);
+        baseEvents.onToolCallComplete?.(e);
+      },
+    };
 
     const engine = new PipelineEngine(
       {
@@ -389,6 +398,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       console.log(JSON.stringify(result, null, 2));
     } else {
       formatResult(result);
+      const changes = fileCollector.computeSummary(repoPath);
+      if (changes) {
+        console.log(formatFileChanges(changes));
+      }
     }
 
     process.exit(result.status === 'success' ? 0 : 1);
