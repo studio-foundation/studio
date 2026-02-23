@@ -97,6 +97,16 @@ export function mergeEvents(
         max_attempts: e.max_attempts,
       });
     },
+    onStageContext: (e) => {
+      logger.log({
+        event: 'stage_context',
+        stage: e.stage,
+        run_id: e.run_id,
+        context_keys: e.context_keys,
+        ...(e.context_content !== undefined ? { context_content: e.context_content } : {}),
+        ...(e.system_prompt !== undefined ? { system_prompt: e.system_prompt } : {}),
+      });
+    },
     onStageComplete: (e) => {
       progressEvents.onStageComplete?.(e);
       logger.log({
