@@ -17,6 +17,7 @@ export interface GroupFeedback {
 export interface PipelineContext {
   input: PipelineInput;
   stageOutputs: Map<string, unknown>;
+  stageOutputSizes: Map<string, number>;
   stageToolResults: Map<string, ToolCall[]>;
   repoPath?: string;
   groupFeedback?: GroupFeedback;
@@ -27,6 +28,7 @@ export function createInitialContext(input: PipelineInput, repoPath?: string): P
   return {
     input,
     stageOutputs: new Map(),
+    stageOutputSizes: new Map(),
     stageToolResults: new Map(),
     repoPath,
   };
@@ -38,6 +40,7 @@ export function addStageOutput(
   output: unknown
 ): PipelineContext {
   context.stageOutputs.set(stageName, output);
+  context.stageOutputSizes.set(stageName, JSON.stringify(output).length);
   return context;
 }
 
