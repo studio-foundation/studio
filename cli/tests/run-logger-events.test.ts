@@ -15,7 +15,7 @@ function createCapturingLogger() {
       log: vi.fn((payload: Record<string, unknown>) => {
         entries.push({ ts: new Date().toISOString(), ...payload } as LogEntry);
       }),
-      close: vi.fn(),
+      close: vi.fn().mockResolvedValue(undefined),
       getLogPath: () => '/tmp/test.jsonl',
     },
     entries,
@@ -282,7 +282,7 @@ describe('mergeEvents — run_id cleanup', () => {
       log: vi.fn((payload: Record<string, unknown>) => {
         payloads.push(payload);
       }),
-      close: vi.fn(),
+      close: vi.fn().mockResolvedValue(undefined),
       getLogPath: () => '/tmp/test.jsonl',
     };
     const noopEvents: EngineEvents = {};
@@ -304,7 +304,7 @@ describe('mergeEvents — run_id cleanup', () => {
       log: vi.fn((payload: Record<string, unknown>) => {
         payloads.push(payload);
       }),
-      close: vi.fn(),
+      close: vi.fn().mockResolvedValue(undefined),
       getLogPath: () => '/tmp/test.jsonl',
     };
     const noopEvents: EngineEvents = {};

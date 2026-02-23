@@ -360,10 +360,12 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
 
     const onInterrupt = () => {
       progress.interrupt();
-      runLogger.close();
       process.stderr.write('\n' + chalk.yellow('⚠ Interrupted') + '\n');
-      // Close MCP servers before exiting to avoid orphaned child processes
-      void Promise.allSettled(mcpClients.map((c) => c.close())).then(() => {
+      // Flush logs and close MCP servers before exiting
+      void Promise.all([
+        runLogger.close(),
+        ...mcpClients.map((c) => c.close()),
+      ]).finally(() => {
         process.exit(130);
       });
     };
@@ -378,7 +380,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       });
     } finally {
       process.off('SIGINT', onInterrupt);
-      runLogger.close();
+      await runLogger.close();
       // Stop all MCP servers (even if pipeline failed)
       await Promise.allSettled(mcpClients.map((c) => c.close()));
     }

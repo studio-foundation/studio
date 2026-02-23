@@ -15,7 +15,7 @@ function dateForFilename(): string {
 export interface RunLogger {
   start(runId: string, pipeline: string): void;
   log(payload: Record<string, unknown>): void;
-  close(): void;
+  close(): Promise<void>;
   getLogPath(): string;
 }
 
@@ -46,11 +46,17 @@ export function createRunLogger(cwd: string = process.cwd()): RunLogger {
       }
     },
 
-    close(): void {
-      if (stream) {
-        stream.end();
-        stream = null;
-      }
+    close(): Promise<void> {
+      return new Promise((resolve) => {
+        if (stream) {
+          stream.end(() => {
+            stream = null;
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      });
     },
 
     getLogPath(): string {

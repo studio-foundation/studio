@@ -360,6 +360,56 @@ describe('PipelineEngine', () => {
     expect(typeof e.duration_ms).toBe('number');
   });
 
+  it('emits pipeline_complete with status failed when stage fails', async () => {
+    const pipelineEvents: any[] = [];
+    const badProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ no_summary: true }),
+        tool_calls: [],
+        finish_reason: 'stop',
+      }),
+    };
+
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: { get: vi.fn().mockReturnValue(badProvider), register: vi.fn() } as any,
+        toolRegistry: createMockToolRegistry() as any,
+      },
+      { onPipelineComplete: (e) => pipelineEvents.push(e) }
+    );
+
+    const result = await engine.run({ pipeline: 'simple', input: 'will fail' });
+
+    expect(result.status).toBe('failed');
+    expect(pipelineEvents).toHaveLength(1);
+    expect(pipelineEvents[0].status).toBe('failed');
+    expect(typeof pipelineEvents[0].duration_ms).toBe('number');
+    expect(typeof pipelineEvents[0].total_tokens).toBe('number');
+    expect(typeof pipelineEvents[0].total_tool_calls).toBe('number');
+  });
+
+  it('emits pipeline_complete with status rejected when stage is rejected', async () => {
+    const pipelineEvents: any[] = [];
+
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as any,
+        toolRegistry: createMockToolRegistry() as any,
+      },
+      { onPipelineComplete: (e) => pipelineEvents.push(e) }
+    );
+
+    const result = await engine.run({ pipeline: 'hook-reject-on-failure', input: 'will reject' });
+
+    expect(result.status).toBe('rejected');
+    expect(pipelineEvents).toHaveLength(1);
+    expect(pipelineEvents[0].status).toBe('rejected');
+    expect(typeof pipelineEvents[0].duration_ms).toBe('number');
+  });
+
   it('on_stage_complete hook receives stage output as template context', async () => {
     const engine = createTestEngine();
     const result = await engine.run({
