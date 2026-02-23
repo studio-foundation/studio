@@ -133,6 +133,19 @@ describe('StudioOAuthProvider — callback server', () => {
     expect(p.redirectUrl).toMatch(/^http:\/\/localhost:\d+\/callback$/);
     close();
   });
+
+  it('clears stale clientInformation but preserves tokens on startCallbackServer()', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir);
+    // Seed stale state: clientInformation with old redirect_uri + existing tokens
+    await p.saveClientInformation({ client_id: 'old-client', redirect_uris: ['http://localhost:9999/callback'] } as any);
+    await p.saveTokens({ access_token: 'tok', token_type: 'Bearer' });
+
+    const { close } = await p.startCallbackServer();
+    close();
+
+    expect(await p.clientInformation()).toBeUndefined();
+    expect(await p.tokens()).toEqual({ access_token: 'tok', token_type: 'Bearer' });
+  });
 });
 
 describe('StudioOAuthProvider — redirectToAuthorization', () => {

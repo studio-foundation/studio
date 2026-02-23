@@ -151,6 +151,13 @@ export class StudioOAuthProvider implements OAuthClientProvider {
     const { port } = server.address() as AddressInfo;
     this._callbackPort = port;
 
+    // Clear stale client registration — redirect_uri changes with each new port.
+    // SDK will re-register with the current port's redirect_uri. Tokens are preserved.
+    const existing = await this.load();
+    if (existing.clientInformation) {
+      await this.save({ tokens: existing.tokens });
+    }
+
     const timeout = setTimeout(() => {
       rejectCode(new Error('OAuth authorization timed out. Run again to retry.'));
       server.close();
