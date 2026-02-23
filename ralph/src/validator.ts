@@ -80,22 +80,20 @@ export function validateRequiredTools(toolCalls: ToolCall[], requirements?: Tool
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Check required tools (normalize names so dots and hyphens both match)
   if (requirements?.required_tools && requirements.required_tools.length > 0) {
-    const calledTools = new Set(toolCalls.map(tc => normalizeToolName(tc.name)));
-
     for (const requiredTool of requirements.required_tools) {
-      if (!calledTools.has(normalizeToolName(requiredTool))) {
+      const normalizedRequired = normalizeToolName(requiredTool);
+      const matchingCalls = toolCalls.filter(tc => normalizeToolName(tc.name) === normalizedRequired);
+
+      if (matchingCalls.length === 0) {
         errors.push(`Required tool '${requiredTool}' was not called`);
+      } else if (!matchingCalls.some(isSuccessfulToolCall)) {
+        errors.push(`Required tool '${requiredTool}' has no successful calls (called ${matchingCalls.length} time${matchingCalls.length === 1 ? '' : 's'}, all failed)`);
       }
     }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {

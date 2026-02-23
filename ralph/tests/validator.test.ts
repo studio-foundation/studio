@@ -236,6 +236,39 @@ describe('validateRequiredTools', () => {
     const result = validateRequiredTools(toolCalls, { required_tools: [] });
     expect(result.valid).toBe(true);
   });
+
+  it('ANTI-THÉÂTRE: fails when required tool called but all calls failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'permission denied' },
+      { id: '2', name: 'write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file'] });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("'write_file'");
+    expect(result.errors[0]).toContain('no successful calls');
+  });
+
+  it('ANTI-THÉÂTRE: passes when required tool has at least one successful call', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'ENOENT' },
+      { id: '2', name: 'write_file', arguments: {} }, // success
+    ];
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file'] });
+    expect(result.valid).toBe(true);
+  });
+
+  it('ANTI-THÉÂTRE: error distinguishes never-called from all-failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    // write_file was called but all failed — different error than "was not called"
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file', 'read_file'] });
+    expect(result.errors).toHaveLength(2);
+    // write_file: called but all failed
+    expect(result.errors.some(e => e.includes('write_file') && e.includes('no successful calls'))).toBe(true);
+    // read_file: never called
+    expect(result.errors.some(e => e.includes('read_file') && e.includes('was not called'))).toBe(true);
+  });
 });
 
 describe('validateCountedTools', () => {
