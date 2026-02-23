@@ -438,4 +438,19 @@ describe('PipelineEngine', () => {
       status: 'rejected',
     });
   });
+
+  it('returns cancelled when signal is aborted before stages run', async () => {
+    const controller = new AbortController();
+    controller.abort(); // Pre-aborted
+
+    const engine = createTestEngine();
+    const result = await engine.run({
+      pipeline: 'simple',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(result.stages).toHaveLength(0);
+  });
 });

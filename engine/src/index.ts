@@ -11,6 +11,7 @@ export type {
   PipelineEvent,
   PipelineStartEvent,
   PipelineCompleteEvent,
+  PipelineCancelledEvent,
   StageStartEvent,
   StageCompleteEvent,
   StageRetryEvent,

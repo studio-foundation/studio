@@ -28,6 +28,12 @@ export interface PipelineCompleteEvent {
   total_tool_calls: number;
 }
 
+export interface PipelineCancelledEvent {
+  run_id: string;
+  cancelled_at_stage: string;
+  duration_ms: number;
+}
+
 export interface StageStartEvent {
   stage_name: string;
   stage_index: number;
@@ -98,6 +104,7 @@ export interface StagedAgentTokenEvent extends AgentTokenEvent {
 export interface EngineEvents {
   onPipelineStart?: (event: PipelineStartEvent) => void;
   onPipelineComplete?: (event: PipelineCompleteEvent) => void;
+  onPipelineCancelled?: (event: PipelineCancelledEvent) => void;
   onStageStart?: (event: StageStartEvent) => void;
   onStageComplete?: (event: StageCompleteEvent) => void;
   onTaskRetry?: (event: StageRetryEvent) => void;

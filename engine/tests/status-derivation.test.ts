@@ -65,6 +65,17 @@ describe('deriveStageStatus', () => {
     expect(stageStatus).toBe('failed');
   });
 
+  it('ralph cancelled → stage cancelled', () => {
+    const ralphResult = {
+      status: 'cancelled' as const,
+      lastResult: undefined,
+      attempts: 2,
+    };
+
+    const stageStatus = deriveStageStatus(ralphResult as any);
+    expect(stageStatus).toBe('cancelled');
+  });
+
   it('throws error for invalid ralph status', () => {
     const invalidResult = {
       status: 'invalid_status' as any,

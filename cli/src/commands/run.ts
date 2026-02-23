@@ -165,6 +165,14 @@ export function mergeEvents(
         status: e.status,
       });
     },
+    onPipelineCancelled: (e) => {
+      logger.log({
+        event: 'pipeline_cancelled',
+        run_id: e.run_id,
+        cancelled_at_stage: e.cancelled_at_stage,
+        duration_ms: e.duration_ms,
+      });
+    },
     onToolCallStart: (e) => {
       progressEvents.onToolCallStart?.(e);
       logger.log({
@@ -371,18 +379,21 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       events
     );
 
+    const controller = new AbortController();
+    let forceExitOnNextInterrupt = false;
+
     const onInterrupt = () => {
-      progress.interrupt();
-      process.stderr.write('\n' + chalk.yellow('⚠ Interrupted') + '\n');
-      // Flush logs and close MCP servers before exiting
-      void Promise.all([
-        runLogger.close(),
-        ...mcpClients.map((c) => c.close()),
-      ]).finally(() => {
+      if (forceExitOnNextInterrupt) {
+        // Second Ctrl-C: force exit
         process.exit(130);
-      });
+      }
+      forceExitOnNextInterrupt = true;
+      controller.abort();
+      progress.interrupt();
+      process.stderr.write('\n' + chalk.yellow('⚠ Cancelling run...') + '\n');
     };
-    process.once('SIGINT', onInterrupt);
+    process.on('SIGINT', onInterrupt);
+    process.on('SIGTERM', onInterrupt);
 
     let result;
     try {
@@ -390,9 +401,11 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         pipeline: pipelineName,
         input,
         anonymize: options.anonymize,
+        signal: controller.signal,
       });
     } finally {
       process.off('SIGINT', onInterrupt);
+      process.off('SIGTERM', onInterrupt);
       await runLogger.close();
       // Stop all MCP servers (even if pipeline failed)
       await Promise.allSettled(mcpClients.map((c) => c.close()));
@@ -401,15 +414,26 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     if (options.json) {
       console.log(JSON.stringify(result, null, 2));
     } else {
-      const changes = fileCollector.computeSummary(repoPath);
-      if (changes) {
-        console.log(formatFileChanges(changes));
+      if (result.status === 'cancelled') {
+        const lastStage = result.stages[result.stages.length - 1];
+        const stageName = lastStage?.stage_name ?? 'unknown';
+        const stageIdx = result.stages.length;
+        console.error(chalk.red(`✗ Run cancelled at stage [${stageIdx}] ${stageName}`));
+      } else {
+        formatResult(result);
+        const changes = fileCollector.computeSummary(repoPath);
+        if (changes) {
+          console.log(formatFileChanges(changes));
+        }
       }
       console.log('');
       console.log(chalk.gray(`Run ID: ${progress.runId}`));
       console.log(chalk.gray(`View details: studio status ${progress.runId}`));
     }
 
+    if (result.status === 'cancelled') {
+      process.exit(130);
+    }
     process.exit(result.status === 'success' ? 0 : 1);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);

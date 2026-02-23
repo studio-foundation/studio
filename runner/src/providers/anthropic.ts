@@ -22,19 +22,19 @@ export class AnthropicProvider implements Provider {
     });
   }
 
-  async call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
+  async call(request: LLMRequest, onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
     const params = this.buildParams(request);
 
     if (onToken) {
       // Streaming path
-      const stream = this.client.messages.stream(params);
+      const stream = this.client.messages.stream(params, { signal });
       stream.on('text', (textDelta: string) => onToken(textDelta));
       const response = await stream.finalMessage();
       return this.parseResponse(response);
     }
 
-    // Non-streaming path (unchanged behavior)
-    const response = await this.client.messages.create(params);
+    // Non-streaming path
+    const response = await this.client.messages.create(params, { signal });
     return this.parseResponse(response);
   }
 

@@ -26,14 +26,14 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
   }
 
   // Satisfy Provider interface for simple (no-tool) calls
-  async call(request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
+  async call(request: LLMRequest, _onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
     const input = messagesToInput(request.messages);
     const response = await this.client.responses.create({
       model: request.model,
       input,
       temperature: request.temperature,
       max_output_tokens: request.max_tokens ?? undefined,
-    });
+    }, { signal });
 
     // NOTE: call() is for tool-free requests only.
     // Tool calls in the response are intentionally discarded.
@@ -55,7 +55,8 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
   async runAgentLoop(
     request: LLMRequest,
     executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>,
-    onToken?: (token: string) => void
+    onToken?: (token: string) => void,
+    signal?: AbortSignal
   ): Promise<AgentLoopResult> {
     const tools: FunctionTool[] = (request.tools ?? []).map(t => ({
       type: 'function' as const,
@@ -71,6 +72,10 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
     const MAX_ITERATIONS = 20;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
+      if (signal?.aborted) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+
       let outputItems: ResponseOutputItem[];
       let responseText = '';
 
@@ -139,14 +144,14 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
           ...toolOutputs,
         ];
       } else {
-        // Non-streaming path — existing code unchanged
+        // Non-streaming path
         const response = await this.client.responses.create({
           model: request.model,
           input,
           tools: tools.length > 0 ? tools : undefined,
           temperature: request.temperature,
           max_output_tokens: request.max_tokens ?? undefined,
-        });
+        }, { signal });
 
         if (response.usage) {
           tokenAccumulator.prompt_tokens += response.usage.input_tokens;
