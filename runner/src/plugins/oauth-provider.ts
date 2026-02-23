@@ -98,7 +98,7 @@ export class StudioOAuthProvider implements OAuthClientProvider {
     const redirectUri = this.redirectUrl ?? 'http://localhost/callback';
     return {
       client_name: 'Studio',
-      redirect_uris: [new URL(redirectUri)],
+      redirect_uris: [redirectUri],
     };
   }
 
