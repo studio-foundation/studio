@@ -83,10 +83,11 @@ describe('MCPClient.start() — OAuth dance', () => {
     });
 
     const { UnauthorizedError } = await import('@modelcontextprotocol/sdk/client/auth.js');
-    let connectCallCount = 0;
-    vi.spyOn(client['client'], 'connect').mockImplementation(async () => {
-      connectCallCount++;
-      if (connectCallCount === 1) throw new UnauthorizedError('needs auth');
+    const originalTransport = client['transport'];
+    const transportsPassedToConnect: unknown[] = [];
+    vi.spyOn(client['client'], 'connect').mockImplementation(async (t) => {
+      transportsPassedToConnect.push(t);
+      if (transportsPassedToConnect.length === 1) throw new UnauthorizedError('needs auth');
     });
     const mockFinishAuth = vi.fn().mockResolvedValue(undefined);
     (client['transport'] as any).finishAuth = mockFinishAuth;
@@ -94,7 +95,9 @@ describe('MCPClient.start() — OAuth dance', () => {
     await client.start();
 
     expect(mockFinishAuth).toHaveBeenCalledWith('auth-code-xyz');
-    expect(connectCallCount).toBe(2);
+    expect(transportsPassedToConnect).toHaveLength(2);
+    // Second connect must use a fresh transport (not the already-started one)
+    expect(transportsPassedToConnect[1]).not.toBe(originalTransport);
     expect(mockClose).toHaveBeenCalled();
 
     vi.restoreAllMocks();

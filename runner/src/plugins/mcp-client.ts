@@ -71,6 +71,13 @@ export class MCPClient {
           const code = await codePromise;
           await (this.transport as StreamableHTTPClientTransport).finishAuth(code);
           close();
+          // The SDK closes the client after UnauthorizedError but transport.close() aborts
+          // _abortController without clearing it, so start() would throw "already started!".
+          // Recreate the transport; the client itself is already reset (_transport = undefined).
+          this.transport = new StreamableHTTPClientTransport(
+            new URL((this.def as { url: string }).url),
+            { authProvider: this.oauthProvider }
+          );
           await this.client.connect(this.transport);
         } else {
           close();
