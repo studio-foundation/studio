@@ -31,6 +31,13 @@ interface PatchResult {
  */
 function parseHunks(patch: string): Hunk[] {
   const rawLines = patch.split('\n');
+  // Remove the trailing empty string that split() produces when the patch ends
+  // with '\n'. Without this, the '' is treated as a blank context line and gets
+  // appended to getOldBlock(), causing spurious "Ambiguous match" errors when
+  // the file contains blank lines.
+  if (rawLines.length > 0 && rawLines[rawLines.length - 1] === '') {
+    rawLines.pop();
+  }
   // Filter out --- / +++ headers
   const lines = rawLines.filter(
     (l) => !l.startsWith('---') && !l.startsWith('+++')
@@ -114,6 +121,13 @@ function findMatch(
 ): number {
   // Convert 1-based hint to 0-based
   const hint = hintLine - 1;
+
+  // Pure-insertion hunk: @@ -N,0 ... has no context or removed lines.
+  // Scanning for an empty block would vacuously match every position, so we
+  // insert directly at the hinted position instead.
+  if (oldBlock.length === 0) {
+    return Math.max(0, hint);
+  }
 
   // Fast path: try at the hinted position
   if (hint >= 0 && blockMatchesAt(fileLines, oldBlock, hint)) {

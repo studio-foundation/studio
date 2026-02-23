@@ -297,4 +297,59 @@ describe('apply_patch tool', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('Invalid patch format');
   });
+
+  // Bug: trailing '\n' in patch string → split('\n') produces a trailing ''
+  // which was treated as a blank context line, causing "Ambiguous match" when
+  // the file has multiple blank lines (each blank line matched the '' context).
+  it('does not fail with ambiguous match when all-addition patch ends with newline and file has blank lines', async () => {
+    await fs.writeFile(path.join(tmpDir, 'bug-report.txt'), [
+      'import A',
+      '',
+      'import B',
+      '',
+      'const x = 1',
+      '',
+      'export default x',
+    ].join('\n'));
+
+    // All-addition patch ending with \n — the real-world failure pattern
+    const patch = '@@ -0,0 +1,3 @@\n+new line 1\n+new line 2\n+new line 3\n';
+
+    const result = await tool.execute({ path: 'bug-report.txt', patch });
+
+    expect(result.success).toBe(true);
+    const content = await fs.readFile(path.join(tmpDir, 'bug-report.txt'), 'utf-8');
+    expect(content).toContain('new line 1');
+  });
+
+  it('applies patch with context lines correctly when patch string has trailing newline', async () => {
+    await fs.writeFile(path.join(tmpDir, 'tn.txt'), ['line 1', 'line 2', 'line 3'].join('\n'));
+
+    // Trailing \n makes split produce a trailing '' that must NOT extend the oldBlock
+    const patch = '@@ -1,3 +1,3 @@\n line 1\n-line 2\n+line 2 modified\n line 3\n';
+
+    const result = await tool.execute({ path: 'tn.txt', patch });
+
+    expect(result.success).toBe(true);
+    const content = await fs.readFile(path.join(tmpDir, 'tn.txt'), 'utf-8');
+    expect(content).toContain('line 2 modified');
+  });
+
+  // Bug: when oldBlock is empty (pure insertion, @@ -0,0 +1,N @@), the slow-path
+  // scan vacuously matched every file position → "Ambiguous match".
+  it('applies pure-insertion hunk (@@ -0,0 +1,N @@) by prepending to an existing file', async () => {
+    await fs.writeFile(path.join(tmpDir, 'prepend.txt'), [
+      'existing line 1',
+      'existing line 2',
+    ].join('\n'));
+
+    // Pure-insertion: old side has 0 lines, new side adds 2 lines
+    const patch = '@@ -0,0 +1,2 @@\n+prepended A\n+prepended B';
+
+    const result = await tool.execute({ path: 'prepend.txt', patch });
+
+    expect(result.success).toBe(true);
+    const content = await fs.readFile(path.join(tmpDir, 'prepend.txt'), 'utf-8');
+    expect(content).toBe('prepended A\nprepended B\nexisting line 1\nexisting line 2');
+  });
 });
