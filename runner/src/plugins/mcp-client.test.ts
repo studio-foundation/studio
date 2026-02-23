@@ -42,3 +42,28 @@ describe('MCPClient', () => {
     }).not.toThrow();
   });
 });
+
+describe('MCPClient — OAuth constructor', () => {
+  it('creates an oauthProvider when auth.type is oauth', () => {
+    const client = new MCPClient('linear', 'linear', {
+      type: 'http',
+      url: 'https://mcp.linear.app/mcp',
+      auth: { type: 'oauth' },
+    });
+    expect(client.oauthProvider).toBeDefined();
+  });
+
+  it('does not create oauthProvider for plain HTTP server', () => {
+    const client = new MCPClient('github', 'github', {
+      type: 'http',
+      url: 'https://mcp.github.com/mcp',
+      headers: { Authorization: 'Bearer tok' },
+    });
+    expect(client.oauthProvider).toBeUndefined();
+  });
+
+  it('does not create oauthProvider for stdio server', () => {
+    const client = new MCPClient('myplugin', 'myserver', { command: 'cmd' });
+    expect(client.oauthProvider).toBeUndefined();
+  });
+});

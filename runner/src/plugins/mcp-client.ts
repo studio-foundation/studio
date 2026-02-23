@@ -3,10 +3,12 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Tool } from '../tools/tool-registry.js';
 import type { MCPServerDef } from './plugin-loader.js';
+import { StudioOAuthProvider } from './oauth-provider.js';
 
 export class MCPClient {
   private client: Client;
   private transport: StdioClientTransport | StreamableHTTPClientTransport;
+  oauthProvider: StudioOAuthProvider | undefined;
 
   constructor(
     private pluginName: string,
@@ -14,10 +16,17 @@ export class MCPClient {
     private def: MCPServerDef
   ) {
     if (def.type === 'http') {
-      const headers = this.resolveEnv(def.headers ?? {});
-      this.transport = new StreamableHTTPClientTransport(new URL(def.url), {
-        requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
-      });
+      if (def.auth?.type === 'oauth') {
+        this.oauthProvider = new StudioOAuthProvider(def.url);
+        this.transport = new StreamableHTTPClientTransport(new URL(def.url), {
+          authProvider: this.oauthProvider,
+        });
+      } else {
+        const headers = this.resolveEnv(def.headers ?? {});
+        this.transport = new StreamableHTTPClientTransport(new URL(def.url), {
+          requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
+        });
+      }
     } else {
       const env = this.resolveEnv(def.env ?? {});
       this.transport = new StdioClientTransport({
