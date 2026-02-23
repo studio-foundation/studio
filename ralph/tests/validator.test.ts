@@ -87,51 +87,72 @@ describe('validateSchema', () => {
 });
 
 describe('validateToolCalls', () => {
-  it('passes when minimum met', () => {
-    const result = validateToolCalls(3, { minimum: 2 });
+  const success = (id: string): ToolCall => ({ id, name: 'some_tool', arguments: {} });
+  const failed = (id: string): ToolCall => ({ id, name: 'some_tool', arguments: {}, error: 'ENOENT' });
+
+  it('passes when successful calls meet minimum', () => {
+    const result = validateToolCalls([success('1'), success('2'), success('3')], { minimum: 2 });
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
   it('passes when exactly at minimum', () => {
-    const result = validateToolCalls(2, { minimum: 2 });
+    const result = validateToolCalls([success('1'), success('2')], { minimum: 2 });
     expect(result.valid).toBe(true);
   });
 
   it('fails when below minimum', () => {
-    const result = validateToolCalls(0, { minimum: 1 });
+    const result = validateToolCalls([], { minimum: 1 });
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Expected at least 1 tool call, got 0');
+    expect(result.errors[0]).toContain('Expected at least 1 successful tool call');
   });
 
-  it('uses correct pluralization for singular', () => {
-    const result = validateToolCalls(0, { minimum: 1 });
-    expect(result.errors[0]).toContain('tool call'); // singular
+  it('ANTI-THÉÂTRE: fails when all calls failed', () => {
+    const result = validateToolCalls([failed('1'), failed('2'), failed('3')], { minimum: 1 });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('got 0 successful');
   });
 
-  it('uses correct pluralization for plural', () => {
-    const result = validateToolCalls(0, { minimum: 3 });
-    expect(result.errors[0]).toContain('tool calls'); // plural
+  it('ANTI-THÉÂTRE: excludes failed calls from count', () => {
+    // 1 successful + 2 failed → only 1 counts
+    const result = validateToolCalls([success('1'), failed('2'), failed('3')], { minimum: 2 });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('got 1 successful');
+  });
+
+  it('ANTI-THÉÂTRE: passes when 1 successful + 2 failed and minimum is 1', () => {
+    const result = validateToolCalls([success('1'), failed('2'), failed('3')], { minimum: 1 });
+    expect(result.valid).toBe(true);
+  });
+
+  it('error message mentions failed count when calls were excluded', () => {
+    const result = validateToolCalls([failed('1'), failed('2')], { minimum: 1 });
+    expect(result.errors[0]).toContain('2 failed excluded');
+  });
+
+  it('error message omits excluded count when zero failed calls', () => {
+    const result = validateToolCalls([], { minimum: 1 });
+    expect(result.errors[0]).not.toContain('excluded');
+  });
+
+  it('uses correct pluralization for singular minimum', () => {
+    const result = validateToolCalls([], { minimum: 1 });
+    expect(result.errors[0]).toContain('tool call,'); // singular — "tool call, got"
+  });
+
+  it('uses correct pluralization for plural minimum', () => {
+    const result = validateToolCalls([], { minimum: 3 });
+    expect(result.errors[0]).toContain('tool calls,'); // plural
   });
 
   it('passes when no requirements specified', () => {
-    const result = validateToolCalls(0);
+    const result = validateToolCalls([]);
     expect(result.valid).toBe(true);
   });
 
   it('passes when requirements is empty object', () => {
-    const result = validateToolCalls(0, {});
+    const result = validateToolCalls([], {});
     expect(result.valid).toBe(true);
-  });
-
-  it('ANTI-THÉÂTRE: fails when tool_calls is 0 despite output claiming work done', () => {
-    // This is THE critical test - detecting agent "theater"
-    const toolCallCount = 0; // Agent made zero real tool calls
-
-    const validation = validateToolCalls(toolCallCount, { minimum: 1 });
-
-    expect(validation.valid).toBe(false);
-    expect(validation.errors).toContain('Expected at least 1 tool call, got 0');
   });
 });
 

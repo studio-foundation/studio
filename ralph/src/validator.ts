@@ -47,22 +47,28 @@ export function validateSchema(output: unknown, contract: OutputContract): Valid
   };
 }
 
-export function validateToolCalls(toolCallsCount: number, requirements?: ToolCallRequirements): ValidationResult {
+function isSuccessfulToolCall(tc: ToolCall): boolean {
+  return !tc.error;
+}
+
+export function validateToolCalls(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Check minimum requirement
   if (requirements?.minimum !== undefined) {
-    if (toolCallsCount < requirements.minimum) {
-      errors.push(`Expected at least ${requirements.minimum} tool call${requirements.minimum === 1 ? '' : 's'}, got ${toolCallsCount}`);
+    const successfulCount = toolCalls.filter(isSuccessfulToolCall).length;
+    const failedCount = toolCalls.length - successfulCount;
+
+    if (successfulCount < requirements.minimum) {
+      const plural = requirements.minimum === 1 ? '' : 's';
+      const excluded = failedCount > 0 ? ` (${failedCount} failed excluded)` : '';
+      errors.push(
+        `Expected at least ${requirements.minimum} successful tool call${plural}, got ${successfulCount} successful${excluded}`
+      );
     }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /** Normalize tool name: dots → hyphens so both conventions match */
