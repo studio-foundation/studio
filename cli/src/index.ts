@@ -6,6 +6,7 @@ import { runCommand } from './commands/run.js';
 import { statusCommand } from './commands/status.js';
 import { listCommand } from './commands/list.js';
 import { logsCommand } from './commands/logs.js';
+import { replayCommand } from './commands/replay.js';
 import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
@@ -48,6 +49,12 @@ program
   .option('--raw', 'Output raw JSONL lines')
   .option('--json', 'Output as pretty-printed JSON array')
   .action(logsCommand);
+
+program
+  .command('replay <run-id>')
+  .description('Replay a past pipeline run from JSONL logs (same rendering as --live)')
+  .option('--verbose', 'Show complete outputs and tool call results')
+  .action(replayCommand);
 
 program
   .command('list <resource>')
