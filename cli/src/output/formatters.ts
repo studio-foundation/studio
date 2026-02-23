@@ -10,6 +10,39 @@ function titleCase(key: string): string {
     .join(' ');
 }
 
+// ── Token formatting ──────────────────────────────────────────────────────────
+
+/**
+ * Formats a token count into a compact human-readable string.
+ * 450 → "450", 2100 → "2.1k", 17900 → "17.9k", 1234567 → "1.2M"
+ */
+export function formatTokens(count: number): string {
+  if (count === 0) return '0';
+  if (count < 1000) return String(count);
+  if (count < 1_000_000) {
+    const k = count / 1000;
+    return k % 1 === 0 ? `${k}k` : `${parseFloat(k.toFixed(1))}k`;
+  }
+  const m = count / 1_000_000;
+  return m % 1 === 0 ? `${m}M` : `${parseFloat(m.toFixed(1))}M`;
+}
+
+// ── Stage line formatting ─────────────────────────────────────────────────────
+
+const STAGE_LINE_WIDTH = 42;
+
+/**
+ * Formats a stage progress line with dot-filling for alignment.
+ * formatStageLine("[1/4]", "brief-analysis", "✓ (12s, 2.1k tokens)")
+ * → "[1/4] brief-analysis ............ ✓ (12s, 2.1k tokens)"
+ */
+export function formatStageLine(prefix: string, name: string, suffix: string): string {
+  const left = `${prefix} ${name} `;
+  const dotsNeeded = Math.max(2, STAGE_LINE_WIDTH - left.length);
+  const dots = '.'.repeat(dotsNeeded);
+  return `${left}${dots} ${suffix}`;
+}
+
 // ── Stage name mapping ────────────────────────────────────────────────────────
 
 const STAGE_NAME_PATTERNS: Array<[RegExp, string]> = [
@@ -92,6 +125,14 @@ export function summarizeToolCalls(toolCalls: ToolCallSummary[]): string {
   }
 
   return parts.join(', ');
+}
+
+/** Counts how many tool calls wrote or patched files. */
+export function countWriteFiles(toolCalls: ToolCallSummary[]): number {
+  return toolCalls.filter((tc) => {
+    const action = toolAction(tc.name);
+    return action === 'write_file' || action === 'apply_patch';
+  }).length;
 }
 
 // ── Live mode helpers ─────────────────────────────────────────────────────────
