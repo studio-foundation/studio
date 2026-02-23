@@ -289,7 +289,7 @@ describe('mergeEvents — run_id cleanup', () => {
 
     const events = mergeEvents(noopEvents, fakeLogger, 'pipe', 'input');
     events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
-    events.onStageStart!({ stage_name: 'analysis', stage_index: 0, total_stages: 2 });
+    events.onStageStart!({ stage_name: 'analysis', stage_index: 0, total_stages: 2, max_attempts: 3 });
 
     const stagePayload = payloads.find(p => p.event === 'stage_start')!;
     // run_id key should not be present in the payload at all

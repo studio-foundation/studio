@@ -32,6 +32,7 @@ export interface StageStartEvent {
   stage_name: string;
   stage_index: number;
   total_stages: number;
+  max_attempts: number;
 }
 
 export interface StageCompleteEvent {
