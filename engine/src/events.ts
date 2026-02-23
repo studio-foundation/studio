@@ -89,6 +89,14 @@ export interface GroupCompleteEvent {
   status: string;
 }
 
+export interface StageContextEvent {
+  stage: string;
+  run_id: string;
+  context_keys: Record<string, number>;
+  context_content?: Record<string, unknown>;
+  system_prompt?: string;
+}
+
 export interface StagedAgentThinkingEvent extends AgentThinkingEvent {
   stage: string;
 }
@@ -112,6 +120,7 @@ export interface EngineEvents {
   onGroupIteration?: (event: GroupIterationEvent) => void;
   onGroupFeedback?: (event: GroupFeedbackEvent) => void;
   onGroupComplete?: (event: GroupCompleteEvent) => void;
+  onStageContext?: (event: StageContextEvent) => void;
   // Real-time tool call streaming (used by --live mode)
   onToolCallStart?: (event: ToolCallStartEvent) => void;
   onToolCallComplete?: (event: ToolCallCompleteEvent) => void;
