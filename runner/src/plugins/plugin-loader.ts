@@ -50,7 +50,12 @@ async function loadPlugin(name: string, pluginPath: string): Promise<PluginManif
     try {
       const raw = await readFile(mcpPath, 'utf-8');
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      // Support both wrapped format { mcpServers: { ... } } and flat Claude Code format { serverName: { ... } }
+      // Support both .mcp.json formats:
+      // 1. Wrapped Studio format: { "mcpServers": { "serverName": { ... } } }
+      // 2. Flat Claude Code format: { "serverName": { ... } }
+      // This ensures compatibility with both Studio MCP configurations and
+      // plugins from the Claude Code sandbox that use the flat format.
+      // Fixes STU-122: Plugin loader should support both .mcp.json formats
       if ('mcpServers' in parsed && parsed.mcpServers !== null && typeof parsed.mcpServers === 'object') {
         mcpServers = parsed.mcpServers as Record<string, MCPServerDef>;
       } else {
