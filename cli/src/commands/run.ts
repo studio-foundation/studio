@@ -11,6 +11,7 @@ import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
 import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
+import { formatResult } from '../output/formatter.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 
 interface RunOptions {
