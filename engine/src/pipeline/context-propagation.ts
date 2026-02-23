@@ -17,6 +17,7 @@ export interface GroupFeedback {
 export interface PipelineContext {
   input: PipelineInput;
   stageOutputs: Map<string, unknown>;
+  stageOutputSizes: Map<string, number>;
   stageToolResults: Map<string, ToolCall[]>;
   repoPath?: string;
   groupFeedback?: GroupFeedback;
@@ -27,6 +28,7 @@ export function createInitialContext(input: PipelineInput, repoPath?: string): P
   return {
     input,
     stageOutputs: new Map(),
+    stageOutputSizes: new Map(),
     stageToolResults: new Map(),
     repoPath,
   };
@@ -38,6 +40,7 @@ export function addStageOutput(
   output: unknown
 ): PipelineContext {
   context.stageOutputs.set(stageName, output);
+  context.stageOutputSizes.set(stageName, JSON.stringify(output).length);
   return context;
 }
 
@@ -59,6 +62,75 @@ export function setGroupFeedback(
 
 export function clearGroupFeedback(context: PipelineContext): void {
   context.groupFeedback = undefined;
+}
+
+export function buildContextKeys(
+  agentContext: AgentContext,
+  previousOutputSizes: Map<string, number>,
+): Record<string, number> {
+  const keys: Record<string, number> = {};
+
+  if (agentContext.additional_context !== undefined) {
+    keys['input'] = agentContext.additional_context.length;
+  }
+
+  if (agentContext.previous_outputs && Object.keys(agentContext.previous_outputs).length > 0) {
+    let total = 0;
+    for (const stageName of Object.keys(agentContext.previous_outputs)) {
+      total += previousOutputSizes.get(stageName) ?? 0;
+    }
+    keys['previous_stage_output'] = total;
+  }
+
+  if (agentContext.group_feedback !== undefined) {
+    keys['group_feedback'] = JSON.stringify(agentContext.group_feedback).length;
+  }
+
+  if (agentContext.startup_context) {
+    for (const [key, value] of Object.entries(agentContext.startup_context)) {
+      keys[key] = value.length;
+    }
+  }
+
+  if (agentContext.context_packs?.length) {
+    for (const pack of agentContext.context_packs) {
+      keys[pack.name] = pack.sections.reduce((sum, s) => sum + s.content.length, 0);
+    }
+  }
+
+  return keys;
+}
+
+export function buildContextContent(
+  agentContext: AgentContext,
+): Record<string, unknown> {
+  const content: Record<string, unknown> = {};
+
+  if (agentContext.additional_context !== undefined) {
+    content['input'] = agentContext.additional_context;
+  }
+
+  if (agentContext.previous_outputs && Object.keys(agentContext.previous_outputs).length > 0) {
+    content['previous_stage_output'] = agentContext.previous_outputs;
+  }
+
+  if (agentContext.group_feedback !== undefined) {
+    content['group_feedback'] = agentContext.group_feedback;
+  }
+
+  if (agentContext.startup_context) {
+    for (const [key, value] of Object.entries(agentContext.startup_context)) {
+      content[key] = value;
+    }
+  }
+
+  if (agentContext.context_packs?.length) {
+    for (const pack of agentContext.context_packs) {
+      content[pack.name] = pack;
+    }
+  }
+
+  return content;
 }
 
 export function getContextForStage(
