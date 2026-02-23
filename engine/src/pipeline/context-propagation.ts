@@ -98,6 +98,14 @@ export function buildContextKeys(
     }
   }
 
+  if (agentContext.previous_tool_results && Object.keys(agentContext.previous_tool_results).length > 0) {
+    let total = 0;
+    for (const toolCalls of Object.values(agentContext.previous_tool_results)) {
+      total += JSON.stringify(toolCalls).length;
+    }
+    keys['previous_stage_tool_results'] = total;
+  }
+
   return keys;
 }
 
@@ -128,6 +136,10 @@ export function buildContextContent(
     for (const pack of agentContext.context_packs) {
       content[pack.name] = pack;
     }
+  }
+
+  if (agentContext.previous_tool_results && Object.keys(agentContext.previous_tool_results).length > 0) {
+    content['previous_stage_tool_results'] = agentContext.previous_tool_results;
   }
 
   return content;

@@ -6,7 +6,7 @@ import {
   buildContextKeys,
   buildContextContent,
 } from './context-propagation.js';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition, ToolCall } from '@studio/contracts';
 import type { AgentContext } from '@studio/runner';
 
 const makeStage = (include: string[]): StageDefinition => ({
@@ -146,6 +146,60 @@ describe('buildContextKeys', () => {
     const ctx: AgentContext = { additional_context: 'x' };
     const keys = buildContextKeys(ctx, new Map());
     expect(Object.keys(keys)).toEqual(['input']);
+  });
+});
+
+const WRITE_TOOL_CALL: ToolCall = {
+  id: '1',
+  name: 'repo_manager-write_file',
+  arguments: { path: 'src/foo.ts', content: 'const x = 1;' },
+  result: { written: true },
+};
+
+describe('buildContextKeys — previous_tool_results', () => {
+  it('includes previous_stage_tool_results key with total serialized byte size', () => {
+    const ctx: AgentContext = { previous_tool_results: { 'code-generation': [WRITE_TOOL_CALL] } };
+    const keys = buildContextKeys(ctx, new Map());
+    expect(keys['previous_stage_tool_results']).toBe(JSON.stringify([WRITE_TOOL_CALL]).length);
+  });
+
+  it('sums sizes across multiple stages', () => {
+    const tc2: ToolCall = { id: '2', name: 'repo_manager-read_file', arguments: { path: 'src/bar.ts' }, result: { path: 'src/bar.ts', content: 'hi' } };
+    const ctx: AgentContext = {
+      previous_tool_results: {
+        'stage-a': [WRITE_TOOL_CALL],
+        'stage-b': [tc2],
+      },
+    };
+    const keys = buildContextKeys(ctx, new Map());
+    expect(keys['previous_stage_tool_results']).toBe(
+      JSON.stringify([WRITE_TOOL_CALL]).length + JSON.stringify([tc2]).length
+    );
+  });
+
+  it('omits previous_stage_tool_results when previous_tool_results is absent', () => {
+    const keys = buildContextKeys({}, new Map());
+    expect(keys['previous_stage_tool_results']).toBeUndefined();
+  });
+
+  it('omits previous_stage_tool_results when previous_tool_results is empty', () => {
+    const keys = buildContextKeys({ previous_tool_results: {} }, new Map());
+    expect(keys['previous_stage_tool_results']).toBeUndefined();
+  });
+});
+
+describe('buildContextContent — previous_tool_results', () => {
+  it('maps previous_stage_tool_results to the previous_tool_results object', () => {
+    const ctx: AgentContext = { previous_tool_results: { 'code-generation': [WRITE_TOOL_CALL] } };
+    expect(buildContextContent(ctx)['previous_stage_tool_results']).toEqual({ 'code-generation': [WRITE_TOOL_CALL] });
+  });
+
+  it('omits previous_stage_tool_results when previous_tool_results is absent', () => {
+    expect(buildContextContent({})['previous_stage_tool_results']).toBeUndefined();
+  });
+
+  it('omits previous_stage_tool_results when previous_tool_results is empty', () => {
+    expect(buildContextContent({ previous_tool_results: {} })['previous_stage_tool_results']).toBeUndefined();
   });
 });
 

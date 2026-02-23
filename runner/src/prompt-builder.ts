@@ -314,7 +314,13 @@ function renderToolResults(previous_tool_results: Record<string, ToolCall[]>): s
       if (tc.error) {
         out += `Error: ${tc.error}\n\n`;
       } else {
-        const raw = JSON.stringify(tc.result, null, 2);
+        // For write operations, render the content being written from arguments
+        // (the result is just {written: true} which is not useful for reviewers).
+        // For all other operations, render the result as usual.
+        const writeContent = typeof tc.arguments?.content === 'string'
+          ? tc.arguments.content as string
+          : null;
+        const raw = writeContent ?? JSON.stringify(tc.result, null, 2);
         const body = raw.length > TOOL_RESULT_MAX_CHARS
           ? raw.slice(0, TOOL_RESULT_MAX_CHARS) + '\n[truncated]'
           : raw;
