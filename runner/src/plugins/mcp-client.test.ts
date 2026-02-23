@@ -26,4 +26,19 @@ describe('MCPClient', () => {
     const resolved = client.resolveEnv({ KEY: 'literal-value' });
     expect(resolved.KEY).toBe('literal-value');
   });
+
+  it('uses HTTP transport for type:http — invalid url throws TypeError', () => {
+    // StreamableHTTPClientTransport validates the URL in its constructor via `new URL(url)`.
+    // If the old StdioClientTransport code path runs instead, no error is thrown (command
+    // is only validated at start() time). So a throw here proves the right transport is used.
+    expect(() => {
+      new MCPClient('linear', 'linear', { type: 'http', url: 'not-a-valid-url' });
+    }).toThrow(TypeError);
+  });
+
+  it('constructs successfully with a valid HTTP url', () => {
+    expect(() => {
+      new MCPClient('linear', 'linear', { type: 'http', url: 'https://mcp.linear.app/sse' });
+    }).not.toThrow();
+  });
 });

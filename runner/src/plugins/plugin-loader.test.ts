@@ -39,6 +39,16 @@ beforeAll(async () => {
 
   // Plugin 3: empty — no .mcp.json, no skills
   await mkdir(join(tmpDir, 'empty-plugin'));
+
+  // Plugin 4: flat-plugin — flat .mcp.json (Claude Code format, no mcpServers wrapper)
+  const plugin4 = join(tmpDir, 'flat-plugin');
+  await mkdir(plugin4, { recursive: true });
+  await writeFile(
+    join(plugin4, '.mcp.json'),
+    JSON.stringify({
+      context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
+    })
+  );
 });
 
 afterAll(async () => {
@@ -53,9 +63,9 @@ describe('loadPlugins', () => {
 
   it('loads all plugin directories', async () => {
     const result = await loadPlugins(tmpDir);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
     const names = result.map((p) => p.name).sort();
-    expect(names).toEqual(['analysis', 'code-review', 'empty-plugin']);
+    expect(names).toEqual(['analysis', 'code-review', 'empty-plugin', 'flat-plugin']);
   });
 
   it('parses .mcp.json into mcpServers', async () => {
@@ -92,5 +102,13 @@ describe('loadPlugins', () => {
     const result = await loadPlugins(tmpDir);
     const codeReview = result.find((p) => p.name === 'code-review')!;
     expect(codeReview.path).toBe(join(tmpDir, 'code-review'));
+  });
+
+  it('parses flat .mcp.json without mcpServers wrapper — Claude Code format', async () => {
+    const result = await loadPlugins(tmpDir);
+    const flatPlugin = result.find((p) => p.name === 'flat-plugin')!;
+    expect(flatPlugin.mcpServers).toEqual({
+      context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
+    });
   });
 });

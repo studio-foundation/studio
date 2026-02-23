@@ -1,23 +1,28 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Tool } from '../tools/tool-registry.js';
 import type { MCPServerDef } from './plugin-loader.js';
 
 export class MCPClient {
   private client: Client;
-  private transport: StdioClientTransport;
+  private transport: StdioClientTransport | StreamableHTTPClientTransport;
 
   constructor(
     private pluginName: string,
     private serverName: string,
     private def: MCPServerDef
   ) {
-    const env = this.resolveEnv(def.env ?? {});
-    this.transport = new StdioClientTransport({
-      command: def.command,
-      args: def.args ?? [],
-      env: { ...process.env, ...env } as Record<string, string>,
-    });
+    if (def.type === 'http') {
+      this.transport = new StreamableHTTPClientTransport(new URL(def.url));
+    } else {
+      const env = this.resolveEnv(def.env ?? {});
+      this.transport = new StdioClientTransport({
+        command: def.command,
+        args: def.args ?? [],
+        env: { ...process.env, ...env } as Record<string, string>,
+      });
+    }
     this.client = new Client(
       { name: 'studio', version: '1.0.0' },
       { capabilities: {} }
