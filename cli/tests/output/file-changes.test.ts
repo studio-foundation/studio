@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FileChangeCollector } from '../../src/output/file-changes.js';
+
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(),
+}));
+
+import { execSync } from 'node:child_process';
+const mockExecSync = vi.mocked(execSync);
 
 describe('FileChangeCollector', () => {
   it('collects unique file paths from tool call events', () => {
@@ -63,5 +70,70 @@ describe('FileChangeCollector', () => {
     });
 
     expect(collector.getWrittenPaths()).toEqual(['src/b.ts', 'src/a.ts']);
+  });
+});
+
+describe('FileChangeCollector.computeSummary', () => {
+  beforeEach(() => {
+    mockExecSync.mockReset();
+  });
+
+  it('returns null when no files were written', () => {
+    const collector = new FileChangeCollector();
+    const result = collector.computeSummary('/fake/repo');
+    expect(result).toBeNull();
+  });
+
+  it('parses git diff --numstat for modified files', () => {
+    mockExecSync.mockReturnValue('15\t3\tsrc/app.ts\n');
+
+    const collector = new FileChangeCollector();
+    collector.onToolCallComplete({
+      tool: 'repo_manager-write_file',
+      result: { path: 'src/app.ts', written: true },
+      duration_ms: 10,
+      timestamp: Date.now(),
+    });
+
+    const summary = collector.computeSummary('/fake/repo');
+    expect(summary).toEqual([
+      { path: 'src/app.ts', status: 'M', added: 15, removed: 3 },
+    ]);
+  });
+
+  it('marks files not in git diff as Added with line count', () => {
+    mockExecSync
+      .mockReturnValueOnce('')           // git diff --numstat returns nothing
+      .mockReturnValueOnce('42\n');      // wc -l for the new file
+
+    const collector = new FileChangeCollector();
+    collector.onToolCallComplete({
+      tool: 'repo_manager-write_file',
+      result: { path: 'src/new.ts', written: true },
+      duration_ms: 10,
+      timestamp: Date.now(),
+    });
+
+    const summary = collector.computeSummary('/fake/repo');
+    expect(summary).toEqual([
+      { path: 'src/new.ts', status: 'A', added: 42, removed: 0 },
+    ]);
+  });
+
+  it('returns null when git is not available', () => {
+    mockExecSync.mockImplementation(() => {
+      throw new Error('git not found');
+    });
+
+    const collector = new FileChangeCollector();
+    collector.onToolCallComplete({
+      tool: 'repo_manager-write_file',
+      result: { path: 'src/app.ts', written: true },
+      duration_ms: 10,
+      timestamp: Date.now(),
+    });
+
+    const summary = collector.computeSummary('/fake/repo');
+    expect(summary).toBeNull();
   });
 });

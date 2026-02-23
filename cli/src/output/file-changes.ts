@@ -1,4 +1,13 @@
+import { execSync } from 'node:child_process';
+import { join } from 'node:path';
 import type { ToolCallCompleteEvent } from '@studio/contracts';
+
+export interface FileChange {
+  path: string;
+  status: 'M' | 'A';
+  added: number;
+  removed: number;
+}
 
 export class FileChangeCollector {
   private paths = new Set<string>();
@@ -15,5 +24,54 @@ export class FileChangeCollector {
 
   getWrittenPaths(): string[] {
     return [...this.paths];
+  }
+
+  computeSummary(repoPath: string): FileChange[] | null {
+    const written = this.getWrittenPaths();
+    if (written.length === 0) return null;
+
+    try {
+      const diffOutput = execSync(
+        `git diff --numstat -- ${written.map((p) => JSON.stringify(p)).join(' ')}`,
+        { cwd: repoPath, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+
+      const diffMap = new Map<string, { added: number; removed: number }>();
+      if (diffOutput) {
+        for (const line of diffOutput.split('\n')) {
+          const [addedStr, removedStr, ...pathParts] = line.split('\t');
+          const filePath = pathParts.join('\t');
+          diffMap.set(filePath, {
+            added: parseInt(addedStr, 10) || 0,
+            removed: parseInt(removedStr, 10) || 0,
+          });
+        }
+      }
+
+      const changes: FileChange[] = [];
+      for (const filePath of written) {
+        const diff = diffMap.get(filePath);
+        if (diff) {
+          changes.push({ path: filePath, status: 'M', added: diff.added, removed: diff.removed });
+        } else {
+          let lineCount = 0;
+          try {
+            const wcOutput = execSync(
+              `wc -l < ${JSON.stringify(join(repoPath, filePath))}`,
+              { cwd: repoPath, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+            ).trim();
+            lineCount = parseInt(wcOutput, 10) || 0;
+          } catch {
+            // File might have been deleted or moved — skip line count
+          }
+          changes.push({ path: filePath, status: 'A', added: lineCount, removed: 0 });
+        }
+      }
+
+      return changes;
+    } catch {
+      // git not available or not a git repo — graceful degradation
+      return null;
+    }
   }
 }
