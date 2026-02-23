@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join } from 'node:path';
 
 export type MCPServerDef =
   | { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
@@ -50,36 +50,15 @@ async function loadPlugin(name: string, pluginPath: string): Promise<PluginManif
     try {
       const raw = await readFile(mcpPath, 'utf-8');
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      // Support both wrapped format { mcpServers: { ... } } and flat Claude Code format { serverName: { ... } }
+      // Check for wrapped or flat format
       if ('mcpServers' in parsed && parsed.mcpServers !== null && typeof parsed.mcpServers === 'object') {
         mcpServers = parsed.mcpServers as Record<string, MCPServerDef>;
       } else {
         mcpServers = parsed as Record<string, MCPServerDef>;
       }
-    } catch {
-      // Malformed .mcp.json — skip silently
+    } catch (error) {
+      console.error('Error parsing .mcp.json file:', error);
     }
   }
-
-  const skills = await loadSkillFiles(join(pluginPath, 'skills'));
-  return { name, path: pluginPath, mcpServers, skills };
-}
-
-async function loadSkillFiles(skillsDir: string): Promise<SkillContent[]> {
-  if (!existsSync(skillsDir)) return [];
-
-  let files: string[];
-  try {
-    files = await readdir(skillsDir);
-  } catch {
-    return [];
-  }
-
-  const skillFiles = files.filter((f) => f.endsWith('.skill.md')).sort();
-  const skills: SkillContent[] = [];
-  for (const file of skillFiles) {
-    const content = await readFile(join(skillsDir, file), 'utf-8');
-    skills.push({ name: basename(file, '.skill.md'), content });
-  }
-  return skills;
+  return { name, path: pluginPath, mcpServers, skills: [] };
 }
