@@ -283,6 +283,53 @@ describe('Group feedback loop', () => {
     expect(provider.call).toHaveBeenCalledTimes(5);
   });
 
+  it('passes object issues from QA rejection into group_feedback for the coder', async () => {
+    // Regression test for STU-129: group_feedback.rejection_details was empty when
+    // QA returned issues as objects with field names other than "description".
+    let callCount = 0;
+    let coderIter2Messages: any[] = [];
+    const provider = createMockProvider((...args: any[]) => {
+      callCount++;
+      if (callCount === 1) return analysisResponse();
+      if (callCount === 2) return codeGenResponse();   // iter 1
+      if (callCount === 3) {
+        // QA rejects with structured issues (objects with "issue" field, not "description")
+        return {
+          content: JSON.stringify({
+            status: 'needs_changes',
+            summary: 'Several problems found',
+            issues: [
+              { issue: 'Missing error handling', severity: 'high' },
+              { issue: 'No input validation', file: 'src/api.ts' },
+            ],
+          }),
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 150, completion_tokens: 50, total_tokens: 200 },
+        };
+      }
+      if (callCount === 4) {
+        // Capture the messages sent to the coder on iteration 2
+        coderIter2Messages = args[0]?.messages ?? [];
+        return codeGenResponse();
+      }
+      return qaApproveResponse();
+    });
+
+    const engine = createEngine(provider);
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
+
+    expect(result.status).toBe('success');
+    expect(provider.call).toHaveBeenCalledTimes(5);
+
+    // The coder on iteration 2 must have received group_feedback with the specific issues
+    const userMessage = coderIter2Messages.find((m: any) => m.role === 'user');
+    expect(userMessage).toBeDefined();
+    expect(userMessage.content).toContain('REVISION REQUIRED');
+    expect(userMessage.content).toContain('Missing error handling');
+    expect(userMessage.content).toContain('No input validation');
+  });
+
   it('emits group lifecycle events', async () => {
     let callCount = 0;
     const provider = createMockProvider(() => {
