@@ -676,3 +676,75 @@ describe('runAgent — callbacks', () => {
     ).resolves.toBeDefined();
   });
 });
+
+describe('runAgent — abort signal', () => {
+  it('throws AbortError when signal is aborted before LLM call', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const mockProvider = new MockProvider([
+      {
+        content: '"ok"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 },
+      },
+    ]);
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    await expect(
+      runAgent({
+        agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+        task: { description: 'test' },
+        context: {},
+        toolRegistry: new ToolRegistry(),
+        providerRegistry,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+  });
+
+  it('throws when signal aborts between tool call turns', async () => {
+    const controller = new AbortController();
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'test_tool',
+      description: 'Test',
+      parameters: {},
+      execute: async () => {
+        controller.abort();
+        return { success: true, output: 'done' };
+      },
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [{ id: 'tc1', name: 'test_tool', arguments: {} }],
+        finish_reason: 'tool_use',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"ok"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+    ]);
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    await expect(
+      runAgent({
+        agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+        task: { description: 'test' },
+        context: {},
+        toolRegistry,
+        providerRegistry,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+  });
+});

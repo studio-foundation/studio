@@ -21,6 +21,7 @@ export interface RunAgentConfig {
   maxToolCalls?: number;
   anonymizationMiddleware?: AnonymizationMiddleware;
   callbacks?: RunnerCallbacks;
+  signal?: AbortSignal;
 }
 
 export interface AgentRunResult {
@@ -49,7 +50,7 @@ const DEFAULT_MAX_TOOL_CALLS = 20; // Safety limit for tool calling loop
  */
 export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> {
   const startTime = Date.now();
-  const { agent, task, context, executionContext, toolRegistry, providerRegistry } = config;
+  const { agent, task, context, executionContext, toolRegistry, providerRegistry, signal } = config;
   const maxToolCalls = config.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS;
   const mw = config.anonymizationMiddleware;
 
@@ -158,7 +159,8 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
         }
         return { result, error: executed.error };
       },
-      onToken
+      onToken,
+      signal
     );
 
     if (loopResult.usage) {
@@ -191,6 +193,11 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   let lastResponse: LLMResponse | null = null;
 
   while (iterations < maxToolCalls) {
+    // Check for cancellation before calling LLM
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }
+
     // Call LLM
     const response = await provider.call({
       model: agent.model,
@@ -199,7 +206,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       temperature: agent.temperature,
       max_tokens: agent.max_tokens,
       stage_name: task.contract_name,
-    }, onToken);
+    }, onToken, signal);
 
     lastResponse = response;
 
