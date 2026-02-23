@@ -102,12 +102,14 @@ export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolC
 
   if (requirements?.counted_tools && requirements.counted_tools.length > 0 && requirements?.minimum !== undefined) {
     const countedSet = new Set(requirements.counted_tools.map(normalizeToolName));
-    const count = toolCalls.filter(tc => countedSet.has(normalizeToolName(tc.name))).length;
+    const count = toolCalls.filter(
+      tc => countedSet.has(normalizeToolName(tc.name)) && isSuccessfulToolCall(tc)
+    ).length;
 
     if (count < requirements.minimum) {
       const toolNames = requirements.counted_tools.join(', ');
       errors.push(
-        `Expected at least ${requirements.minimum} call${requirements.minimum === 1 ? '' : 's'} to counted tools [${toolNames}], got ${count}`
+        `Expected at least ${requirements.minimum} successful call${requirements.minimum === 1 ? '' : 's'} to counted tools [${toolNames}], got ${count}`
       );
     }
   }

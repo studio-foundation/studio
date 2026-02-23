@@ -304,7 +304,7 @@ describe('validateCountedTools', () => {
       counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('Expected at least 1 call');
+    expect(result.errors[0]).toContain('Expected at least 1 successful call');
   });
 
   it('passes when no counted_tools specified', () => {
@@ -320,6 +320,44 @@ describe('validateCountedTools', () => {
     const result = validateCountedTools(toolCalls, {
       minimum: 1,
       counted_tools: ['repo_manager.apply_patch'],
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('ANTI-THÉÂTRE: fails when counted tool calls all failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {}, error: 'permission denied' },
+      { id: '2', name: 'repo_manager-write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    const result = validateCountedTools(toolCalls, {
+      minimum: 1,
+      counted_tools: ['repo_manager.write_file'],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it('ANTI-THÉÂTRE: excludes failed calls from counted tool count', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {} },          // success
+      { id: '2', name: 'repo_manager-apply_patch', arguments: {}, error: 'ENOENT' }, // failed
+    ];
+    // 1 successful counted, 1 failed counted → total counted successful = 1
+    const result = validateCountedTools(toolCalls, {
+      minimum: 2,
+      counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it('ANTI-THÉÂTRE: passes when enough successful counted calls', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {} },          // success
+      { id: '2', name: 'repo_manager-apply_patch', arguments: {} },          // success
+      { id: '3', name: 'repo_manager-read_file', arguments: {}, error: 'ENOENT' }, // failed, not counted
+    ];
+    const result = validateCountedTools(toolCalls, {
+      minimum: 2,
+      counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
     });
     expect(result.valid).toBe(true);
   });
