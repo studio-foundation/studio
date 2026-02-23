@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientInformationMixed,
@@ -101,9 +103,55 @@ export class StudioOAuthProvider implements OAuthClientProvider {
 
   redirectToAuthorization(_url: URL): void {}
 
-  // --- Callback server (implemented in Task 4) ---
+  // --- Callback server ---
 
   async startCallbackServer(): Promise<{ codePromise: Promise<string>; close: () => void }> {
-    throw new Error('not implemented');
+    let resolveCode!: (code: string) => void;
+    let rejectCode!: (err: Error) => void;
+    const codePromise = new Promise<string>((res, rej) => {
+      resolveCode = res;
+      rejectCode = rej;
+    });
+
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = new URL(req.url ?? '/', 'http://localhost');
+      if (url.pathname === '/callback') {
+        const code = url.searchParams.get('code');
+        if (code) {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end('<html><body><h1>Authorization successful</h1><p>You can close this tab.</p></body></html>');
+          resolveCode(code);
+        } else {
+          res.writeHead(400);
+          res.end('Missing code parameter');
+          rejectCode(new Error('OAuth callback missing code parameter'));
+        }
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+
+    await new Promise<void>((res, rej) => {
+      server.listen(0, 'localhost', res);
+      server.on('error', rej);
+    });
+
+    const { port } = server.address() as AddressInfo;
+    this._callbackPort = port;
+
+    const timeout = setTimeout(() => {
+      rejectCode(new Error('OAuth authorization timed out. Run again to retry.'));
+      server.close();
+      this._callbackPort = undefined;
+    }, this.timeoutMs);
+
+    const close = () => {
+      clearTimeout(timeout);
+      server.close();
+      this._callbackPort = undefined;
+    };
+
+    return { codePromise, close };
   }
 }

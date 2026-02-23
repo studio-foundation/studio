@@ -95,3 +95,42 @@ describe('StudioOAuthProvider — metadata', () => {
     }
   });
 });
+
+describe('StudioOAuthProvider — callback server', () => {
+  it('startCallbackServer() resolves codePromise when /callback?code=X is hit', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir);
+    const { codePromise, close } = await p.startCallbackServer();
+
+    const port = (p.redirectUrl as string).match(/:(\d+)/)![1];
+    const res = await fetch(`http://localhost:${port}/callback?code=auth-code-123`);
+    expect(res.ok).toBe(true);
+    expect(await codePromise).toBe('auth-code-123');
+    close();
+  });
+
+  it('callback response contains success HTML', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir);
+    const { close } = await p.startCallbackServer();
+
+    const port = (p.redirectUrl as string).match(/:(\d+)/)![1];
+    const res = await fetch(`http://localhost:${port}/callback?code=x`);
+    const html = await res.text();
+    expect(html).toContain('Authorization successful');
+    close();
+  });
+
+  it('codePromise rejects after timeout', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir, 50);
+    const { codePromise, close } = await p.startCallbackServer();
+    await expect(codePromise).rejects.toThrow('timed out');
+    close();
+  });
+
+  it('sets callbackPort so redirectUrl reflects the server port', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir);
+    expect(p.redirectUrl).toBeUndefined();
+    const { close } = await p.startCallbackServer();
+    expect(p.redirectUrl).toMatch(/^http:\/\/localhost:\d+\/callback$/);
+    close();
+  });
+});
