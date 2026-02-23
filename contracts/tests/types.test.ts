@@ -8,6 +8,8 @@ import type {
   StageStatus,
   AgentConfig,
   ValidationResult,
+  ToolCallRequirements,
+  OutputContract,
 } from '../src/index.js';
 
 describe('contracts types', () => {
@@ -66,5 +68,34 @@ describe('contracts types', () => {
     };
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
+  });
+
+  it('ToolCallRequirements supports required_tool_groups for OR semantics', () => {
+    const req: ToolCallRequirements = {
+      minimum: 1,
+      required_tools: ['repo_manager-read_file'],
+      required_tool_groups: [
+        ['repo_manager-write_file', 'repo_manager-apply_patch'],
+      ],
+    };
+    expect(req.required_tool_groups).toHaveLength(1);
+    expect(req.required_tool_groups![0]).toEqual([
+      'repo_manager-write_file',
+      'repo_manager-apply_patch',
+    ]);
+  });
+
+  it('OutputContract.tool_calls accepts required_tool_groups', () => {
+    const contract: OutputContract = {
+      name: 'code-generation',
+      version: 1,
+      tool_calls: {
+        minimum: 1,
+        required_tool_groups: [
+          ['repo_manager-write_file', 'repo_manager-apply_patch'],
+        ],
+      },
+    };
+    expect(contract.tool_calls?.required_tool_groups).toBeDefined();
   });
 });
