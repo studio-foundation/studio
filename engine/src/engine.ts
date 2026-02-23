@@ -119,6 +119,7 @@ export interface RunInput {
   input: string | Record<string, unknown>;
   meta?: Record<string, unknown>;
   anonymize?: boolean;
+  signal?: AbortSignal;
 }
 
 interface StageResult {
@@ -160,6 +161,8 @@ export class PipelineEngine {
   }
 
   async run(input: RunInput): Promise<PipelineRun> {
+    const signal = input.signal;
+
     // 1. Resolve paths — configsDir is now the project root directly
     const pipelineName = input.pipeline;
     const projectPaths = resolveProjectPaths(this.config.configsDir);
@@ -208,6 +211,23 @@ export class PipelineEngine {
     let previousStageName: string | undefined;
 
     for (const entry of pipeline.stages) {
+      // Check for cancellation before each pipeline entry
+      if (signal?.aborted) {
+        pipelineRun.status = 'cancelled' as any;
+        pipelineRun.completed_at = new Date().toISOString();
+        this.events?.onPipelineComplete?.({
+          pipeline_name: pipeline.name,
+          run_id: pipelineRun.id,
+          status: 'cancelled',
+          duration_ms: Date.now() - pipelineStartTime,
+          total_tokens: this.pipelineTotals.tokens,
+          total_tool_calls: this.pipelineTotals.toolCalls,
+        });
+        this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
+        this.config.db?.savePipelineRun(pipelineRun);
+        return pipelineRun;
+      }
+
       if (isStageGroup(entry)) {
         // ========== GROUP ==========
         const groupResult = await this.runGroup(
@@ -219,6 +239,7 @@ export class PipelineEngine {
           projectPaths,
           runMiddleware,
           pipelineRun.id,
+          signal,
         );
 
         pipelineRun.stages.push(...groupResult.stageRuns);
@@ -231,7 +252,7 @@ export class PipelineEngine {
         // Clear group feedback after group completes
         clearGroupFeedback(pipelineContext);
 
-        if (groupResult.status === 'rejected' || groupResult.status === 'failed') {
+        if (groupResult.status === 'rejected' || groupResult.status === 'failed' || groupResult.status === 'cancelled') {
           pipelineRun.status = groupResult.status as any;
           pipelineRun.completed_at = new Date().toISOString();
           this.events?.onPipelineComplete?.({
@@ -262,11 +283,12 @@ export class PipelineEngine {
           projectPaths,
           runMiddleware,
           pipelineRun.id,
+          signal,
         );
 
         pipelineRun.stages.push(result.stageRun);
 
-        if (result.status === 'failed' || result.status === 'rejected') {
+        if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
           pipelineRun.status = result.stageRun.status;
           pipelineRun.completed_at = new Date().toISOString();
           this.events?.onPipelineComplete?.({
@@ -335,6 +357,7 @@ export class PipelineEngine {
     paths: ProjectPaths,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
+    signal?: AbortSignal,
   ): Promise<StageResult> {
     const stageRunId = randomUUID();
     const stageStartedAt = new Date().toISOString();
@@ -535,6 +558,7 @@ export class PipelineEngine {
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
           anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
+          signal,
           callbacks: {
             ...(this.events ? {
               onToolCallStart: this.events.onToolCallStart,
@@ -572,6 +596,7 @@ export class PipelineEngine {
       validator: ralphValidator,
       maxAttempts: stageDef.ralph?.max_attempts ?? 3,
       retryStrategy,
+      signal,
       onRetry: async (event) => {
         // Extract raw output for diagnostic logging
         const rawOutput = typeof event.result.output === 'string'
@@ -603,6 +628,25 @@ export class PipelineEngine {
 
     // Derive stage status from ralph result
     let stageStatus = deriveStageStatus(ralphResult);
+
+    // Cancelled — skip post-validation and hooks
+    if (stageStatus === 'cancelled') {
+      stageRun.status = 'cancelled';
+      stageRun.completed_at = new Date().toISOString();
+      taskRun.status = 'failed'; // closest existing TaskRun status
+      taskRun.completed_at = new Date().toISOString();
+      stageRun.tasks = [taskRun];
+      this.events?.onStageComplete?.({
+        stage_name: stageDef.name,
+        stage_index: stageIndex,
+        total_stages: totalStages,
+        status: 'cancelled',
+        attempts: ralphResult.attempts,
+        duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
+      });
+      this.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
+      return { stageRun, status: 'cancelled' };
+    }
 
     // Post-validation: check if a successful output is semantically rejected
     // (e.g. QA stage returned valid JSON but status says "implementation_incomplete")
@@ -707,6 +751,7 @@ export class PipelineEngine {
     paths: ProjectPaths,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
+    signal?: AbortSignal,
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
@@ -722,6 +767,27 @@ export class PipelineEngine {
     });
 
     while (iteration < group.max_iterations) {
+      // Check cancellation before group iteration
+      if (signal?.aborted) {
+        this.events?.onGroupComplete?.({
+          group_name: group.group,
+          iterations: iteration,
+          status: 'cancelled',
+        });
+        this.emitter.emit({
+          type: 'group_complete',
+          groupName: group.group,
+          iterations: iteration,
+          status: 'cancelled',
+        });
+        return {
+          status: 'cancelled',
+          stageRuns: allStageRuns,
+          stagesExecuted: group.stages.length,
+          context,
+        };
+      }
+
       iteration++;
 
       this.events?.onGroupIteration?.({
@@ -744,6 +810,8 @@ export class PipelineEngine {
       }
 
       for (let i = 0; i < group.stages.length; i++) {
+        if (signal?.aborted) break;
+
         const stage = group.stages[i];
         const stageNumber = stageOffset + i;
 
@@ -757,9 +825,31 @@ export class PipelineEngine {
           paths,
           runMiddleware,
           runId,
+          signal,
         );
 
         allStageRuns.push(result.stageRun);
+
+        // Cancelled → stop group
+        if (result.status === 'cancelled') {
+          this.events?.onGroupComplete?.({
+            group_name: group.group,
+            iterations: iteration,
+            status: 'cancelled',
+          });
+          this.emitter.emit({
+            type: 'group_complete',
+            groupName: group.group,
+            iterations: iteration,
+            status: 'cancelled',
+          });
+          return {
+            status: 'cancelled',
+            stageRuns: allStageRuns,
+            stagesExecuted: group.stages.length,
+            context,
+          };
+        }
 
         // Technical failure → stop everything
         if (result.status === 'failed') {
