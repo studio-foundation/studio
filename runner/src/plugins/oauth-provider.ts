@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { exec } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -101,7 +102,17 @@ export class StudioOAuthProvider implements OAuthClientProvider {
     };
   }
 
-  redirectToAuthorization(_url: URL): void {}
+  redirectToAuthorization(authorizationUrl: URL): void {
+    const url = authorizationUrl.toString();
+    process.stderr.write(`\n  Open this URL to authorize Studio:\n  ${url}\n\n`);
+
+    const cmd =
+      process.platform === 'darwin' ? `open "${url}"` :
+      process.platform === 'win32' ? `start "" "${url}"` :
+      `xdg-open "${url}"`;
+
+    exec(cmd, () => { /* ignore errors — URL already printed */ });
+  }
 
   // --- Callback server ---
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -132,5 +132,21 @@ describe('StudioOAuthProvider — callback server', () => {
     const { close } = await p.startCallbackServer();
     expect(p.redirectUrl).toMatch(/^http:\/\/localhost:\d+\/callback$/);
     close();
+  });
+});
+
+describe('StudioOAuthProvider — redirectToAuthorization', () => {
+  it('prints the authorization URL to stderr', async () => {
+    const p = new StudioOAuthProvider('https://mcp.example.com/mcp', tmpDir);
+    const written: string[] = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation((s) => {
+      written.push(String(s));
+      return true;
+    });
+
+    await p.redirectToAuthorization(new URL('https://auth.example.com/authorize?foo=bar'));
+
+    spy.mockRestore();
+    expect(written.join('')).toContain('https://auth.example.com/authorize');
   });
 });
