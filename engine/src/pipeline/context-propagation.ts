@@ -64,6 +64,75 @@ export function clearGroupFeedback(context: PipelineContext): void {
   context.groupFeedback = undefined;
 }
 
+export function buildContextKeys(
+  agentContext: AgentContext,
+  previousOutputSizes: Map<string, number>,
+): Record<string, number> {
+  const keys: Record<string, number> = {};
+
+  if (agentContext.additional_context !== undefined) {
+    keys['input'] = agentContext.additional_context.length;
+  }
+
+  if (agentContext.previous_outputs && Object.keys(agentContext.previous_outputs).length > 0) {
+    let total = 0;
+    for (const stageName of Object.keys(agentContext.previous_outputs)) {
+      total += previousOutputSizes.get(stageName) ?? 0;
+    }
+    keys['previous_stage_output'] = total;
+  }
+
+  if (agentContext.group_feedback !== undefined) {
+    keys['group_feedback'] = JSON.stringify(agentContext.group_feedback).length;
+  }
+
+  if (agentContext.startup_context) {
+    for (const [key, value] of Object.entries(agentContext.startup_context)) {
+      keys[key] = value.length;
+    }
+  }
+
+  if (agentContext.context_packs?.length) {
+    for (const pack of agentContext.context_packs) {
+      keys[pack.name] = pack.sections.reduce((sum, s) => sum + s.content.length, 0);
+    }
+  }
+
+  return keys;
+}
+
+export function buildContextContent(
+  agentContext: AgentContext,
+): Record<string, unknown> {
+  const content: Record<string, unknown> = {};
+
+  if (agentContext.additional_context !== undefined) {
+    content['input'] = agentContext.additional_context;
+  }
+
+  if (agentContext.previous_outputs && Object.keys(agentContext.previous_outputs).length > 0) {
+    content['previous_stage_output'] = agentContext.previous_outputs;
+  }
+
+  if (agentContext.group_feedback !== undefined) {
+    content['group_feedback'] = agentContext.group_feedback;
+  }
+
+  if (agentContext.startup_context) {
+    for (const [key, value] of Object.entries(agentContext.startup_context)) {
+      content[key] = value;
+    }
+  }
+
+  if (agentContext.context_packs?.length) {
+    for (const pack of agentContext.context_packs) {
+      content[pack.name] = pack;
+    }
+  }
+
+  return content;
+}
+
 export function getContextForStage(
   context: PipelineContext,
   stage: StageDefinition,
