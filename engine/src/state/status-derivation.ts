@@ -27,6 +27,10 @@ export function deriveStageStatus(ralphResult: RalphResult<unknown>): StageStatu
     return 'failed';
   }
 
+  if (ralphResult.status === 'cancelled') {
+    return 'cancelled';
+  }
+
   // Should never reach here if RalphResult types are exhaustive
   throw new Error(`Unknown ralph status: ${(ralphResult as any).status}`);
 }
