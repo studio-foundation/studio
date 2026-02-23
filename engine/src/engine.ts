@@ -21,6 +21,7 @@ import {
   validateToolCalls,
   validateRequiredTools,
   validateCountedTools,
+  validateToolGroups,
   compose,
   exponentialBackoff,
   fixedDelay,
@@ -1056,6 +1057,11 @@ export class PipelineEngine {
     // Counted tools validation (OR semantics — any of these count toward minimum)
     if (toolCallReqs?.counted_tools?.length) {
       validators.push((result) => validateCountedTools(result.tool_calls, toolCallReqs));
+    }
+
+    // Tool groups validation (OR per group — at least one tool from each group must be called)
+    if (toolCallReqs?.required_tool_groups?.length) {
+      validators.push((result) => validateToolGroups(result.tool_calls, toolCallReqs));
     }
 
     if (validators.length === 0) {

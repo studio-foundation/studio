@@ -1,17 +1,13 @@
 // Validation engine
-import type { ValidationResult, OutputContract, ToolCall } from '@studio/contracts';
+import type { ValidationResult, OutputContract, ToolCall, ToolCallRequirements } from '@studio/contracts';
+
+export type { ToolCallRequirements } from '@studio/contracts';
 
 export type Validator<T> = (result: T) => ValidationResult | Promise<ValidationResult>;
 
 export interface AgentRunResult {
   output: unknown;
   tool_calls: ToolCall[];
-}
-
-export interface ToolCallRequirements {
-  minimum?: number;
-  required_tools?: string[];
-  counted_tools?: string[];
 }
 
 export function validateSchema(output: unknown, contract: OutputContract): ValidationResult {
@@ -111,6 +107,28 @@ export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolC
       errors.push(
         `Expected at least ${requirements.minimum} successful call${requirements.minimum === 1 ? '' : 's'} to counted tools [${toolNames}], got ${count}`
       );
+    }
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+export function validateToolGroups(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (requirements?.required_tool_groups) {
+    for (const group of requirements.required_tool_groups) {
+      if (group.length === 0) continue;
+      const normalizedGroup = new Set(group.map(normalizeToolName));
+      const satisfied = toolCalls.some(
+        tc => normalizedGroup.has(normalizeToolName(tc.name)) && isSuccessfulToolCall(tc)
+      );
+      if (!satisfied) {
+        errors.push(
+          `Expected at least one successful call from [${group.join(', ')}], got none`
+        );
+      }
     }
   }
 

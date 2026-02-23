@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateSchema, validateToolCalls, validateRequiredTools, validateCountedTools, compose } from '../src/validator.js';
+import { validateSchema, validateToolCalls, validateRequiredTools, validateCountedTools, validateToolGroups, compose } from '../src/validator.js';
 import type { OutputContract, ToolCall } from '@studio/contracts';
 
 describe('validateSchema', () => {
@@ -358,6 +358,116 @@ describe('validateCountedTools', () => {
     const result = validateCountedTools(toolCalls, {
       minimum: 2,
       counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
+    });
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe('validateToolGroups', () => {
+  const success = (id: string, name: string): ToolCall => ({ id, name, arguments: {} });
+  const failed = (id: string, name: string): ToolCall => ({ id, name, arguments: {}, error: 'ENOENT' });
+
+  it('passes when required_tool_groups is absent', () => {
+    const result = validateToolGroups([], undefined);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('passes when required_tool_groups is empty array', () => {
+    const result = validateToolGroups([], { required_tool_groups: [] });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('passes when a group is empty', () => {
+    const result = validateToolGroups([], { required_tool_groups: [[]] });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('passes when at least one tool from the group is called successfully', () => {
+    const toolCalls = [success('1', 'repo_manager-write_file')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [['repo_manager-write_file', 'repo_manager-apply_patch']]
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('fails when no tool from the group is called', () => {
+    const toolCalls = [success('1', 'repo_manager-read_file')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [['repo_manager-write_file', 'repo_manager-apply_patch']]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('repo_manager-write_file');
+    expect(result.errors[0]).toContain('repo_manager-apply_patch');
+  });
+
+  it('ANTI-THÉÂTRE: fails when group tool called but all calls failed', () => {
+    const toolCalls = [
+      failed('1', 'repo_manager-write_file'),
+      failed('2', 'repo_manager-apply_patch'),
+    ];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [['repo_manager-write_file', 'repo_manager-apply_patch']]
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it('passes when second tool from group is called successfully (OR semantics)', () => {
+    const toolCalls = [success('1', 'repo_manager-apply_patch')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [['repo_manager-write_file', 'repo_manager-apply_patch']]
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('each group is independent: all must be satisfied', () => {
+    // Group 1 satisfied, group 2 not
+    const toolCalls = [success('1', 'repo_manager-write_file')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [
+        ['repo_manager-write_file', 'repo_manager-apply_patch'],
+        ['shell-run_command']
+      ]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('shell-run_command');
+  });
+
+  it('passes when all groups are satisfied', () => {
+    const toolCalls = [
+      success('1', 'repo_manager-write_file'),
+      success('2', 'shell-run_command'),
+    ];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [
+        ['repo_manager-write_file', 'repo_manager-apply_patch'],
+        ['shell-run_command']
+      ]
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('fails when multiple groups are not satisfied', () => {
+    const toolCalls = [success('1', 'repo_manager-read_file')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [
+        ['repo_manager-write_file'],
+        ['shell-run_command']
+      ]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(2);
+  });
+
+  it('normalizes tool names (dots vs hyphens)', () => {
+    const toolCalls = [success('1', 'repo_manager-write_file')];
+    const result = validateToolGroups(toolCalls, {
+      required_tool_groups: [['repo_manager.write_file']]
     });
     expect(result.valid).toBe(true);
   });
