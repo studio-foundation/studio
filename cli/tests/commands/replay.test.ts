@@ -146,3 +146,64 @@ describe('mapJsonlLineToEvent', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('replay integration — full JSONL file', () => {
+  it('maps a complete pipeline run through all events without errors', () => {
+    const jsonlLines = [
+      { event: 'pipeline_start', pipeline: 'test-pipe', run_id: 'aabb1122', ts: '2026-02-22T14:00:00Z' },
+      { event: 'stage_start', stage: 'analysis', stage_index: 0, total_stages: 2, ts: '2026-02-22T14:00:01Z' },
+      { event: 'tool_call_start', tool: 'repo_manager-read_file', params: { path: 'README.md' }, ts: '2026-02-22T14:00:02Z' },
+      { event: 'tool_call_complete', tool: 'repo_manager-read_file', result: { content: '# Hello' }, duration_ms: 100, ts: '2026-02-22T14:00:02Z' },
+      { event: 'stage_complete', stage: 'analysis', stage_index: 0, total_stages: 2, status: 'success', attempts: 1, duration_ms: 2000, tokens: { prompt: 500, completion: 200, total: 700 }, output: { summary: 'analyzed' }, ts: '2026-02-22T14:00:03Z' },
+      { event: 'stage_start', stage: 'code-generation', stage_index: 1, total_stages: 2, ts: '2026-02-22T14:00:04Z' },
+      { event: 'stage_retry', stage: 'code-generation', attempt: 2, max_attempts: 3, failures: ['missing field'], ts: '2026-02-22T14:00:05Z' },
+      { event: 'stage_complete', stage: 'code-generation', stage_index: 1, total_stages: 2, status: 'success', attempts: 2, duration_ms: 4000, tokens: { prompt: 800, completion: 400, total: 1200 }, output: { summary: 'generated' }, ts: '2026-02-22T14:00:08Z' },
+      { event: 'pipeline_complete', pipeline_name: 'test-pipe', run_id: 'aabb1122', status: 'success', duration_ms: 8000, total_tokens: 1900, total_tool_calls: 1, ts: '2026-02-22T14:00:08Z' },
+    ];
+
+    const mapped = jsonlLines.map((line) => mapJsonlLineToEvent(line));
+    expect(mapped.every((m) => m !== null)).toBe(true);
+    expect(mapped.map((m) => m!.handler)).toEqual([
+      'onPipelineStart',
+      'onStageStart',
+      'onToolCallStart',
+      'onToolCallComplete',
+      'onStageComplete',
+      'onStageStart',
+      'onTaskRetry',
+      'onStageComplete',
+      'onPipelineComplete',
+    ]);
+  });
+
+  it('maps a rejected group run', () => {
+    const jsonlLines = [
+      { event: 'pipeline_start', pipeline: 'test-pipe', run_id: 'ccdd3344', ts: '2026-02-22T14:00:00Z' },
+      { event: 'group_start', group: 'impl-review', max_iterations: 3, ts: '2026-02-22T14:00:01Z' },
+      { event: 'group_iteration', group: 'impl-review', iteration: 1, max_iterations: 3, ts: '2026-02-22T14:00:02Z' },
+      { event: 'stage_start', stage: 'code-gen', stage_index: 0, total_stages: 2, ts: '2026-02-22T14:00:03Z' },
+      { event: 'stage_complete', stage: 'code-gen', stage_index: 0, total_stages: 2, status: 'success', attempts: 1, duration_ms: 2000, ts: '2026-02-22T14:00:05Z' },
+      { event: 'stage_start', stage: 'qa-review', stage_index: 1, total_stages: 2, ts: '2026-02-22T14:00:06Z' },
+      { event: 'stage_complete', stage: 'qa-review', stage_index: 1, total_stages: 2, status: 'rejected', attempts: 1, duration_ms: 1500, rejection_reason: 'code incomplete', rejection_details: ['missing error handling'], ts: '2026-02-22T14:00:07Z' },
+      { event: 'group_feedback', group: 'impl-review', iteration: 1, rejection_reason: 'code incomplete', rejection_details: ['missing error handling'], ts: '2026-02-22T14:00:07Z' },
+      { event: 'group_complete', group: 'impl-review', iterations: 1, status: 'rejected', ts: '2026-02-22T14:00:07Z' },
+      { event: 'pipeline_complete', pipeline_name: 'test-pipe', run_id: 'ccdd3344', status: 'rejected', duration_ms: 7000, total_tokens: 2000, total_tool_calls: 0, ts: '2026-02-22T14:00:07Z' },
+    ];
+
+    const mapped = jsonlLines.map((line) => mapJsonlLineToEvent(line));
+    expect(mapped.every((m) => m !== null)).toBe(true);
+
+    const stageComplete = mapped.find((m) => m!.handler === 'onStageComplete' && m!.payload.status === 'rejected');
+    expect(stageComplete!.payload.rejection_reason).toBe('code incomplete');
+    expect(stageComplete!.payload.rejection_details).toEqual(['missing error handling']);
+  });
+
+  it('skips corrupt JSONL lines gracefully', () => {
+    const validLine = { event: 'pipeline_start', pipeline: 'test', run_id: 'xxxx' };
+    const mapped = mapJsonlLineToEvent(validLine);
+    expect(mapped).not.toBeNull();
+
+    const unknownLine = { event: 'totally_unknown', data: 123 };
+    expect(mapJsonlLineToEvent(unknownLine)).toBeNull();
+  });
+});
