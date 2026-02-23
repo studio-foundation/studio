@@ -87,51 +87,72 @@ describe('validateSchema', () => {
 });
 
 describe('validateToolCalls', () => {
-  it('passes when minimum met', () => {
-    const result = validateToolCalls(3, { minimum: 2 });
+  const success = (id: string): ToolCall => ({ id, name: 'some_tool', arguments: {} });
+  const failed = (id: string): ToolCall => ({ id, name: 'some_tool', arguments: {}, error: 'ENOENT' });
+
+  it('passes when successful calls meet minimum', () => {
+    const result = validateToolCalls([success('1'), success('2'), success('3')], { minimum: 2 });
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
   it('passes when exactly at minimum', () => {
-    const result = validateToolCalls(2, { minimum: 2 });
+    const result = validateToolCalls([success('1'), success('2')], { minimum: 2 });
     expect(result.valid).toBe(true);
   });
 
   it('fails when below minimum', () => {
-    const result = validateToolCalls(0, { minimum: 1 });
+    const result = validateToolCalls([], { minimum: 1 });
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Expected at least 1 tool call, got 0');
+    expect(result.errors[0]).toContain('Expected at least 1 successful tool call');
   });
 
-  it('uses correct pluralization for singular', () => {
-    const result = validateToolCalls(0, { minimum: 1 });
-    expect(result.errors[0]).toContain('tool call'); // singular
+  it('ANTI-THÉÂTRE: fails when all calls failed', () => {
+    const result = validateToolCalls([failed('1'), failed('2'), failed('3')], { minimum: 1 });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('got 0 successful');
   });
 
-  it('uses correct pluralization for plural', () => {
-    const result = validateToolCalls(0, { minimum: 3 });
-    expect(result.errors[0]).toContain('tool calls'); // plural
+  it('ANTI-THÉÂTRE: excludes failed calls from count', () => {
+    // 1 successful + 2 failed → only 1 counts
+    const result = validateToolCalls([success('1'), failed('2'), failed('3')], { minimum: 2 });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('got 1 successful');
+  });
+
+  it('ANTI-THÉÂTRE: passes when 1 successful + 2 failed and minimum is 1', () => {
+    const result = validateToolCalls([success('1'), failed('2'), failed('3')], { minimum: 1 });
+    expect(result.valid).toBe(true);
+  });
+
+  it('error message mentions failed count when calls were excluded', () => {
+    const result = validateToolCalls([failed('1'), failed('2')], { minimum: 1 });
+    expect(result.errors[0]).toContain('2 failed excluded');
+  });
+
+  it('error message omits excluded count when zero failed calls', () => {
+    const result = validateToolCalls([], { minimum: 1 });
+    expect(result.errors[0]).not.toContain('excluded');
+  });
+
+  it('uses correct pluralization for singular minimum', () => {
+    const result = validateToolCalls([], { minimum: 1 });
+    expect(result.errors[0]).toContain('tool call,'); // singular — "tool call, got"
+  });
+
+  it('uses correct pluralization for plural minimum', () => {
+    const result = validateToolCalls([], { minimum: 3 });
+    expect(result.errors[0]).toContain('tool calls,'); // plural
   });
 
   it('passes when no requirements specified', () => {
-    const result = validateToolCalls(0);
+    const result = validateToolCalls([]);
     expect(result.valid).toBe(true);
   });
 
   it('passes when requirements is empty object', () => {
-    const result = validateToolCalls(0, {});
+    const result = validateToolCalls([], {});
     expect(result.valid).toBe(true);
-  });
-
-  it('ANTI-THÉÂTRE: fails when tool_calls is 0 despite output claiming work done', () => {
-    // This is THE critical test - detecting agent "theater"
-    const toolCallCount = 0; // Agent made zero real tool calls
-
-    const validation = validateToolCalls(toolCallCount, { minimum: 1 });
-
-    expect(validation.valid).toBe(false);
-    expect(validation.errors).toContain('Expected at least 1 tool call, got 0');
   });
 });
 
@@ -215,6 +236,39 @@ describe('validateRequiredTools', () => {
     const result = validateRequiredTools(toolCalls, { required_tools: [] });
     expect(result.valid).toBe(true);
   });
+
+  it('ANTI-THÉÂTRE: fails when required tool called but all calls failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'permission denied' },
+      { id: '2', name: 'write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file'] });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("'write_file'");
+    expect(result.errors[0]).toContain('no successful calls');
+  });
+
+  it('ANTI-THÉÂTRE: passes when required tool has at least one successful call', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'ENOENT' },
+      { id: '2', name: 'write_file', arguments: {} }, // success
+    ];
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file'] });
+    expect(result.valid).toBe(true);
+  });
+
+  it('ANTI-THÉÂTRE: error distinguishes never-called from all-failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    // write_file was called but all failed — different error than "was not called"
+    const result = validateRequiredTools(toolCalls, { required_tools: ['write_file', 'read_file'] });
+    expect(result.errors).toHaveLength(2);
+    // write_file: called but all failed
+    expect(result.errors.some(e => e.includes('write_file') && e.includes('no successful calls'))).toBe(true);
+    // read_file: never called
+    expect(result.errors.some(e => e.includes('read_file') && e.includes('was not called'))).toBe(true);
+  });
 });
 
 describe('validateCountedTools', () => {
@@ -250,7 +304,7 @@ describe('validateCountedTools', () => {
       counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('Expected at least 1 call');
+    expect(result.errors[0]).toContain('Expected at least 1 successful call');
   });
 
   it('passes when no counted_tools specified', () => {
@@ -266,6 +320,44 @@ describe('validateCountedTools', () => {
     const result = validateCountedTools(toolCalls, {
       minimum: 1,
       counted_tools: ['repo_manager.apply_patch'],
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('ANTI-THÉÂTRE: fails when counted tool calls all failed', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {}, error: 'permission denied' },
+      { id: '2', name: 'repo_manager-write_file', arguments: {}, error: 'ENOENT' },
+    ];
+    const result = validateCountedTools(toolCalls, {
+      minimum: 1,
+      counted_tools: ['repo_manager.write_file'],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it('ANTI-THÉÂTRE: excludes failed calls from counted tool count', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {} },          // success
+      { id: '2', name: 'repo_manager-apply_patch', arguments: {}, error: 'ENOENT' }, // failed
+    ];
+    // 1 successful counted, 1 failed counted → total counted successful = 1
+    const result = validateCountedTools(toolCalls, {
+      minimum: 2,
+      counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it('ANTI-THÉÂTRE: passes when enough successful counted calls', () => {
+    const toolCalls: ToolCall[] = [
+      { id: '1', name: 'repo_manager-write_file', arguments: {} },          // success
+      { id: '2', name: 'repo_manager-apply_patch', arguments: {} },          // success
+      { id: '3', name: 'repo_manager-read_file', arguments: {}, error: 'ENOENT' }, // failed, not counted
+    ];
+    const result = validateCountedTools(toolCalls, {
+      minimum: 2,
+      counted_tools: ['repo_manager.write_file', 'repo_manager.apply_patch'],
     });
     expect(result.valid).toBe(true);
   });

@@ -47,22 +47,28 @@ export function validateSchema(output: unknown, contract: OutputContract): Valid
   };
 }
 
-export function validateToolCalls(toolCallsCount: number, requirements?: ToolCallRequirements): ValidationResult {
+function isSuccessfulToolCall(tc: ToolCall): boolean {
+  return !tc.error;
+}
+
+export function validateToolCalls(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Check minimum requirement
   if (requirements?.minimum !== undefined) {
-    if (toolCallsCount < requirements.minimum) {
-      errors.push(`Expected at least ${requirements.minimum} tool call${requirements.minimum === 1 ? '' : 's'}, got ${toolCallsCount}`);
+    const successfulCount = toolCalls.filter(isSuccessfulToolCall).length;
+    const failedCount = toolCalls.length - successfulCount;
+
+    if (successfulCount < requirements.minimum) {
+      const plural = requirements.minimum === 1 ? '' : 's';
+      const excluded = failedCount > 0 ? ` (${failedCount} failed excluded)` : '';
+      errors.push(
+        `Expected at least ${requirements.minimum} successful tool call${plural}, got ${successfulCount} successful${excluded}`
+      );
     }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /** Normalize tool name: dots → hyphens so both conventions match */
@@ -74,22 +80,20 @@ export function validateRequiredTools(toolCalls: ToolCall[], requirements?: Tool
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Check required tools (normalize names so dots and hyphens both match)
   if (requirements?.required_tools && requirements.required_tools.length > 0) {
-    const calledTools = new Set(toolCalls.map(tc => normalizeToolName(tc.name)));
-
     for (const requiredTool of requirements.required_tools) {
-      if (!calledTools.has(normalizeToolName(requiredTool))) {
+      const normalizedRequired = normalizeToolName(requiredTool);
+      const matchingCalls = toolCalls.filter(tc => normalizeToolName(tc.name) === normalizedRequired);
+
+      if (matchingCalls.length === 0) {
         errors.push(`Required tool '${requiredTool}' was not called`);
+      } else if (!matchingCalls.some(isSuccessfulToolCall)) {
+        errors.push(`Required tool '${requiredTool}' has no successful calls (called ${matchingCalls.length} time${matchingCalls.length === 1 ? '' : 's'}, all failed)`);
       }
     }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
@@ -98,12 +102,14 @@ export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolC
 
   if (requirements?.counted_tools && requirements.counted_tools.length > 0 && requirements?.minimum !== undefined) {
     const countedSet = new Set(requirements.counted_tools.map(normalizeToolName));
-    const count = toolCalls.filter(tc => countedSet.has(normalizeToolName(tc.name))).length;
+    const count = toolCalls.filter(
+      tc => countedSet.has(normalizeToolName(tc.name)) && isSuccessfulToolCall(tc)
+    ).length;
 
     if (count < requirements.minimum) {
       const toolNames = requirements.counted_tools.join(', ');
       errors.push(
-        `Expected at least ${requirements.minimum} call${requirements.minimum === 1 ? '' : 's'} to counted tools [${toolNames}], got ${count}`
+        `Expected at least ${requirements.minimum} successful call${requirements.minimum === 1 ? '' : 's'} to counted tools [${toolNames}], got ${count}`
       );
     }
   }
