@@ -14,6 +14,7 @@ export interface ShellExecute {
   type: 'shell';
   command: string;
   parse_output?: ParseOutputFormat;
+  timeout_ms?: number;
 }
 
 export interface BuiltinExecute {

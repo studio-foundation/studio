@@ -79,12 +79,13 @@ export interface ShellResult {
 export async function executeShellCommand(
   command: string,
   parseOutput: ParseOutputFormat = 'text',
-  workingDir: string
+  workingDir: string,
+  timeoutMs: number = 30_000
 ): Promise<ShellResult> {
   try {
     const { stdout } = await execFileAsync('sh', ['-c', command], {
       cwd: workingDir,
-      timeout: 30_000,
+      timeout: timeoutMs,
       maxBuffer: 10 * 1024 * 1024,
     });
 

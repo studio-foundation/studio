@@ -88,14 +88,14 @@ function validateShellTemplate(fileName: string, cmd: ToolCommandDef): void {
 
 /** Create a Tool that renders the command template and runs it in a shell. */
 function createShellTool(cmd: ToolCommandDef, repoPath: string): Tool {
-  const exec = cmd.execute as { type: 'shell'; command: string; parse_output?: 'text' | 'json' };
+  const exec = cmd.execute as { type: 'shell'; command: string; parse_output?: 'text' | 'json'; timeout_ms?: number };
   return {
     name: cmd.name,
     description: cmd.description,
     parameters: buildJsonSchema(cmd.parameters),
     async execute(args) {
       const rendered = renderTemplate(exec.command, args);
-      return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath);
+      return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath, exec.timeout_ms);
     },
   };
 }
