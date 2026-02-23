@@ -1,5 +1,12 @@
 // Validation contracts and results
 
+export interface ToolCallRequirements {
+  minimum?: number;
+  required_tools?: string[];
+  required_tool_groups?: string[][];
+  counted_tools?: string[];
+}
+
 export interface OutputContract {
   name: string;
   version: number;
@@ -7,11 +14,7 @@ export interface OutputContract {
     required_fields?: string[];
     [key: string]: unknown;
   };
-  tool_calls?: {
-    minimum?: number;
-    required_tools?: string[];
-    counted_tools?: string[];
-  };
+  tool_calls?: ToolCallRequirements;
   custom_rules?: ValidationRule[];
   post_validation?: {
     rejection_detection: {
