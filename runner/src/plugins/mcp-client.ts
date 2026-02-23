@@ -14,7 +14,10 @@ export class MCPClient {
     private def: MCPServerDef
   ) {
     if (def.type === 'http') {
-      this.transport = new StreamableHTTPClientTransport(new URL(def.url));
+      const headers = this.resolveEnv(def.headers ?? {});
+      this.transport = new StreamableHTTPClientTransport(new URL(def.url), {
+        requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
+      });
     } else {
       const env = this.resolveEnv(def.env ?? {});
       this.transport = new StdioClientTransport({

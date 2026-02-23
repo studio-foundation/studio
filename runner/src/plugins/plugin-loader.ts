@@ -4,7 +4,7 @@ import { join, basename } from 'node:path';
 
 export type MCPServerDef =
   | { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
-  | { type: 'http'; url: string; env?: Record<string, string> };
+  | { type: 'http'; url: string; headers?: Record<string, string>; env?: Record<string, string> };
 
 export interface SkillContent {
   name: string;    // filename without .skill.md
