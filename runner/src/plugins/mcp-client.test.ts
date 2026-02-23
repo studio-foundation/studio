@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MCPClient } from './mcp-client.js';
 
 describe('MCPClient', () => {
@@ -40,5 +40,106 @@ describe('MCPClient', () => {
     expect(() => {
       new MCPClient('linear', 'linear', { type: 'http', url: 'https://mcp.linear.app/sse' });
     }).not.toThrow();
+  });
+});
+
+describe('MCPClient — OAuth constructor', () => {
+  it('creates an oauthProvider when auth.type is oauth', () => {
+    const client = new MCPClient('linear', 'linear', {
+      type: 'http',
+      url: 'https://mcp.linear.app/mcp',
+      auth: { type: 'oauth' },
+    });
+    expect(client.oauthProvider).toBeDefined();
+  });
+
+  it('does not create oauthProvider for plain HTTP server', () => {
+    const client = new MCPClient('github', 'github', {
+      type: 'http',
+      url: 'https://mcp.github.com/mcp',
+      headers: { Authorization: 'Bearer tok' },
+    });
+    expect(client.oauthProvider).toBeUndefined();
+  });
+
+  it('does not create oauthProvider for stdio server', () => {
+    const client = new MCPClient('myplugin', 'myserver', { command: 'cmd' });
+    expect(client.oauthProvider).toBeUndefined();
+  });
+});
+
+describe('MCPClient.start() — OAuth dance', () => {
+  it('calls startCallbackServer and finishAuth when UnauthorizedError is thrown', async () => {
+    const client = new MCPClient('linear', 'linear', {
+      type: 'http',
+      url: 'https://mcp.linear.app/mcp',
+      auth: { type: 'oauth' },
+    });
+
+    const mockClose = vi.fn();
+    vi.spyOn(client.oauthProvider!, 'startCallbackServer').mockResolvedValue({
+      codePromise: Promise.resolve('auth-code-xyz'),
+      close: mockClose,
+    });
+
+    const { UnauthorizedError } = await import('@modelcontextprotocol/sdk/client/auth.js');
+    let connectCallCount = 0;
+    vi.spyOn(client['client'], 'connect').mockImplementation(async () => {
+      connectCallCount++;
+      if (connectCallCount === 1) throw new UnauthorizedError('needs auth');
+    });
+    const mockFinishAuth = vi.fn().mockResolvedValue(undefined);
+    (client['transport'] as any).finishAuth = mockFinishAuth;
+
+    await client.start();
+
+    expect(mockFinishAuth).toHaveBeenCalledWith('auth-code-xyz');
+    expect(connectCallCount).toBe(2);
+    expect(mockClose).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('closes the callback server and rethrows on non-OAuth error', async () => {
+    const client = new MCPClient('linear', 'linear', {
+      type: 'http',
+      url: 'https://mcp.linear.app/mcp',
+      auth: { type: 'oauth' },
+    });
+
+    const mockClose = vi.fn();
+    vi.spyOn(client.oauthProvider!, 'startCallbackServer').mockResolvedValue({
+      codePromise: Promise.resolve('unused'),
+      close: mockClose,
+    });
+
+    vi.spyOn(client['client'], 'connect').mockRejectedValue(new Error('network failure'));
+
+    await expect(client.start()).rejects.toThrow('network failure');
+    expect(mockClose).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('closes the callback server immediately when connect() succeeds (tokens exist)', async () => {
+    const client = new MCPClient('linear', 'linear', {
+      type: 'http',
+      url: 'https://mcp.linear.app/mcp',
+      auth: { type: 'oauth' },
+    });
+
+    const mockClose = vi.fn();
+    vi.spyOn(client.oauthProvider!, 'startCallbackServer').mockResolvedValue({
+      codePromise: new Promise(() => { /* never resolves */ }),
+      close: mockClose,
+    });
+
+    vi.spyOn(client['client'], 'connect').mockResolvedValue(undefined);
+
+    await client.start();
+
+    expect(mockClose).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
   });
 });
