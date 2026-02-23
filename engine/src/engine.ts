@@ -396,6 +396,7 @@ export class PipelineEngine {
       stage_name: stageDef.name,
       stage_index: stageIndex,
       total_stages: totalStages,
+      max_attempts: stageDef.ralph?.max_attempts ?? 3,
     });
     this.emitter.emit({ type: 'stage_start', stageId: stageRunId, stageName: stageDef.name });
 

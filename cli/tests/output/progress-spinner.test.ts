@@ -18,7 +18,7 @@ function makeDisplay() {
 }
 
 function stageStartEvent(n = 1, total = 3) {
-  return { stage_name: 'code-generation', stage_index: n - 1, total_stages: total };
+  return { stage_name: 'code-generation', stage_index: n - 1, total_stages: total, max_attempts: 3 };
 }
 
 function stageCompleteEvent(status = 'success') {
@@ -100,7 +100,7 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
     vi.clearAllMocks();
-    events.onTaskRetry!({ stage: 'code-generation', attempt: 2, failures: ['validation failed'] });
+    events.onTaskRetry!({ stage: 'code-generation', attempt: 2, max_attempts: 3, failures: ['validation failed'] });
     expect(mockOraInstance.stop).toHaveBeenCalled();
   });
 });

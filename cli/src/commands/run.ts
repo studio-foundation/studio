@@ -9,7 +9,6 @@ import { PipelineEngine, loadPipelineByName } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
-import { formatResult } from '../output/formatter.js';
 import { createRunLogger } from '../run-logger.js';
 import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
@@ -94,6 +93,7 @@ export function mergeEvents(
         stage: e.stage_name,
         stage_index: e.stage_index,
         total_stages: e.total_stages,
+        max_attempts: e.max_attempts,
       });
     },
     onStageComplete: (e) => {
@@ -247,6 +247,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     } else {
       console.error('Error: --input or --input-file is required');
       process.exit(1);
+    }
+
+    if (!options.json) {
+      console.log(chalk.green('\n✓ Input collected\n'));
     }
 
     // Resolve repo path: --repo > --repo-url > pipeline.repo.url > CWD
@@ -422,6 +426,9 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
           console.log(formatFileChanges(changes));
         }
       }
+      console.log('');
+      console.log(chalk.gray(`Run ID: ${progress.runId}`));
+      console.log(chalk.gray(`View details: studio status ${progress.runId}`));
     }
 
     if (result.status === 'cancelled') {

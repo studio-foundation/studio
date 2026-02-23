@@ -105,7 +105,14 @@ export async function executeShellCommand(
 
     return { success: true, output: raw };
   } catch (err: unknown) {
-    const e = err as { message?: string; stderr?: string };
+    const e = err as { message?: string; stderr?: string; stdout?: string };
+    // When claude -p exits non-zero, the JSON result is still in stdout.
+    // Try to parse it so the runner gets structured error info instead of "Command failed".
+    if (parseOutput === 'json' && e.stdout?.trim()) {
+      try {
+        return { success: false, output: JSON.parse(e.stdout.trim()), error: e.stderr?.trim() || undefined };
+      } catch { /* fall through to default error */ }
+    }
     return { success: false, output: undefined, error: e.stderr?.trim() || e.message || 'Command failed' };
   }
 }

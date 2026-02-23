@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
-import { humanReadableStageName, summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult } from './formatters.js';
+import { summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult, formatTokens, formatStageLine, countWriteFiles } from './formatters.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -11,6 +11,14 @@ export class ProgressDisplay {
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private isStreamingTokens = false;
+
+  // State tracking for stage progress
+  runId = '';
+  private currentMaxAttempts = 3;
+  private currentAttempt = 1;
+  private currentStageIndex = 0;
+  private currentTotalStages = 0;
+  private currentStageName = '';
 
   readonly live: boolean;
   readonly verbose: boolean;
@@ -45,19 +53,24 @@ export class ProgressDisplay {
     return {
       onPipelineStart: (event) => {
         if (this.jsonMode) return;
-        console.log(chalk.blue(`\nRunning pipeline: ${event.pipeline_name}`));
-        console.log(chalk.gray(`Run ID: ${event.run_id}\n`));
+        this.runId = event.run_id;
+        console.log(chalk.blue(`\nRunning pipeline: ${event.pipeline_name}\n`));
       },
 
       onStageStart: (event) => {
         if (this.jsonMode) return;
-        const index = `[${event.stage_index + 1}/${event.total_stages}]`;
-        const label = humanReadableStageName(event.stage_name);
-        this.spinnerText = `${index} ${label}`;
+        this.currentStageIndex = event.stage_index;
+        this.currentTotalStages = event.total_stages;
+        this.currentStageName = event.stage_name;
+        this.currentMaxAttempts = event.max_attempts;
+        this.currentAttempt = 1;
+        const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
         if (this.live) {
-          console.log(chalk.cyan(`${this.spinnerText}...`));
+          console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
           this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
         } else {
+          const suffix = `(attempt ${this.currentAttempt}/${this.currentMaxAttempts})`;
+          this.spinnerText = formatStageLine(prefix, event.stage_name, suffix);
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
         }
       },
@@ -66,8 +79,18 @@ export class ProgressDisplay {
         if (this.jsonMode) return;
 
         const duration = formatDuration(event.duration_ms);
-        const label = humanReadableStageName(event.stage_name);
-        const attemptsStr = `${event.attempts} attempt${event.attempts !== 1 ? 's' : ''}`;
+        const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
+
+        // Build compact info parts: duration, tokens, files
+        const infoParts: string[] = [duration];
+        if (event.token_usage && event.token_usage.total_tokens > 0) {
+          infoParts.push(`${formatTokens(event.token_usage.total_tokens)} tokens`);
+        }
+        const filesWritten = event.tool_calls ? countWriteFiles(event.tool_calls) : 0;
+        if (filesWritten > 0) {
+          infoParts.push(`${filesWritten} file${filesWritten !== 1 ? 's' : ''}`);
+        }
+        const infoStr = infoParts.join(', ');
 
         if (this.live) {
           if (this.isStreamingTokens) {
@@ -77,7 +100,7 @@ export class ProgressDisplay {
           this.thinkingSpinner?.stop();
           this.thinkingSpinner = null;
           if (event.status === 'success') {
-            console.log(chalk.green(`  ✓`) + chalk.gray(` (${attemptsStr}, ${duration})`));
+            console.log(chalk.green(`  ✓`) + chalk.gray(` (${infoStr})`));
           } else if (event.status === 'rejected') {
             console.log(chalk.red(`  ✗ rejected`) + chalk.gray(` (${duration})`));
             if (event.rejection_reason) console.log(chalk.red(`    ${event.rejection_reason}`));
@@ -87,20 +110,18 @@ export class ProgressDisplay {
               }
             }
           } else {
-            console.log(chalk.red(`  ✗ failed`) + chalk.gray(` (${attemptsStr}, ${duration})`));
+            console.log(chalk.red(`  ✗ failed`) + chalk.gray(` (${infoStr})`));
           }
         } else if (event.status === 'success') {
           this.spinner?.succeed(
-            chalk.white(label) +
-            chalk.gray(` (${attemptsStr}, ${duration})`)
+            formatStageLine(prefix, event.stage_name, chalk.green('✓') + chalk.gray(` (${infoStr})`))
           );
         } else if (event.status === 'rejected') {
           this.spinner?.fail(
-            chalk.red(`${label} — rejected`) +
-            chalk.gray(` (${duration})`)
+            formatStageLine(prefix, event.stage_name, chalk.red('✗ rejected') + chalk.gray(` (${duration})`))
           );
           if (event.rejection_reason) {
-            console.log(chalk.red(`  ✗ ${event.rejection_reason}`));
+            console.log(chalk.red(`  ${event.rejection_reason}`));
           }
           if (event.rejection_details?.length) {
             for (const detail of event.rejection_details) {
@@ -109,8 +130,7 @@ export class ProgressDisplay {
           }
         } else {
           this.spinner?.fail(
-            chalk.red(`${label} — failed`) +
-            chalk.gray(` (${attemptsStr}, ${duration})`)
+            formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`))
           );
         }
         this.spinner = null;
@@ -121,9 +141,9 @@ export class ProgressDisplay {
           if (summary) console.log(chalk.gray(`  ${summary}`));
         }
 
-        // Formatted output: all modes (verbose uses unlimited depth)
-        if (event.status !== 'rejected' && event.output && typeof event.output === 'object') {
-          const depth = this.verbose ? Infinity : 4;
+        // Formatted output: verbose only
+        if (this.verbose && event.status !== 'rejected' && event.output && typeof event.output === 'object') {
+          const depth = Infinity;
           const formatted = formatStageOutput(event.output as Record<string, unknown>, depth);
           if (formatted) {
             for (const line of formatted.split('\n')) {
@@ -150,26 +170,35 @@ export class ProgressDisplay {
         this.toolSpinner = null;
         this.thinkingSpinner?.stop();
         this.thinkingSpinner = null;
-        this.spinner?.stop();
-        this.spinner = null;
 
-        console.log(chalk.yellow(`  ↻ Retry #${event.attempt}:`));
-        for (const failure of event.failures) {
-          console.log(chalk.yellow(`    - ${failure}`));
+        this.currentAttempt = event.attempt + 1;
+        const prefix = `[${this.currentStageIndex + 1}/${this.currentTotalStages}]`;
+        const reason = event.failures.length > 0 ? event.failures[0] : 'validation failed';
+
+        if (this.live) {
+          console.log(chalk.yellow(`  ✗ retry (${reason})`));
+        } else {
+          this.spinner?.fail(
+            formatStageLine(prefix, this.currentStageName, chalk.yellow('✗ retry') + chalk.gray(` (${reason})`))
+          );
+          this.spinner = null;
+        }
+
+        // Verbose extras
+        if (this.verbose && event.failures.length > 1) {
+          for (const failure of event.failures.slice(1)) {
+            console.log(chalk.yellow(`    - ${failure}`));
+          }
         }
         if (this.verbose && event.agent_output_raw) {
           console.log(chalk.gray(`    Raw response: ${event.agent_output_raw.slice(0, 300)}`));
         }
-        if (this.verbose && event.tool_calls_count !== undefined) {
-          console.log(chalk.gray(`    Tool calls made: ${event.tool_calls_count}`));
-        }
 
-        // Restart stage spinner for ongoing stage (not in live mode — tool spinners take over)
+        // Restart spinner with next attempt counter
         if (!this.live) {
-          this.spinner = ora({
-            text: this.spinnerText,
-            color: 'cyan',
-          }).start();
+          const suffix = `(attempt ${this.currentAttempt}/${event.max_attempts})`;
+          this.spinnerText = formatStageLine(prefix, this.currentStageName, suffix);
+          this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
         }
       },
 
@@ -278,23 +307,16 @@ export class ProgressDisplay {
         if (this.jsonMode) return;
 
         console.log('');
-        if (event.status === 'success') {
-          console.log(chalk.green(`✓ Pipeline completed in ${formatDuration(event.duration_ms)}`));
-        } else if (event.status === 'rejected') {
-          console.log(chalk.red(`✗ Pipeline rejected`));
-        } else {
-          console.log(chalk.red(`✗ Pipeline failed after ${formatDuration(event.duration_ms)}`));
-        }
+        const duration = formatDuration(event.duration_ms);
+        const tokenStr = event.total_tokens > 0 ? `, ${formatTokens(event.total_tokens)} tokens` : '';
+        const toolStr = event.total_tool_calls > 0 ? `, ${event.total_tool_calls} tool calls` : '';
 
-        const parts: string[] = [];
-        if (event.total_tokens > 0) {
-          parts.push(`${event.total_tokens.toLocaleString()} tokens`);
-        }
-        if (event.total_tool_calls > 0) {
-          parts.push(`${event.total_tool_calls} tool calls`);
-        }
-        if (parts.length > 0) {
-          console.log(chalk.gray(`  ${parts.join(' | ')}`));
+        if (event.status === 'success') {
+          console.log(chalk.green('✓ Pipeline completed') + chalk.gray(` (${duration}${tokenStr}${toolStr})`));
+        } else if (event.status === 'rejected') {
+          console.log(chalk.red('✗ Pipeline rejected') + chalk.gray(` (${duration}${tokenStr})`));
+        } else {
+          console.log(chalk.red('✗ Pipeline failed') + chalk.gray(` (${duration}${tokenStr})`));
         }
       },
     };

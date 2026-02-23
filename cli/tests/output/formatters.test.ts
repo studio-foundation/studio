@@ -8,6 +8,9 @@ import {
   summarizeToolResult,
   formatStageOutput,
   formatToolResult,
+  formatTokens,
+  formatStageLine,
+  countWriteFiles,
 } from '../../src/output/formatters.js';
 import type { ToolCallSummary } from '@studio/engine';
 
@@ -322,6 +325,76 @@ describe('formatStageOutput', () => {
     });
     expect(result).toContain('① src/app.ts');
     expect(result).toContain('② src/theme.ts');
+  });
+});
+
+describe('formatTokens', () => {
+  it('returns raw number for values under 1000', () => {
+    expect(formatTokens(450)).toBe('450');
+  });
+
+  it('formats thousands with one decimal', () => {
+    expect(formatTokens(2100)).toBe('2.1k');
+  });
+
+  it('drops .0 for clean thousands', () => {
+    expect(formatTokens(3000)).toBe('3k');
+  });
+
+  it('formats large token counts', () => {
+    expect(formatTokens(17900)).toBe('17.9k');
+  });
+
+  it('formats millions', () => {
+    expect(formatTokens(1234567)).toBe('1.2M');
+  });
+
+  it('returns 0 for zero', () => {
+    expect(formatTokens(0)).toBe('0');
+  });
+});
+
+describe('formatStageLine', () => {
+  it('fills dots between name and suffix to fixed width', () => {
+    const line = formatStageLine('[1/4]', 'brief-analysis', '✓ done');
+    expect(line).toContain('[1/4] brief-analysis');
+    expect(line).toContain('✓ done');
+    expect(line).toMatch(/brief-analysis\s+\.{2,}\s+✓ done/);
+  });
+
+  it('produces consistent alignment regardless of name length', () => {
+    const short = formatStageLine('[1/4]', 'qa-review', '✓');
+    const long = formatStageLine('[2/4]', 'implementation-plan', '✓');
+    const shortDotEnd = short.indexOf('✓');
+    const longDotEnd = long.indexOf('✓');
+    expect(shortDotEnd).toBe(longDotEnd);
+  });
+
+  it('handles very long stage names by using minimum dots', () => {
+    const line = formatStageLine('[1/4]', 'a-very-long-stage-name-that-exceeds-normal', '✓');
+    expect(line).toMatch(/\.{2,}/);
+  });
+});
+
+describe('countWriteFiles', () => {
+  it('returns 0 when no tool calls', () => {
+    expect(countWriteFiles([])).toBe(0);
+  });
+
+  it('counts write_file tool calls', () => {
+    const calls: ToolCallSummary[] = [
+      { name: 'repo_manager-write_file', arguments_summary: 'a.ts' },
+      { name: 'repo_manager-read_file', arguments_summary: 'b.ts' },
+      { name: 'repo_manager-write_file', arguments_summary: 'c.ts' },
+    ];
+    expect(countWriteFiles(calls)).toBe(2);
+  });
+
+  it('counts apply_patch tool calls as file writes', () => {
+    const calls: ToolCallSummary[] = [
+      { name: 'repo_manager-apply_patch', arguments_summary: 'a.ts' },
+    ];
+    expect(countWriteFiles(calls)).toBe(1);
   });
 });
 
