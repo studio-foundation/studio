@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FileChangeCollector } from '../../src/output/file-changes.js';
+import { FileChangeCollector, formatFileChanges, type FileChange } from '../../src/output/file-changes.js';
 
 vi.mock('node:child_process', () => ({
   execSync: vi.fn(),
@@ -135,5 +135,44 @@ describe('FileChangeCollector.computeSummary', () => {
 
     const summary = collector.computeSummary('/fake/repo');
     expect(summary).toBeNull();
+  });
+});
+
+describe('formatFileChanges', () => {
+  it('formats modified files with +/- counts', () => {
+    const changes: FileChange[] = [
+      { path: 'src/app.ts', status: 'M', added: 15, removed: 3 },
+    ];
+    const lines = formatFileChanges(changes);
+    expect(lines).toContain('Changes:');
+    expect(lines).toContain('M');
+    expect(lines).toContain('src/app.ts');
+    expect(lines).toContain('+15');
+    expect(lines).toContain('-3');
+  });
+
+  it('formats added files with line count', () => {
+    const changes: FileChange[] = [
+      { path: 'src/new.ts', status: 'A', added: 42, removed: 0 },
+    ];
+    const lines = formatFileChanges(changes);
+    expect(lines).toContain('A');
+    expect(lines).toContain('src/new.ts');
+    expect(lines).toContain('new file');
+    expect(lines).toContain('42');
+  });
+
+  it('formats mixed M and A files', () => {
+    const changes: FileChange[] = [
+      { path: 'src/app.ts', status: 'M', added: 15, removed: 3 },
+      { path: 'src/new.ts', status: 'A', added: 42, removed: 0 },
+    ];
+    const lines = formatFileChanges(changes);
+    expect(lines).toContain('M');
+    expect(lines).toContain('A');
+  });
+
+  it('returns empty string for empty array', () => {
+    expect(formatFileChanges([])).toBe('');
   });
 });

@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import chalk from 'chalk';
 import type { ToolCallCompleteEvent } from '@studio/contracts';
 
 export interface FileChange {
@@ -74,4 +75,23 @@ export class FileChangeCollector {
       return null;
     }
   }
+}
+
+export function formatFileChanges(changes: FileChange[]): string {
+  if (changes.length === 0) return '';
+
+  const lines: string[] = ['', 'Changes:'];
+  for (const change of changes) {
+    const tag = change.status === 'A'
+      ? chalk.green('A')
+      : chalk.yellow('M');
+
+    const detail = change.status === 'A'
+      ? chalk.gray(`(new file, ${change.added} lines)`)
+      : chalk.gray(`(+${change.added} -${change.removed})`);
+
+    lines.push(`  ${tag} ${change.path}  ${detail}`);
+  }
+
+  return lines.join('\n');
 }
