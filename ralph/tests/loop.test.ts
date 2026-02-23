@@ -209,4 +209,97 @@ describe('ralph loop', () => {
 
     expect(onRetry).toHaveBeenCalled();
   });
+
+  it('returns cancelled immediately when signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const executor = vi.fn().mockResolvedValue('result');
+    const validator = vi.fn().mockReturnValue({ valid: true, errors: [], warnings: [] });
+
+    const result = await ralph({
+      executor,
+      validator,
+      maxAttempts: 3,
+      retryStrategy: noDelay(),
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(executor).not.toHaveBeenCalled();
+  });
+
+  it('returns cancelled when signal aborts between attempts', async () => {
+    const controller = new AbortController();
+
+    const executor = vi.fn().mockResolvedValue('result');
+    const validator = vi.fn().mockReturnValueOnce({ valid: false, errors: ['fail'], warnings: [] });
+
+    // Abort after first validation
+    validator.mockImplementationOnce(() => {
+      controller.abort();
+      return { valid: false, errors: ['fail 2'], warnings: [] };
+    });
+
+    const result = await ralph({
+      executor,
+      validator,
+      maxAttempts: 5,
+      retryStrategy: noDelay(),
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(executor).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns cancelled when executor throws AbortError', async () => {
+    const controller = new AbortController();
+
+    const executor = vi.fn().mockImplementation(async () => {
+      controller.abort();
+      const err = new DOMException('The operation was aborted', 'AbortError');
+      throw err;
+    });
+    const validator = vi.fn();
+
+    const result = await ralph({
+      executor,
+      validator,
+      maxAttempts: 3,
+      retryStrategy: noDelay(),
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(validator).not.toHaveBeenCalled();
+  });
+
+  it('cancellation resolves pending retry delay immediately', async () => {
+    const controller = new AbortController();
+
+    let attempt = 0;
+    const executor = vi.fn().mockImplementation(async () => {
+      attempt++;
+      if (attempt === 1) {
+        // After first attempt, schedule abort in 5ms (well before any real delay)
+        setTimeout(() => controller.abort(), 5);
+      }
+      return 'result';
+    });
+    const validator = vi.fn().mockReturnValue({ valid: false, errors: ['fail'], warnings: [] });
+
+    const start = Date.now();
+    const result = await ralph({
+      executor,
+      validator,
+      maxAttempts: 5,
+      retryStrategy: { getDelay: () => 60_000 }, // 60 second delay — should NOT wait
+      signal: controller.signal,
+    });
+
+    const elapsed = Date.now() - start;
+    expect(result.status).toBe('cancelled');
+    expect(elapsed).toBeLessThan(5000); // Way less than 60s
+  });
 });
