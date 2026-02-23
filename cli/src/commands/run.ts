@@ -165,6 +165,14 @@ export function mergeEvents(
         status: e.status,
       });
     },
+    onPipelineCancelled: (e) => {
+      logger.log({
+        event: 'pipeline_cancelled',
+        run_id: e.run_id,
+        cancelled_at_stage: e.cancelled_at_stage,
+        duration_ms: e.duration_ms,
+      });
+    },
     onToolCallStart: (e) => {
       progressEvents.onToolCallStart?.(e);
       logger.log({

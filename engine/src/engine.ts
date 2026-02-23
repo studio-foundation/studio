@@ -215,6 +215,12 @@ export class PipelineEngine {
       if (signal?.aborted) {
         pipelineRun.status = 'cancelled' as any;
         pipelineRun.completed_at = new Date().toISOString();
+        const lastStage = pipelineRun.stages[pipelineRun.stages.length - 1];
+        this.events?.onPipelineCancelled?.({
+          run_id: pipelineRun.id,
+          cancelled_at_stage: lastStage?.stage_name ?? 'before_first_stage',
+          duration_ms: Date.now() - pipelineStartTime,
+        });
         this.events?.onPipelineComplete?.({
           pipeline_name: pipeline.name,
           run_id: pipelineRun.id,
@@ -255,6 +261,14 @@ export class PipelineEngine {
         if (groupResult.status === 'rejected' || groupResult.status === 'failed' || groupResult.status === 'cancelled') {
           pipelineRun.status = groupResult.status as any;
           pipelineRun.completed_at = new Date().toISOString();
+          if (groupResult.status === 'cancelled') {
+            const lastStage = pipelineRun.stages[pipelineRun.stages.length - 1];
+            this.events?.onPipelineCancelled?.({
+              run_id: pipelineRun.id,
+              cancelled_at_stage: lastStage?.stage_name ?? 'unknown',
+              duration_ms: Date.now() - pipelineStartTime,
+            });
+          }
           this.events?.onPipelineComplete?.({
             pipeline_name: pipeline.name,
             run_id: pipelineRun.id,
@@ -291,6 +305,13 @@ export class PipelineEngine {
         if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
           pipelineRun.status = result.stageRun.status;
           pipelineRun.completed_at = new Date().toISOString();
+          if (result.status === 'cancelled') {
+            this.events?.onPipelineCancelled?.({
+              run_id: pipelineRun.id,
+              cancelled_at_stage: result.stageRun.stage_name,
+              duration_ms: Date.now() - pipelineStartTime,
+            });
+          }
           this.events?.onPipelineComplete?.({
             pipeline_name: pipeline.name,
             run_id: pipelineRun.id,
