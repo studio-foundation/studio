@@ -18,12 +18,12 @@ export class OpenAIProvider implements Provider {
     });
   }
 
-  async call(request: LLMRequest, onToken?: (token: string) => void): Promise<LLMResponse> {
+  async call(request: LLMRequest, onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
     const openaiMessages = this.buildMessages(request);
     const tools = this.buildTools(request);
 
     if (onToken) {
-      return this.callStreaming(request, openaiMessages, tools, onToken);
+      return this.callStreaming(request, openaiMessages, tools, onToken, signal);
     }
 
     // Non-streaming path (existing behavior)
@@ -33,7 +33,7 @@ export class OpenAIProvider implements Provider {
       tools: tools && tools.length > 0 ? tools : undefined,
       temperature: request.temperature,
       max_completion_tokens: request.max_tokens
-    });
+    }, { signal });
 
     const choice = completion.choices[0];
 
@@ -60,7 +60,8 @@ export class OpenAIProvider implements Provider {
     request: LLMRequest,
     openaiMessages: ChatCompletionMessageParam[],
     tools: ChatCompletionTool[] | undefined,
-    onToken: (token: string) => void
+    onToken: (token: string) => void,
+    signal?: AbortSignal
   ): Promise<LLMResponse> {
     const stream = this.client.chat.completions.create({
       model: request.model,
@@ -70,7 +71,7 @@ export class OpenAIProvider implements Provider {
       max_completion_tokens: request.max_tokens,
       stream: true as const,
       stream_options: { include_usage: true },
-    }) as unknown as AsyncIterable<ChatCompletionChunk>;
+    }, { signal }) as unknown as AsyncIterable<ChatCompletionChunk>;
 
     let textContent = '';
     const toolCallMap = new Map<number, { id: string; name: string; args: string }>();

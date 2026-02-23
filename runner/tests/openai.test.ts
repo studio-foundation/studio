@@ -41,7 +41,7 @@ describe('OpenAIProvider', () => {
     });
     const provider = new OpenAIProvider('test-key');
     await provider.call(baseRequest);
-    expect(mockCreate).toHaveBeenCalledWith(expect.not.objectContaining({ stream: true }));
+    expect(mockCreate).toHaveBeenCalledWith(expect.not.objectContaining({ stream: true }), expect.anything());
   });
 
   it('uses streaming create when onToken is provided', async () => {
@@ -53,7 +53,7 @@ describe('OpenAIProvider', () => {
     const provider = new OpenAIProvider('test-key');
     const tokens: string[] = [];
     await provider.call(baseRequest, (t) => tokens.push(t));
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ stream: true }));
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ stream: true }), expect.anything());
     expect(tokens).toEqual(['Hello', ' world']);
   });
 

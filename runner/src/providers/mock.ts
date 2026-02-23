@@ -15,14 +15,15 @@ export class MockProvider implements AgentLoopProvider {
 
   constructor(private readonly stages: Map<string, MockStageConfig>) {}
 
-  async call(_request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
+  async call(_request: LLMRequest, _onToken?: (token: string) => void, _signal?: AbortSignal): Promise<LLMResponse> {
     throw new Error('MockProvider: use runAgentLoop, not call()');
   }
 
   async runAgentLoop(
     request: LLMRequest,
     executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>,
-    onToken?: (token: string) => void
+    onToken?: (token: string) => void,
+    _signal?: AbortSignal
   ): Promise<AgentLoopResult> {
     if (!request.stage_name) {
       throw new Error('MockProvider requires stage_name in LLMRequest');
