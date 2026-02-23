@@ -50,13 +50,15 @@ import {
   getContextForStage,
   setGroupFeedback,
   clearGroupFeedback,
+  buildContextKeys,
+  buildContextContent,
   type PipelineContext,
 } from './pipeline/context-propagation.js';
 import { deriveStageStatus } from './state/status-derivation.js';
 import { postValidate, type PostValidationResult } from './pipeline/post-validator.js';
 import { loadContextPacks } from './pipeline/context-pack-loader.js';
 import type { RunStore } from './state/run-store.js';
-import type { EngineEvents, ToolCallSummary } from './events.js';
+import type { EngineEvents, ToolCallSummary, StageContextEvent } from './events.js';
 import { PipelineEventEmitter } from './events.js';
 
 function summarizeOutput(output: unknown): string {
@@ -444,6 +446,23 @@ export class PipelineEngine {
         paths.projectDir,
         pipelineContext.repoPath,
       );
+    }
+
+    // Emit context observability event (zero work if no handler registered)
+    if (this.events?.onStageContext) {
+      const debugFlag = process.env.DEBUG ?? '';
+      const includeContent = debugFlag.includes('studio:context');
+      const includePrompt  = debugFlag.includes('studio:context:verbose');
+
+      const contextEvent: StageContextEvent = {
+        stage: stageDef.name,
+        run_id: runId ?? '',
+        context_keys: buildContextKeys(agentContext, pipelineContext.stageOutputSizes),
+        ...(includeContent ? { context_content: buildContextContent(agentContext) } : {}),
+        ...(includePrompt  ? { system_prompt: agentConfig.system_prompt } : {}),
+      };
+
+      this.events.onStageContext(contextEvent);
     }
 
     // Create a single task run (v7: 1 stage = 1 task = 1 ralph call)
