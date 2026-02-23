@@ -69,8 +69,8 @@ export class MCPClient {
       } catch (err) {
         if (err instanceof UnauthorizedError) {
           const code = await codePromise;
-          close();
           await (this.transport as StreamableHTTPClientTransport).finishAuth(code);
+          close();
           await this.client.connect(this.transport);
         } else {
           close();
