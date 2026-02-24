@@ -1,7 +1,7 @@
 // runner/src/tools/plugin-loader.ts
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import yaml from 'js-yaml';
 import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
 import type { Tool } from './tool-registry.js';
@@ -87,7 +87,7 @@ function validateShellTemplate(fileName: string, cmd: ToolCommandDef): void {
 }
 
 /** Create a Tool that renders the command template and runs it in a shell. */
-function createShellTool(cmd: ToolCommandDef, repoPath: string): Tool {
+function createShellTool(cmd: ToolCommandDef, repoPath: string, configsDir: string): Tool {
   const exec = cmd.execute as { type: 'shell'; command: string; parse_output?: 'text' | 'json'; timeout_ms?: number };
   return {
     name: cmd.name,
@@ -95,7 +95,7 @@ function createShellTool(cmd: ToolCommandDef, repoPath: string): Tool {
     parameters: buildJsonSchema(cmd.parameters),
     async execute(args) {
       const rendered = renderTemplate(exec.command, args);
-      return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath, exec.timeout_ms);
+      return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath, exec.timeout_ms, { STUDIO_CONFIG_DIR: configsDir });
     },
   };
 }
@@ -119,6 +119,7 @@ export async function loadProjectTools(
 
   if (files.length === 0) return [];
 
+  const configsDir = resolve(dirname(toolsDir));
   const builtinMap = buildBuiltinMap(repoPath);
   const plugins: LoadedPlugin[] = [];
 
@@ -134,7 +135,7 @@ export async function loadProjectTools(
         // If unknown builtin name, skip silently (no crash)
       } else {
         validateShellTemplate(file, cmd);
-        tools.push(createShellTool(cmd, repoPath));
+        tools.push(createShellTool(cmd, repoPath, configsDir));
       }
     }
 

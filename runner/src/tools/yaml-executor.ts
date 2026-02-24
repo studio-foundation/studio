@@ -80,13 +80,15 @@ export async function executeShellCommand(
   command: string,
   parseOutput: ParseOutputFormat = 'text',
   workingDir: string,
-  timeoutMs: number = 30_000
+  timeoutMs: number = 30_000,
+  env?: Record<string, string>
 ): Promise<ShellResult> {
   try {
     const { stdout } = await execFileAsync('sh', ['-c', command], {
       cwd: workingDir,
       timeout: timeoutMs,
       maxBuffer: 10 * 1024 * 1024,
+      ...(env ? { env: { ...process.env, ...env } } : {}),
     });
 
     const raw = stdout.trim();
