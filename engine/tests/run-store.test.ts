@@ -123,4 +123,21 @@ describe('InMemoryRunStore', () => {
     const retrieved = store.getPipelineRun('r1');
     expect(retrieved!.status).toBe('success');
   });
+
+  describe('log path', () => {
+    it('returns null for unknown run', () => {
+      expect(store.getLogPath('nonexistent')).toBeNull();
+    });
+
+    it('saves and retrieves a log path', () => {
+      store.saveLogPath('run-1', '/tmp/.studio/runs/log.jsonl');
+      expect(store.getLogPath('run-1')).toBe('/tmp/.studio/runs/log.jsonl');
+    });
+
+    it('overwrites existing log path', () => {
+      store.saveLogPath('run-1', '/tmp/old.jsonl');
+      store.saveLogPath('run-1', '/tmp/new.jsonl');
+      expect(store.getLogPath('run-1')).toBe('/tmp/new.jsonl');
+    });
+  });
 });
