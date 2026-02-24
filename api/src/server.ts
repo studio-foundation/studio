@@ -13,6 +13,11 @@ export interface ApiConfig {
   port?: number;
 }
 
+export type MaskedConfig = {
+  defaults?: { provider?: string; model?: string };
+  providers: string[];
+};
+
 export interface ServerDeps {
   store: RunStore;
   launcher: RunLauncher;
@@ -20,10 +25,7 @@ export interface ServerDeps {
   projectName: string;
   apiConfig: ApiConfig;
   studioVersion: string;
-  maskedConfig: {
-    defaults?: { provider?: string; model?: string };
-    providers: string[];
-  };
+  maskedConfig: MaskedConfig;
 }
 
 export function buildServer(deps: ServerDeps) {

@@ -19,6 +19,7 @@ import {
 } from '@studio/runner';
 import { InProcessLauncher, type RunLauncher } from './launcher.js';
 import { RunEventBus } from './event-bus.js';
+import type { MaskedConfig } from './server.js';
 
 export interface StudioApiConfig {
   providers?: {
@@ -37,10 +38,7 @@ export interface BootstrapResult {
   apiConfig: { key?: string; port?: number };
   cleanup: () => Promise<void>;
   studioVersion: string;
-  maskedConfig: {
-    defaults?: { provider?: string; model?: string };
-    providers: string[];
-  };
+  maskedConfig: MaskedConfig;
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {
