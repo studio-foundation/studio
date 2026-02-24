@@ -2,14 +2,14 @@ import chalk from 'chalk';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { PipelineRun, StageRun, TaskRun } from '@studio/contracts';
-import { SQLiteRunStore } from '@studio/engine';
+import { loadConfig } from '../config.js';
+import { createRunStore } from '../run-store-factory.js';
 import { formatResult } from '../output/formatter.js';
 
 interface StatusOptions {
   json?: boolean;
 }
 
-const DEFAULT_DB_PATH = resolve(process.cwd(), '.studio/runs.db');
 const RUNS_DIR = '.studio/runs';
 
 function runIdShort(runId: string): string {
@@ -132,8 +132,10 @@ export async function statusCommand(
   try {
     let run: PipelineRun | null = null;
     try {
-      const store = new SQLiteRunStore(DEFAULT_DB_PATH);
+      const config = await loadConfig();
+      const store = createRunStore(config);
       run = runId ? store.getPipelineRun(runId) : store.getLatestRun();
+      store.close?.();
     } catch {
       // DB not available or not initialized
     }
