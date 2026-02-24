@@ -17,6 +17,10 @@ export interface StudioConfig {
     provider?: string;
     model?: string;
   };
+  api?: {
+    key?: string;
+    port?: number;
+  };
   /** Resolved path to .studio/ dir — set at load time, not from YAML */
   resolvedStudioDir?: string;
 }
