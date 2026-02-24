@@ -1,6 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { InProcessLauncher } from '../src/launcher.js';
 import { InMemoryRunStore } from '@studio/engine';
+
+// Use a unique dir that won't be mistaken for a real .studio/ by findStudioDir
+const TMP_RUNS_DIR = resolve('/tmp', `studio-launcher-test-${Date.now()}`);
+
+afterAll(() => {
+  rmSync(TMP_RUNS_DIR, { recursive: true, force: true });
+});
 
 describe('InProcessLauncher', () => {
   let store: InMemoryRunStore;
@@ -36,12 +45,12 @@ describe('InProcessLauncher', () => {
       };
     });
 
-    const launcher = new InProcessLauncher(mockEngine as never, store, '/tmp/.studio');
+    const launcher = new InProcessLauncher(mockEngine as never, store, TMP_RUNS_DIR);
     const result = await launcher.launch({
       runId: 'pre-generated-id',
       pipeline: 'test-pipeline',
       input: { key: 'value' },
-      configsDir: '/tmp/.studio',
+      configsDir: TMP_RUNS_DIR,
     });
 
     expect(result.run_id).toBe('pre-generated-id');
@@ -55,12 +64,12 @@ describe('InProcessLauncher', () => {
       return { id: 'run-abc', pipeline_name: 'p', status: 'success', started_at: '', stages: [] };
     });
 
-    const launcher = new InProcessLauncher(mockEngine as never, store, '/tmp/.studio/runs');
+    const launcher = new InProcessLauncher(mockEngine as never, store, TMP_RUNS_DIR);
     await launcher.launch({
       runId: 'run-abc',
       pipeline: 'test-pipeline',
       input: {},
-      configsDir: '/tmp/.studio',
+      configsDir: TMP_RUNS_DIR,
     });
 
     const logPath = store.getLogPath('run-abc');
@@ -77,12 +86,12 @@ describe('InProcessLauncher', () => {
       return { id: 'run-cancel', pipeline_name: 'p', status: 'failed', started_at: '', stages: [] };
     });
 
-    const launcher = new InProcessLauncher(mockEngine as never, store, '/tmp/.studio/runs');
+    const launcher = new InProcessLauncher(mockEngine as never, store, TMP_RUNS_DIR);
     await launcher.launch({
       runId: 'run-cancel',
       pipeline: 'test-pipeline',
       input: {},
-      configsDir: '/tmp/.studio',
+      configsDir: TMP_RUNS_DIR,
     });
 
     await launcher.cancel('run-cancel');
@@ -91,7 +100,7 @@ describe('InProcessLauncher', () => {
   });
 
   it('cancel ignores unknown run_id', async () => {
-    const launcher = new InProcessLauncher(mockEngine as never, store, '/tmp/.studio/runs');
+    const launcher = new InProcessLauncher(mockEngine as never, store, TMP_RUNS_DIR);
     await expect(launcher.cancel('nonexistent')).resolves.toBeUndefined();
   });
 });
