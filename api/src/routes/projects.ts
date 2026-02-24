@@ -16,7 +16,28 @@ export async function projectsRoutes(
   const id = projectId(configsDir);
 
   // GET /api/projects — returns the single project this API serves
-  fastify.get('/projects', async (_request, reply) => {
+  fastify.get('/projects', {
+    schema: {
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            projects: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  pipelines_dir: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (_request, reply) => {
     return reply.send({
       projects: [
         {
@@ -29,7 +50,23 @@ export async function projectsRoutes(
   });
 
   // GET /api/projects/:id/pipelines
-  fastify.get<{ Params: { id: string } }>('/projects/:id/pipelines', async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>('/projects/:id/pipelines', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            pipelines: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
     if (request.params.id !== id) {
       return reply.status(404).send({ error: 'Project not found' });
     }
