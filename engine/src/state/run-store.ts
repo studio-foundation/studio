@@ -8,11 +8,14 @@ export interface RunStore {
   getPipelineRun(id: string): PipelineRun | null;
   listPipelineRuns(options?: { limit?: number; status?: string }): PipelineRun[];
   getLatestRun(pipelineName?: string): PipelineRun | null;
+  saveLogPath(runId: string, logPath: string): void;
+  getLogPath(runId: string): string | null;
 }
 
 // In-memory store for tests and simple usage
 export class InMemoryRunStore implements RunStore {
   private runs: Map<string, PipelineRun> = new Map();
+  private logPaths: Map<string, string> = new Map();
 
   savePipelineRun(run: PipelineRun): void {
     this.runs.set(run.id, structuredClone(run));
@@ -52,6 +55,14 @@ export class InMemoryRunStore implements RunStore {
     runs.sort((a, b) => b.started_at.localeCompare(a.started_at));
     return structuredClone(runs[0]);
   }
+
+  saveLogPath(runId: string, logPath: string): void {
+    this.logPaths.set(runId, logPath);
+  }
+
+  getLogPath(runId: string): string | null {
+    return this.logPaths.get(runId) ?? null;
+  }
 }
 
 // SQLite store for production persistence
@@ -78,6 +89,7 @@ export class SQLiteRunStore implements RunStore {
         result TEXT NOT NULL,
         started_at TEXT NOT NULL,
         completed_at TEXT,
+        log_path TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -86,6 +98,13 @@ export class SQLiteRunStore implements RunStore {
       CREATE INDEX IF NOT EXISTS idx_pipeline_runs_created
         ON pipeline_runs(created_at DESC);
     `);
+
+    // Migration: add log_path column to existing databases
+    try {
+      this.db.exec('ALTER TABLE pipeline_runs ADD COLUMN log_path TEXT');
+    } catch {
+      // Column already exists — ignore
+    }
   }
 
   savePipelineRun(run: PipelineRun): void {
@@ -147,6 +166,17 @@ export class SQLiteRunStore implements RunStore {
     const row = this.db.prepare(sql).get(...params) as { result: string } | undefined;
     if (!row) return null;
     return JSON.parse(row.result) as PipelineRun;
+  }
+
+  saveLogPath(runId: string, logPath: string): void {
+    this.db.prepare('UPDATE pipeline_runs SET log_path = ? WHERE id = ?').run(logPath, runId);
+  }
+
+  getLogPath(runId: string): string | null {
+    const row = this.db.prepare('SELECT log_path FROM pipeline_runs WHERE id = ?').get(runId) as
+      | { log_path: string | null }
+      | undefined;
+    return row?.log_path ?? null;
   }
 
   close(): void {

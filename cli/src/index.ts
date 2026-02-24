@@ -14,6 +14,7 @@ import { toolsCommand } from './commands/tools.js';
 import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
+import { apiStartCommand } from './commands/api.js';
 
 const program = new Command();
 
@@ -111,5 +112,19 @@ program
   .option('--template <name>', 'Template to use (blank, software, …)')
   .option('--description <desc>', 'Project description')
   .action(projectCommand);
+
+program
+  .command('api <action>')
+  .description('Manage the Studio API server (start)')
+  .option('--port <port>', 'Port to listen on (default: 3700)')
+  .option('--config <path>', 'Path to config file')
+  .action((action: string, options: { port?: string; config?: string }) => {
+    if (action === 'start') {
+      void apiStartCommand(options);
+    } else {
+      console.error(`Unknown api action: ${action}. Use: studio api start`);
+      process.exit(1);
+    }
+  });
 
 program.parse();

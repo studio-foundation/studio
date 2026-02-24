@@ -118,6 +118,7 @@ function resolveProjectPaths(configsDir: string): ProjectPaths {
 }
 
 export interface RunInput {
+  id?: string;          // ← pre-generated run ID (e.g. from the API)
   pipeline: string;
   input: string | Record<string, unknown>;
   meta?: Record<string, unknown>;
@@ -175,7 +176,7 @@ export class PipelineEngine {
 
     // 2. Create the PipelineRun
     const pipelineRun: PipelineRun = {
-      id: randomUUID(),
+      id: input.id ?? randomUUID(),
       pipeline_name: pipeline.name,
       status: 'running',
       started_at: new Date().toISOString(),

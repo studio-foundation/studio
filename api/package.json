@@ -1,12 +1,21 @@
 {
-  "name": "@studio/cli",
+  "name": "@studio/api",
   "version": "0.1.0",
-  "description": "Command-line interface for Studio v7",
+  "description": "HTTP API for Studio v7",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/api.js",
+  "types": "./dist/api.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/api.js",
+      "types": "./dist/api.d.ts"
+    },
+    "./standalone": {
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
-    "studio": "./dist/index.js"
+    "studio-api": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -16,24 +25,16 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [
-    "studio",
-    "cli"
-  ],
+  "keywords": ["studio", "api"],
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@inquirer/prompts": "^8.2.1",
-    "@studio/api": "workspace:*",
+    "@fastify/cors": "^10.0.2",
     "@studio/contracts": "workspace:*",
     "@studio/engine": "workspace:*",
-    "@studio/ralph": "workspace:*",
     "@studio/runner": "workspace:*",
-    "chalk": "^5.6.2",
-    "commander": "^14.0.3",
-    "dotenv": "^17.3.1",
-    "js-yaml": "^4.1.1",
-    "ora": "^9.3.0"
+    "fastify": "^5.3.2",
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
