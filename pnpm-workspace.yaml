@@ -5,6 +5,7 @@ packages:
   - "engine"
   - "cli"
   - "anonymizer"
+  - "api"
 
 onlyBuiltDependencies:
   - better-sqlite3
