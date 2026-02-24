@@ -36,6 +36,11 @@ export interface BootstrapResult {
   projectName: string;
   apiConfig: { key?: string; port?: number };
   cleanup: () => Promise<void>;
+  studioVersion: string;
+  maskedConfig: {
+    defaults?: { provider?: string; model?: string };
+    providers: string[];
+  };
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {

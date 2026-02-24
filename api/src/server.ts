@@ -19,6 +19,11 @@ export interface ServerDeps {
   configsDir: string;
   projectName: string;
   apiConfig: ApiConfig;
+  studioVersion: string;
+  maskedConfig: {
+    defaults?: { provider?: string; model?: string };
+    providers: string[];
+  };
 }
 
 export function buildServer(deps: ServerDeps) {
