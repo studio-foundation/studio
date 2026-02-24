@@ -11,6 +11,7 @@ export interface RunStore {
   getLatestRun(pipelineName?: string): PipelineRun | null;
   saveLogPath(runId: string, logPath: string): void;
   getLogPath(runId: string): string | null;
+  close?(): void;
 }
 
 // In-memory store for tests and simple usage
