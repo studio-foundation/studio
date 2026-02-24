@@ -5,7 +5,7 @@ import { resolve, join, dirname } from 'node:path';
 import { access, readFile } from 'node:fs/promises';
 import yaml from 'js-yaml';
 import {
-  PipelineEngine,
+  type EngineConfig,
   SQLiteRunStore,
   type RunStore,
 } from '@studio/engine';
@@ -18,6 +18,7 @@ import {
   type SkillContent,
 } from '@studio/runner';
 import { InProcessLauncher, type RunLauncher } from './launcher.js';
+import { RunEventBus } from './event-bus.js';
 
 export interface StudioApiConfig {
   providers?: {
@@ -111,15 +112,16 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     }
   }
 
-  const engine = new PipelineEngine({
+  const engineConfig: EngineConfig = {
     configsDir: studioDir,
     providerRegistry,
     toolRegistry,
     db: store,
     pluginSkills,
-  });
+  };
 
-  const launcher = new InProcessLauncher(engine, store, runsDir);
+  const bus = new RunEventBus();
+  const launcher = new InProcessLauncher(engineConfig, store, runsDir, bus);
 
   // Derive project name from the directory containing .studio/
   const projectName = studioDir.split('/').slice(-2, -1)[0] ?? 'studio-project';
