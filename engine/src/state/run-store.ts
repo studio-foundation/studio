@@ -1,6 +1,7 @@
 // Persistence layer for pipeline runs
 // Two implementations: InMemoryRunStore (tests) + SQLiteRunStore (production)
 
+import { createRequire } from 'node:module';
 import type { PipelineRun } from '@studio/contracts';
 
 export interface RunStore {
@@ -10,6 +11,7 @@ export interface RunStore {
   getLatestRun(pipelineName?: string): PipelineRun | null;
   saveLogPath(runId: string, logPath: string): void;
   getLogPath(runId: string): string | null;
+  close?(): void;
 }
 
 // In-memory store for tests and simple usage
@@ -72,9 +74,8 @@ export class SQLiteRunStore implements RunStore {
   private db: import('better-sqlite3').Database;
 
   constructor(dbPath: string) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Database = require('better-sqlite3') as new (path: string) => import('better-sqlite3').Database;
+    const _require = createRequire(import.meta.url);
+    const Database = _require('better-sqlite3') as new (path: string) => import('better-sqlite3').Database;
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.initSchema();
