@@ -6,7 +6,12 @@ import * as yaml from 'js-yaml';
 // Use /tmp as base to avoid interference from the Studio repo's own .studio/
 const TMP = resolve('/tmp', '.studio-init-test');
 
-beforeEach(async () => { await mkdir(TMP, { recursive: true }); });
+beforeEach(async () => {
+  // Clean up any stale /tmp/.studio left by worktree tests — findStudioDir would find it
+  // walking up from TMP and incorrectly report "already initialized"
+  await rm('/tmp/.studio', { recursive: true, force: true });
+  await mkdir(TMP, { recursive: true });
+});
 afterEach(async () => { await rm(TMP, { recursive: true, force: true }); });
 
 async function exists(p: string): Promise<boolean> {

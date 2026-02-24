@@ -24,8 +24,8 @@ describe('findStudioDir', () => {
   });
 
   it('returns null when .studio/ is not found', async () => {
-    // Use a path with no .studio/ anywhere above it (use /tmp directly)
-    const result = await findStudioDir('/tmp');
+    // Use the filesystem root — /.studio never exists, so findStudioDir returns null immediately
+    const result = await findStudioDir('/');
     expect(result).toBeNull();
   });
 });

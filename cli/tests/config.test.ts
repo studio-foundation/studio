@@ -87,8 +87,9 @@ defaults:
   });
 
   it('should fall back to .studiorc.yaml when no .studio/', async () => {
-    // Use /tmp to avoid interference from .studio/ in Studio's own repo tree
-    const isolatedDir = resolve('/tmp', `.studio-config-fallback-${Date.now()}`);
+    // Use homedir base — avoids interference from /tmp/.studio (stale worktree test artifact)
+    // and from Studio repo's own .studio/ (which is under /home/.../Studio/, not under ~/)
+    const isolatedDir = resolve(process.env.HOME ?? '/tmp', `.studio-config-fallback-${Date.now()}`);
     await mkdir(isolatedDir, { recursive: true });
     try {
       const configPath = resolve(isolatedDir, '.studiorc.yaml');

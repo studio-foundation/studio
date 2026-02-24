@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StudioOAuthProvider } from './oauth-provider.js';
 
+vi.mock('node:child_process', () => ({ exec: vi.fn() }));
+
 let tmpDir: string;
 
 beforeEach(async () => {
