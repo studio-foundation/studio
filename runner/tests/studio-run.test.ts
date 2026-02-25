@@ -59,7 +59,10 @@ describe('createStudioRunTool', () => {
       parentRunId: 'parent-1',
       depth: 1,
     });
-    expect(result).toEqual({ run_id: 'child-abc', status: 'success', output: { result: 'done' } });
+    expect(result).toEqual({
+      success: true,
+      output: { run_id: 'child-abc', status: 'success', output: { result: 'done' } },
+    });
   });
 
   it('propagates error when spawner throws', async () => {

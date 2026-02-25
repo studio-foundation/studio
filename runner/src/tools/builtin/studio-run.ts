@@ -1,5 +1,5 @@
 import type { RunSpawner } from '@studio/contracts';
-import type { Tool, ToolResult } from '../tool-registry.js';
+import type { Tool } from '../tool-registry.js';
 
 interface StudioRunContext {
   spawner: RunSpawner;
@@ -63,7 +63,10 @@ export function createStudioRunTool(ctx: StudioRunContext): Tool[] {
           depth: ctx.currentDepth + 1,
         });
 
-        return result as unknown as ToolResult;
+        return {
+          success: result.status === 'success',
+          output: result,
+        };
       },
     },
   ];
