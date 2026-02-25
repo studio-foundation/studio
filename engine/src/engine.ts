@@ -191,6 +191,9 @@ export class PipelineEngine {
     const runAnonymize = input.anonymize === true;
     const runMiddleware = runAnonymize ? new AnonymizationMiddleware() : null;
 
+    // Persist the run immediately so log_path can be written before terminal states
+    this.config.db?.savePipelineRun(pipelineRun);
+
     this.events?.onPipelineStart?.({
       pipeline_name: pipeline.name,
       run_id: pipelineRun.id,
