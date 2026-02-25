@@ -1,5 +1,6 @@
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import * as yaml from 'js-yaml';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
@@ -95,6 +96,70 @@ export async function projectsRoutes(
       .map(f => f.replace('.pipeline.yaml', ''));
 
     return reply.send({ pipelines });
+  });
+  // GET /api/projects/:id/inputs
+  fastify.get<{ Params: { id: string } }>('/projects/:id/inputs', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            inputs: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    if (request.params.id !== id) {
+      return reply.status(404).send({ error: 'Project not found' });
+    }
+
+    const inputsDir = join(configsDir, 'inputs');
+    let entries: string[];
+    try {
+      entries = await readdir(inputsDir);
+    } catch {
+      return reply.send({ inputs: [] });
+    }
+
+    const inputs = entries
+      .filter(f => f.endsWith('.input.yaml'))
+      .map(f => f.replace('.input.yaml', ''));
+
+    return reply.send({ inputs });
+  });
+
+
+  // GET /api/projects/:id/inputs/:name — read an input file (YAML parsed to JSON)
+  fastify.get<{ Params: { id: string; name: string } }>('/projects/:id/inputs/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+        },
+        required: ['id', 'name'],
+      },
+    },
+  }, async (request, reply) => {
+    if (request.params.id !== id) {
+      return reply.status(404).send({ error: 'Project not found' });
+    }
+
+    const filePath = join(configsDir, 'inputs', `${request.params.name}.input.yaml`);
+    let content: string;
+    try {
+      content = await readFile(filePath, 'utf-8');
+    } catch {
+      return reply.status(404).send({ error: 'Input not found' });
+    }
+    return reply.send(yaml.load(content));
   });
 
   // GET /api/project — full introspection of the current Studio project
