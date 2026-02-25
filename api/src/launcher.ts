@@ -27,6 +27,8 @@ export interface LaunchConfig {
   input: Record<string, unknown>;
   configsDir: string;
   providerOverride?: string;
+  depth?: number;
+  parentRunId?: string;
 }
 
 export type EngineFactory = (
@@ -93,7 +95,7 @@ export class InProcessLauncher implements RunLauncher {
     const engine = this.engineFactory(this.engineConfig, perRunEvents);
 
     void engine
-      .run({ pipeline, input, signal: controller.signal, id: runId })
+      .run({ pipeline, input, signal: controller.signal, id: runId, depth: config.depth, parentRunId: config.parentRunId })
       .then(async () => {
         await logger.close();
       })

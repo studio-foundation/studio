@@ -106,6 +106,14 @@ export class SQLiteRunStore implements RunStore {
     } catch {
       // Column already exists — ignore
     }
+
+    // Migration: add parent_run_id column to existing databases
+    try {
+      this.db.exec('ALTER TABLE pipeline_runs ADD COLUMN parent_run_id TEXT');
+      this.db.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_runs_parent ON pipeline_runs(parent_run_id)');
+    } catch {
+      // Column already exists — ignore
+    }
   }
 
   savePipelineRun(run: PipelineRun): void {

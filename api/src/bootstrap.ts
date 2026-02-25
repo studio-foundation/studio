@@ -23,6 +23,7 @@ import { RunEventBus } from './event-bus.js';
 import type { MaskedConfig } from './server.js';
 import { WebhookStore } from './webhook-store.js';
 import { WebhookDispatcher } from './webhook-dispatcher.js';
+import { HttpApiSpawner } from './spawners/http-api-spawner.js';
 
 export interface StudioApiConfig {
   providers?: {
@@ -130,12 +131,18 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     }
   }
 
+  // Self-referential spawner: allows pipelines to spawn child runs via the API
+  const apiPort = config.api?.port ?? 3000;
+  const spawner = new HttpApiSpawner(`http://localhost:${apiPort}`);
+
   const engineConfig: EngineConfig = {
     configsDir: studioDir,
     providerRegistry,
     toolRegistry,
     db: store,
     pluginSkills,
+    spawner,
+    maxDepth: 3,
   };
 
   const bus = new RunEventBus();

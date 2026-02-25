@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
-import { PipelineEngine, loadPipelineByName } from '@studio/engine';
+import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
@@ -388,15 +388,23 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       },
     };
 
+    const engineConfig = {
+      configsDir,
+      repoPath,
+      providerRegistry,
+      toolRegistry,
+      pluginSkills,
+      db: runStore ?? undefined,
+      ...(options.provider ? { providerOverride: options.provider } : {}),
+    };
+
+    const spawner = new DirectEngineSpawner(engineConfig);
+
     const engine = new PipelineEngine(
       {
-        configsDir,
-        repoPath,
-        providerRegistry,
-        toolRegistry,
-        pluginSkills,
-        db: runStore ?? undefined,
-        ...(options.provider ? { providerOverride: options.provider } : {}),
+        ...engineConfig,
+        spawner,
+        maxDepth: 3,
       },
       events
     );

@@ -13,6 +13,7 @@ import type {
   AgentRun,
   OutputContract,
   ToolCall,
+  RunSpawner,
 } from '@studio/contracts';
 import { isStageGroup } from '@studio/contracts';
 import {
@@ -37,6 +38,8 @@ import {
   type ProviderRegistry,
   type TaskInput,
   AnonymizationMiddleware,
+  createStudioRunTool,
+  STUDIO_RUN_PROMPT_SNIPPET,
 } from '@studio/runner';
 import { loadPipelineByName } from './pipeline/loader.js';
 import { loadAgentProfile } from './pipeline/agent-loader.js';
@@ -99,6 +102,8 @@ export interface EngineConfig {
    * into the system prompt of agents that declare the plugin.
    */
   pluginSkills?: Record<string, string[]>;
+  spawner?: RunSpawner;  // if set, studio-run tool is available to agents
+  maxDepth?: number;     // max nesting depth for spawned runs, default 3
 }
 
 interface ProjectPaths {
@@ -124,6 +129,8 @@ export interface RunInput {
   meta?: Record<string, unknown>;
   anonymize?: boolean;
   signal?: AbortSignal;
+  depth?: number;        // nesting depth (0 = top-level)
+  parentRunId?: string;  // parent run ID if spawned by another pipeline
 }
 
 interface StageResult {
@@ -181,6 +188,7 @@ export class PipelineEngine {
       status: 'running',
       started_at: new Date().toISOString(),
       stages: [],
+      ...(input.parentRunId ? { parent_run_id: input.parentRunId } : {}),
     };
 
     // Reset totals for this run
@@ -193,6 +201,25 @@ export class PipelineEngine {
 
     // Persist the run immediately so log_path can be written before terminal states
     this.config.db?.savePipelineRun(pipelineRun);
+
+    // Build per-run tool registry: clone the shared registry and inject studio-run
+    // with run-specific context (run ID, depth) if a spawner is configured.
+    const runToolRegistry = this.config.spawner
+      ? (() => {
+          const registry = this.config.toolRegistry.clone();
+          registry.registerPlugin(
+            'studio_run',
+            createStudioRunTool({
+              spawner: this.config.spawner,
+              currentRunId: pipelineRun.id,
+              currentDepth: input.depth ?? 0,
+              maxDepth: this.config.maxDepth ?? 3,
+            }),
+            STUDIO_RUN_PROMPT_SNIPPET
+          );
+          return registry;
+        })()
+      : this.config.toolRegistry;
 
     this.events?.onPipelineStart?.({
       pipeline_name: pipeline.name,
@@ -250,6 +277,7 @@ export class PipelineEngine {
           totalStages,
           input.input,
           projectPaths,
+          runToolRegistry,
           runMiddleware,
           pipelineRun.id,
           signal,
@@ -302,6 +330,7 @@ export class PipelineEngine {
           stageCounter - 1,
           totalStages,
           projectPaths,
+          runToolRegistry,
           runMiddleware,
           pipelineRun.id,
           signal,
@@ -383,6 +412,7 @@ export class PipelineEngine {
     stageIndex: number,
     totalStages: number,
     paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
@@ -599,7 +629,7 @@ export class PipelineEngine {
           task: taskInput,
           context: agentContext,
           executionContext: runnerExecContext,
-          toolRegistry: this.config.toolRegistry,
+          toolRegistry: toolRegistry,
           providerRegistry: this.config.providerRegistry,
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
@@ -795,6 +825,7 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
@@ -869,6 +900,7 @@ export class PipelineEngine {
           stageNumber,
           totalStages,
           paths,
+          toolRegistry,
           runMiddleware,
           runId,
           signal,

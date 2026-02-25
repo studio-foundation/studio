@@ -120,4 +120,11 @@ export class ToolRegistry {
     }
     return filtered;
   }
+
+  /**
+   * Create a full copy of this registry (all tools + plugin metadata).
+   */
+  clone(): ToolRegistry {
+    return this.filter(Array.from(this.tools.keys()));
+  }
 }

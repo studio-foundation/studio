@@ -77,6 +77,26 @@ describe('POST /api/runs', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it('passes X-Studio-Depth and X-Studio-Parent-Run-Id headers to launcher', async () => {
+    const store = new InMemoryRunStore();
+    const launcher = { launch: vi.fn().mockResolvedValue({ run_id: 'r1' }), cancel: vi.fn() };
+    const server = makeServer(store, launcher);
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/runs',
+      headers: {
+        'content-type': 'application/json',
+        'x-studio-depth': '2',
+        'x-studio-parent-run-id': 'parent-abc',
+      },
+      payload: { pipeline: 'test', input: {} },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(launcher.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ depth: 2, parentRunId: 'parent-abc' })
+    );
+  });
 });
 
 describe('GET /api/runs', () => {

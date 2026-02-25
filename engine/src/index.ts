@@ -51,3 +51,6 @@ export type { PipelineContext, PipelineInput, GroupFeedback } from './pipeline/c
 export { validateOutput } from './pipeline/output-validator.js';
 export type { OutputValidationResult } from './pipeline/output-validator.js';
 export type { PostValidationResult } from './pipeline/post-validator.js';
+
+// Spawners
+export { DirectEngineSpawner } from './spawners/direct-engine-spawner.js';

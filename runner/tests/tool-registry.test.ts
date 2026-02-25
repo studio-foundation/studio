@@ -57,3 +57,28 @@ describe('ToolRegistry.filter preserves snippet metadata', () => {
     expect(filtered.getActiveSnippets()).toEqual(['Write files!']);
   });
 });
+
+describe('clone', () => {
+  it('creates an independent copy with all tools', () => {
+    const registry = new ToolRegistry();
+    registry.registerPlugin('my_plugin', [
+      { name: 'my_plugin-cmd', description: 'test', parameters: {}, execute: async () => ({ content: 'ok' }) },
+    ], 'my snippet');
+
+    const clone = registry.clone();
+    expect(clone.get('my_plugin-cmd')).toBeDefined();
+    expect(clone.getActiveSnippets()).toContain('my snippet');
+  });
+
+  it('mutations to clone do not affect original', () => {
+    const registry = new ToolRegistry();
+    registry.registerPlugin('original', [
+      { name: 'original-cmd', description: 'test', parameters: {}, execute: async () => ({ content: 'ok' }) },
+    ]);
+    const clone = registry.clone();
+    clone.registerPlugin('extra', [
+      { name: 'extra-cmd', description: 'test', parameters: {}, execute: async () => ({ content: 'ok' }) },
+    ]);
+    expect(registry.get('extra-cmd')).toBeUndefined();
+  });
+});
