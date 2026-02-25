@@ -13,7 +13,7 @@ export class DirectEngineSpawner implements RunSpawner {
       depth: config.depth,
     });
 
-    if (result.status === 'failed' || result.status === 'rejected') {
+    if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
       throw new Error(`Child run ${result.id} ${result.status}`);
     }
 

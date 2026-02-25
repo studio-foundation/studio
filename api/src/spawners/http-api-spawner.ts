@@ -27,9 +27,12 @@ export class HttpApiSpawner implements RunSpawner {
 
     // 3. Fetch full run result to get output
     const getRes = await fetch(`${this.apiUrl}/api/runs/${run_id}`);
+    if (!getRes.ok) {
+      throw new Error(`Failed to fetch child run result ${run_id}: ${getRes.status}`);
+    }
     const run = (await getRes.json()) as PipelineRun;
 
-    if (run.status === 'failed' || run.status === 'rejected') {
+    if (run.status === 'failed' || run.status === 'rejected' || run.status === 'cancelled') {
       throw new Error(`Child run ${run_id} ${run.status}`);
     }
 
