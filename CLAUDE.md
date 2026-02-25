@@ -635,6 +635,17 @@ studio validate software/code-generation output.json       # Valider sans LLM
 
 ---
 
+## Linear Issues — Règle obligatoire
+
+**Tout ticket Linear = toujours un worktree. C'est la première étape, avant tout.**
+
+```bash
+# Première chose à faire quand tu reçois un ticket Linear
+git worktree add .worktrees/<branch-name> -b <type>/<stu-xxx-description>
+```
+
+Utilise le skill `superpowers:using-git-worktrees` pour le setup complet.
+
 ## Git Workflow — Règles obligatoires
 
 **Tu ne push JAMAIS sur `main` ou `master`. Jamais. Aucune exception.**
