@@ -43,7 +43,7 @@ beforeAll(() => {
 
   // inputs
   mkdirSync(resolve(PROJECT_TMP, 'inputs'), { recursive: true });
-  writeFileSync(resolve(PROJECT_TMP, 'inputs', 'faq-about.input.yaml'), '');
+  writeFileSync(resolve(PROJECT_TMP, 'inputs', 'faq-about.input.yaml'), 'brief_summary: "Add a FAQ section"\ntarget_page: src/pages/about.tsx\n');
 
   // skills — positive test to verify suffix stripping
   mkdirSync(resolve(PROJECT_TMP, 'skills'), { recursive: true });
@@ -222,5 +222,49 @@ describe('GET /api/projects/:id/inputs', () => {
     });
     expect(res.statusCode).toBe(200);
     expect((res.json() as { inputs: string[] }).inputs).toEqual([]);
+  });
+});
+
+describe('GET /api/projects/:id/inputs/:name', () => {
+  it('returns parsed input content as JSON', async () => {
+    const server = makeProjectServer();
+    const { projects } = (await server.inject({ method: 'GET', url: '/api/projects' })).json() as {
+      projects: Array<{ id: string }>;
+    };
+    const projectId = projects[0].id;
+
+    const res = await server.inject({
+      method: 'GET',
+      url: `/api/projects/${projectId}/inputs/faq-about`,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { brief_summary: string; target_page: string };
+    expect(body.brief_summary).toBe('Add a FAQ section');
+    expect(body.target_page).toBe('src/pages/about.tsx');
+  });
+
+  it('returns 404 for unknown project id', async () => {
+    const server = makeProjectServer();
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/projects/unknown-project/inputs/faq-about',
+    });
+    expect(res.statusCode).toBe(404);
+    expect((res.json() as { error: string }).error).toBe('Project not found');
+  });
+
+  it('returns 404 for unknown input name', async () => {
+    const server = makeProjectServer();
+    const { projects } = (await server.inject({ method: 'GET', url: '/api/projects' })).json() as {
+      projects: Array<{ id: string }>;
+    };
+    const projectId = projects[0].id;
+
+    const res = await server.inject({
+      method: 'GET',
+      url: `/api/projects/${projectId}/inputs/nonexistent`,
+    });
+    expect(res.statusCode).toBe(404);
+    expect((res.json() as { error: string }).error).toBe('Input not found');
   });
 });
