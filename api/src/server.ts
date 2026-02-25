@@ -12,6 +12,7 @@ import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
 import { pipelinesRoutes } from './routes/pipelines.js';
 import { toolsRoutes } from './routes/tools.js';
+import { agentsRoutes } from './routes/agents.js';
 
 export interface ApiConfig {
   key?: string;
@@ -69,6 +70,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(contractsRoutes, { prefix: '/api', deps });
   void fastify.register(pipelinesRoutes, { prefix: '/api', deps });
   void fastify.register(toolsRoutes, { prefix: '/api', deps });
+  void fastify.register(agentsRoutes, { prefix: '/api', deps });
 
   return fastify;
 }
