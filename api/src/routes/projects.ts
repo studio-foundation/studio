@@ -96,6 +96,43 @@ export async function projectsRoutes(
 
     return reply.send({ pipelines });
   });
+  // GET /api/projects/:id/inputs
+  fastify.get<{ Params: { id: string } }>('/projects/:id/inputs', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            inputs: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    if (request.params.id !== id) {
+      return reply.status(404).send({ error: 'Project not found' });
+    }
+
+    const inputsDir = join(configsDir, 'inputs');
+    let entries: string[];
+    try {
+      entries = await readdir(inputsDir);
+    } catch {
+      return reply.send({ inputs: [] });
+    }
+
+    const inputs = entries
+      .filter(f => f.endsWith('.input.yaml'))
+      .map(f => f.replace('.input.yaml', ''));
+
+    return reply.send({ inputs });
+  });
+
 
   // GET /api/project — full introspection of the current Studio project
   fastify.get('/project', {
