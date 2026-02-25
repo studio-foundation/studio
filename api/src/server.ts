@@ -14,6 +14,7 @@ import { pipelinesRoutes } from './routes/pipelines.js';
 import { toolsRoutes } from './routes/tools.js';
 import { agentsRoutes } from './routes/agents.js';
 import { configRoutes } from './routes/config.js';
+import { skillsRoutes } from './routes/skills.js';
 
 export interface ApiConfig {
   key?: string;
@@ -73,6 +74,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(toolsRoutes, { prefix: '/api', deps });
   void fastify.register(agentsRoutes, { prefix: '/api', deps });
   void fastify.register(configRoutes, { prefix: '/api', deps });
+  void fastify.register(skillsRoutes, { prefix: '/api', deps });
 
   return fastify;
 }
