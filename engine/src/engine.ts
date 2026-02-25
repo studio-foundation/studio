@@ -13,6 +13,7 @@ import type {
   AgentRun,
   OutputContract,
   ToolCall,
+  RunSpawner,
 } from '@studio/contracts';
 import { isStageGroup } from '@studio/contracts';
 import {
@@ -99,6 +100,8 @@ export interface EngineConfig {
    * into the system prompt of agents that declare the plugin.
    */
   pluginSkills?: Record<string, string[]>;
+  spawner?: RunSpawner;  // if set, studio-run tool is available to agents
+  maxDepth?: number;     // max nesting depth for spawned runs, default 3
 }
 
 interface ProjectPaths {
@@ -124,6 +127,8 @@ export interface RunInput {
   meta?: Record<string, unknown>;
   anonymize?: boolean;
   signal?: AbortSignal;
+  depth?: number;        // nesting depth (0 = top-level)
+  parentRunId?: string;  // parent run ID if spawned by another pipeline
 }
 
 interface StageResult {
