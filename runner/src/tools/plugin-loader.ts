@@ -154,7 +154,11 @@ const BUNDLED_TOOL_TEMPLATES_DIR = resolve(
   '../../templates/tools'
 );
 
-/** Names of built-in tool plugins (ship with Studio). */
+/**
+ * Names of built-in tool plugins that have bundled installable templates.
+ * Mirrors runner/templates/tools/*.tool.yaml.
+ * Note: 'patch' is a TypeScript-only builtin with no installable template and is intentionally excluded.
+ */
 export const BUILTIN_TOOL_NAMES = new Set([
   'repo-manager',
   'shell',
