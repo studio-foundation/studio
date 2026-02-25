@@ -277,9 +277,9 @@ export class PipelineEngine {
           totalStages,
           input.input,
           projectPaths,
+          runToolRegistry,
           runMiddleware,
           pipelineRun.id,
-          runToolRegistry,
           signal,
         );
 
@@ -330,9 +330,9 @@ export class PipelineEngine {
           stageCounter - 1,
           totalStages,
           projectPaths,
+          runToolRegistry,
           runMiddleware,
           pipelineRun.id,
-          runToolRegistry,
           signal,
         );
 
@@ -412,9 +412,9 @@ export class PipelineEngine {
     stageIndex: number,
     totalStages: number,
     paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
-    toolRegistry?: ToolRegistry,
     signal?: AbortSignal,
   ): Promise<StageResult> {
     const stageRunId = randomUUID();
@@ -629,7 +629,7 @@ export class PipelineEngine {
           task: taskInput,
           context: agentContext,
           executionContext: runnerExecContext,
-          toolRegistry: toolRegistry ?? this.config.toolRegistry,
+          toolRegistry: toolRegistry,
           providerRegistry: this.config.providerRegistry,
           outputContract: contract ?? undefined,
           maxToolCalls: stageDef.ralph?.max_tool_calls,
@@ -825,9 +825,9 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
-    toolRegistry?: ToolRegistry,
     signal?: AbortSignal,
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
@@ -900,9 +900,9 @@ export class PipelineEngine {
           stageNumber,
           totalStages,
           paths,
+          toolRegistry,
           runMiddleware,
           runId,
-          toolRegistry,
           signal,
         );
 
