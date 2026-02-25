@@ -45,4 +45,21 @@ describe('SQLiteRunStore', () => {
       expect(store.getLogPath('does-not-exist')).toBeNull();
     });
   });
+
+  describe('parent_run_id', () => {
+    it('persists and retrieves parent_run_id', () => {
+      const run: PipelineRun = {
+        id: 'child-123',
+        pipeline_name: 'child-pipe',
+        status: 'success',
+        started_at: new Date().toISOString(),
+        stages: [],
+        parent_run_id: 'parent-456',
+      };
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(run);
+      const retrieved = store.getPipelineRun('child-123');
+      expect(retrieved?.parent_run_id).toBe('parent-456');
+    });
+  });
 });
