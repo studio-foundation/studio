@@ -38,7 +38,7 @@ export { createSearchTools } from './tools/builtin/search.js';
 export { createPatchTools } from './tools/builtin/patch.js';
 export { createGitTools } from './tools/builtin/git.js';
 
-export { loadProjectTools } from './tools/plugin-loader.js';
+export { loadProjectTools, listAvailableToolTemplates, getBundledToolTemplate, BUILTIN_TOOL_NAMES } from './tools/plugin-loader.js';
 export type { LoadedPlugin } from './tools/plugin-loader.js';
 
 // Anonymization middleware

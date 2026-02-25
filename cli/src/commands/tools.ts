@@ -1,30 +1,12 @@
 import { readdir, readFile, writeFile, unlink, mkdir, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import chalk from 'chalk';
-import { load } from 'js-yaml';
 import { checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
-
-const TOOL_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/tools');
+import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio/runner';
 
 export function getToolsDir(studioDir: string): string {
   return resolve(studioDir, 'tools');
-}
-
-export async function listAvailableTools(): Promise<{ name: string; description: string }[]> {
-  const entries = await readdir(TOOL_TEMPLATES_DIR);
-  const yamlFiles = entries.filter((f) => f.endsWith('.tool.yaml')).sort();
-  const tools: { name: string; description: string }[] = [];
-  for (const file of yamlFiles) {
-    const content = await readFile(resolve(TOOL_TEMPLATES_DIR, file), 'utf-8');
-    const parsed = load(content) as { name?: string; description?: string };
-    const toolName = file.replace('.tool.yaml', '');
-    tools.push({
-      name: toolName,
-      description: parsed.description ?? '',
-    });
-  }
-  return tools;
 }
 
 export async function toolsAddDirect(
@@ -38,12 +20,9 @@ export async function toolsAddDirect(
   const skipped: string[] = [];
 
   for (const name of toolNames) {
-    const templatePath = resolve(TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
-    let templateContent: string;
-    try {
-      templateContent = await readFile(templatePath, 'utf-8');
-    } catch {
-      const available = await listAvailableTools();
+    const templateContent = await getBundledToolTemplate(name);
+    if (!templateContent) {
+      const available = await listAvailableToolTemplates();
       throw new Error(`Unknown tool '${name}'. Available: ${available.map((t) => t.name).join(', ')}`);
     }
 
@@ -141,7 +120,7 @@ export async function toolsCommand(
           }
 
           console.log('');
-          const available = await listAvailableTools();
+          const available = await listAvailableToolTemplates();
           const alreadyInstalled = await listTools(getToolsDir(studioDir));
 
           const choices = available.map((t) => ({
