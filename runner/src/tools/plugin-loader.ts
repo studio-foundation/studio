@@ -2,7 +2,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
 import type { Tool } from './tool-registry.js';
@@ -151,7 +150,7 @@ export async function loadProjectTools(
 }
 
 const BUNDLED_TOOL_TEMPLATES_DIR = resolve(
-  dirname(fileURLToPath(import.meta.url)),
+  __dirname,
   '../../templates/tools'
 );
 

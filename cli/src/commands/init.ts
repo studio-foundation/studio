@@ -10,7 +10,8 @@ import { applyPlaceholders } from '../utils/placeholders.js';
 import { listTemplates, type TemplateMetadata } from './templates.js';
 import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
-import { listAvailableTools, toolsAddDirect } from './tools.js';
+import { toolsAddDirect } from './tools.js';
+import { listAvailableToolTemplates } from '@studio/runner';
 import { validateTemplateDir } from './template/validate.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
@@ -643,7 +644,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // Step 6: Tool selection
-    const availableTools = await listAvailableTools();
+    const availableTools = await listAvailableToolTemplates();
     let selectedTools: string[] = [];
 
     if (availableTools.length > 0) {
