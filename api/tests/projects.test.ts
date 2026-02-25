@@ -45,7 +45,9 @@ beforeAll(() => {
   mkdirSync(resolve(PROJECT_TMP, 'inputs'), { recursive: true });
   writeFileSync(resolve(PROJECT_TMP, 'inputs', 'faq-about.input.yaml'), '');
 
-  // NOTE: no skills/ dir — intentionally absent to test empty array
+  // skills — positive test to verify suffix stripping
+  mkdirSync(resolve(PROJECT_TMP, 'skills'), { recursive: true });
+  writeFileSync(resolve(PROJECT_TMP, 'skills', 'commit-conventions.skill.md'), '');
 });
 
 afterAll(() => {
@@ -137,10 +139,20 @@ describe('GET /api/project', () => {
     expect(body.agents).toEqual(expect.arrayContaining(['analyst', 'coder']));
     expect(body.tools).toEqual(expect.arrayContaining(['repo_manager-read_file']));
     expect(body.inputs).toEqual(expect.arrayContaining(['faq-about']));
+    expect(body.skills).toEqual(expect.arrayContaining(['commit-conventions']));
   });
 
   it('returns empty array for missing skills/ directory', async () => {
-    const server = makeProjectServer();
+    // Use TMP_DIR which has no skills/ directory
+    const server = buildServer({
+      store: new InMemoryRunStore(),
+      launcher: { launch: async () => ({ run_id: 'x' }), cancel: async () => {} },
+      configsDir: TMP_DIR,
+      projectName: 'my-project',
+      apiConfig: {},
+      studioVersion: '0.0.0-test',
+      maskedConfig: { providers: [] },
+    });
     const res = await server.inject({ method: 'GET', url: '/api/project' });
     expect(res.statusCode).toBe(200);
     expect((res.json() as { skills: string[] }).skills).toEqual([]);

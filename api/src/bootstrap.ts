@@ -76,7 +76,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   }
 
   // Read studio version from api/package.json
-  const pkgPath = fileURLToPath(new URL('../../package.json', import.meta.url));
+  const pkgPath = fileURLToPath(new URL('../package.json', import.meta.url));
   const pkgRaw = await readFile(pkgPath, 'utf-8');
   const studioVersion = (JSON.parse(pkgRaw) as { version: string }).version;
 
