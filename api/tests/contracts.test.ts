@@ -89,3 +89,52 @@ describe('GET /api/contracts/:name', () => {
     expect((res.json() as { error: string }).error).toBe('Contract not found');
   });
 });
+
+describe('PUT /api/contracts/:name', () => {
+  it('creates a new contract file', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'PUT',
+      url: '/api/contracts/new-contract',
+      payload: { name: 'new-contract', version: 1, schema: { required_fields: ['summary'] } },
+    });
+    expect(res.statusCode).toBe(200);
+    // Verify it can be read back
+    const getRes = await server.inject({ method: 'GET', url: '/api/contracts/new-contract' });
+    expect(getRes.statusCode).toBe(200);
+    expect((getRes.json() as { version: number }).version).toBe(1);
+  });
+
+  it('updates an existing contract', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'PUT',
+      url: '/api/contracts/brief-analysis',
+      payload: { name: 'brief-analysis', version: 2 },
+    });
+    expect(res.statusCode).toBe(200);
+    // Verify version updated
+    const getRes = await server.inject({ method: 'GET', url: '/api/contracts/brief-analysis' });
+    expect((getRes.json() as { version: number }).version).toBe(2);
+  });
+
+  it('returns 400 when name field is missing', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'PUT',
+      url: '/api/contracts/foo',
+      payload: { version: 1 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 400 when version field is missing', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'PUT',
+      url: '/api/contracts/foo',
+      payload: { name: 'foo' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

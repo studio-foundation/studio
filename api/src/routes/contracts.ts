@@ -54,4 +54,34 @@ export async function contractsRoutes(
     }
     return reply.send(yaml.load(content));
   });
+
+  // PUT /api/contracts/:name
+  fastify.put<{
+    Params: { name: string };
+    Body: Record<string, unknown>;
+  }>('/contracts/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+      body: { type: 'object' },
+    },
+  }, async (request, reply) => {
+    const body = request.body;
+
+    if (!body['name'] || typeof body['name'] !== 'string') {
+      return reply.status(400).send({ error: "Contract must have a 'name' field (string)" });
+    }
+    if (body['version'] === undefined) {
+      return reply.status(400).send({ error: "Contract must have a 'version' field" });
+    }
+
+    await mkdir(contractsDir, { recursive: true });
+    const filePath = join(contractsDir, `${request.params.name}.contract.yaml`);
+    await writeFile(filePath, yaml.dump(body), 'utf-8');
+
+    return reply.send({ name: request.params.name, content: body });
+  });
 }
