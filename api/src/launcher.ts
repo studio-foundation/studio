@@ -60,7 +60,6 @@ export class InProcessLauncher implements RunLauncher {
     this.active.set(runId, controller);
 
     const logger = createApiLogger(this.runsDir, runId, pipeline);
-    this.store.saveLogPath(runId, logger.logPath);
 
     const emit = (type: SseEventType, data: object) => {
       this.bus.emit(runId, type, data);
@@ -68,6 +67,10 @@ export class InProcessLauncher implements RunLauncher {
     };
 
     const perRunEvents: EngineEvents = {
+      onPipelineStart: () => {
+        // Row exists now (engine saves it before firing this event) — safe to write log_path
+        this.store.saveLogPath(runId, logger.logPath);
+      },
       onStageStart:        (e: StageStartEvent) =>        emit('stage_start', e),
       onStageComplete:     (e: StageCompleteEvent) =>     emit('stage_complete', e),
       onTaskRetry:         (e: StageRetryEvent) =>        emit('stage_retry', e),

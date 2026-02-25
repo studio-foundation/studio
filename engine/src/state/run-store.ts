@@ -109,12 +109,16 @@ export class SQLiteRunStore implements RunStore {
   }
 
   savePipelineRun(run: PipelineRun): void {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO pipeline_runs (id, pipeline_name, status, result, started_at, completed_at)
+    this.db.prepare(`
+      INSERT INTO pipeline_runs (id, pipeline_name, status, result, started_at, completed_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+      ON CONFLICT(id) DO UPDATE SET
+        pipeline_name = excluded.pipeline_name,
+        status        = excluded.status,
+        result        = excluded.result,
+        started_at    = excluded.started_at,
+        completed_at  = excluded.completed_at
+    `).run(
       run.id,
       run.pipeline_name,
       run.status,
