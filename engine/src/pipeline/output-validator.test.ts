@@ -59,7 +59,7 @@ describe('validateOutput', () => {
       const result = validateOutput(
         toolCallContract,
         { summary: 'ok' },
-        [{ name: 'shell-run_command', arguments: {}, result: 'ok' }]
+        [{ id: 'call-1', name: 'shell-run_command', arguments: {}, result: 'ok' }]
       );
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('repo_manager-write_file'))).toBe(true);
@@ -69,7 +69,7 @@ describe('validateOutput', () => {
       const result = validateOutput(
         toolCallContract,
         { summary: 'ok' },
-        [{ name: 'repo_manager-write_file', arguments: { path: 'a.ts' }, result: 'ok' }]
+        [{ id: 'call-2', name: 'repo_manager-write_file', arguments: { path: 'a.ts' }, result: 'ok' }]
       );
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);

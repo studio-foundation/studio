@@ -46,3 +46,8 @@ export {
   clearGroupFeedback,
 } from './pipeline/context-propagation.js';
 export type { PipelineContext, PipelineInput, GroupFeedback } from './pipeline/context-propagation.js';
+
+// Contract validation
+export { validateOutput } from './pipeline/output-validator.js';
+export type { OutputValidationResult } from './pipeline/output-validator.js';
+export type { PostValidationResult } from './pipeline/post-validator.js';
