@@ -173,3 +173,54 @@ describe('GET /api/project', () => {
     expect(body.config.providers).toEqual([]);
   });
 });
+
+describe('GET /api/projects/:id/inputs', () => {
+  it('returns only *.input.yaml files as input names', async () => {
+    const server = makeProjectServer();
+    const { projects } = (await server.inject({ method: 'GET', url: '/api/projects' })).json() as {
+      projects: Array<{ id: string }>;
+    };
+    const projectId = projects[0].id;
+
+    const res = await server.inject({
+      method: 'GET',
+      url: `/api/projects/${projectId}/inputs`,
+    });
+    expect(res.statusCode).toBe(200);
+
+    const { inputs } = res.json() as { inputs: string[] };
+    expect(inputs).toContain('faq-about');
+    expect(inputs).not.toContain('faq-about.input.yaml');
+  });
+
+  it('returns 404 for unknown project id', async () => {
+    const server = makeProjectServer();
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/projects/unknown-project/inputs',
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns empty array when inputs dir is missing', async () => {
+    const server = buildServer({
+      store: new InMemoryRunStore(),
+      launcher: { launch: async () => ({ run_id: 'x' }), cancel: async () => {} },
+      configsDir: resolve('/tmp', `.studio-no-inputs-${Date.now()}`),
+      projectName: 'test-project',
+      apiConfig: {},
+      studioVersion: '0.0.0-test',
+      maskedConfig: { providers: [] },
+    });
+    const { projects } = (await server.inject({ method: 'GET', url: '/api/projects' })).json() as {
+      projects: Array<{ id: string }>;
+    };
+    const projectId = projects[0].id;
+    const res = await server.inject({
+      method: 'GET',
+      url: `/api/projects/${projectId}/inputs`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as { inputs: string[] }).inputs).toEqual([]);
+  });
+});
