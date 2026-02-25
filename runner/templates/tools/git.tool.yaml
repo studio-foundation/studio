@@ -1,0 +1,80 @@
+name: git
+description: Git version control operations
+version: 1
+
+commands:
+  - name: git-status
+    description: Show working tree status
+    parameters: {}
+    execute:
+      type: shell
+      command: git status --porcelain
+      parse_output: text
+
+  - name: git-diff
+    description: Show changes in the working tree
+    parameters:
+      staged:
+        type: boolean
+        required: false
+        description: Show staged changes instead of unstaged
+      file:
+        type: string
+        required: false
+        description: Restrict diff to this file path
+    execute:
+      type: shell
+      command: |
+        git diff {{#if staged}}--cached{{/if}} {{#if file}}{{file}}{{/if}}
+      parse_output: text
+
+  - name: git-checkout
+    description: Checkout an existing branch or create a new one
+    parameters:
+      branch:
+        type: string
+        required: true
+        description: Branch name to checkout or create
+      create:
+        type: boolean
+        required: false
+        description: Create the branch if it does not exist
+    execute:
+      type: shell
+      command: |
+        git checkout {{#if create}}-b{{/if}} {{branch}}
+      parse_output: text
+
+  - name: git-commit
+    description: Stage all changes and commit with a message
+    parameters:
+      message:
+        type: string
+        required: true
+        description: Commit message (use conventional commits format)
+    execute:
+      type: shell
+      command: |
+        git add -A && git commit -m "{{message}}"
+      parse_output: text
+
+  - name: git-push
+    description: Push the current branch to origin
+    parameters:
+      set_upstream:
+        type: boolean
+        required: false
+        description: Set upstream tracking reference (-u flag)
+    execute:
+      type: shell
+      command: |
+        git push {{#if set_upstream}}-u{{/if}} origin HEAD
+      parse_output: text
+
+prompt_snippet: |
+  You have access to git tools. Always create a feature branch before making changes.
+  Never commit directly to main or master.
+  Use conventional commit messages: <type>(<scope>): <description>
+
+constraints:
+  requires_binaries: [git]
