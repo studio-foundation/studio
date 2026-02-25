@@ -9,6 +9,7 @@ import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
+import { contractsRoutes } from './routes/contracts.js';
 
 export interface ApiConfig {
   key?: string;
@@ -63,6 +64,7 @@ export function buildServer(deps: ServerDeps) {
 
   void fastify.register(runsRoutes, { prefix: '/api', deps });
   void fastify.register(projectsRoutes, { prefix: '/api', deps });
+  void fastify.register(contractsRoutes, { prefix: '/api', deps });
 
   return fastify;
 }
