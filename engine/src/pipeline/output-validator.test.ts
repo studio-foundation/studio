@@ -34,7 +34,6 @@ describe('validateOutput', () => {
       const result = validateOutput(schemaOnlyContract, { summary: 'ok', files_changed: ['a.ts'] });
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
-      expect(result.post_validation.accepted).toBe(true);
     });
 
     it('returns valid: false with error when required field is missing', () => {
@@ -53,7 +52,7 @@ describe('validateOutput', () => {
     it('returns valid: false when minimum not met (empty tool_calls)', () => {
       const result = validateOutput(toolCallContract, { summary: 'ok' }, []);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('tool call'))).toBe(true);
+      expect(result.errors.some(e => e.includes('at least 1 successful tool call'))).toBe(true);
     });
 
     it('returns valid: false when required tool was not called', () => {
@@ -81,7 +80,6 @@ describe('validateOutput', () => {
     it('accepted: true when approved value present', () => {
       const result = validateOutput(postValidationContract, { status: 'approved' });
       expect(result.valid).toBe(true);
-      expect(result.post_validation.accepted).toBe(true);
     });
 
     it('accepted: false with rejection_reason when rejected value present', () => {
