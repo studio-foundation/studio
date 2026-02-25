@@ -15,7 +15,18 @@ export async function pipelinesRoutes(
   const { configsDir } = options.deps;
 
   // GET /api/pipelines — list all pipeline names
-  fastify.get('/pipelines', async (_request, reply) => {
+  fastify.get('/pipelines', {
+    schema: {
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            pipelines: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  }, async (_request, reply) => {
     const pipelinesDir = join(configsDir, 'pipelines');
     let entries: string[];
     try {
@@ -30,7 +41,22 @@ export async function pipelinesRoutes(
   });
 
   // GET /api/pipelines/:name — read a pipeline (YAML parsed to JSON)
-  fastify.get<{ Params: { name: string } }>('/pipelines/:name', async (request, reply) => {
+  fastify.get<{ Params: { name: string } }>('/pipelines/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+      response: {
+        200: { type: 'object', additionalProperties: true },
+        404: {
+          type: 'object',
+          properties: { error: { type: 'string' } },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { name } = request.params;
     let content: string;
     try {
@@ -42,24 +68,39 @@ export async function pipelinesRoutes(
     return reply.send(parsed);
   });
 
-  // PUT /api/pipelines/:name — create or update a pipeline
+  // PUT /api/pipelines/:name — create or update a pipeline (YAML or JSON body)
   fastify.put<{ Params: { name: string }; Body: unknown }>(
     '/pipelines/:name',
-    { config: { rawBody: true } },
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { name: { type: 'string' } },
+          required: ['name'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: { name: { type: 'string' } },
+          },
+          400: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
+          },
+        },
+      },
+    },
     async (request, reply) => {
       const { name } = request.params;
       const contentType = request.headers['content-type'] ?? '';
 
       let yamlContent: string;
       if (contentType.includes('application/json')) {
-        // JSON body → convert to YAML
         yamlContent = yaml.dump(request.body);
       } else {
-        // Plain text / YAML body
         yamlContent = request.body as string;
       }
 
-      // Validate YAML
       try {
         yaml.load(yamlContent);
       } catch (err) {
@@ -73,7 +114,25 @@ export async function pipelinesRoutes(
   );
 
   // DELETE /api/pipelines/:name — delete a pipeline
-  fastify.delete<{ Params: { name: string } }>('/pipelines/:name', async (request, reply) => {
+  fastify.delete<{ Params: { name: string } }>('/pipelines/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: { deleted: { type: 'string' } },
+        },
+        404: {
+          type: 'object',
+          properties: { error: { type: 'string' } },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { name } = request.params;
     try {
       await unlink(pipelinePath(configsDir, name));
