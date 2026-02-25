@@ -87,6 +87,8 @@ export async function runsRoutes(
   }, async (request, reply) => {
     const { pipeline, input, provider } = request.body;
     const runId = randomUUID();
+    const depth = parseInt((request.headers['x-studio-depth'] as string) ?? '0', 10) || 0;
+    const parentRunId = request.headers['x-studio-parent-run-id'] as string | undefined;
 
     const { run_id } = await launcher.launch({
       runId,
@@ -94,6 +96,8 @@ export async function runsRoutes(
       input,
       configsDir: options.deps.configsDir,
       providerOverride: provider,
+      depth,
+      parentRunId,
     });
 
     return reply.status(201).send({
