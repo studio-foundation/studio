@@ -31,17 +31,21 @@ GitHub Actions    →  Community registry
 - **Repo Studio** — le kernel (publié sur npm). Contient les 5 packages + templates architecturaux.
 - **Repos utilisateurs** — les projets/apps qui UTILISENT Studio (ex: `code-builder`, `adhd-finance`). Contiennent `.studio/` avec leurs configs.
 
-## Architecture — 5 packages, 1 monorepo
+## Architecture — 7 packages, 1 monorepo
 
 ```
 Studio/                         # UN repo git, pnpm workspaces
 ├── contracts/                  # @studio/contracts — types, interfaces (ZERO dépendances)
+│   └── package.json
+├── anonymizer/                 # @studio/anonymizer — anonymisation PII avant envoi LLM
 │   └── package.json
 ├── ralph/                      # @studio/ralph — retry loop + validation
 │   └── package.json
 ├── runner/                     # @studio/runner — tool plugin runtime, LLM providers
 │   └── package.json
 ├── engine/                     # @studio/engine — pipeline orchestration, state machine
+│   └── package.json
+├── api/                        # @studio/api — HTTP REST API (Fastify)
 │   └── package.json
 ├── cli/                        # @studio/cli — interface terminal
 │   └── package.json
@@ -59,16 +63,20 @@ Studio/                         # UN repo git, pnpm workspaces
 ```
 @studio/cli          → Interface terminal (studio run, studio config, etc.)
     │
+@studio/api          → HTTP REST API (Fastify + Swagger UI)
+    │
 @studio/engine       → Orchestration pipeline, state machine, persistence SQLite
     │
-    ├── @studio/ralph    → RALPH loop : execute → validate → retry si fail
+    ├── @studio/ralph      → RALPH loop : execute → validate → retry si fail
     │
-    └── @studio/runner   → Tool plugin runtime, appels LLM, multi-provider
+    ├── @studio/runner     → Tool plugin runtime, appels LLM, multi-provider
+    │
+    └── @studio/anonymizer → Middleware PII : remplace les données sensibles par tokens
     │
 @studio/contracts    → Types partagés (ZERO dépendances, ZERO logique)
 ```
 
-**Dépendances strictes :** contracts est un leaf package. ralph et runner dépendent UNIQUEMENT de contracts. engine dépend de ralph + runner + contracts. cli dépend de engine + contracts.
+**Dépendances strictes :** contracts est un leaf package. ralph, runner et anonymizer dépendent UNIQUEMENT de contracts. engine dépend de ralph + runner + anonymizer + contracts. cli et api dépendent de engine + contracts.
 
 **Jamais de dépendance inversée.** ralph ne connaît pas runner. runner ne connaît pas engine. Si tu te retrouves à importer un package "vers le haut", c'est une erreur d'architecture.
 
@@ -188,6 +196,52 @@ API = usage programmatique (machine-to-machine)
 `studio run` est une commande de première classe — un dev qui utilise code-builder au quotidien fait `studio run` dans son terminal. L'API c'est pour quand il n'y a pas d'humain devant le terminal.
 
 Le CLI est gratuit forever (comme `git`). L'API hosted est le produit monétisable (comme GitHub).
+
+### Endpoints REST (`@studio/api`)
+
+L'API HTTP est un serveur Fastify. Elle s'active via `studio api start` ou en important `@studio/api` directement.
+
+**Runs**
+
+```
+POST   /api/runs                → lancer un pipeline (fire-and-forget)
+GET    /api/runs                → lister les runs (?status=&limit=)
+GET    /api/runs/:id            → détail d'un run
+GET    /api/runs/:id/logs       → logs JSONL bruts
+GET    /api/runs/:id/stream     → SSE — événements live (?events=csv)
+```
+
+**Project**
+
+```
+GET    /api/projects            → projet courant (nom, id, pipelines_dir)
+GET    /api/projects/:id/pipelines → liste des pipelines du projet
+```
+
+**Pipelines CRUD**
+
+```
+GET    /api/pipelines           → liste tous les noms de pipelines disponibles
+GET    /api/pipelines/:name     → contenu parsé d'un pipeline (YAML → JSON)
+PUT    /api/pipelines/:name     → créer ou modifier un pipeline (body: YAML ou JSON)
+DELETE /api/pipelines/:name     → supprimer un pipeline
+```
+
+**Swagger UI (dev/local uniquement)**
+
+```
+GET    /api/docs                → Swagger UI interactif
+GET    /api/docs/json           → spec OpenAPI raw (pour génération de client)
+```
+
+Swagger UI est désactivé en production (`NODE_ENV=production`). En dev, il est généré automatiquement depuis les schemas des routes — pas besoin de maintenir une spec manuelle.
+
+**Authentification :** optionnelle. Si `api.key` est défini dans `config.yaml`, toutes les routes exigent `Authorization: Bearer <key>`. Sans clé configurée, l'API est ouverte (usage local uniquement).
+
+**Codes d'erreur courants :**
+- `400` — YAML invalide (PUT /api/pipelines)
+- `401` — clé API manquante ou incorrecte
+- `404` — ressource introuvable
 
 ## Concepts clés
 

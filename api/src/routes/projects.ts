@@ -8,11 +8,22 @@ function projectId(configsDir: string): string {
   return createHash('sha256').update(configsDir).digest('hex').slice(0, 12);
 }
 
+async function listResources(dir: string, suffix: string): Promise<string[]> {
+  try {
+    const entries = await readdir(dir);
+    return entries
+      .filter(f => f.endsWith(suffix))
+      .map(f => f.slice(0, -suffix.length));
+  } catch {
+    return [];
+  }
+}
+
 export async function projectsRoutes(
   fastify: FastifyInstance,
   options: { deps: ServerDeps }
 ): Promise<void> {
-  const { configsDir, projectName } = options.deps;
+  const { configsDir, projectName, studioVersion, maskedConfig } = options.deps;
   const id = projectId(configsDir);
 
   // GET /api/projects — returns the single project this API serves
@@ -84,5 +95,60 @@ export async function projectsRoutes(
       .map(f => f.replace('.pipeline.yaml', ''));
 
     return reply.send({ pipelines });
+  });
+
+  // GET /api/project — full introspection of the current Studio project
+  fastify.get('/project', {
+    schema: {
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            studio_version: { type: 'string' },
+            studio_dir: { type: 'string' },
+            config: {
+              type: 'object',
+              properties: {
+                defaults: {
+                  type: 'object',
+                  properties: {
+                    provider: { type: 'string' },
+                    model: { type: 'string' },
+                  },
+                },
+                providers: { type: 'array', items: { type: 'string' } },
+              },
+            },
+            pipelines: { type: 'array', items: { type: 'string' } },
+            contracts: { type: 'array', items: { type: 'string' } },
+            agents: { type: 'array', items: { type: 'string' } },
+            tools: { type: 'array', items: { type: 'string' } },
+            skills: { type: 'array', items: { type: 'string' } },
+            inputs: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  }, async (_request, reply) => {
+    const [pipelines, contracts, agents, tools, skills, inputs] = await Promise.all([
+      listResources(join(configsDir, 'pipelines'), '.pipeline.yaml'),
+      listResources(join(configsDir, 'contracts'), '.contract.yaml'),
+      listResources(join(configsDir, 'agents'), '.agent.yaml'),
+      listResources(join(configsDir, 'tools'), '.tool.yaml'),
+      listResources(join(configsDir, 'skills'), '.skill.md'),
+      listResources(join(configsDir, 'inputs'), '.input.yaml'),
+    ]);
+
+    return reply.send({
+      studio_version: studioVersion,
+      studio_dir: configsDir,
+      config: maskedConfig,
+      pipelines,
+      contracts,
+      agents,
+      tools,
+      skills,
+      inputs,
+    });
   });
 }

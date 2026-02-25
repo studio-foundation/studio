@@ -3,6 +3,7 @@
 
 import { resolve, join, dirname } from 'node:path';
 import { access, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import {
   type EngineConfig,
@@ -19,6 +20,7 @@ import {
 } from '@studio/runner';
 import { InProcessLauncher, type RunLauncher } from './launcher.js';
 import { RunEventBus } from './event-bus.js';
+import type { MaskedConfig } from './server.js';
 
 export interface StudioApiConfig {
   providers?: {
@@ -36,6 +38,8 @@ export interface BootstrapResult {
   projectName: string;
   apiConfig: { key?: string; port?: number };
   cleanup: () => Promise<void>;
+  studioVersion: string;
+  maskedConfig: MaskedConfig;
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {
@@ -70,6 +74,17 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   } catch {
     // No config.yaml — use defaults
   }
+
+  // Read studio version from api/package.json
+  const pkgPath = fileURLToPath(new URL('../package.json', import.meta.url));
+  const pkgRaw = await readFile(pkgPath, 'utf-8');
+  const studioVersion = (JSON.parse(pkgRaw) as { version: string }).version;
+
+  // Build masked config — provider names only, no API keys
+  const maskedConfig = {
+    defaults: config.defaults,
+    providers: Object.keys(config.providers ?? {}),
+  };
 
   const dbPath = join(studioDir, 'runs', 'runs.db');
   const runsDir = join(studioDir, 'runs');
@@ -132,6 +147,8 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     configsDir: studioDir,
     projectName,
     apiConfig: config.api ?? {},
+    studioVersion,
+    maskedConfig,
     cleanup: async () => {
       for (const client of mcpClients) {
         try { await client.close(); } catch { /* ignore */ }
