@@ -13,3 +13,5 @@ export * from './context-pack.js';
 export * from './tool-plugin.js';
 
 export * from './runner-events.js';
+
+export * from './spawner.js';
