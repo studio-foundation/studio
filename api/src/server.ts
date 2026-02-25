@@ -10,6 +10,7 @@ import type { RunLauncher } from './launcher.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
+import { pipelinesRoutes } from './routes/pipelines.js';
 
 export interface ApiConfig {
   key?: string;
@@ -65,6 +66,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(runsRoutes, { prefix: '/api', deps });
   void fastify.register(projectsRoutes, { prefix: '/api', deps });
   void fastify.register(contractsRoutes, { prefix: '/api', deps });
+  void fastify.register(pipelinesRoutes, { prefix: '/api', deps });
 
   return fastify;
 }
