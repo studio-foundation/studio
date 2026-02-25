@@ -3,6 +3,8 @@
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
 import { runsRoutes } from './routes/runs.js';
@@ -32,6 +34,21 @@ export function buildServer(deps: ServerDeps) {
   const fastify = Fastify({ logger: false });
 
   void fastify.register(cors, { origin: true });
+
+  if (process.env['NODE_ENV'] !== 'production') {
+    void fastify.register(swagger, {
+      openapi: {
+        info: {
+          title: 'Studio API',
+          description: 'REST API for Studio pipeline orchestration',
+          version: '1.0.0',
+        },
+      },
+    });
+    void fastify.register(swaggerUi, {
+      routePrefix: '/api/docs',
+    });
+  }
 
   // Auth hook — only active if api key is configured
   if (deps.apiConfig.key) {

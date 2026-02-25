@@ -25,11 +25,16 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": ["studio", "api"],
+  "keywords": [
+    "studio",
+    "api"
+  ],
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^10.0.2",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^5.2.5",
     "@studio/contracts": "workspace:*",
     "@studio/engine": "workspace:*",
     "@studio/runner": "workspace:*",

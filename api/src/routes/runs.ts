@@ -88,7 +88,15 @@ export async function runsRoutes(
   });
 
   // GET /api/runs/:id
-  fastify.get<{ Params: { id: string } }>('/runs/:id', async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>('/runs/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+    },
+  }, async (request, reply) => {
     const run = store.getPipelineRun(request.params.id);
     if (!run) {
       return reply.status(404).send({ error: 'Run not found' });
@@ -97,7 +105,15 @@ export async function runsRoutes(
   });
 
   // GET /api/runs/:id/logs
-  fastify.get<{ Params: { id: string } }>('/runs/:id/logs', async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>('/runs/:id/logs', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+    },
+  }, async (request, reply) => {
     const { id } = request.params;
 
     const run = store.getPipelineRun(id);
