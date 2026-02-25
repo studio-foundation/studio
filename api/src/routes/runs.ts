@@ -105,16 +105,24 @@ export async function runsRoutes(
   });
 
   // GET /api/runs/:id/logs
-  fastify.get<{ Params: { id: string } }>('/runs/:id/logs', {
+  fastify.get<{
+    Params: { id: string };
+    Querystring: { raw?: string };
+  }>('/runs/:id/logs', {
     schema: {
       params: {
         type: 'object',
         properties: { id: { type: 'string' } },
         required: ['id'],
       },
+      querystring: {
+        type: 'object',
+        properties: { raw: { type: 'string' } },
+      },
     },
   }, async (request, reply) => {
     const { id } = request.params;
+    const isRaw = request.query.raw === 'true';
 
     const run = store.getPipelineRun(id);
     if (!run) {
@@ -133,7 +141,25 @@ export async function runsRoutes(
       return reply.status(404).send({ error: 'Log file not found' });
     }
 
-    return reply.type('text/plain').send(content);
+    if (isRaw) {
+      return reply.type('text/plain').send(content);
+    }
+
+    const entries: Array<{ event: string; timestamp: string; data: Record<string, unknown> }> = [];
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+        const { event, ts, ...data } = parsed;
+        if (typeof event !== 'string') continue;
+        entries.push({ event, timestamp: typeof ts === 'string' ? ts : '', data });
+      } catch {
+        // skip malformed lines
+      }
+    }
+
+    return reply.send({ run_id: id, entries });
   });
 
   // GET /api/runs/:id/stream — SSE
