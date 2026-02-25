@@ -2,6 +2,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
 import type { Tool } from './tool-registry.js';
@@ -147,4 +148,50 @@ export async function loadProjectTools(
   }
 
   return plugins;
+}
+
+const BUNDLED_TOOL_TEMPLATES_DIR = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../templates/tools'
+);
+
+/** Names of built-in tool plugins (ship with Studio). */
+export const BUILTIN_TOOL_NAMES = new Set([
+  'repo-manager',
+  'shell',
+  'search',
+  'git',
+]);
+
+/**
+ * List all tool plugins available for installation from the bundled registry.
+ * Returns an array of { name, description } objects.
+ */
+export async function listAvailableToolTemplates(): Promise<{ name: string; description: string }[]> {
+  let files: string[];
+  try {
+    files = (await readdir(BUNDLED_TOOL_TEMPLATES_DIR)).filter(f => f.endsWith('.tool.yaml')).sort();
+  } catch {
+    return [];
+  }
+  const result: { name: string; description: string }[] = [];
+  for (const file of files) {
+    const content = await readFile(resolve(BUNDLED_TOOL_TEMPLATES_DIR, file), 'utf-8');
+    const def = yaml.load(content) as ToolPluginDef;
+    result.push({ name: file.replace('.tool.yaml', ''), description: def.description ?? '' });
+  }
+  return result;
+}
+
+/**
+ * Return the raw YAML content of a bundled tool template by name.
+ * Returns null if the tool does not exist in the bundled registry.
+ */
+export async function getBundledToolTemplate(name: string): Promise<string | null> {
+  const filePath = resolve(BUNDLED_TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
+  try {
+    return await readFile(filePath, 'utf-8');
+  } catch {
+    return null;
+  }
 }
