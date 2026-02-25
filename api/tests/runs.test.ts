@@ -7,6 +7,7 @@ import type { PipelineRun } from '@studio/contracts';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -31,7 +32,7 @@ function makeServer(store: RunStore, launcher?: RunLauncher) {
 }
 
 function makeTempLog(lines: string[]): { logPath: string; cleanup: () => void } {
-  const dir = resolve(tmpdir(), `studio-test-logs-${Date.now()}`);
+  const dir = resolve(tmpdir(), `studio-test-logs-${randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   const logPath = resolve(dir, 'test.jsonl');
   writeFileSync(logPath, lines.join('\n') + '\n');
@@ -250,5 +251,20 @@ describe('GET /api/runs/:id/logs', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json() as { entries: unknown[] };
     expect(body.entries).toHaveLength(1);
+  });
+
+  it('returns empty entries array for empty log file in structured mode', async () => {
+    const { logPath, cleanup } = makeTempLog([]);
+    store.savePipelineRun(makeRun({ id: 'run-empty-log' }));
+    store.saveLogPath('run-empty-log', logPath);
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'GET', url: '/api/runs/run-empty-log/logs' });
+    cleanup();
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { run_id: string; entries: unknown[] };
+    expect(body.run_id).toBe('run-empty-log');
+    expect(body.entries).toHaveLength(0);
   });
 });
