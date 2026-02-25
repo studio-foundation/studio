@@ -7,6 +7,7 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
+import type { WebhookStore } from './webhook-store.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
@@ -15,6 +16,7 @@ import { toolsRoutes } from './routes/tools.js';
 import { agentsRoutes } from './routes/agents.js';
 import { configRoutes } from './routes/config.js';
 import { skillsRoutes } from './routes/skills.js';
+import { webhooksRoutes } from './routes/webhooks.js';
 
 export interface ApiConfig {
   key?: string;
@@ -34,6 +36,7 @@ export interface ServerDeps {
   apiConfig: ApiConfig;
   studioVersion: string;
   maskedConfig: MaskedConfig;
+  webhookStore: WebhookStore;
 }
 
 export function buildServer(deps: ServerDeps) {
@@ -75,6 +78,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(agentsRoutes, { prefix: '/api', deps });
   void fastify.register(configRoutes, { prefix: '/api', deps });
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
+  void fastify.register(webhooksRoutes, { prefix: '/api', deps });
 
   return fastify;
 }

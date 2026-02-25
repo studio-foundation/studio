@@ -1,4 +1,5 @@
 export type SseEventType =
+  | 'pipeline_start'
   | 'stage_start'
   | 'stage_complete'
   | 'stage_retry'
@@ -16,9 +17,11 @@ export interface BusEvent {
 }
 
 export type BusListener = (event: BusEvent) => void;
+export type GlobalBusListener = (runId: string, event: BusEvent) => void;
 
 export class RunEventBus {
   private subs = new Map<string, Set<BusListener>>();
+  private globalListeners = new Set<GlobalBusListener>();
 
   subscribe(runId: string, listener: BusListener): () => void {
     if (!this.subs.has(runId)) {
@@ -30,12 +33,24 @@ export class RunEventBus {
     };
   }
 
+  // Global subscription — receives all events across all runs
+  subscribeAll(listener: GlobalBusListener): () => void {
+    this.globalListeners.add(listener);
+    return () => {
+      this.globalListeners.delete(listener);
+    };
+  }
+
   emit(runId: string, type: SseEventType, data: unknown): void {
-    const listeners = this.subs.get(runId);
-    if (!listeners) return;
     const event: BusEvent = { type, data };
-    for (const listener of listeners) {
-      listener(event);
+    const listeners = this.subs.get(runId);
+    if (listeners) {
+      for (const listener of listeners) {
+        listener(event);
+      }
+    }
+    for (const listener of this.globalListeners) {
+      listener(runId, event);
     }
   }
 

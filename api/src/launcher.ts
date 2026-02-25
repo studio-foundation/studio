@@ -6,6 +6,7 @@ import type {
   EngineConfig,
   EngineEvents,
   RunStore,
+  PipelineStartEvent,
   StageStartEvent,
   StageCompleteEvent,
   StageRetryEvent,
@@ -67,9 +68,10 @@ export class InProcessLauncher implements RunLauncher {
     };
 
     const perRunEvents: EngineEvents = {
-      onPipelineStart: () => {
+      onPipelineStart: (e: PipelineStartEvent) => {
         // Row exists now (engine saves it before firing this event) — safe to write log_path
         this.store.saveLogPath(runId, logger.logPath);
+        emit('pipeline_start', e);
       },
       onStageStart:        (e: StageStartEvent) =>        emit('stage_start', e),
       onStageComplete:     (e: StageCompleteEvent) =>     emit('stage_complete', e),
