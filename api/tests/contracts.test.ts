@@ -138,3 +138,27 @@ describe('PUT /api/contracts/:name', () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe('DELETE /api/contracts/:name', () => {
+  it('deletes a contract and returns 204', async () => {
+    const server = makeServer();
+    // Create it first via PUT
+    await server.inject({
+      method: 'PUT',
+      url: '/api/contracts/to-delete',
+      payload: { name: 'to-delete', version: 1 },
+    });
+    const res = await server.inject({ method: 'DELETE', url: '/api/contracts/to-delete' });
+    expect(res.statusCode).toBe(204);
+    // Verify it's gone
+    const getRes = await server.inject({ method: 'GET', url: '/api/contracts/to-delete' });
+    expect(getRes.statusCode).toBe(404);
+  });
+
+  it('returns 404 for nonexistent contract', async () => {
+    const server = makeServer();
+    const res = await server.inject({ method: 'DELETE', url: '/api/contracts/nonexistent' });
+    expect(res.statusCode).toBe(404);
+    expect((res.json() as { error: string }).error).toBe('Contract not found');
+  });
+});

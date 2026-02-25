@@ -84,4 +84,23 @@ export async function contractsRoutes(
 
     return reply.send({ name: request.params.name, content: body });
   });
+
+  // DELETE /api/contracts/:name
+  fastify.delete<{ Params: { name: string } }>('/contracts/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+    },
+  }, async (request, reply) => {
+    const filePath = join(contractsDir, `${request.params.name}.contract.yaml`);
+    try {
+      await unlink(filePath);
+    } catch {
+      return reply.status(404).send({ error: 'Contract not found' });
+    }
+    return reply.status(204).send();
+  });
 }
