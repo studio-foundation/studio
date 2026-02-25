@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
+import { loadContract, validateOutput } from '@studio/engine';
+import type { ToolCall } from '@studio/contracts';
 
 export async function contractsRoutes(
   fastify: FastifyInstance,
@@ -129,5 +131,75 @@ export async function contractsRoutes(
       return reply.status(404).send({ error: 'Contract not found' });
     }
     return reply.status(204).send();
+  });
+
+  // POST /api/contracts/:name/validate
+  fastify.post<{
+    Params: { name: string };
+    Body: { output: unknown; tool_calls?: ToolCall[] };
+  }>('/contracts/:name/validate', {
+    schema: {
+      tags: ['contracts'],
+      summary: 'Validate an output against a contract without running a pipeline',
+      params: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+      body: {
+        type: 'object',
+        required: ['output'],
+        properties: {
+          output: { type: 'object', additionalProperties: true },
+          tool_calls: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                arguments: { type: 'object', additionalProperties: true },
+                result: {},
+                error: { type: 'string' },
+              },
+              required: ['id', 'name'],
+            },
+          },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          required: ['valid', 'errors', 'warnings', 'post_validation'],
+          properties: {
+            valid: { type: 'boolean' },
+            errors: { type: 'array', items: { type: 'string' } },
+            warnings: { type: 'array', items: { type: 'string' } },
+            post_validation: {
+              type: 'object',
+              required: ['accepted'],
+              properties: {
+                accepted: { type: 'boolean' },
+                rejection_reason: { type: 'string' },
+                rejection_details: { type: 'array', items: { type: 'string' } },
+              },
+            },
+          },
+        },
+        400: errorSchema,
+        404: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    let contract;
+    try {
+      contract = await loadContract(request.params.name, contractsDir);
+    } catch {
+      return reply.status(404).send({ error: 'Contract not found' });
+    }
+
+    const { output, tool_calls = [] } = request.body;
+    const result = validateOutput(contract, output, tool_calls);
+    return reply.send(result);
   });
 }

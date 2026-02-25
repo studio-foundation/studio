@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import { WebhookStore } from '../src/webhook-store.js';
 
 const TMP = resolve('/tmp', `.studio-contracts-test-${Date.now()}`);
 const CONTRACTS_DIR = resolve(TMP, 'contracts');
@@ -16,6 +17,7 @@ function makeServer() {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
+    webhookStore: new WebhookStore(resolve(TMP, 'runs.db')),
   });
 }
 
@@ -30,6 +32,37 @@ beforeAll(() => {
     'name: code-generation\nversion: 1\ntool_calls:\n  minimum: 1\n'
   );
   writeFileSync(resolve(CONTRACTS_DIR, 'ignored.yaml'), ''); // must be ignored
+
+  writeFileSync(
+    resolve(CONTRACTS_DIR, 'with-tool-calls.contract.yaml'),
+    [
+      'name: with-tool-calls',
+      'version: 1',
+      'schema:',
+      '  required_fields:',
+      '    - summary',
+      'tool_calls:',
+      '  minimum: 1',
+    ].join('\n')
+  );
+
+  writeFileSync(
+    resolve(CONTRACTS_DIR, 'with-post-validation.contract.yaml'),
+    [
+      'name: with-post-validation',
+      'version: 1',
+      'schema:',
+      '  required_fields:',
+      '    - status',
+      'post_validation:',
+      '  rejection_detection:',
+      '    field: status',
+      '    approved_values:',
+      '      - approved',
+      '    rejected_values:',
+      '      - rejected',
+    ].join('\n')
+  );
 });
 
 afterAll(() => {
@@ -49,14 +82,17 @@ describe('GET /api/contracts', () => {
   });
 
   it('returns empty array when contracts dir is missing', async () => {
+    const emptyDir = resolve('/tmp', `.studio-no-contracts-${Date.now()}`);
+    mkdirSync(emptyDir, { recursive: true });
     const server = buildServer({
       store: new InMemoryRunStore(),
       launcher: { launch: async () => ({ run_id: 'x' }), cancel: async () => {} },
-      configsDir: resolve('/tmp', `.studio-no-contracts-${Date.now()}`),
+      configsDir: emptyDir,
       projectName: 'test-project',
       apiConfig: {},
       studioVersion: '0.0.0-test',
       maskedConfig: { providers: [] },
+      webhookStore: new WebhookStore(resolve(emptyDir, 'runs.db')),
     });
     const res = await server.inject({ method: 'GET', url: '/api/contracts' });
     expect(res.statusCode).toBe(200);
@@ -160,5 +196,98 @@ describe('DELETE /api/contracts/:name', () => {
     const res = await server.inject({ method: 'DELETE', url: '/api/contracts/nonexistent' });
     expect(res.statusCode).toBe(404);
     expect((res.json() as { error: string }).error).toBe('Contract not found');
+  });
+});
+
+describe('POST /api/contracts/:name/validate', () => {
+  it('returns valid: true for output that satisfies schema-only contract', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/brief-analysis/validate',
+      payload: { output: {} },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { valid: boolean; errors: string[]; warnings: string[] };
+    expect(body.valid).toBe(true);
+    expect(body.errors).toEqual([]);
+  });
+
+  it('returns valid: false with error when tool_calls minimum not met', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/with-tool-calls/validate',
+      payload: { output: { summary: 'ok' }, tool_calls: [] },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { valid: boolean; errors: string[] };
+    expect(body.valid).toBe(false);
+    expect(body.errors.some((e: string) => e.includes('at least 1 successful tool call'))).toBe(true);
+  });
+
+  it('returns valid: true when tool_calls requirement met', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/with-tool-calls/validate',
+      payload: {
+        output: { summary: 'ok' },
+        tool_calls: [{ id: 'call-1', name: 'repo_manager-write_file', arguments: { path: 'a.ts' }, result: 'ok' }],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { valid: boolean };
+    expect(body.valid).toBe(true);
+  });
+
+  it('returns post_validation.accepted: false when output has rejected value', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/with-post-validation/validate',
+      payload: { output: { status: 'rejected' } },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      valid: boolean;
+      post_validation: { accepted: boolean; rejection_reason: string };
+    };
+    expect(body.valid).toBe(true);
+    expect(body.post_validation.accepted).toBe(false);
+    expect(body.post_validation.rejection_reason).toBeTruthy();
+  });
+
+  it('returns post_validation.accepted: true when output has approved value', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/with-post-validation/validate',
+      payload: { output: { status: 'approved' } },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { post_validation: { accepted: boolean } };
+    expect(body.post_validation.accepted).toBe(true);
+  });
+
+  it('returns 404 for unknown contract', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/nonexistent/validate',
+      payload: { output: {} },
+    });
+    expect(res.statusCode).toBe(404);
+    expect((res.json() as { error: string }).error).toBe('Contract not found');
+  });
+
+  it('returns 400 when output field is missing from body', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/contracts/brief-analysis/validate',
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
