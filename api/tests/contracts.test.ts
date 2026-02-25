@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import { WebhookStore } from '../src/webhook-store.js';
 
 const TMP = resolve('/tmp', `.studio-contracts-test-${Date.now()}`);
 const CONTRACTS_DIR = resolve(TMP, 'contracts');
@@ -16,6 +17,7 @@ function makeServer() {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
+    webhookStore: new WebhookStore(resolve(TMP, 'runs.db')),
   });
 }
 
@@ -80,14 +82,17 @@ describe('GET /api/contracts', () => {
   });
 
   it('returns empty array when contracts dir is missing', async () => {
+    const emptyDir = resolve('/tmp', `.studio-no-contracts-${Date.now()}`);
+    mkdirSync(emptyDir, { recursive: true });
     const server = buildServer({
       store: new InMemoryRunStore(),
       launcher: { launch: async () => ({ run_id: 'x' }), cancel: async () => {} },
-      configsDir: resolve('/tmp', `.studio-no-contracts-${Date.now()}`),
+      configsDir: emptyDir,
       projectName: 'test-project',
       apiConfig: {},
       studioVersion: '0.0.0-test',
       maskedConfig: { providers: [] },
+      webhookStore: new WebhookStore(resolve(emptyDir, 'runs.db')),
     });
     const res = await server.inject({ method: 'GET', url: '/api/contracts' });
     expect(res.statusCode).toBe(200);
