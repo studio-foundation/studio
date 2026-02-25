@@ -10,9 +10,13 @@ export async function agentsRoutes(
 ): Promise<void> {
   const agentsDir = join(options.deps.configsDir, 'agents');
 
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
+
   // GET /api/agents
   fastify.get('/agents', {
     schema: {
+      tags: ['agents'],
+      summary: 'List all agent names',
       response: {
         200: {
           type: 'object',
@@ -38,10 +42,16 @@ export async function agentsRoutes(
   // GET /api/agents/:name
   fastify.get<{ Params: { name: string } }>('/agents/:name', {
     schema: {
+      tags: ['agents'],
+      summary: 'Get an agent by name',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
+      },
+      response: {
+        200: { type: 'object', additionalProperties: true },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -61,12 +71,24 @@ export async function agentsRoutes(
     Body: Record<string, unknown>;
   }>('/agents/:name', {
     schema: {
+      tags: ['agents'],
+      summary: 'Create or update an agent',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
       },
       body: { type: 'object' },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            content: { type: 'object', additionalProperties: true },
+          },
+        },
+        400: errorSchema,
+      },
     },
   }, async (request, reply) => {
     const body = request.body;
@@ -85,10 +107,16 @@ export async function agentsRoutes(
   // DELETE /api/agents/:name
   fastify.delete<{ Params: { name: string } }>('/agents/:name', {
     schema: {
+      tags: ['agents'],
+      summary: 'Delete an agent',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
+      },
+      response: {
+        204: { type: 'null', description: 'No content' },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {

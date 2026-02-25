@@ -27,9 +27,13 @@ export async function projectsRoutes(
   const { configsDir, projectName, studioVersion, maskedConfig } = options.deps;
   const id = projectId(configsDir);
 
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
+
   // GET /api/projects — returns the single project this API serves
   fastify.get('/projects', {
     schema: {
+      tags: ['projects'],
+      summary: 'List projects served by this API instance',
       response: {
         200: {
           type: 'object',
@@ -64,6 +68,8 @@ export async function projectsRoutes(
   // GET /api/projects/:id/pipelines
   fastify.get<{ Params: { id: string } }>('/projects/:id/pipelines', {
     schema: {
+      tags: ['projects'],
+      summary: 'List pipelines for a project',
       params: {
         type: 'object',
         properties: { id: { type: 'string' } },
@@ -76,6 +82,7 @@ export async function projectsRoutes(
             pipelines: { type: 'array', items: { type: 'string' } },
           },
         },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -100,6 +107,8 @@ export async function projectsRoutes(
   // GET /api/projects/:id/inputs
   fastify.get<{ Params: { id: string } }>('/projects/:id/inputs', {
     schema: {
+      tags: ['projects'],
+      summary: 'List inputs for a project',
       params: {
         type: 'object',
         properties: { id: { type: 'string' } },
@@ -112,6 +121,7 @@ export async function projectsRoutes(
             inputs: { type: 'array', items: { type: 'string' } },
           },
         },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -138,6 +148,8 @@ export async function projectsRoutes(
   // GET /api/projects/:id/inputs/:name — read an input file (YAML parsed to JSON)
   fastify.get<{ Params: { id: string; name: string } }>('/projects/:id/inputs/:name', {
     schema: {
+      tags: ['projects'],
+      summary: 'Get an input file by name',
       params: {
         type: 'object',
         properties: {
@@ -145,6 +157,10 @@ export async function projectsRoutes(
           name: { type: 'string' },
         },
         required: ['id', 'name'],
+      },
+      response: {
+        200: { type: 'object', additionalProperties: true },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -165,6 +181,8 @@ export async function projectsRoutes(
   // GET /api/project — full introspection of the current Studio project
   fastify.get('/project', {
     schema: {
+      tags: ['projects'],
+      summary: 'Introspect the current Studio project',
       response: {
         200: {
           type: 'object',

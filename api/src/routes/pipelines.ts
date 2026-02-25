@@ -17,6 +17,8 @@ export async function pipelinesRoutes(
   // GET /api/pipelines — list all pipeline names
   fastify.get('/pipelines', {
     schema: {
+      tags: ['pipelines'],
+      summary: 'List all pipeline names',
       response: {
         200: {
           type: 'object',
@@ -40,9 +42,13 @@ export async function pipelinesRoutes(
     return reply.send({ pipelines });
   });
 
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
+
   // GET /api/pipelines/:name — read a pipeline (YAML parsed to JSON)
   fastify.get<{ Params: { name: string } }>('/pipelines/:name', {
     schema: {
+      tags: ['pipelines'],
+      summary: 'Get a pipeline by name',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
@@ -50,10 +56,7 @@ export async function pipelinesRoutes(
       },
       response: {
         200: { type: 'object', additionalProperties: true },
-        404: {
-          type: 'object',
-          properties: { error: { type: 'string' } },
-        },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -73,20 +76,20 @@ export async function pipelinesRoutes(
     '/pipelines/:name',
     {
       schema: {
+        tags: ['pipelines'],
+        summary: 'Create or update a pipeline (YAML text or JSON body)',
         params: {
           type: 'object',
           properties: { name: { type: 'string' } },
           required: ['name'],
         },
+        body: { type: 'object', additionalProperties: true },
         response: {
           200: {
             type: 'object',
             properties: { name: { type: 'string' } },
           },
-          400: {
-            type: 'object',
-            properties: { error: { type: 'string' } },
-          },
+          400: errorSchema,
         },
       },
     },
@@ -116,6 +119,8 @@ export async function pipelinesRoutes(
   // DELETE /api/pipelines/:name — delete a pipeline
   fastify.delete<{ Params: { name: string } }>('/pipelines/:name', {
     schema: {
+      tags: ['pipelines'],
+      summary: 'Delete a pipeline',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
@@ -126,10 +131,7 @@ export async function pipelinesRoutes(
           type: 'object',
           properties: { deleted: { type: 'string' } },
         },
-        404: {
-          type: 'object',
-          properties: { error: { type: 'string' } },
-        },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {

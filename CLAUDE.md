@@ -227,6 +227,15 @@ PUT    /api/pipelines/:name     → créer ou modifier un pipeline (body: YAML o
 DELETE /api/pipelines/:name     → supprimer un pipeline
 ```
 
+**Agents CRUD**
+
+```
+GET    /api/agents              → liste tous les noms d'agents disponibles
+GET    /api/agents/:name        → contenu parsé d'un agent (YAML → JSON)
+PUT    /api/agents/:name        → créer ou modifier un agent (body: JSON)
+DELETE /api/agents/:name        → supprimer un agent
+```
+
 **Swagger UI (dev/local uniquement)**
 
 ```
@@ -235,6 +244,27 @@ GET    /api/docs/json           → spec OpenAPI raw (pour génération de clien
 ```
 
 Swagger UI est désactivé en production (`NODE_ENV=production`). En dev, il est généré automatiquement depuis les schemas des routes — pas besoin de maintenir une spec manuelle.
+
+**Règle obligatoire — schema complet sur chaque route :** Toute route Fastify dans `@studio/api` doit avoir un schema Swagger complet. Sans ça, la route n'apparaît pas correctement dans Swagger UI.
+
+```typescript
+fastify.get('/example/:name', {
+  schema: {
+    tags: ['group'],          // groupement dans Swagger UI — obligatoire
+    summary: 'Une phrase',    // titre lisible — obligatoire
+    params: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    querystring: { ... },     // si query params
+    body: { ... },            // si POST/PUT/PATCH
+    response: {
+      200: { ... },           // tous les status codes retournés
+      404: errorSchema,       // y compris les erreurs
+      204: { type: 'null', description: 'No content' },  // pour les 204
+    },
+  },
+}, handler)
+```
+
+Pattern `errorSchema` réutilisé par fichier : `const errorSchema = { type: 'object', properties: { error: { type: 'string' } } }`
 
 **Authentification :** optionnelle. Si `api.key` est défini dans `config.yaml`, toutes les routes exigent `Authorization: Bearer <key>`. Sans clé configurée, l'API est ouverte (usage local uniquement).
 
@@ -645,6 +675,8 @@ git worktree add .worktrees/<branch-name> -b <type>/<stu-xxx-description>
 ```
 
 Utilise le skill `superpowers:using-git-worktrees` pour le setup complet.
+
+`.worktrees/` est dans `.gitignore` — pas besoin de valider ou vérifier ça à chaque fois.
 
 ## Git Workflow — Règles obligatoires
 

@@ -9,10 +9,13 @@ export async function contractsRoutes(
   options: { deps: ServerDeps }
 ): Promise<void> {
   const contractsDir = join(options.deps.configsDir, 'contracts');
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
 
   // GET /api/contracts
   fastify.get('/contracts', {
     schema: {
+      tags: ['contracts'],
+      summary: 'List all contract names',
       response: {
         200: {
           type: 'object',
@@ -38,10 +41,16 @@ export async function contractsRoutes(
   // GET /api/contracts/:name
   fastify.get<{ Params: { name: string } }>('/contracts/:name', {
     schema: {
+      tags: ['contracts'],
+      summary: 'Get a contract by name',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
+      },
+      response: {
+        200: { type: 'object', additionalProperties: true },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -61,12 +70,24 @@ export async function contractsRoutes(
     Body: Record<string, unknown>;
   }>('/contracts/:name', {
     schema: {
+      tags: ['contracts'],
+      summary: 'Create or update a contract',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
       },
       body: { type: 'object' },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            content: { type: 'object', additionalProperties: true },
+          },
+        },
+        400: errorSchema,
+      },
     },
   }, async (request, reply) => {
     const body = request.body;
@@ -88,10 +109,16 @@ export async function contractsRoutes(
   // DELETE /api/contracts/:name
   fastify.delete<{ Params: { name: string } }>('/contracts/:name', {
     schema: {
+      tags: ['contracts'],
+      summary: 'Delete a contract',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
+      },
+      response: {
+        204: { type: 'null', description: 'No content' },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {

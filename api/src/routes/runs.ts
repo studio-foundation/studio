@@ -25,6 +25,32 @@ async function replayJsonl(
   }
 }
 
+const stageRunSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    stage_name: { type: 'string' },
+    status: { type: 'string' },
+    started_at: { type: 'string' },
+    completed_at: { type: 'string' },
+    tasks: { type: 'array', items: { type: 'object', additionalProperties: true } },
+  },
+};
+
+const pipelineRunSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    pipeline_name: { type: 'string' },
+    status: { type: 'string', enum: ['pending', 'running', 'success', 'failed', 'rejected', 'skipped'] },
+    started_at: { type: 'string' },
+    completed_at: { type: 'string' },
+    stages: { type: 'array', items: stageRunSchema },
+  },
+};
+
+const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
+
 export async function runsRoutes(
   fastify: FastifyInstance,
   options: { deps: ServerDeps }
@@ -36,6 +62,8 @@ export async function runsRoutes(
     Body: { pipeline: string; input: Record<string, unknown>; provider?: string };
   }>('/runs', {
     schema: {
+      tags: ['runs'],
+      summary: 'Start a pipeline run',
       body: {
         type: 'object',
         required: ['pipeline', 'input'],
@@ -43,6 +71,16 @@ export async function runsRoutes(
           pipeline: { type: 'string' },
           input: { type: 'object' },
           provider: { type: 'string' },
+        },
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            run_id: { type: 'string' },
+            status: { type: 'string' },
+            stream_url: { type: 'string' },
+          },
         },
       },
     },
@@ -70,11 +108,21 @@ export async function runsRoutes(
     Querystring: { status?: string; limit?: string };
   }>('/runs', {
     schema: {
+      tags: ['runs'],
+      summary: 'List pipeline runs',
       querystring: {
         type: 'object',
         properties: {
           status: { type: 'string' },
           limit: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            runs: { type: 'array', items: pipelineRunSchema },
+          },
         },
       },
     },
@@ -90,10 +138,16 @@ export async function runsRoutes(
   // GET /api/runs/:id
   fastify.get<{ Params: { id: string } }>('/runs/:id', {
     schema: {
+      tags: ['runs'],
+      summary: 'Get a run by ID',
       params: {
         type: 'object',
         properties: { id: { type: 'string' } },
         required: ['id'],
+      },
+      response: {
+        200: pipelineRunSchema,
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -110,6 +164,8 @@ export async function runsRoutes(
     Querystring: { raw?: string };
   }>('/runs/:id/logs', {
     schema: {
+      tags: ['runs'],
+      summary: 'Get run logs (parsed JSONL or raw text)',
       params: {
         type: 'object',
         properties: { id: { type: 'string' } },
@@ -117,7 +173,27 @@ export async function runsRoutes(
       },
       querystring: {
         type: 'object',
-        properties: { raw: { type: 'string' } },
+        properties: { raw: { type: 'string', description: 'Set to "true" for raw JSONL text' } },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            run_id: { type: 'string' },
+            entries: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  event: { type: 'string' },
+                  timestamp: { type: 'string' },
+                  data: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+          },
+        },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -168,9 +244,19 @@ export async function runsRoutes(
     Querystring: { events?: string };
   }>('/runs/:id/stream', {
     schema: {
+      tags: ['runs'],
+      summary: 'Stream run events via SSE',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
       querystring: {
         type: 'object',
-        properties: { events: { type: 'string' } },
+        properties: { events: { type: 'string', description: 'Comma-separated event types to filter' } },
+      },
+      response: {
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {

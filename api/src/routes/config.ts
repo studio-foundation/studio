@@ -40,8 +40,36 @@ export async function configRoutes(
 ): Promise<void> {
   const { configsDir } = options.deps;
 
+  const configResponseSchema = {
+    type: 'object',
+    properties: {
+      providers: {
+        type: 'object',
+        additionalProperties: {
+          type: 'object',
+          properties: { apiKey: { type: 'string' } },
+        },
+      },
+      defaults: {
+        type: 'object',
+        properties: {
+          provider: { type: 'string' },
+          model: { type: 'string' },
+        },
+      },
+    },
+  };
+
   // GET /api/config
-  fastify.get('/config', async (_request, reply) => {
+  fastify.get('/config', {
+    schema: {
+      tags: ['config'],
+      summary: 'Get current config',
+      response: {
+        200: configResponseSchema,
+      },
+    },
+  }, async (_request, reply) => {
     const config = await readConfig(configsDir);
     return reply.send({
       providers: {},
@@ -51,7 +79,14 @@ export async function configRoutes(
 
   // PATCH /api/config
   fastify.patch<{ Body: Partial<RawConfig> }>('/config', {
-    schema: { body: { type: 'object' } },
+    schema: {
+      tags: ['config'],
+      summary: 'Patch config (merge defaults and providers)',
+      body: { type: 'object' },
+      response: {
+        200: configResponseSchema,
+      },
+    },
   }, async (request, reply) => {
     const config = await readConfig(configsDir);
     const patch = request.body;
@@ -75,12 +110,21 @@ export async function configRoutes(
     '/config/providers',
     {
       schema: {
+        tags: ['config'],
+        summary: 'Add or update a provider',
         body: {
           type: 'object',
           required: ['provider', 'apiKeyEnvVar'],
           properties: {
             provider: { type: 'string' },
             apiKeyEnvVar: { type: 'string' },
+          },
+        },
+        response: {
+          200: configResponseSchema,
+          400: {
+            type: 'object',
+            properties: { error: { type: 'string' } },
           },
         },
       },

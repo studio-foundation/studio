@@ -27,10 +27,13 @@ export async function toolsRoutes(
   options: { deps: ServerDeps }
 ): Promise<void> {
   const { configsDir } = options.deps;
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
 
   // GET /api/tools — list builtins + custom
   fastify.get('/tools', {
     schema: {
+      tags: ['tools'],
+      summary: 'List all available tools (builtins + custom)',
       response: {
         200: {
           type: 'object',
@@ -84,10 +87,12 @@ export async function toolsRoutes(
   // GET /api/tools/:name — read a tool definition
   fastify.get<{ Params: { name: string } }>('/tools/:name', {
     schema: {
+      tags: ['tools'],
+      summary: 'Get a tool definition by name',
       params: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
       response: {
         200: { type: 'object', additionalProperties: true },
-        404: { type: 'object', properties: { error: { type: 'string' } } },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -115,10 +120,13 @@ export async function toolsRoutes(
     '/tools/:name',
     {
       schema: {
+        tags: ['tools'],
+        summary: 'Create or update a custom tool (YAML text or JSON body)',
         params: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+        body: { type: 'object', additionalProperties: true },
         response: {
           200: { type: 'object', properties: { name: { type: 'string' } } },
-          400: { type: 'object', properties: { error: { type: 'string' } } },
+          400: errorSchema,
         },
       },
     },
@@ -149,11 +157,13 @@ export async function toolsRoutes(
   // DELETE /api/tools/:name — delete a custom tool (403 for builtins not overridden)
   fastify.delete<{ Params: { name: string } }>('/tools/:name', {
     schema: {
+      tags: ['tools'],
+      summary: 'Delete a custom tool',
       params: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
       response: {
         200: { type: 'object', properties: { deleted: { type: 'string' } } },
-        403: { type: 'object', properties: { error: { type: 'string' } } },
-        404: { type: 'object', properties: { error: { type: 'string' } } },
+        403: errorSchema,
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -175,6 +185,8 @@ export async function toolsRoutes(
   // POST /api/tools/install — install from the bundled registry
   fastify.post<{ Body: { name: string } }>('/tools/install', {
     schema: {
+      tags: ['tools'],
+      summary: 'Install a tool from the bundled registry',
       body: {
         type: 'object',
         properties: { name: { type: 'string' } },
@@ -182,8 +194,8 @@ export async function toolsRoutes(
       },
       response: {
         200: { type: 'object', properties: { installed: { type: 'string' } } },
-        404: { type: 'object', properties: { error: { type: 'string' } } },
-        409: { type: 'object', properties: { error: { type: 'string' } } },
+        404: errorSchema,
+        409: errorSchema,
       },
     },
   }, async (request, reply) => {

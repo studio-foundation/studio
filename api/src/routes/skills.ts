@@ -9,9 +9,13 @@ export async function skillsRoutes(
 ): Promise<void> {
   const skillsDir = join(options.deps.configsDir, 'skills');
 
+  const errorSchema = { type: 'object', properties: { error: { type: 'string' } } };
+
   // GET /api/skills
   fastify.get('/skills', {
     schema: {
+      tags: ['skills'],
+      summary: 'List all skill names',
       response: {
         200: {
           type: 'object',
@@ -37,6 +41,8 @@ export async function skillsRoutes(
   // GET /api/skills/:name
   fastify.get<{ Params: { name: string } }>('/skills/:name', {
     schema: {
+      tags: ['skills'],
+      summary: 'Get a skill by name',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
@@ -50,10 +56,7 @@ export async function skillsRoutes(
             content: { type: 'string' },
           },
         },
-        404: {
-          type: 'object',
-          properties: { error: { type: 'string' } },
-        },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -73,6 +76,8 @@ export async function skillsRoutes(
     Body: Record<string, unknown>;
   }>('/skills/:name', {
     schema: {
+      tags: ['skills'],
+      summary: 'Create or update a skill',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
@@ -87,10 +92,7 @@ export async function skillsRoutes(
             content: { type: 'string' },
           },
         },
-        400: {
-          type: 'object',
-          properties: { error: { type: 'string' } },
-        },
+        400: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -110,10 +112,16 @@ export async function skillsRoutes(
   // DELETE /api/skills/:name
   fastify.delete<{ Params: { name: string } }>('/skills/:name', {
     schema: {
+      tags: ['skills'],
+      summary: 'Delete a skill',
       params: {
         type: 'object',
         properties: { name: { type: 'string' } },
         required: ['name'],
+      },
+      response: {
+        204: { type: 'null', description: 'No content' },
+        404: errorSchema,
       },
     },
   }, async (request, reply) => {
