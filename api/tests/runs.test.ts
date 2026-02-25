@@ -4,6 +4,9 @@ import { InMemoryRunStore } from '@studio/engine';
 import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from '../src/launcher.js';
 import type { PipelineRun } from '@studio/contracts';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -25,6 +28,14 @@ function makeServer(store: RunStore, launcher?: RunLauncher) {
     projectName: 'test',
     apiConfig: {},
   });
+}
+
+function makeTempLog(lines: string[]): { logPath: string; cleanup: () => void } {
+  const dir = resolve(tmpdir(), `studio-test-logs-${Date.now()}`);
+  mkdirSync(dir, { recursive: true });
+  const logPath = resolve(dir, 'test.jsonl');
+  writeFileSync(logPath, lines.join('\n') + '\n');
+  return { logPath, cleanup: () => rmSync(dir, { recursive: true }) };
 }
 
 describe('POST /api/runs', () => {
@@ -161,5 +172,83 @@ describe('GET /api/runs/:id/logs', () => {
 
     const res = await server.inject({ method: 'GET', url: '/api/runs/run-missing-file/logs' });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('returns structured JSON with parsed entries by default', async () => {
+    const { logPath, cleanup } = makeTempLog([
+      JSON.stringify({ ts: '2026-01-01T10:00:00Z', event: 'onPipelineStart', pipeline_name: 'feature-builder' }),
+      JSON.stringify({ ts: '2026-01-01T10:01:00Z', event: 'onStageComplete', stage_name: 'code-gen', status: 'success' }),
+    ]);
+    store.savePipelineRun(makeRun({ id: 'run-structured' }));
+    store.saveLogPath('run-structured', logPath);
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'GET', url: '/api/runs/run-structured/logs' });
+    cleanup();
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { run_id: string; entries: Array<{ event: string; timestamp: string; data: Record<string, unknown> }> };
+    expect(body.run_id).toBe('run-structured');
+    expect(body.entries).toHaveLength(2);
+    expect(body.entries[0]).toEqual({
+      event: 'onPipelineStart',
+      timestamp: '2026-01-01T10:00:00Z',
+      data: { pipeline_name: 'feature-builder' },
+    });
+    expect(body.entries[1]).toEqual({
+      event: 'onStageComplete',
+      timestamp: '2026-01-01T10:01:00Z',
+      data: { stage_name: 'code-gen', status: 'success' },
+    });
+  });
+
+  it('returns raw text/plain with ?raw=true', async () => {
+    const rawContent = JSON.stringify({ ts: '2026-01-01T10:00:00Z', event: 'onPipelineStart' }) + '\n';
+    const { logPath, cleanup } = makeTempLog([rawContent.trimEnd()]);
+    store.savePipelineRun(makeRun({ id: 'run-raw' }));
+    store.saveLogPath('run-raw', logPath);
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'GET', url: '/api/runs/run-raw/logs?raw=true' });
+    cleanup();
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/plain/);
+    expect(res.body).toBe(rawContent);
+  });
+
+  it('skips malformed JSON lines in structured mode', async () => {
+    const { logPath, cleanup } = makeTempLog([
+      'not valid json',
+      JSON.stringify({ ts: '2026-01-01T10:00:00Z', event: 'onPipelineStart' }),
+      '{ broken',
+    ]);
+    store.savePipelineRun(makeRun({ id: 'run-malformed' }));
+    store.saveLogPath('run-malformed', logPath);
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'GET', url: '/api/runs/run-malformed/logs' });
+    cleanup();
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { entries: unknown[] };
+    expect(body.entries).toHaveLength(1);
+  });
+
+  it('skips lines without event field in structured mode', async () => {
+    const { logPath, cleanup } = makeTempLog([
+      JSON.stringify({ ts: '2026-01-01T10:00:00Z', event: 'onPipelineStart' }),
+      JSON.stringify({ ts: '2026-01-01T10:00:01Z', some_field: 'no_event_here' }),
+    ]);
+    store.savePipelineRun(makeRun({ id: 'run-no-event' }));
+    store.saveLogPath('run-no-event', logPath);
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'GET', url: '/api/runs/run-no-event/logs' });
+    cleanup();
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { entries: unknown[] };
+    expect(body.entries).toHaveLength(1);
   });
 });
