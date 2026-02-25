@@ -19,10 +19,10 @@ async function main() {
     process.exit(1);
   }
 
-  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig } = result;
+  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig, webhookStore } = result;
   const port = apiConfig.port ?? DEFAULT_PORT;
 
-  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig });
+  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore });
 
   // Graceful shutdown
   const shutdown = async () => {
