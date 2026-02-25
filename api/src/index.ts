@@ -19,10 +19,10 @@ async function main() {
     process.exit(1);
   }
 
-  const { store, launcher, configsDir, projectName, apiConfig, cleanup } = result;
+  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig } = result;
   const port = apiConfig.port ?? DEFAULT_PORT;
 
-  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig });
+  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig });
 
   // Graceful shutdown
   const shutdown = async () => {
