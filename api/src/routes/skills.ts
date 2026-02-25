@@ -42,6 +42,19 @@ export async function skillsRoutes(
         properties: { name: { type: 'string' } },
         required: ['name'],
       },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            content: { type: 'string' },
+          },
+        },
+        404: {
+          type: 'object',
+          properties: { error: { type: 'string' } },
+        },
+      },
     },
   }, async (request, reply) => {
     const filePath = join(skillsDir, `${request.params.name}.skill.md`);
@@ -66,6 +79,19 @@ export async function skillsRoutes(
         required: ['name'],
       },
       body: { type: 'object' },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            content: { type: 'string' },
+          },
+        },
+        400: {
+          type: 'object',
+          properties: { error: { type: 'string' } },
+        },
+      },
     },
   }, async (request, reply) => {
     const { content } = request.body;
