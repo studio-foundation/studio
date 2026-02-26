@@ -29,6 +29,7 @@ export interface LaunchConfig {
   providerOverride?: string;
   depth?: number;
   parentRunId?: string;
+  meta?: Record<string, unknown>;
 }
 
 export type EngineFactory = (
@@ -58,7 +59,7 @@ export class InProcessLauncher implements RunLauncher {
   }
 
   async launch(config: LaunchConfig): Promise<{ run_id: string }> {
-    const { runId, pipeline, input } = config;
+    const { runId, pipeline, input, meta } = config;
     const controller = new AbortController();
     this.active.set(runId, controller);
 
@@ -95,7 +96,7 @@ export class InProcessLauncher implements RunLauncher {
     const engine = this.engineFactory(this.engineConfig, perRunEvents);
 
     void engine
-      .run({ pipeline, input, signal: controller.signal, id: runId, depth: config.depth, parentRunId: config.parentRunId })
+      .run({ pipeline, input, meta, signal: controller.signal, id: runId, depth: config.depth, parentRunId: config.parentRunId })
       .then(async () => {
         await logger.close();
       })

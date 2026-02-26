@@ -31,7 +31,7 @@ export interface StudioApiConfig {
     anthropic?: { apiKey: string };
   };
   defaults?: { provider?: string; model?: string };
-  api?: { key?: string; port?: number };
+  api?: { key?: string; port?: number; linear_webhook_secret?: string };
 }
 
 export interface BootstrapResult {
@@ -39,7 +39,7 @@ export interface BootstrapResult {
   launcher: RunLauncher;
   configsDir: string;
   projectName: string;
-  apiConfig: { key?: string; port?: number };
+  apiConfig: { key?: string; port?: number; linear_webhook_secret?: string };
   cleanup: () => Promise<void>;
   studioVersion: string;
   maskedConfig: MaskedConfig;

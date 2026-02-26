@@ -17,10 +17,12 @@ import { agentsRoutes } from './routes/agents.js';
 import { configRoutes } from './routes/config.js';
 import { skillsRoutes } from './routes/skills.js';
 import { webhooksRoutes } from './routes/webhooks.js';
+import { linearWebhookRoute } from './routes/linear-webhook.js';
 
 export interface ApiConfig {
   key?: string;
   port?: number;
+  linear_webhook_secret?: string;
 }
 
 export type MaskedConfig = {
@@ -60,9 +62,12 @@ export function buildServer(deps: ServerDeps) {
   }
 
   // Auth hook — only active if api key is configured
+  // Skips /api/integrations/* routes (they use their own auth mechanism, e.g. HMAC)
   if (deps.apiConfig.key) {
     const expectedKey = deps.apiConfig.key;
     fastify.addHook('onRequest', async (request, reply) => {
+      const path = request.url.split('?')[0];
+      if (path.startsWith('/api/integrations/')) return;
       const auth = request.headers['authorization'];
       if (!auth || auth !== `Bearer ${expectedKey}`) {
         await reply.status(401).send({ error: 'Unauthorized' });
@@ -79,6 +84,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(configRoutes, { prefix: '/api', deps });
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
+  void fastify.register(linearWebhookRoute, { prefix: '/api', deps });
 
   return fastify;
 }
