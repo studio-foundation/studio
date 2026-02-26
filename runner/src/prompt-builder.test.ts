@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPrompt } from './prompt-builder.js';
 import type { AgentConfig } from '@studio/contracts';
+import type { SkillContent } from './tools/skills/skill-loader.js';
 
 const AGENT: AgentConfig = {
   name: 'test-agent',
@@ -103,5 +104,41 @@ describe('buildPrompt — startup_context', () => {
     });
     const userMsg = messages.find(m => m.role === 'user')!.content as string;
     expect(userMsg).not.toContain('Pipeline Startup Context');
+  });
+});
+
+describe('buildPrompt — skills injection', () => {
+  it('injects a single skill into the system prompt', () => {
+    const skills: SkillContent[] = [
+      { name: 'commit-conventions', content: '# Commit Conventions\n\nUse conventional commits.' },
+    ];
+    const messages = buildPrompt({ agent: AGENT, task: TASK, context: {}, skills });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).toContain('## Skill: commit-conventions');
+    expect(sysMsg).toContain('Use conventional commits.');
+  });
+
+  it('injects multiple skills separated by ---', () => {
+    const skills: SkillContent[] = [
+      { name: 'commit-conventions', content: 'Commit content.' },
+      { name: 'react-patterns', content: 'React content.' },
+    ];
+    const messages = buildPrompt({ agent: AGENT, task: TASK, context: {}, skills });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).toContain('## Skill: commit-conventions');
+    expect(sysMsg).toContain('## Skill: react-patterns');
+    expect(sysMsg).toContain('---');
+  });
+
+  it('omits skill section when skills array is empty', () => {
+    const messages = buildPrompt({ agent: AGENT, task: TASK, context: {}, skills: [] });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).not.toContain('## Skill:');
+  });
+
+  it('omits skill section when skills is not provided', () => {
+    const messages = buildPrompt({ agent: AGENT, task: TASK, context: {} });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).not.toContain('## Skill:');
   });
 });
