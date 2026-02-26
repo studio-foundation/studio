@@ -614,7 +614,6 @@ export class PipelineEngine {
 
         const taskInput: TaskInput = {
           description: typeof userInput === 'string' ? userInput : JSON.stringify(userInput),
-          stage_kind: stageDef.kind,
           contract_name: contract?.name,
         };
 
