@@ -1,10 +1,5 @@
 // LLM provider interfaces
 
-export interface LLMProvider {
-  name: string;
-  call(request: LLMRequest): Promise<LLMResponse>;
-}
-
 export interface LLMRequest {
   model: string;
   messages: Message[];
