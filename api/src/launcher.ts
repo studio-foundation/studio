@@ -20,6 +20,7 @@ import type {
 import { PipelineEngine } from '@studio/engine';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
+import { notifyLinearFailure } from './linear-notifier.js';
 
 export interface LaunchConfig {
   runId: string;
@@ -70,6 +71,9 @@ export class InProcessLauncher implements RunLauncher {
       logger.log({ event: type, ...(data as Record<string, unknown>) });
     };
 
+    // Track last group feedback for Linear failure notifications (STU-98)
+    let lastGroupFeedback: GroupFeedbackEvent | undefined;
+
     const perRunEvents: EngineEvents = {
       onPipelineStart: (e: PipelineStartEvent) => {
         // Row exists now (engine saves it before firing this event) — safe to write log_path
@@ -81,11 +85,28 @@ export class InProcessLauncher implements RunLauncher {
       onTaskRetry:         (e: StageRetryEvent) =>        emit('stage_retry', e),
       onGroupStart:        (e: GroupStartEvent) =>        emit('group_start', e),
       onGroupIteration:    (e: GroupIterationEvent) =>    emit('group_iteration', e),
-      onGroupFeedback:     (e: GroupFeedbackEvent) =>     emit('group_feedback', e),
+      onGroupFeedback:     (e: GroupFeedbackEvent) => {
+        lastGroupFeedback = e;
+        emit('group_feedback', e);
+      },
       onGroupComplete:     (e: GroupCompleteEvent) =>     emit('group_complete', e),
       onPipelineComplete:  (e: PipelineCompleteEvent) => {
         emit('pipeline_complete', e);
         this.bus.close(runId);
+
+        // Fire-and-forget Linear failure notification (STU-98)
+        // Success case is handled by the close-ticket stage inside the pipeline.
+        const linearIssueId = meta?.['linear_issue_id'];
+        if (typeof linearIssueId === 'string' && e.status !== 'success') {
+          void notifyLinearFailure({
+            issueId: linearIssueId,
+            runId,
+            durationMs: e.duration_ms,
+            iterations: lastGroupFeedback?.iteration,
+            rejectionReason: lastGroupFeedback?.rejection_reason,
+            rejectionDetails: lastGroupFeedback?.rejection_details,
+          });
+        }
       },
       onPipelineCancelled: (e: PipelineCancelledEvent) => {
         emit('pipeline_cancelled', e);
