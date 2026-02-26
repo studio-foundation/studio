@@ -64,9 +64,9 @@ export function buildPrompt(config: PromptBuildConfig): Message[] {
 You MUST follow this two-phase workflow:
 
 ### Phase 1 — Make changes using tools
-- Use repo_manager.read_file to read existing files before modifying them
-- Use repo_manager.write_file to create or update files (REQUIRED — at least one call)
-- Use repo_manager.list_files to explore the repository structure if needed
+- Use repo_manager-read_file to read existing files before modifying them
+- Use repo_manager-write_file to create or update files (REQUIRED — at least one call)
+- Use repo_manager-list_files to explore the repository structure if needed
 
 DO NOT just describe what changes should be made — actually make them using the tools.
 
@@ -230,7 +230,7 @@ Your previous attempt failed. Please review the errors below and fix the issues:
       message += `\n⚠️ Your response was plain text, not JSON. Your FINAL message (after all tool calls) must be ONLY a raw JSON object — no explanations, no markdown.`;
     }
     if (hasMissingTool) {
-      message += `\n⚠️ You must use repo_manager.write_file to make actual file changes, not just read or explore.`;
+      message += `\n⚠️ You must use repo_manager-write_file to make actual file changes, not just read or explore.`;
     }
 
     message += `\nMake sure to use the tools available to you to complete the task.`;
@@ -247,7 +247,7 @@ Previous errors:
 
     message += `
 **YOU MUST:**
-1. Use repo_manager.write_file to create/modify files — reading and exploring is NOT enough
+1. Use repo_manager-write_file to create/modify files — reading and exploring is NOT enough
 2. After all tool calls are done, send ONE final message that is ONLY a raw JSON object
 3. No markdown, no explanations, no code fences — just {"summary": "...", ...}
 
@@ -265,7 +265,7 @@ This is attempt ${attempt}. Previous attempts all failed:
     message += `
 🔴 **ABSOLUTE REQUIREMENTS:**
 
-1. Every file modification MUST use repo_manager.write_file
+1. Every file modification MUST use repo_manager-write_file
 2. tool_calls = 0 is an AUTOMATIC FAILURE
 3. You must make ACTUAL changes, not describe them
 4. Read existing files before modifying them

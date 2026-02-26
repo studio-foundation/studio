@@ -127,6 +127,67 @@ describe('PromptBuilder', () => {
     expect(messages[0].content).toContain('CRITICAL: Code Generation Workflow');
     expect(messages[0].content).toContain('repo_manager');
   });
+
+  it('uses dash format for tool names in code_generation workflow instructions', () => {
+    const messages = buildPrompt({
+      agent: { name: 'coder', provider: 'mock', model: 'mock' },
+      task: { description: 'Generate code', stage_kind: 'code_generation' },
+      context: {}
+    });
+
+    const systemContent = messages[0].content as string;
+    expect(systemContent).toContain('repo_manager-read_file');
+    expect(systemContent).toContain('repo_manager-write_file');
+    expect(systemContent).toContain('repo_manager-list_files');
+    expect(systemContent).not.toContain('repo_manager.read_file');
+    expect(systemContent).not.toContain('repo_manager.write_file');
+    expect(systemContent).not.toContain('repo_manager.list_files');
+  });
+
+  it('uses dash format for tool names in retry escalation messages', () => {
+    const messages2 = buildPrompt({
+      agent: { name: 'coder', provider: 'mock', model: 'mock' },
+      task: { description: 'Generate code' },
+      context: {},
+      executionContext: {
+        attempt: 2,
+        previous_failures: [{ error: 'Required tool not called', tool_calls_count: 0 }]
+      }
+    });
+    expect(messages2[1].content).toContain('repo_manager-write_file');
+    expect(messages2[1].content).not.toContain('repo_manager.write_file');
+
+    const messages3 = buildPrompt({
+      agent: { name: 'coder', provider: 'mock', model: 'mock' },
+      task: { description: 'Generate code' },
+      context: {},
+      executionContext: {
+        attempt: 3,
+        previous_failures: [
+          { error: 'No tool calls', tool_calls_count: 0 },
+          { error: 'No tool calls', tool_calls_count: 0 }
+        ]
+      }
+    });
+    expect(messages3[1].content).toContain('repo_manager-write_file');
+    expect(messages3[1].content).not.toContain('repo_manager.write_file');
+
+    const messages4 = buildPrompt({
+      agent: { name: 'coder', provider: 'mock', model: 'mock' },
+      task: { description: 'Generate code' },
+      context: {},
+      executionContext: {
+        attempt: 4,
+        previous_failures: [
+          { error: 'No tool calls', tool_calls_count: 0 },
+          { error: 'No tool calls', tool_calls_count: 0 },
+          { error: 'No tool calls', tool_calls_count: 0 }
+        ]
+      }
+    });
+    expect(messages4[1].content).toContain('repo_manager-write_file');
+    expect(messages4[1].content).not.toContain('repo_manager.write_file');
+  });
 });
 
 describe('buildPrompt - context_packs', () => {
