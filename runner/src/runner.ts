@@ -175,7 +175,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     return {
       output,
       tool_calls: allToolCalls,
-      tool_calls_count: allToolCalls.length,
+      tool_calls_count: allToolCalls.filter(tc => !tc.error).length,
       raw_response: {
         content: loopResult.content,
         tool_calls: loopResult.tool_calls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
@@ -350,7 +350,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   return {
     output,
     tool_calls: allToolCalls,
-    tool_calls_count: allToolCalls.length,
+    tool_calls_count: allToolCalls.filter(tc => !tc.error).length,
     raw_response: lastResponse,
     duration_ms: duration,
     token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
