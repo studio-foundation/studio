@@ -15,7 +15,6 @@ export interface ExecutionContext {
 export interface TaskInput {
   description: string;
   expected_output?: string;
-  stage_kind?: string;
   contract_name?: string;
 }
 
@@ -55,35 +54,16 @@ export function buildPrompt(config: PromptBuildConfig): Message[] {
   // Build system message
   let systemContent = agent.system_prompt || 'You are a helpful AI assistant.';
 
-  // Add rules about tool calls for code_generation stage
-  if (task.stage_kind === 'code_generation') {
-    systemContent += `
-
-## CRITICAL: Code Generation Workflow
-
-You MUST follow this two-phase workflow:
-
-### Phase 1 — Make changes using tools
-- Use repo_manager-read_file to read existing files before modifying them
-- Use repo_manager-write_file to create or update files (REQUIRED — at least one call)
-- Use repo_manager-list_files to explore the repository structure if needed
-
-DO NOT just describe what changes should be made — actually make them using the tools.
-
-### Phase 2 — Return JSON summary
-Once ALL file changes are complete and you have no more tool calls to make, your final message MUST be a valid JSON object summarizing what you did. No markdown, no code blocks, no explanatory text — just the JSON.
-`;
-  }
-
   // Add output format with concrete schema when available
   const contract = config.outputContract;
   if (contract?.schema?.required_fields?.length) {
     const fields = contract.schema.required_fields;
+    const requiresToolCalls = (contract.tool_calls?.minimum ?? 0) > 0;
     systemContent += `
 
 ## REQUIRED OUTPUT FORMAT
 
-You MUST ${task.stage_kind === 'code_generation' ? 'end with' : 'respond with'} a valid JSON object. ${task.stage_kind === 'code_generation' ? 'Your final message (after all tool calls)' : 'Your entire response'} must be parseable JSON — no markdown, no code blocks, no explanatory text${task.stage_kind === 'code_generation' ? ' in that final message' : ' before or after'}.
+You MUST ${requiresToolCalls ? 'end with' : 'respond with'} a valid JSON object. ${requiresToolCalls ? 'Your final message (after all tool calls)' : 'Your entire response'} must be parseable JSON — no markdown, no code blocks, no explanatory text${requiresToolCalls ? ' in that final message' : ' before or after'}.
 
 The JSON object MUST contain these fields:
 ${fields.map((f: string) => `- "${f}" — ${getFieldTypeHint(f)}`).join('\n')}
@@ -230,7 +210,7 @@ Your previous attempt failed. Please review the errors below and fix the issues:
       message += `\n⚠️ Your response was plain text, not JSON. Your FINAL message (after all tool calls) must be ONLY a raw JSON object — no explanations, no markdown.`;
     }
     if (hasMissingTool) {
-      message += `\n⚠️ You must use repo_manager-write_file to make actual file changes, not just read or explore.`;
+      message += `\n⚠️ You must use the required tools to make the actual changes, not just read or explore.`;
     }
 
     message += `\nMake sure to use the tools available to you to complete the task.`;
@@ -247,7 +227,7 @@ Previous errors:
 
     message += `
 **YOU MUST:**
-1. Use repo_manager-write_file to create/modify files — reading and exploring is NOT enough
+1. Use the available tools to make the requested changes — reading and exploring is NOT enough
 2. After all tool calls are done, send ONE final message that is ONLY a raw JSON object
 3. No markdown, no explanations, no code fences — just {"summary": "...", ...}
 
@@ -265,13 +245,12 @@ This is attempt ${attempt}. Previous attempts all failed:
     message += `
 🔴 **ABSOLUTE REQUIREMENTS:**
 
-1. Every file modification MUST use repo_manager-write_file
+1. Use the required tools to make the actual changes — DO NOT just describe them
 2. tool_calls = 0 is an AUTOMATIC FAILURE
 3. You must make ACTUAL changes, not describe them
 4. Read existing files before modifying them
-5. Provide complete file contents, not diffs
-6. Your FINAL message must be ONLY a JSON object like: {"summary": "...", "files_changed": [...]}
-7. If your final message contains ANY text outside the JSON, it WILL be rejected
+5. Your FINAL message must be ONLY a JSON object
+6. If your final message contains ANY text outside the JSON, it WILL be rejected
 
 If you do not make real tool calls AND return valid JSON, this task will fail permanently.`;
   }

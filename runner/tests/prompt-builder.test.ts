@@ -108,43 +108,52 @@ describe('PromptBuilder', () => {
     expect(messages[1].content).toContain('YOU MUST:');
   });
 
-  it('should add tool call requirements for code_generation stage', () => {
-    const agent: AgentConfig = {
-      name: 'test-agent',
-      provider: 'openai',
-      model: 'gpt-4'
-    };
-
-    const messages = buildPrompt({
-      agent,
-      task: {
-        description: 'Generate code',
-        stage_kind: 'code_generation'
-      },
-      context: {}
-    });
-
-    expect(messages[0].content).toContain('CRITICAL: Code Generation Workflow');
-    expect(messages[0].content).toContain('repo_manager');
-  });
-
-  it('uses dash format for tool names in code_generation workflow instructions', () => {
+  it('does not inject domain-specific workflow instructions regardless of task description', () => {
     const messages = buildPrompt({
       agent: { name: 'coder', provider: 'mock', model: 'mock' },
-      task: { description: 'Generate code', stage_kind: 'code_generation' },
+      task: { description: 'Generate code' },
       context: {}
     });
-
-    const systemContent = messages[0].content as string;
-    expect(systemContent).toContain('repo_manager-read_file');
-    expect(systemContent).toContain('repo_manager-write_file');
-    expect(systemContent).toContain('repo_manager-list_files');
-    expect(systemContent).not.toContain('repo_manager.read_file');
-    expect(systemContent).not.toContain('repo_manager.write_file');
-    expect(systemContent).not.toContain('repo_manager.list_files');
+    expect(messages[0].content).not.toContain('CRITICAL: Code Generation Workflow');
+    expect(messages[0].content).not.toContain('repo_manager-read_file');
   });
 
-  it('uses dash format for tool names in retry escalation messages', () => {
+  it('uses "end with" phrasing when contract requires tool calls', () => {
+    const messages = buildPrompt({
+      agent: { name: 'coder', provider: 'mock', model: 'mock' },
+      task: { description: 'Generate code' },
+      context: {},
+      outputContract: {
+        name: 'code-generation',
+        version: 1,
+        schema: { required_fields: ['summary', 'files_changed'] },
+        tool_calls: { minimum: 1 },
+      },
+    });
+    const system = messages[0].content as string;
+    expect(system).toContain('end with');
+    expect(system).toContain('Your final message (after all tool calls)');
+    expect(system).not.toContain('respond with');
+  });
+
+  it('uses "respond with" phrasing when contract has no tool call requirement', () => {
+    const messages = buildPrompt({
+      agent: { name: 'analyst', provider: 'mock', model: 'mock' },
+      task: { description: 'Analyse the brief' },
+      context: {},
+      outputContract: {
+        name: 'brief-analysis',
+        version: 1,
+        schema: { required_fields: ['summary', 'requirements'] },
+      },
+    });
+    const system = messages[0].content as string;
+    expect(system).toContain('respond with');
+    expect(system).toContain('Your entire response');
+    expect(system).not.toContain('end with');
+  });
+
+  it('retry messages do not reference specific tool names', () => {
     const messages2 = buildPrompt({
       agent: { name: 'coder', provider: 'mock', model: 'mock' },
       task: { description: 'Generate code' },
@@ -154,8 +163,7 @@ describe('PromptBuilder', () => {
         previous_failures: [{ error: 'Required tool not called', tool_calls_count: 0 }]
       }
     });
-    expect(messages2[1].content).toContain('repo_manager-write_file');
-    expect(messages2[1].content).not.toContain('repo_manager.write_file');
+    expect(messages2[1].content).not.toContain('repo_manager-write_file');
 
     const messages3 = buildPrompt({
       agent: { name: 'coder', provider: 'mock', model: 'mock' },
@@ -169,8 +177,7 @@ describe('PromptBuilder', () => {
         ]
       }
     });
-    expect(messages3[1].content).toContain('repo_manager-write_file');
-    expect(messages3[1].content).not.toContain('repo_manager.write_file');
+    expect(messages3[1].content).not.toContain('repo_manager-write_file');
 
     const messages4 = buildPrompt({
       agent: { name: 'coder', provider: 'mock', model: 'mock' },
@@ -185,8 +192,7 @@ describe('PromptBuilder', () => {
         ]
       }
     });
-    expect(messages4[1].content).toContain('repo_manager-write_file');
-    expect(messages4[1].content).not.toContain('repo_manager.write_file');
+    expect(messages4[1].content).not.toContain('repo_manager-write_file');
   });
 });
 
