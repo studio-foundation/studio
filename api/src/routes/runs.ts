@@ -46,6 +46,7 @@ const pipelineRunSchema = {
     started_at: { type: 'string' },
     completed_at: { type: 'string' },
     stages: { type: 'array', items: stageRunSchema },
+    parent_run_id: { type: 'string' },
   },
 };
 
@@ -335,5 +336,57 @@ export async function runsRoutes(
 
     // Keep connection open — Fastify won't auto-close since we used reply.raw
     return reply;
+  });
+
+  // POST /api/runs/:id/retry — re-run with the same pipeline + input
+  fastify.post<{ Params: { id: string } }>('/runs/:id/retry', {
+    schema: {
+      tags: ['runs'],
+      summary: 'Retry a run with the same parameters',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            run_id: { type: 'string' },
+            status: { type: 'string' },
+            stream_url: { type: 'string' },
+            parent_run_id: { type: 'string' },
+          },
+        },
+        404: errorSchema,
+        422: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+
+    const originalRun = store.getPipelineRun(id);
+    if (!originalRun) {
+      return reply.status(404).send({ error: 'Run not found' });
+    }
+
+    if (!originalRun.input) {
+      return reply.status(422).send({ error: 'Original run has no stored input — cannot retry' });
+    }
+
+    const { run_id: runId } = await launcher.launch({
+      runId: randomUUID(),
+      pipeline: originalRun.pipeline_name,
+      input: originalRun.input,
+      configsDir: options.deps.configsDir,
+      parentRunId: id,
+    });
+
+    return reply.status(201).send({
+      run_id: runId,
+      status: 'running',
+      stream_url: `/api/runs/${runId}/stream`,
+      parent_run_id: id,
+    });
   });
 }

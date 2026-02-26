@@ -118,14 +118,15 @@ export class SQLiteRunStore implements RunStore {
 
   savePipelineRun(run: PipelineRun): void {
     this.db.prepare(`
-      INSERT INTO pipeline_runs (id, pipeline_name, status, result, started_at, completed_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO pipeline_runs (id, pipeline_name, status, result, started_at, completed_at, parent_run_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         pipeline_name = excluded.pipeline_name,
         status        = excluded.status,
         result        = excluded.result,
         started_at    = excluded.started_at,
-        completed_at  = excluded.completed_at
+        completed_at  = excluded.completed_at,
+        parent_run_id = excluded.parent_run_id
     `).run(
       run.id,
       run.pipeline_name,
@@ -133,6 +134,7 @@ export class SQLiteRunStore implements RunStore {
       JSON.stringify(run),
       run.started_at,
       run.completed_at ?? null,
+      run.parent_run_id ?? null,
     );
   }
 

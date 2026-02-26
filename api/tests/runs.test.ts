@@ -288,3 +288,85 @@ describe('GET /api/runs/:id/logs', () => {
     expect(body.entries).toHaveLength(0);
   });
 });
+
+describe('POST /api/runs/:id/retry', () => {
+  it('returns 404 if original run does not exist', async () => {
+    const server = makeServer(new InMemoryRunStore());
+    const res = await server.inject({ method: 'POST', url: '/api/runs/nonexistent/retry' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toMatch(/not found/i);
+  });
+
+  it('returns 422 if original run has no stored input', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({ id: 'run-no-input' }));
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'POST', url: '/api/runs/run-no-input/retry' });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/no stored input/i);
+  });
+
+  it('creates a new run and returns 201 with parent_run_id', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({
+      id: 'run-original',
+      pipeline_name: 'feature-builder',
+      input: { brief: 'Add FAQ' },
+    }));
+
+    const launcher = { launch: vi.fn().mockResolvedValue({ run_id: 'retry-run-id' }), cancel: vi.fn(), subscribe: vi.fn() };
+    const server = makeServer(store, launcher);
+
+    const res = await server.inject({ method: 'POST', url: '/api/runs/run-original/retry' });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.run_id).toBe('retry-run-id');
+    expect(body.status).toBe('running');
+    expect(body.parent_run_id).toBe('run-original');
+    expect(body.stream_url).toBe('/api/runs/retry-run-id/stream');
+  });
+
+  it('launches with same pipeline and input as original', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({
+      id: 'run-original',
+      pipeline_name: 'feature-builder',
+      input: { brief: 'Add FAQ', target: 'src/about.tsx' },
+    }));
+
+    const launcher = { launch: vi.fn().mockResolvedValue({ run_id: 'retry-run-id' }), cancel: vi.fn(), subscribe: vi.fn() };
+    const server = makeServer(store, launcher);
+
+    await server.inject({ method: 'POST', url: '/api/runs/run-original/retry' });
+
+    expect(launcher.launch).toHaveBeenCalledOnce();
+    const launchArgs = launcher.launch.mock.calls[0][0];
+    expect(launchArgs.pipeline).toBe('feature-builder');
+    expect(launchArgs.input).toEqual({ brief: 'Add FAQ', target: 'src/about.tsx' });
+    expect(launchArgs.parentRunId).toBe('run-original');
+  });
+
+  it('can retry a run with status success', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({ id: 'run-success', status: 'success', input: { brief: 'x' } }));
+
+    const launcher = { launch: vi.fn().mockResolvedValue({ run_id: 'r2' }), cancel: vi.fn(), subscribe: vi.fn() };
+    const server = makeServer(store, launcher);
+
+    const res = await server.inject({ method: 'POST', url: '/api/runs/run-success/retry' });
+    expect(res.statusCode).toBe(201);
+  });
+
+  it('can retry a run with status failed', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({ id: 'run-failed', status: 'failed', input: { brief: 'x' } }));
+
+    const launcher = { launch: vi.fn().mockResolvedValue({ run_id: 'r3' }), cancel: vi.fn(), subscribe: vi.fn() };
+    const server = makeServer(store, launcher);
+
+    const res = await server.inject({ method: 'POST', url: '/api/runs/run-failed/retry' });
+    expect(res.statusCode).toBe(201);
+  });
+});

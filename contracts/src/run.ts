@@ -12,6 +12,7 @@ export interface PipelineRun {
   started_at: string;
   completed_at?: string;
   stages: StageRun[];
+  input?: Record<string, unknown>;
   parent_run_id?: string;
 }
 

@@ -188,6 +188,9 @@ export class PipelineEngine {
       status: 'running',
       started_at: new Date().toISOString(),
       stages: [],
+      ...(typeof input.input === 'object' && input.input !== null
+        ? { input: input.input as Record<string, unknown> }
+        : {}),
       ...(input.parentRunId ? { parent_run_id: input.parentRunId } : {}),
     };
 
