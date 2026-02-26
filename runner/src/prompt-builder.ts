@@ -3,6 +3,7 @@
  */
 
 import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio/contracts';
+import type { SkillContent } from './tools/skills/skill-loader.js';
 
 export interface ExecutionContext {
   attempt: number;
@@ -42,6 +43,7 @@ export interface PromptBuildConfig {
   executionContext?: ExecutionContext;
   outputContract?: OutputContract;
   promptSnippets?: string[];
+  skills?: SkillContent[];
 }
 
 /**
@@ -97,6 +99,11 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
     systemContent += '\n\n' + config.promptSnippets.join('\n\n');
   }
 
+  // Inject skills (.studio/skills/*.skill.md) declared by the agent
+  if (config.skills && config.skills.length > 0) {
+    const skillChunks = config.skills.map(s => `## Skill: ${s.name}\n\n${s.content}`);
+    systemContent += '\n\n' + skillChunks.join('\n\n---\n\n');
+  }
 
   messages.push({
     role: 'system',
