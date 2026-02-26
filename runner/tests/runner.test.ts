@@ -748,3 +748,134 @@ describe('runAgent — abort signal', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('runAgent — tool_calls_count semantics', () => {
+  it('excludes failed tool calls from tool_calls_count (standard path)', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'broken_tool',
+      description: 'Always fails',
+      parameters: {},
+      execute: async () => ({ success: false, error: 'tool error' }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'broken_tool', arguments: {} }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"recovered"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const result = await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'test failed tool' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    // tool_calls still records the attempt
+    expect(result.tool_calls).toHaveLength(1);
+    expect(result.tool_calls[0].error).toBe('tool error');
+    // tool_calls_count only counts successful calls
+    expect(result.tool_calls_count).toBe(0);
+  });
+
+  it('counts only successful calls in a mixed-result batch (standard path)', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'good_tool',
+      description: 'Succeeds',
+      parameters: {},
+      execute: async () => ({ success: true, output: 'ok' }),
+    });
+    toolRegistry.register({
+      name: 'bad_tool',
+      description: 'Fails',
+      parameters: {},
+      execute: async () => ({ success: false, error: 'bad' }),
+    });
+
+    const mockProvider = new MockProvider([
+      {
+        content: '',
+        tool_calls: [
+          { id: 'tc-1', name: 'good_tool', arguments: {} },
+          { id: 'tc-2', name: 'bad_tool', arguments: {} },
+        ],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+      {
+        content: '"done"',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    ]);
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(mockProvider);
+
+    const result = await runAgent({
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      task: { description: 'mixed tools' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.tool_calls).toHaveLength(2);
+    expect(result.tool_calls_count).toBe(1); // only good_tool succeeded
+  });
+
+  it('excludes failed tool calls from tool_calls_count (agent-loop path)', async () => {
+    const agentLoopProvider: import('../src/providers/provider.js').AgentLoopProvider = {
+      name: 'mock-loop',
+      call: async () => { throw new Error('not used'); },
+      runAgentLoop: async (_req, executeTool) => {
+        const outcome = await executeTool('failing_loop_tool', {}, 'call-fail-1');
+        return {
+          content: '"recovered"',
+          tool_calls: [{ id: 'call-fail-1', name: 'failing_loop_tool', arguments: {}, ...outcome }],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'failing_loop_tool',
+      description: 'Always fails in loop',
+      parameters: {},
+      execute: async () => ({ success: false, error: 'loop tool failed' }),
+    });
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(agentLoopProvider);
+
+    const result = await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
+      task: { description: 'test loop fail' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.tool_calls).toHaveLength(1);
+    expect(result.tool_calls[0].error).toBe('loop tool failed');
+    expect(result.tool_calls_count).toBe(0);
+  });
+});
