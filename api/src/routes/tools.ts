@@ -123,7 +123,7 @@ export async function toolsRoutes(
         tags: ['tools'],
         summary: 'Create or update a custom tool (YAML text or JSON body)',
         params: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
-        body: { type: 'object', additionalProperties: true },
+        body: { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }] },
         response: {
           200: { type: 'object', properties: { name: { type: 'string' } } },
           400: errorSchema,

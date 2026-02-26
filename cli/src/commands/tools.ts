@@ -40,6 +40,10 @@ export async function toolsAddDirect(
   return { installed, skipped };
 }
 
+export async function listAvailableTools(): Promise<{ name: string; description: string }[]> {
+  return listAvailableToolTemplates();
+}
+
 export async function listTools(toolsDir: string): Promise<string[]> {
   try {
     const entries = await readdir(toolsDir);

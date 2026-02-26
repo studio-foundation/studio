@@ -83,7 +83,7 @@ export async function pipelinesRoutes(
           properties: { name: { type: 'string' } },
           required: ['name'],
         },
-        body: { type: 'object', additionalProperties: true },
+        body: { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }] },
         response: {
           200: {
             type: 'object',

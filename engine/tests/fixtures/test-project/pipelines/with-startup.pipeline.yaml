@@ -1,0 +1,19 @@
+
+name: with-startup
+description: Pipeline that exercises on_pipeline_start context injection
+version: 1
+on_pipeline_start:
+  - command: "echo git-status-output"
+    inject_as: git_status
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+        - pipeline_start_context

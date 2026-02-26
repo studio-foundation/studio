@@ -44,6 +44,12 @@ export interface ServerDeps {
 export function buildServer(deps: ServerDeps) {
   const fastify = Fastify({ logger: false });
 
+  // Register text/plain parser so PUT routes that accept YAML bodies work correctly.
+  // Without this, Fastify v5 cannot parse text/plain and body validation fails with 400.
+  fastify.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
+    done(null, body);
+  });
+
   void fastify.register(cors, { origin: true });
 
   if (process.env['NODE_ENV'] !== 'production') {
