@@ -10,6 +10,7 @@ import type {
   StageStartEvent,
   StageCompleteEvent,
   StageRetryEvent,
+  StageContextEvent,
   GroupStartEvent,
   GroupIterationEvent,
   GroupFeedbackEvent,
@@ -96,6 +97,7 @@ export class InProcessLauncher implements RunLauncher {
         emit('group_feedback', e);
       },
       onGroupComplete:     (e: GroupCompleteEvent) =>     emit('group_complete', e),
+      onStageContext:      (e: StageContextEvent) =>      emit('stage_context', e),
       onPipelineComplete:  (e: PipelineCompleteEvent) => {
         emit('pipeline_complete', e);
         this.bus.close(runId);

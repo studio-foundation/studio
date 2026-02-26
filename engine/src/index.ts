@@ -21,6 +21,7 @@ export type {
   GroupIterationEvent,
   GroupFeedbackEvent,
   GroupCompleteEvent,
+  StageContextEvent,
 } from './events.js';
 
 // State management
