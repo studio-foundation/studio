@@ -42,7 +42,7 @@ const pipelineRunSchema = {
   properties: {
     id: { type: 'string' },
     pipeline_name: { type: 'string' },
-    status: { type: 'string', enum: ['pending', 'running', 'success', 'failed', 'rejected', 'skipped'] },
+    status: { type: 'string', enum: ['pending', 'running', 'success', 'failed', 'rejected', 'skipped', 'cancelled'] },
     started_at: { type: 'string' },
     completed_at: { type: 'string' },
     stages: { type: 'array', items: stageRunSchema },
@@ -240,6 +240,39 @@ export async function runsRoutes(
     }
 
     return reply.send({ run_id: id, entries });
+  });
+
+
+  // POST /api/runs/:id/cancel
+  fastify.post<{ Params: { id: string } }>('/runs/:id/cancel', {
+    schema: {
+      tags: ['runs'],
+      summary: 'Cancel a running pipeline',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: { run_id: { type: 'string' } },
+        },
+        404: errorSchema,
+        409: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const run = store.getPipelineRun(id);
+    if (!run) {
+      return reply.status(404).send({ error: 'Run not found' });
+    }
+    if (run.status !== 'running') {
+      return reply.status(409).send({ error: `Run is not cancellable (status: ${run.status})` });
+    }
+    await launcher.cancel(id);
+    return reply.send({ run_id: id });
   });
 
   // GET /api/runs/:id/stream — SSE
