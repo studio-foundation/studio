@@ -84,9 +84,6 @@ importers:
       '@studio/engine':
         specifier: workspace:*
         version: link:../engine
-      '@studio/ralph':
-        specifier: workspace:*
-        version: link:../ralph
       '@studio/runner':
         specifier: workspace:*
         version: link:../runner

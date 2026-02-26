@@ -179,7 +179,7 @@ cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (externe
 cat ralph/package.json       # dependencies: { "@studio/contracts": "workspace:*" }
 cat runner/package.json      # dependencies: { "@studio/contracts": "workspace:*", "@studio/anonymizer": "workspace:*" }
 cat engine/package.json      # dependencies: { "@studio/ralph": ..., "@studio/runner": ..., "@studio/contracts": ... }
-cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ..., "@studio/api": ... }
+cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ..., "@studio/api": ..., "@studio/runner": ... }
 ```
 
 **Exception documentée — CLI → API :** `@studio/cli` dépend de `@studio/api`.
@@ -187,6 +187,14 @@ C'est intentionnel et non une violation du DAG. La commande `studio api start`
 importe `bootstrap` depuis `@studio/api` pour démarrer le serveur HTTP directement
 depuis le CLI. Cette dépendance va dans le sens du flux (cli est la couche la plus
 haute) — `api` ne connaît pas `cli`. Le DAG reste acyclique.
+
+**Exception documentée — CLI → runner :** `@studio/cli` dépend de `@studio/runner`.
+C'est intentionnel : le CLI est le **composition root** de l'application. Il
+instancie `ToolRegistry`, `ProviderRegistry`, et `MCPClient` (tous des types de
+`runner`) et les passe à `PipelineEngine` via `EngineConfig`. Le CLI gère aussi
+les commandes `studio tools` qui utilisent les utilitaires de templates de runner.
+Cette dépendance va dans le sens du flux — `runner` ne connaît pas `cli`. Le DAG
+reste acyclique.
 
 **Ce qui casse si violé :** Dépendance circulaire → crash à l'initialisation des
 modules. Ou couplage qui transforme un changement local en cascade de
