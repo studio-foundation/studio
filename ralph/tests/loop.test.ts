@@ -302,4 +302,54 @@ describe('ralph loop', () => {
     expect(result.status).toBe('cancelled');
     expect(elapsed).toBeLessThan(5000); // Way less than 60s
   });
+
+  it('works with object result type (generic T)', async () => {
+    type Output = { value: number; label: string };
+
+    const result = await ralph<Output>({
+      executor: async () => ({ value: 42, label: 'ok' }),
+      validator: () => ({ valid: true, errors: [], warnings: [] }),
+      maxAttempts: 3,
+      retryStrategy: noDelay()
+    });
+
+    expect(result.status).toBe('success');
+    if (result.status === 'success') {
+      expect(result.result.value).toBe(42);
+      expect(result.result.label).toBe('ok');
+    }
+  });
+
+  it('exhausts immediately with maxAttempts=1 on first failure', async () => {
+    const validator = vi.fn().mockReturnValue({
+      valid: false,
+      errors: ['always fails'],
+      warnings: []
+    });
+
+    const result = await ralph({
+      executor: async () => 'result',
+      validator,
+      maxAttempts: 1,
+      retryStrategy: noDelay()
+    });
+
+    expect(result.status).toBe('exhausted');
+    expect(result.attempts).toBe(1);
+    if (result.status === 'exhausted') {
+      expect(result.failures).toEqual(['always fails']);
+    }
+    expect(validator).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates executor exceptions that are not abort errors', async () => {
+    const error = new Error('unexpected failure');
+
+    await expect(ralph({
+      executor: async () => { throw error; },
+      validator: () => ({ valid: true, errors: [], warnings: [] }),
+      maxAttempts: 3,
+      retryStrategy: noDelay()
+    })).rejects.toThrow('unexpected failure');
+  });
 });
