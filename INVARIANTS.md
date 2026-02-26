@@ -112,12 +112,13 @@ plusieurs packages.
 **Description :** `deriveStageStatus(ralphResult)` mappe directement et
 exhaustivement le résultat RALPH au status du stage. Pas de logique conditionnelle
 sur le contenu de l'output. `ralph 'success' → stage 'success'`, `ralph
-'exhausted' → stage 'failed'`. Rien d'autre.
+'exhausted' → stage 'failed'`, `ralph 'cancelled' → stage 'cancelled'`. Rien
+d'autre.
 
 **Enforcé par :**
 [`engine/src/state/status-derivation.ts`](engine/src/state/status-derivation.ts)
 — mapping exhaustif + `throw` si état inconnu. `RalphResult` est une union
-discriminée avec exactement 2 états : `success | exhausted`.
+discriminée avec 3 états : `success | exhausted | cancelled`.
 
 **Ce qui casse si violé :** C'était le bug #1 en v6 — le status du stage ne
 correspondait pas au résultat du task. En v7, cette fonction est le contrat unique
@@ -178,8 +179,14 @@ cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (externe
 cat ralph/package.json       # dependencies: { "@studio/contracts": "workspace:*" }
 cat runner/package.json      # dependencies: { "@studio/contracts": "workspace:*", "@studio/anonymizer": "workspace:*" }
 cat engine/package.json      # dependencies: { "@studio/ralph": ..., "@studio/runner": ..., "@studio/contracts": ... }
-cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ... }
+cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ..., "@studio/api": ... }
 ```
+
+**Exception documentée — CLI → API :** `@studio/cli` dépend de `@studio/api`.
+C'est intentionnel et non une violation du DAG. La commande `studio api start`
+importe `bootstrap` depuis `@studio/api` pour démarrer le serveur HTTP directement
+depuis le CLI. Cette dépendance va dans le sens du flux (cli est la couche la plus
+haute) — `api` ne connaît pas `cli`. Le DAG reste acyclique.
 
 **Ce qui casse si violé :** Dépendance circulaire → crash à l'initialisation des
 modules. Ou couplage qui transforme un changement local en cascade de
