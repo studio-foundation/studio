@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import chalk from 'chalk';
 import yaml from 'js-yaml';
 import type { OutputContract } from '@studio/contracts';
-import { validateSchema } from '@studio/ralph';
+import { validateSchema } from '@studio/engine';
 
 export async function validateCommand(
   contractPath: string,
