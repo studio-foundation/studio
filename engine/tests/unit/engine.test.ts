@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
-import { PipelineEngine, type EngineConfig, type RunInput } from '../src/engine.js';
-import { InMemoryRunStore } from '../src/state/run-store.js';
-import type { EngineEvents } from '../src/events.js';
+import { PipelineEngine, type EngineConfig, type RunInput } from '../../src/engine.js';
+import { InMemoryRunStore } from '../../src/state/run-store.js';
+import type { EngineEvents } from '../../src/events.js';
 
 // Minimal mock for ProviderRegistry
 function createMockProviderRegistry() {
@@ -45,7 +45,7 @@ function createMockToolRegistry() {
   };
 }
 
-const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
+const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 const PROJECT_DIR = join(FIXTURES_DIR, 'test-project');
 const PIPELINES_DIR = join(PROJECT_DIR, 'pipelines');
 const AGENTS_DIR = join(PROJECT_DIR, 'agents');
@@ -155,6 +155,28 @@ stages:
     context:
       include:
         - input
+`);
+
+  // Fixture for on_pipeline_start integration test
+  writeFileSync(join(PIPELINES_DIR, 'with-startup.pipeline.yaml'), `
+name: with-startup
+description: Pipeline that exercises on_pipeline_start context injection
+version: 1
+on_pipeline_start:
+  - command: "echo git-status-output"
+    inject_as: git_status
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+        - pipeline_start_context
 `);
 }
 
@@ -452,5 +474,43 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('cancelled');
     expect(result.stages).toHaveLength(0);
+  });
+
+  it('on_pipeline_start output is injected into stage context', async () => {
+    // The 'with-startup' pipeline runs `echo git-status-output` and injects it
+    // as 'git_status'. The stage includes 'pipeline_start_context'.
+    // The prompt-builder formats startup_context as:
+    //   ## Pipeline Startup Context
+    //   ### git_status
+    //   ```
+    //   git-status-output
+    //   ```
+    // So we assert that the provider received a user message containing that value.
+    const capturedRequests: any[] = [];
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(async (req: any) => {
+        capturedRequests.push(req);
+        return {
+          content: JSON.stringify({ summary: 'done', requirements: [], acceptance_criteria: [] }),
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+        };
+      }),
+    };
+
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as any,
+    });
+
+    const result = await engine.run({ pipeline: 'with-startup', input: 'test startup' });
+
+    expect(result.status).toBe('success');
+    expect(capturedRequests).toHaveLength(1);
+
+    const userMessage = capturedRequests[0].messages.find((m: any) => m.role === 'user');
+    expect(userMessage).toBeDefined();
+    expect(userMessage.content).toContain('git-status-output');
   });
 });

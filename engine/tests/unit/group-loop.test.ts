@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
-import { PipelineEngine, type EngineConfig } from '../src/engine.js';
-import { InMemoryRunStore } from '../src/state/run-store.js';
-import type { EngineEvents } from '../src/events.js';
+import { PipelineEngine, type EngineConfig } from '../../src/engine.js';
+import { InMemoryRunStore } from '../../src/state/run-store.js';
+import type { EngineEvents } from '../../src/events.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
+const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 const PROJECT_DIR = join(FIXTURES_DIR, 'test-project');
 const PIPELINES_DIR = join(PROJECT_DIR, 'pipelines');
 const AGENTS_DIR = join(PROJECT_DIR, 'agents');
