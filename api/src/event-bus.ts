@@ -9,6 +9,7 @@ export type SseEventType =
   | 'group_complete'
   | 'pipeline_complete'
   | 'pipeline_cancelled'
+  | 'stage_context'
   | 'done';
 
 export interface BusEvent {
