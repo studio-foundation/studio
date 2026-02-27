@@ -51,15 +51,25 @@ export function validateToolCalls(toolCalls: ToolCall[], requirements?: ToolCall
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (requirements?.minimum !== undefined) {
-    const successfulCount = toolCalls.filter(isSuccessfulToolCall).length;
-    const failedCount = toolCalls.length - successfulCount;
+  const successfulCount = toolCalls.filter(isSuccessfulToolCall).length;
+  const failedCount = toolCalls.length - successfulCount;
 
+  if (requirements?.minimum !== undefined) {
     if (successfulCount < requirements.minimum) {
       const plural = requirements.minimum === 1 ? '' : 's';
       const excluded = failedCount > 0 ? ` (${failedCount} failed excluded)` : '';
       errors.push(
         `Expected at least ${requirements.minimum} successful tool call${plural}, got ${successfulCount} successful${excluded}`
+      );
+    }
+  }
+
+  if (requirements?.maximum !== undefined) {
+    if (successfulCount > requirements.maximum) {
+      const plural = successfulCount === 1 ? '' : 's';
+      errors.push(
+        `Tool call limit exceeded: made ${successfulCount} successful call${plural}, maximum is ${requirements.maximum}. ` +
+        `This may indicate a loop. Check that the agent is not repeating the same operation.`
       );
     }
   }
