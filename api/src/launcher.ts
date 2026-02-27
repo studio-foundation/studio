@@ -17,6 +17,8 @@ import type {
   GroupCompleteEvent,
   PipelineCompleteEvent,
   PipelineCancelledEvent,
+  StagedToolCallStartEvent,
+  StagedToolCallCompleteEvent,
 } from '@studio/engine';
 import { PipelineEngine } from '@studio/engine';
 import { createApiLogger } from './logger.js';
@@ -96,8 +98,10 @@ export class InProcessLauncher implements RunLauncher {
         lastGroupFeedback = e;
         emit('group_feedback', e);
       },
-      onGroupComplete:     (e: GroupCompleteEvent) =>     emit('group_complete', e),
-      onStageContext:      (e: StageContextEvent) =>      emit('stage_context', e),
+      onGroupComplete:     (e: GroupCompleteEvent) =>          emit('group_complete', e),
+      onStageContext:      (e: StageContextEvent) =>           emit('stage_context', e),
+      onToolCallStart:     (e: StagedToolCallStartEvent) =>    emit('tool_call_start', e),
+      onToolCallComplete:  (e: StagedToolCallCompleteEvent) => emit('tool_call_complete', e),
       onPipelineComplete:  (e: PipelineCompleteEvent) => {
         emit('pipeline_complete', e);
         this.bus.close(runId);

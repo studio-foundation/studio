@@ -10,6 +10,8 @@ export type SseEventType =
   | 'pipeline_complete'
   | 'pipeline_cancelled'
   | 'stage_context'
+  | 'tool_call_start'
+  | 'tool_call_complete'
   | 'done';
 
 export interface BusEvent {

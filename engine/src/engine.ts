@@ -639,8 +639,12 @@ export class PipelineEngine {
           signal,
           callbacks: {
             ...(this.events ? {
-              onToolCallStart: this.events.onToolCallStart,
-              onToolCallComplete: this.events.onToolCallComplete,
+              onToolCallStart: this.events.onToolCallStart
+                ? (e) => this.events!.onToolCallStart!({ stage: stageDef.name, ...e })
+                : undefined,
+              onToolCallComplete: this.events.onToolCallComplete
+                ? (e) => this.events!.onToolCallComplete!({ stage: stageDef.name, ...e })
+                : undefined,
               onAgentThinking: this.events.onAgentThinking
                 ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
                 : undefined,

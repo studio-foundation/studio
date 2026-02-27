@@ -22,6 +22,8 @@ export type {
   GroupFeedbackEvent,
   GroupCompleteEvent,
   StageContextEvent,
+  StagedToolCallStartEvent,
+  StagedToolCallCompleteEvent,
 } from './events.js';
 
 // State management
