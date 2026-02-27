@@ -97,6 +97,14 @@ export interface StageContextEvent {
   system_prompt?: string;
 }
 
+export interface StagedToolCallStartEvent extends ToolCallStartEvent {
+  stage: string;
+}
+
+export interface StagedToolCallCompleteEvent extends ToolCallCompleteEvent {
+  stage: string;
+}
+
 export interface StagedAgentThinkingEvent extends AgentThinkingEvent {
   stage: string;
 }
@@ -122,8 +130,8 @@ export interface EngineEvents {
   onGroupComplete?: (event: GroupCompleteEvent) => void;
   onStageContext?: (event: StageContextEvent) => void;
   // Real-time tool call streaming (used by --live mode)
-  onToolCallStart?: (event: ToolCallStartEvent) => void;
-  onToolCallComplete?: (event: ToolCallCompleteEvent) => void;
+  onToolCallStart?: (event: StagedToolCallStartEvent) => void;
+  onToolCallComplete?: (event: StagedToolCallCompleteEvent) => void;
   // Agent thinking/progress (text content emitted alongside tool calls)
   onAgentThinking?: (event: StagedAgentThinkingEvent) => void;
   onAgentProgress?: (event: StagedAgentProgressEvent) => void;

@@ -293,3 +293,64 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
     });
   });
 });
+
+describe('InProcessLauncher — tool call SSE events (STU-174)', () => {
+  it('emits tool_call_start event when engine fires onToolCallStart', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    let capturedEvents: EngineEvents = {};
+
+    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
+
+    const received: Array<{ type: string; data: unknown }> = [];
+    launcher.subscribe('stu174-tool-s', ({ type, data }) => received.push({ type, data }));
+
+    await launcher.launch({ runId: 'stu174-tool-s', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR });
+
+    capturedEvents.onToolCallStart?.({
+      stage: 'code-generation',
+      tool: 'repo_manager-write_file',
+      params: { path: 'src/foo.ts' },
+      timestamp: 1700000000000,
+    } as never);
+
+    // Close the logger cleanly before assertions
+    capturedEvents.onPipelineComplete?.({ pipeline_name: 'p', run_id: 'stu174-tool-s', status: 'success', duration_ms: 10, total_tokens: 0, total_tool_calls: 1 });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(received.map(e => e.type)).toContain('tool_call_start');
+    const evt = received.find(e => e.type === 'tool_call_start')?.data;
+    expect(evt).toMatchObject({ stage: 'code-generation', tool: 'repo_manager-write_file' });
+  });
+
+  it('emits tool_call_complete event when engine fires onToolCallComplete', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    let capturedEvents: EngineEvents = {};
+
+    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
+
+    const received: Array<{ type: string; data: unknown }> = [];
+    launcher.subscribe('stu174-tool-c', ({ type, data }) => received.push({ type, data }));
+
+    await launcher.launch({ runId: 'stu174-tool-c', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR });
+
+    capturedEvents.onToolCallComplete?.({
+      stage: 'code-generation',
+      tool: 'repo_manager-write_file',
+      result: 'written',
+      duration_ms: 100,
+      timestamp: 1700000000000,
+    } as never);
+
+    // Close the logger cleanly before assertions
+    capturedEvents.onPipelineComplete?.({ pipeline_name: 'p', run_id: 'stu174-tool-c', status: 'success', duration_ms: 10, total_tokens: 0, total_tool_calls: 1 });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(received.map(e => e.type)).toContain('tool_call_complete');
+    const evt = received.find(e => e.type === 'tool_call_complete')?.data;
+    expect(evt).toMatchObject({ stage: 'code-generation', tool: 'repo_manager-write_file', duration_ms: 100 });
+  });
+});
