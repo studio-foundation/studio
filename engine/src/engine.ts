@@ -1069,13 +1069,19 @@ export class PipelineEngine {
     contract: OutputContract | null,
     stageDef: StageDefinition
   ): Validator<AgentRunResult> {
-    // No contract → always valid
+    // Always fail if runner returned a terminal error (e.g. max tool iterations)
+    const errorCheck: Validator<AgentRunResult> = (result) =>
+      result.error
+        ? { valid: false, errors: [result.error], warnings: [] }
+        : { valid: true, errors: [], warnings: [] };
+
+    // No contract → only the error check applies
     if (!contract) {
-      return () => ({ valid: true, errors: [], warnings: [] });
+      return errorCheck;
     }
 
     // Compose ralph's built-in validators
-    const validators: Validator<AgentRunResult>[] = [];
+    const validators: Validator<AgentRunResult>[] = [errorCheck];
 
     // Schema validation (required_fields)
     if (contract.schema?.required_fields) {

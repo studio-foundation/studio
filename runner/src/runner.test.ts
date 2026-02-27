@@ -71,6 +71,84 @@ function makeConfig(toolCallName: string, toolCallArgs: Record<string, unknown>)
   return { agent, toolRegistry, providerRegistry, mockExecute };
 }
 
+/**
+ * A Chat Completions-style provider that always returns a tool call — simulates an infinite loop.
+ */
+class LoopingProvider implements Provider {
+  readonly name = 'looping-mock';
+  public callCount = 0;
+
+  async call(_request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    return {
+      content: '',
+      tool_calls: [{ id: `call-${this.callCount}`, name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hello' } }],
+      finish_reason: 'tool_calls',
+    };
+  }
+}
+
+describe('runner — max tool iterations', () => {
+  it('returns an error result instead of throwing when max iterations is reached', async () => {
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'repo_manager-write_file',
+      description: 'Write a file',
+      parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } } },
+      execute: vi.fn().mockResolvedValue({ success: true }),
+    });
+
+    const loopingProvider = new LoopingProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(loopingProvider);
+
+    const agent: AgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'write a file' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      maxToolCalls: 3,
+    });
+
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain('Maximum tool calling iterations');
+    expect(result.error).toContain('3');
+    expect(loopingProvider.callCount).toBe(3);
+  });
+
+  it('includes tool calls made before hitting the limit in the error result', async () => {
+    const toolRegistry = new ToolRegistry();
+    const mockExecute = vi.fn().mockResolvedValue({ success: true });
+    toolRegistry.register({
+      name: 'repo_manager-write_file',
+      description: 'Write a file',
+      parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } } },
+      execute: mockExecute,
+    });
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(new LoopingProvider());
+
+    const agent: AgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'write a file' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      maxToolCalls: 2,
+    });
+
+    expect(result.error).toBeDefined();
+    expect(result.tool_calls).toHaveLength(2);
+    expect(mockExecute).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('runner — onPreToolUse callback', () => {
   it('blocks tool execution when callback returns blocked: true', async () => {
     const { agent, toolRegistry, providerRegistry, mockExecute } = makeConfig(

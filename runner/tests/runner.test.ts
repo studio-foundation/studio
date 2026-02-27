@@ -242,7 +242,7 @@ describe('runAgent', () => {
     });
   });
 
-  it('should throw at the custom maxToolCalls limit', async () => {
+  it('should return an error result (not throw) at the custom maxToolCalls limit', async () => {
     const toolRegistry = new ToolRegistry();
     toolRegistry.register({
       name: 'infinite_tool',
@@ -254,14 +254,18 @@ describe('runAgent', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(new InfiniteToolCallProvider());
 
-    await expect(runAgent({
+    const result = await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
       task: { description: 'Run forever' },
       context: {},
       toolRegistry,
       providerRegistry,
       maxToolCalls: 3,
-    })).rejects.toThrow('Maximum tool calling iterations (3) reached');
+    });
+
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain('Maximum tool calling iterations (3) reached');
+    expect(result.tool_calls).toHaveLength(3);
   });
 
   it('should accumulate token usage across multi-turn tool calls', async () => {

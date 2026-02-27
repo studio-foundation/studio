@@ -35,6 +35,8 @@ export interface AgentRunResult {
     completion_tokens: number;
     total_tokens: number;
   };
+  /** Set when the runner hit a terminal error (e.g. max tool iterations). RALPH treats this as a validation failure. */
+  error?: string;
 }
 
 const DEFAULT_MAX_TOOL_CALLS = 20; // Safety limit for tool calling loop
@@ -334,7 +336,16 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   }
 
   if (iterations >= maxToolCalls) {
-    throw new Error(`Maximum tool calling iterations (${maxToolCalls}) reached. Possible infinite loop.`);
+    const duration = Date.now() - startTime;
+    return {
+      output: null,
+      tool_calls: allToolCalls,
+      tool_calls_count: allToolCalls.filter(tc => !tc.error).length,
+      raw_response: lastResponse!,
+      duration_ms: duration,
+      token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+      error: `Maximum tool calling iterations (${maxToolCalls}) reached. Possible infinite loop.`,
+    };
   }
 
   if (!lastResponse) {
