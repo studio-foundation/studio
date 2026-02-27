@@ -1,6 +1,6 @@
 {
   "name": "@studio/ralph",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "RALPH loop engine - Recursive Automated Loop for Persistent Handling",
   "type": "module",
   "main": "./dist/index.js",
