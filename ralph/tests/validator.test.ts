@@ -154,6 +154,66 @@ describe('validateToolCalls', () => {
     const result = validateToolCalls([], {});
     expect(result.valid).toBe(true);
   });
+
+  // --- maximum ---
+
+  it('passes when successful calls are below maximum', () => {
+    const result = validateToolCalls([success('1'), success('2')], { maximum: 5 });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('passes when successful calls equal maximum', () => {
+    const result = validateToolCalls([success('1'), success('2'), success('3')], { maximum: 3 });
+    expect(result.valid).toBe(true);
+  });
+
+  it('fails when successful calls exceed maximum', () => {
+    const calls = Array.from({ length: 11 }, (_, i) => success(String(i)));
+    const result = validateToolCalls(calls, { maximum: 10 });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+  });
+
+  it('error message includes actual count and maximum', () => {
+    const calls = Array.from({ length: 17 }, (_, i) => success(String(i)));
+    const result = validateToolCalls(calls, { maximum: 10 });
+    expect(result.errors[0]).toContain('17');
+    expect(result.errors[0]).toContain('10');
+  });
+
+  it('error message mentions loop', () => {
+    const calls = Array.from({ length: 11 }, (_, i) => success(String(i)));
+    const result = validateToolCalls(calls, { maximum: 10 });
+    expect(result.errors[0]).toContain('loop');
+  });
+
+  it('maximum counts only successful calls (failed excluded)', () => {
+    // 8 successful + 5 failed = 13 total, but only 8 count against maximum
+    const calls = [
+      ...Array.from({ length: 8 }, (_, i) => success(String(i))),
+      ...Array.from({ length: 5 }, (_, i) => failed(String(i + 100))),
+    ];
+    const result = validateToolCalls(calls, { maximum: 9 });
+    expect(result.valid).toBe(true);
+  });
+
+  it('maximum works independently of minimum', () => {
+    const calls = Array.from({ length: 15 }, (_, i) => success(String(i)));
+    const result = validateToolCalls(calls, { maximum: 10 });
+    expect(result.valid).toBe(false);
+    // minimum not set — only maximum error
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('loop');
+  });
+
+  it('minimum and maximum can both fail simultaneously', () => {
+    // 5 calls, minimum=10, maximum=3 → both fail
+    const calls = Array.from({ length: 5 }, (_, i) => success(String(i)));
+    const result = validateToolCalls(calls, { minimum: 10, maximum: 3 });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(2);
+  });
 });
 
 describe('validateRequiredTools', () => {
