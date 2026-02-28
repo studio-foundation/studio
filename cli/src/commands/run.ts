@@ -1,12 +1,11 @@
-import { execSync } from 'node:child_process';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { homedir } from 'node:os';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
+import { resolveRepoPath } from '@studio/api';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
@@ -27,34 +26,6 @@ interface RunOptions {
   live?: boolean;
   provider?: string;
   anonymize?: boolean;
-}
-
-async function cloneRepo(
-  repoUrl: string,
-  projectsDir: string,
-  pipelineName: string,
-  branch?: string
-): Promise<string> {
-  await mkdir(projectsDir, { recursive: true });
-
-  const timestamp = new Date().toISOString()
-    .replace(/:/g, 'h')
-    .replace(/\..+$/, '')
-    .replace('T', 'T');
-  const dirName = `${pipelineName}-${timestamp}`;
-  const clonePath = join(projectsDir, dirName);
-
-  const branchArg = branch ? `--branch ${branch}` : '';
-  const cmd = `git clone --depth 1 ${branchArg} ${repoUrl} ${clonePath}`;
-
-  try {
-    execSync(cmd, { stdio: 'pipe' });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to clone ${repoUrl}: ${msg}`);
-  }
-
-  return clonePath;
 }
 
 export function mergeEvents(
@@ -275,28 +246,31 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     }
 
     // Resolve repo path: --repo > --repo-url > pipeline.repo.url > CWD
+    const effectiveRepoUrl = options.repo
+      ? undefined
+      : (options.repoUrl || inputFileRepoUrl || pipelineDef.repo?.url);
+    const effectiveBranch = pipelineDef.repo?.branch;
+
+    if (effectiveRepoUrl && !options.json) {
+      console.log(`Cloning ${effectiveRepoUrl}...`);
+    }
+
     let repoPath: string;
+    try {
+      repoPath = await resolveRepoPath({
+        repoPathOverride: options.repo,
+        repoUrl: effectiveRepoUrl,
+        rawProjectsDir: config.paths?.projects_dir || process.env.STUDIO_PROJECTS_DIR,
+        pipelineName,
+        branch: effectiveBranch,
+      });
+    } catch (err) {
+      console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
 
-    if (options.repo) {
-      repoPath = resolve(options.repo);
-    } else {
-      const repoUrl = options.repoUrl || inputFileRepoUrl || pipelineDef.repo?.url;
-      const effectiveBranch = pipelineDef.repo?.branch;
-
-      if (repoUrl) {
-        const rawProjectsDir = config.paths?.projects_dir || process.env.STUDIO_PROJECTS_DIR;
-        const projectsDir = rawProjectsDir?.replace(/^~/, homedir());
-        if (!projectsDir) {
-          console.error('Error: STUDIO_PROJECTS_DIR is not set. Set it in .env or .studiorc.yaml paths.projects_dir');
-          process.exit(1);
-        }
-
-        console.log(`Cloning ${repoUrl}...`);
-        repoPath = await cloneRepo(repoUrl, projectsDir, pipelineName, effectiveBranch);
-        console.log(`Cloned to: ${repoPath}\n`);
-      } else {
-        repoPath = '.';
-      }
+    if (effectiveRepoUrl && !options.json) {
+      console.log(`Cloned to: ${repoPath}\n`);
     }
 
     const providerRegistry = createDefaultRegistry(

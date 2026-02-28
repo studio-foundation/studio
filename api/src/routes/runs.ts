@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
+import { resolveRepoPath } from '../utils/repo-resolver.js';
 
 async function replayJsonl(
   logPath: string,
@@ -70,7 +71,10 @@ export async function runsRoutes(
         required: ['pipeline', 'input'],
         properties: {
           pipeline: { type: 'string' },
-          input: { type: 'object' },
+          input: {
+            type: 'object',
+            description: 'Pipeline input. If input contains "repo_url", the repo is cloned before the run starts.',
+          },
           provider: { type: 'string' },
         },
       },
@@ -83,19 +87,37 @@ export async function runsRoutes(
             stream_url: { type: 'string' },
           },
         },
+        400: errorSchema,
       },
     },
   }, async (request, reply) => {
-    const { pipeline, input, provider } = request.body;
+    const { pipeline, provider } = request.body;
     const runId = randomUUID();
     const depth = parseInt((request.headers['x-studio-depth'] as string) ?? '0', 10) || 0;
     const parentRunId = request.headers['x-studio-parent-run-id'] as string | undefined;
+
+    // Extract repo_url from input (like CLI does with --input-file), then strip it before passing to engine
+    const input = { ...request.body.input };
+    const repoUrl = typeof input['repo_url'] === 'string' ? input['repo_url'] : undefined;
+    if (repoUrl !== undefined) delete input['repo_url'];
+
+    let repoPath: string;
+    try {
+      repoPath = await resolveRepoPath({
+        repoUrl,
+        rawProjectsDir: options.deps.projectsDir,
+        pipelineName: pipeline,
+      });
+    } catch (err) {
+      return reply.status(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
 
     const { run_id } = await launcher.launch({
       runId,
       pipeline,
       input,
       configsDir: options.deps.configsDir,
+      repoPath,
       providerOverride: provider,
       depth,
       parentRunId,
