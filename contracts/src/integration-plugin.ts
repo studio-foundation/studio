@@ -21,4 +21,14 @@ export interface IntegrationPluginDef {
     body?: string;
     expect?: { status?: number };
   };
+  webhook?: {
+    hmac?: {
+      header: string;       // e.g. 'linear-signature'
+      secret_env: string;   // e.g. 'LINEAR_WEBHOOK_SECRET' — resolved from integration config
+    };
+    handler: string;        // e.g. 'linear-webhook' — key in WEBHOOK_HANDLERS registry
+  };
+  on_failure?: {
+    handler: string;        // e.g. 'linear-failure' — key in FAILURE_HANDLERS registry
+  };
 }
