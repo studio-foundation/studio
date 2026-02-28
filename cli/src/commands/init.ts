@@ -36,7 +36,7 @@ export async function backupStudioDir(cwd: string): Promise<string> {
   return backupDir;
 }
 
-const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/'];
+const GITIGNORE_ENTRIES = ['.studio/config.yaml', '.studio/runs/', '*.keymap.json'];
 
 const STUDIO_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
 
