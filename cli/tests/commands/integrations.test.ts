@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm, readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { installIntegration } from '../../src/commands/integrations.js';
+import type { IntegrationPluginDef } from '@studio/contracts';
+import { installIntegration, getIntegrationStatus } from '../../src/commands/integrations.js';
 
 let studioDir: string;
 let integrationsDir: string;
@@ -53,5 +54,32 @@ describe('installIntegration — local path', () => {
     await expect(
       installIntegration('/nonexistent/file.integration.yaml', integrationsDir)
     ).rejects.toThrow('File not found');
+  });
+});
+
+describe('getIntegrationStatus', () => {
+  it('returns configured when all required vars are set in config', () => {
+    const plugin: IntegrationPluginDef = {
+      name: 'linear',
+      version: 1,
+      config: { required: ['LINEAR_API_KEY', 'LINEAR_WEBHOOK_SECRET'] },
+    };
+    const config = { LINEAR_API_KEY: 'abc', LINEAR_WEBHOOK_SECRET: 'secret' };
+    expect(getIntegrationStatus(plugin, config)).toBe('configured');
+  });
+
+  it('returns not-configured when a required var is missing', () => {
+    const plugin: IntegrationPluginDef = {
+      name: 'linear',
+      version: 1,
+      config: { required: ['LINEAR_API_KEY', 'LINEAR_WEBHOOK_SECRET'] },
+    };
+    const config = { LINEAR_API_KEY: 'abc' };
+    expect(getIntegrationStatus(plugin, config)).toBe('not-configured');
+  });
+
+  it('returns configured when plugin has no required vars', () => {
+    const plugin: IntegrationPluginDef = { name: 'webhook', version: 1 };
+    expect(getIntegrationStatus(plugin, {})).toBe('configured');
   });
 });

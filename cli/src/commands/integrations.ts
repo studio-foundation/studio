@@ -3,12 +3,44 @@ import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as yaml from 'js-yaml';
-import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates } from '@studio/runner';
+import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio/runner';
 import type { IntegrationPluginDef } from '@studio/contracts';
-import { loadConfig } from '../config.js';
+import { loadConfig, resolveEnvVars } from '../config.js';
 
 export function getIntegrationsDir(studioDir: string): string {
   return resolve(studioDir, 'integrations');
+}
+
+export function getIntegrationStatus(
+  plugin: IntegrationPluginDef,
+  config: Record<string, unknown>
+): 'configured' | 'not-configured' {
+  const required = plugin.config?.required ?? [];
+  const allSet = required.every(key => key in config && config[key] !== '');
+  return allSet ? 'configured' : 'not-configured';
+}
+
+async function loadRawIntegrationsConfig(studioDir: string): Promise<Record<string, Record<string, unknown>>> {
+  const configFile = join(studioDir, 'config.yaml');
+  try {
+    const raw = await readFile(configFile, 'utf-8');
+    const parsed = yaml.load(resolveEnvVars(raw)) as Record<string, unknown>;
+    return (parsed?.['integrations'] ?? {}) as Record<string, Record<string, unknown>>;
+  } catch {
+    return {};
+  }
+}
+
+function formatExtras(plugin: IntegrationPluginDef, config: Record<string, unknown>): string {
+  if (plugin.name === 'linear') {
+    const autoTrigger = config['autoTrigger'] ?? plugin.config?.optional?.['autoTrigger'] ?? false;
+    return `auto-trigger: ${autoTrigger ? 'on' : 'off'}`;
+  }
+  if (plugin.name === 'slack') {
+    const channel = config['channel'] ?? plugin.config?.optional?.['channel'] ?? '';
+    return channel ? `channel: ${String(channel)}` : '';
+  }
+  return '';
 }
 
 async function resolveStudioDir(): Promise<string> {
@@ -87,7 +119,33 @@ export async function integrationsCommand(
         }
         break;
       }
-      case 'list':
+      case 'list': {
+        const studioDir = await resolveStudioDir();
+        const intDir = getIntegrationsDir(studioDir);
+        const plugins = await loadProjectIntegrations(intDir);
+
+        if (plugins.length === 0) {
+          console.log(chalk.yellow('\nNo integrations installed.'));
+          console.log(`  Run: ${chalk.cyan('studio integrations install @studio/integration-<name>')}\n`);
+          break;
+        }
+
+        const config = await loadRawIntegrationsConfig(studioDir);
+        console.log('');
+        for (const plugin of plugins) {
+          const pluginConfig = (config[plugin.name] ?? {}) as Record<string, unknown>;
+          const status = getIntegrationStatus(plugin, pluginConfig);
+          const dot = status === 'configured' ? chalk.green('●') : chalk.gray('○');
+          const statusLabel = status === 'configured'
+            ? chalk.green('configured')
+            : chalk.gray('not configured');
+          const extras = formatExtras(plugin, pluginConfig);
+          const version = `v${plugin.version}`;
+          console.log(`${plugin.name.padEnd(12)} ${dot} ${statusLabel.padEnd(20)} ${extras.padEnd(20)} ${chalk.gray(version)}`);
+        }
+        console.log('');
+        break;
+      }
       case 'remove':
       case 'test':
       case 'set':
