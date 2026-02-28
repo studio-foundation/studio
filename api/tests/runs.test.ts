@@ -8,6 +8,8 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -21,6 +23,9 @@ function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   } as PipelineRun;
 }
 
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
+
 function makeServer(store: RunStore, launcher?: RunLauncher) {
   return buildServer({
     store,
@@ -28,6 +33,8 @@ function makeServer(store: RunStore, launcher?: RunLauncher) {
     configsDir: '/tmp/.studio',
     projectName: 'test',
     apiConfig: {},
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 

@@ -42,8 +42,8 @@ export interface ServerDeps {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
-  integrationStore?: IntegrationStore;
-  integrationRuntime?: IntegrationRuntime;
+  integrationStore: IntegrationStore;
+  integrationRuntime: IntegrationRuntime;
 }
 
 export function buildServer(deps: ServerDeps) {
@@ -96,7 +96,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
   void fastify.register(validateRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
-  deps.integrationRuntime?.registerRoutes(fastify, '/api');
+  deps.integrationRuntime.registerRoutes(fastify, '/api');
 
   return fastify;
 }

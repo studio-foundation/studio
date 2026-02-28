@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const TMP_DIR = resolve('/tmp', `.studio-api-pipelines-test-${Date.now()}`);
 const PIPELINES_DIR = resolve(TMP_DIR, 'pipelines');
@@ -24,6 +26,9 @@ afterAll(() => {
   rmSync(TMP_DIR, { recursive: true, force: true });
 });
 
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
+
 function makeServer() {
   return buildServer({
     store: new InMemoryRunStore(),
@@ -31,6 +36,8 @@ function makeServer() {
     configsDir: TMP_DIR,
     projectName: 'test-project',
     apiConfig: {},
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 
@@ -55,6 +62,8 @@ describe('GET /api/pipelines', () => {
       configsDir: emptyDir,
       projectName: 'empty',
       apiConfig: {},
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
     const res = await server.inject({ method: 'GET', url: '/api/pipelines' });
     expect(res.statusCode).toBe(200);

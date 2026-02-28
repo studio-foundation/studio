@@ -3,9 +3,14 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const TMP = resolve('/tmp', `.studio-skills-test-${Date.now()}`);
 const SKILLS_DIR = resolve(TMP, 'skills');
+
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
 
 function makeServer() {
   return buildServer({
@@ -16,6 +21,8 @@ function makeServer() {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 
@@ -51,6 +58,8 @@ describe('GET /api/skills', () => {
       apiConfig: {},
       studioVersion: '0.0.0-test',
       maskedConfig: { providers: [] },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
     const res = await server.inject({ method: 'GET', url: '/api/skills' });
     expect(res.statusCode).toBe(200);

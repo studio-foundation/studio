@@ -6,6 +6,8 @@ import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import { WebhookStore } from '../src/webhook-store.js';
 import { LinearStore } from '../src/linear-store.js';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const WEBHOOK_SECRET = 'test-whsec-abc123';
 
@@ -33,6 +35,9 @@ function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean; active?:
     subscribe: vi.fn(() => () => {}),
   };
 
+  const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+  const nullIntegrationStore = {} as unknown as IntegrationStore;
+
   const server = buildServer({
     store: new InMemoryRunStore(),
     launcher,
@@ -46,6 +51,8 @@ function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean; active?:
     maskedConfig: { providers: [] },
     webhookStore,
     linearStore,
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 
   return { server, launched, launcher, linearStore, cleanup: () => { webhookStore.close(); linearStore.close(); } };
