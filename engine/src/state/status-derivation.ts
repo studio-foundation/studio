@@ -32,5 +32,5 @@ export function deriveStageStatus(ralphResult: RalphResult<unknown>): StageStatu
   }
 
   // Should never reach here if RalphResult types are exhaustive
-  throw new Error(`Unknown ralph status: ${(ralphResult as any).status}`);
+  throw new Error(`Unknown ralph status: ${JSON.stringify(ralphResult)}`);
 }
