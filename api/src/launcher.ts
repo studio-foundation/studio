@@ -21,6 +21,8 @@ import type {
   StagedToolCallCompleteEvent,
 } from '@studio/engine';
 import { PipelineEngine } from '@studio/engine';
+import { loadProjectTools } from '@studio/runner';
+import { join } from 'node:path';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
 import { notifyLinearFailure } from './linear-notifier.js';
@@ -128,9 +130,16 @@ export class InProcessLauncher implements RunLauncher {
       },
     };
 
-    const runEngineConfig: EngineConfig = config.repoPath !== undefined
-      ? { ...this.engineConfig, repoPath: config.repoPath }
-      : this.engineConfig;
+    let runEngineConfig: EngineConfig = this.engineConfig;
+    if (config.repoPath !== undefined) {
+      const toolsDir = join(this.engineConfig.configsDir, 'tools');
+      const freshPlugins = await loadProjectTools(toolsDir, config.repoPath);
+      const freshRegistry = this.engineConfig.toolRegistry.clone();
+      for (const plugin of freshPlugins) {
+        freshRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
+      }
+      runEngineConfig = { ...this.engineConfig, repoPath: config.repoPath, toolRegistry: freshRegistry };
+    }
     const engine = this.engineFactory(runEngineConfig, perRunEvents);
 
     void engine
