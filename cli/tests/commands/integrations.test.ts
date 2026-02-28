@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, writeFile, rm, readFile, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { IntegrationPluginDef } from '@studio/contracts';
-import { installIntegration, getIntegrationStatus } from '../../src/commands/integrations.js';
+import { installIntegration, getIntegrationStatus, removeIntegration } from '../../src/commands/integrations.js';
 
 let studioDir: string;
 let integrationsDir: string;
@@ -81,5 +81,22 @@ describe('getIntegrationStatus', () => {
   it('returns configured when plugin has no required vars', () => {
     const plugin: IntegrationPluginDef = { name: 'webhook', version: 1 };
     expect(getIntegrationStatus(plugin, {})).toBe('configured');
+  });
+});
+
+describe('removeIntegration', () => {
+  it('removes an installed integration file', async () => {
+    await installIntegration('@studio/integration-linear', integrationsDir);
+    const destPath = join(integrationsDir, 'linear.integration.yaml');
+    await expect(access(destPath)).resolves.toBeUndefined();
+
+    await removeIntegration('linear', integrationsDir);
+    await expect(access(destPath)).rejects.toThrow();
+  });
+
+  it('throws if integration is not installed', async () => {
+    await expect(
+      removeIntegration('doesnotexist', integrationsDir)
+    ).rejects.toThrow("Integration 'doesnotexist' not found");
   });
 });

@@ -1,11 +1,12 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { readFile, writeFile, mkdir, access, unlink } from 'node:fs/promises';
+import { resolve, join, dirname } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as yaml from 'js-yaml';
 import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio/runner';
 import type { IntegrationPluginDef } from '@studio/contracts';
 import { loadConfig, resolveEnvVars } from '../config.js';
+import { setConfigValue } from './config.js';
 
 export function getIntegrationsDir(studioDir: string): string {
   return resolve(studioDir, 'integrations');
@@ -91,6 +92,30 @@ export async function installIntegration(source: string, integrationsDir: string
   return name;
 }
 
+export async function removeIntegration(name: string, integrationsDir: string): Promise<void> {
+  const filePath = join(integrationsDir, `${name}.integration.yaml`);
+  try {
+    await unlink(filePath);
+  } catch {
+    throw new Error(`Integration '${name}' not found`);
+  }
+}
+
+async function loadRawFullConfig(configFile: string): Promise<Record<string, unknown>> {
+  try {
+    const raw = await readFile(configFile, 'utf-8');
+    const parsed = yaml.load(resolveEnvVars(raw));
+    return (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+async function saveIntegrationConfig(configFile: string, config: Record<string, unknown>): Promise<void> {
+  await mkdir(dirname(configFile), { recursive: true });
+  await writeFile(configFile, yaml.dump(config), 'utf-8');
+}
+
 export async function integrationsCommand(
   action: string,
   _args: string[],
@@ -146,10 +171,55 @@ export async function integrationsCommand(
         console.log('');
         break;
       }
-      case 'remove':
+      case 'remove': {
+        const name = _args[0];
+        if (!name) {
+          console.error('Usage: studio integrations remove <name>');
+          process.exit(1);
+        }
+        const studioDir = await resolveStudioDir();
+        await removeIntegration(name, getIntegrationsDir(studioDir));
+        console.log(chalk.green(`✓ Integration '${name}' removed`));
+        break;
+      }
       case 'test':
-      case 'set':
         throw new Error(`Not implemented yet: ${action}`);
+      case 'set': {
+        const dotPath = _args[0];
+        const value = _args[1];
+        if (!dotPath || value === undefined) {
+          console.error('Usage: studio integrations set <name>.<key> <value>');
+          process.exit(1);
+        }
+        const dotIndex = dotPath.indexOf('.');
+        if (dotIndex === -1) {
+          console.error('Error: path must be <integration-name>.<key> (e.g. linear.autoTrigger)');
+          process.exit(1);
+        }
+        const integrationName = dotPath.slice(0, dotIndex);
+        const key = dotPath.slice(dotIndex + 1);
+
+        const studioDir = await resolveStudioDir();
+        const intDir = getIntegrationsDir(studioDir);
+
+        const pluginPath = join(intDir, `${integrationName}.integration.yaml`);
+        const isInstalled = await access(pluginPath).then(() => true).catch(() => false);
+        if (!isInstalled) {
+          console.error(
+            `Error: Integration '${integrationName}' not installed. ` +
+            `Run: studio integrations install @studio/integration-${integrationName}`
+          );
+          process.exit(1);
+        }
+
+        const configFile = join(studioDir, 'config.yaml');
+        const rawConfig = await loadRawFullConfig(configFile);
+        setConfigValue(rawConfig, `integrations.${integrationName}.${key}`, value);
+        await saveIntegrationConfig(configFile, rawConfig);
+
+        console.log(chalk.green(`✓ Set integrations.${integrationName}.${key} = ${value}`));
+        break;
+      }
       default:
         console.error(`Unknown integrations action: ${action}. Available: install, list, remove, test, set`);
         process.exit(1);
