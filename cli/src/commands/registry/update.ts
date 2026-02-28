@@ -20,7 +20,7 @@ interface UpdateOptions {
 
 export async function outdatedPackages(options: UpdateOptions = {}): Promise<OutdatedEntry[]> {
   const studioDir = options.studioDir ??
-    (findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
+    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
   await syncRegistry({ force: false, silent: true });
   const cache = new RegistryCache();
   const index = await cache.read();

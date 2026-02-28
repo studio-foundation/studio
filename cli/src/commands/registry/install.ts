@@ -1,7 +1,6 @@
 import chalk from 'chalk';
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
 import { mkdir, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { RegistryClient } from '../../registry/client.js';
 import { RegistryLockfile } from '../../registry/lockfile.js';
 import { RegistryCache } from '../../registry/cache.js';
@@ -30,7 +29,7 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
   const [name, requestedVersion] = nameAtVersion.split('@');
 
   const studioDir = options.studioDir ??
-    (findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
+    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
   const lockfile = new RegistryLockfile(studioDir);
 
   // Check already installed

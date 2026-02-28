@@ -22,7 +22,7 @@ const FILE_EXTENSIONS: Partial<Record<PackageType, string>> = {
 
 export async function removePackage(name: string, options: RemoveOptions = {}): Promise<void> {
   const studioDir = options.studioDir ??
-    (findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
+    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
   const lockfile = new RegistryLockfile(studioDir);
   const entry = await lockfile.get(name);
   if (!entry) throw new Error(`'${name}' is not installed`);

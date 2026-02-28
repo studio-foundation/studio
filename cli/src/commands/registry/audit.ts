@@ -29,7 +29,7 @@ interface AuditOptions {
 
 export async function auditPackages(options: AuditOptions = {}): Promise<AuditResult[]> {
   const studioDir = options.studioDir ??
-    (findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
+    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
   const lockfile = new RegistryLockfile(studioDir);
   const installed = await lockfile.list();
   const results: AuditResult[] = [];
