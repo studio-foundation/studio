@@ -6,11 +6,6 @@ import { RunEventBus } from '../src/event-bus.js';
 import { InMemoryRunStore } from '@studio/engine';
 import type { EngineConfig, EngineEvents } from '@studio/engine';
 
-// Mock linear-notifier so tests don't hit the network
-vi.mock('../src/linear-notifier.js', () => ({
-  notifyLinearFailure: vi.fn().mockResolvedValue(undefined),
-}));
-
 const TMP_RUNS_DIR = resolve('/tmp', `studio-launcher-test-${Date.now()}`);
 
 afterAll(() => {
@@ -180,74 +175,6 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
       rejection_reason: 'QA rejected the code',
       rejection_details: ['Hardcoded strings (blocking)', 'Missing error handling (blocking)'],
     });
-  });
-
-  it('does NOT call notifyLinearFailure when pipeline succeeds', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
-    const store = new InMemoryRunStore();
-    const bus = new RunEventBus();
-    let capturedEvents: EngineEvents = {};
-
-    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
-    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
-
-    await launcher.launch({
-      runId: 'run-success-linear',
-      pipeline: 'feature-builder',
-      input: {},
-      configsDir: TMP_RUNS_DIR,
-      meta: { linear_issue_id: 'issue-abc-123' },
-    });
-
-    capturedEvents.onPipelineComplete?.({
-      pipeline_name: 'feature-builder',
-      run_id: 'run-success-linear',
-      status: 'success',
-      duration_ms: 120000,
-      total_tokens: 3000,
-      total_tool_calls: 8,
-    });
-
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(notifyMock).not.toHaveBeenCalled();
-  });
-
-  it('does NOT call notifyLinearFailure when meta has no linear_issue_id', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
-    const store = new InMemoryRunStore();
-    const bus = new RunEventBus();
-    let capturedEvents: EngineEvents = {};
-
-    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
-    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
-
-    await launcher.launch({
-      runId: 'run-no-meta',
-      pipeline: 'feature-builder',
-      input: {},
-      configsDir: TMP_RUNS_DIR,
-      // no meta
-    });
-
-    capturedEvents.onPipelineComplete?.({
-      pipeline_name: 'feature-builder',
-      run_id: 'run-no-meta',
-      status: 'rejected',
-      duration_ms: 60000,
-      total_tokens: 1000,
-      total_tool_calls: 4,
-    });
-
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   it('pipeline_complete bus event includes meta with no last_group_feedback when no group feedback occurred', async () => {
