@@ -1093,7 +1093,7 @@ export class PipelineEngine {
       ?? (stageDef.tools?.required ? { required_tools: stageDef.tools.required } : undefined);
 
     // Tool calls count validation
-    if (toolCallReqs?.minimum !== undefined || toolCallReqs?.required_tools) {
+    if (toolCallReqs?.minimum !== undefined || toolCallReqs?.maximum !== undefined || toolCallReqs?.required_tools) {
       validators.push((result) => validateToolCalls(result.tool_calls, toolCallReqs));
     }
 

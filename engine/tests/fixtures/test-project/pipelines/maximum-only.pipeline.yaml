@@ -1,0 +1,15 @@
+
+name: maximum-only
+description: Pipeline with a contract that only sets maximum tool_calls
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: maximum-only
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
