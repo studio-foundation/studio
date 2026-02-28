@@ -12,7 +12,6 @@ import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio/runner';
-import { validateTemplateDir } from './template/validate.js';
 import { installPackage } from './registry/install.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
