@@ -133,7 +133,7 @@ describe('POST /api/validate', () => {
     expect(valid).toBe(true);
   });
 
-  it('accepts agent with custom tools', async () => {
+  it('accepts agent with custom tools (exact plugin name)', async () => {
     const server = makeServer();
     const res = await server.inject({
       method: 'POST',
@@ -142,6 +142,21 @@ describe('POST /api/validate', () => {
         type: 'agent',
         name: 'coder',
         content: 'name: coder\ntools:\n  - my-tool\n',
+      },
+    });
+    const { valid } = res.json() as { valid: boolean; errors: string[] };
+    expect(valid).toBe(true);
+  });
+
+  it('accepts agent with custom tool actions (plugin-action naming)', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/validate',
+      payload: {
+        type: 'agent',
+        name: 'coder',
+        content: 'name: coder\ntools:\n  - my-tool-run\n',
       },
     });
     const { valid } = res.json() as { valid: boolean; errors: string[] };

@@ -147,10 +147,13 @@ export async function validateRoutes(
     if (type === 'agent') {
       const toolsUsed = obj.tools;
       if (Array.isArray(toolsUsed)) {
-        const customTools = await listNames(join(configsDir, 'tools'), '.tool.yaml');
+        const customPlugins = await listNames(join(configsDir, 'tools'), '.tool.yaml');
         for (const tool of toolsUsed) {
           if (typeof tool !== 'string') continue;
-          if (!BUILTIN_TOOL_ACTIONS.has(tool) && !customTools.has(tool)) {
+          // Custom tool actions follow <plugin>-<action> naming (e.g. claude_code-run
+          // from claude_code.tool.yaml). Match if any plugin name is a prefix.
+          const isCustom = [...customPlugins].some(p => tool === p || tool.startsWith(p + '-'));
+          if (!BUILTIN_TOOL_ACTIONS.has(tool) && !isCustom) {
             errors.push(`Tool '${tool}' not found`);
           }
         }
