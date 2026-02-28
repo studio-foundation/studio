@@ -4,8 +4,11 @@
 // POST /api/integrations/linear/webhook  → incoming Linear webhook (HMAC-verified)
 
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
+import { loadPipelineByName } from '@studio/engine';
+import { resolveRepoPath } from '../utils/repo-resolver.js';
 
 // Linear webhook payload shape (simplified)
 interface LinearIssuePayload {
@@ -36,7 +39,7 @@ export async function linearWebhookRoute(
   fastify: FastifyInstance,
   options: { deps: ServerDeps },
 ): Promise<void> {
-  const { launcher, configsDir, apiConfig, linearStore } = options.deps;
+  const { launcher, configsDir, projectsDir, apiConfig, linearStore } = options.deps;
 
   // Parse body as raw Buffer so we can verify HMAC before JSON-parsing.
   // Scoped to this plugin — GET has no body, PATCH body is manually parsed below.
@@ -158,6 +161,31 @@ export async function linearWebhookRoute(
     const pipeline = config.pipeline ?? 'feature-builder';
     const issueUrl = `https://linear.app/studioag/issue/${issue.identifier}`;
 
+    // Resolve repo path from pipeline YAML (mirrors CLI behaviour).
+    // If the pipeline file can't be loaded, fall back to '.' — launcher.launch()
+    // will surface the proper "pipeline not found" error afterwards.
+    let pipelineRepoUrl: string | undefined;
+    let pipelineRepoBranch: string | undefined;
+    try {
+      const pipelineDef = await loadPipelineByName(pipeline, join(configsDir, 'pipelines'));
+      pipelineRepoUrl = pipelineDef.repo?.url;
+      pipelineRepoBranch = pipelineDef.repo?.branch;
+    } catch {
+      // Pipeline not found or unparseable — launcher.launch() will handle the error
+    }
+
+    let repoPath: string;
+    try {
+      repoPath = await resolveRepoPath({
+        repoUrl: pipelineRepoUrl,
+        rawProjectsDir: projectsDir,
+        pipelineName: pipeline,
+        branch: pipelineRepoBranch,
+      });
+    } catch (err) {
+      return reply.status(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+
     // Construct structured input for the configured pipeline
     const input: Record<string, unknown> = {
       brief_summary: [issue.identifier, issue.title].filter(Boolean).join(' — '),
@@ -181,6 +209,7 @@ export async function linearWebhookRoute(
         pipeline,
         input,
         configsDir,
+        repoPath,
         meta,
       });
 

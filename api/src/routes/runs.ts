@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
 import { resolveRepoPath } from '../utils/repo-resolver.js';
+import { loadPipelineByName } from '@studio/engine';
 
 async function replayJsonl(
   logPath: string,
@@ -98,15 +100,28 @@ export async function runsRoutes(
 
     // Extract repo_url from input (like CLI does with --input-file), then strip it before passing to engine
     const input = { ...request.body.input };
-    const repoUrl = typeof input['repo_url'] === 'string' ? input['repo_url'] : undefined;
-    if (repoUrl !== undefined) delete input['repo_url'];
+    const inputRepoUrl = typeof input['repo_url'] === 'string' ? input['repo_url'] : undefined;
+    if (inputRepoUrl !== undefined) delete input['repo_url'];
 
+    // Fall back to pipeline YAML repo.url when not provided in input (mirrors CLI behaviour)
+    let pipelineRepoUrl: string | undefined;
+    let pipelineRepoBranch: string | undefined;
+    try {
+      const pipelineDef = await loadPipelineByName(pipeline, join(options.deps.configsDir, 'pipelines'));
+      pipelineRepoUrl = pipelineDef.repo?.url;
+      pipelineRepoBranch = pipelineDef.repo?.branch;
+    } catch {
+      // Pipeline not found — launcher.launch() will throw a proper error later
+    }
+
+    const repoUrl = inputRepoUrl ?? pipelineRepoUrl;
     let repoPath: string;
     try {
       repoPath = await resolveRepoPath({
         repoUrl,
         rawProjectsDir: options.deps.projectsDir,
         pipelineName: pipeline,
+        branch: pipelineRepoBranch,
       });
     } catch (err) {
       return reply.status(400).send({ error: err instanceof Error ? err.message : String(err) });
