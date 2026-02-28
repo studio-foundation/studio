@@ -5,8 +5,10 @@ dist/
 .env
 .DS_Store
 
-# Run logs (local, not versioned)
+# Studio (local, not versioned)
+.studio/config.yaml
 .studio/runs/
+*.keymap.json
 
 # IDE
 .vscode/
