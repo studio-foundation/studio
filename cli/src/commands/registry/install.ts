@@ -41,7 +41,7 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
   }
 
   // Sync cache and resolve package type
-  await syncRegistry({ force: true, silent: true });
+  await syncRegistry({ force: false, silent: true });
   const cache = new RegistryCache();
   const index = await cache.read();
   const indexEntry = index?.packages.find(p => p.name === name);

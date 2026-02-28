@@ -24,11 +24,22 @@ const MOCK_INDEX = {
 
 const FAKE_INTEGRATION_CONTENT = 'name: linear\ntype: integration\n';
 
+// Mock syncRegistry to be a no-op (sync already handled), and RegistryCache.read to return mock index
+vi.mock('../../../src/commands/registry/sync.js', () => ({
+  syncRegistry: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../../src/registry/cache.js', () => {
+  class RegistryCache {
+    read() { return Promise.resolve(MOCK_INDEX); }
+    write() { return Promise.resolve(undefined); }
+    isFresh() { return Promise.resolve(true); }
+  }
+  return { RegistryCache };
+});
+
 beforeEach(async () => {
   await mkdir(STUDIO_DIR, { recursive: true });
-  // Mock fetch sequence: index sync → metadata fetch → file download
   vi.stubGlobal('fetch', vi.fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => MOCK_INDEX })
     .mockResolvedValueOnce({ ok: true, json: async () => MOCK_METADATA })
     .mockResolvedValueOnce({ ok: true, text: async () => FAKE_INTEGRATION_CONTENT }),
   );
@@ -36,6 +47,8 @@ beforeEach(async () => {
 afterEach(async () => {
   await rm(TMP, { recursive: true, force: true });
   vi.unstubAllGlobals();
+  vi.resetModules();
+  vi.restoreAllMocks();
 });
 
 describe('installPackage', () => {
