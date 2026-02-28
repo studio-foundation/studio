@@ -3,13 +3,22 @@ import { join } from 'node:path';
 import yaml from 'js-yaml';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
+import {
+  createRepoManagerTools,
+  createShellTools,
+  createSearchTools,
+  createPatchTools,
+  createGitTools,
+} from '@studio/runner';
 
-const BUILTIN_TOOLS = new Set([
-  'repo_manager-read_file',
-  'repo_manager-write_file',
-  'repo_manager-list_files',
-  'shell-run_command',
-  'search-search_codebase',
+// Derived at module load from the actual factory functions — single source of truth.
+// Using '.' as a dummy repoPath: only `execute` uses the path, `name` is hardcoded.
+const BUILTIN_TOOL_ACTIONS: Set<string> = new Set([
+  ...createRepoManagerTools('.').map(t => t.name),
+  ...createShellTools('.').map(t => t.name),
+  ...createSearchTools('.').map(t => t.name),
+  ...createPatchTools('.').map(t => t.name),
+  ...createGitTools('.').map(t => t.name),
 ]);
 
 async function listNames(dir: string, suffix: string): Promise<Set<string>> {
@@ -141,7 +150,7 @@ export async function validateRoutes(
         const customTools = await listNames(join(configsDir, 'tools'), '.tool.yaml');
         for (const tool of toolsUsed) {
           if (typeof tool !== 'string') continue;
-          if (!BUILTIN_TOOLS.has(tool) && !customTools.has(tool)) {
+          if (!BUILTIN_TOOL_ACTIONS.has(tool) && !customTools.has(tool)) {
             errors.push(`Tool '${tool}' not found`);
           }
         }

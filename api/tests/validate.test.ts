@@ -181,4 +181,31 @@ describe('POST /api/validate', () => {
     const { valid } = res.json() as { valid: boolean; errors: string[] };
     expect(valid).toBe(false);
   });
+
+  it('returns error when pipeline has no stages array', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/validate',
+      payload: { type: 'pipeline', name: 'p', content: 'name: my-pipeline\n' },
+    });
+    const { valid, errors } = res.json() as { valid: boolean; errors: string[] };
+    expect(valid).toBe(false);
+    expect(errors).toContain('Pipeline must have a "stages" array');
+  });
+
+  it('returns valid=true for a well-formed contract', async () => {
+    const server = makeServer();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/validate',
+      payload: {
+        type: 'contract',
+        name: 'c',
+        content: 'name: my-contract\nversion: 1\nschema:\n  required_fields:\n    - summary\n',
+      },
+    });
+    const { valid } = res.json() as { valid: boolean; errors: string[] };
+    expect(valid).toBe(true);
+  });
 });
