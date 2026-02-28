@@ -13,6 +13,7 @@ import { getAvailableModels } from '../models-cache.js';
 import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio/runner';
 import { validateTemplateDir } from './template/validate.js';
+import { installPackage } from './registry/install.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -339,9 +340,9 @@ interface GenerateFullAppOptions {
 
 /**
  * Generate a complete app from a template:
- * 1. Validates the template structure
+ * 1. Installs the template from the registry to .studio/projects/<name>/
  * 2. Creates .studio/ workspace
- * 3. Copies app scaffold files (src/, prisma/, package.json, README.md)
+ * 3. Copies app scaffold files (src/, prisma/, package.json, README.md) from the installed template
  * 4. Initializes a git repository (unless skipGit)
  *
  * Does NOT write provider config — call writeProviderToConfig separately.
@@ -355,28 +356,22 @@ export async function generateFullApp(
   templateName: string,
   options: GenerateFullAppOptions = {}
 ): Promise<{ gitInitialized: boolean; generatedFiles: string[] }> {
-  const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
+  const studioDir = resolve(cwd, '.studio');
 
-  // 1. Validate template
-  const validation = await validateTemplateDir(templateDir);
-  if (!validation.valid) {
-    const allErrors = [...validation.structuralErrors, ...validation.semanticErrors];
-    throw new Error(
-      `Template '${templateName}' failed validation:\n` +
-      allErrors.map((e) => `  • ${e}`).join('\n')
-    );
-  }
-
-  // 2. Create .studio/ workspace (flat — no projects/<name>/ layer)
+  // 1. Create .studio/ workspace (flat — no projects/<name>/ layer)
   await createStudioStructure(cwd, templateName, !options.noTools);
 
-  // 3. Copy app scaffold files with placeholder replacement
+  // 2. Install template from registry to .studio/projects/<templateName>/
+  await installPackage(templateName, { studioDir, force: false });
+
+  // 3. Copy app scaffold files from installed template to project root with placeholder replacement
+  const installedTemplateDir = resolve(studioDir, 'projects', templateName);
   const vars = {
     PROJECT_NAME: projectName,
     TEMPLATE_NAME: templateName,
     YEAR: String(new Date().getFullYear()),
   };
-  const generatedFiles = await generateAppFiles(templateDir, cwd, vars);
+  const generatedFiles = await generateAppFiles(installedTemplateDir, cwd, vars);
 
   // 4. Initialize git repo (unless already initialized or skipped)
   let gitInitialized = false;
