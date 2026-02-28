@@ -2,6 +2,7 @@
 
 export interface ToolCallRequirements {
   minimum?: number;
+  maximum?: number;
   required_tools?: string[];
   required_tool_groups?: string[][];
   counted_tools?: string[];

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { PipelineEngine, type EngineConfig, type RunInput } from '../../src/engine.js';
 import { InMemoryRunStore } from '../../src/state/run-store.js';
 import type { EngineEvents } from '../../src/events.js';
+import { ToolRegistry } from '@studio/runner';
 
 // Minimal mock for ProviderRegistry
 function createMockProviderRegistry() {
@@ -149,6 +150,33 @@ stages:
       on_stage_complete:
         - command: "sh -c 'echo hook-error-output >&2; exit 1'"
           on_failure: reject
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+`);
+
+  // Fixtures for maximum-only tool_calls contract
+  writeFileSync(join(CONTRACTS_DIR, 'maximum-only.contract.yaml'), `
+name: maximum-only
+version: 1
+schema:
+  required_fields:
+    - summary
+tool_calls:
+  maximum: 2
+`);
+  writeFileSync(join(PIPELINES_DIR, 'maximum-only.pipeline.yaml'), `
+name: maximum-only
+description: Pipeline with a contract that only sets maximum tool_calls
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: maximum-only
     ralph:
       max_attempts: 1
       retry_strategy: none
@@ -512,5 +540,109 @@ describe('PipelineEngine', () => {
     const userMessage = capturedRequests[0].messages.find((m: any) => m.role === 'user');
     expect(userMessage).toBeDefined();
     expect(userMessage.content).toContain('git-status-output');
+  });
+
+  it('fails stage when tool_calls maximum is exceeded (maximum-only contract)', async () => {
+    // A contract with only `maximum: 2` and no `minimum`.
+    // Before the guard fix, this validator was silently skipped.
+    // After the fix it must be activated and fail when 3 successful tool calls are made.
+
+    // Create a real ToolRegistry with a succeeding test tool
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'test-tool',
+      description: 'A simple test tool',
+      parameters: { type: 'object', properties: {}, required: [] },
+      execute: async () => ({ success: true, output: 'ok' }),
+    });
+
+    // Mock provider: returns 3 tool calls on the first call, then valid output
+    let callCount = 0;
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          // First turn: 3 tool calls (exceeds maximum of 2)
+          return {
+            content: '',
+            tool_calls: [
+              { id: 'tc-1', name: 'test-tool', arguments: {} },
+              { id: 'tc-2', name: 'test-tool', arguments: {} },
+              { id: 'tc-3', name: 'test-tool', arguments: {} },
+            ],
+            finish_reason: 'tool_calls',
+          };
+        }
+        // Second turn: final response with valid output
+        return {
+          content: JSON.stringify({ summary: 'done' }),
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+        };
+      }),
+    };
+
+    const engine = new PipelineEngine({
+      configsDir: PROJECT_DIR,
+      providerRegistry: { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as any,
+      toolRegistry: toolRegistry as any,
+      db: new InMemoryRunStore(),
+    });
+
+    const result = await engine.run({ pipeline: 'maximum-only', input: 'test maximum' });
+
+    expect(result.status).toBe('failed');
+    expect(result.stages[0].status).toBe('failed');
+  });
+
+  it('succeeds stage when tool_calls count is within maximum (maximum-only contract)', async () => {
+    // Same contract (maximum: 2), but only 1 tool call made — should pass.
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'test-tool',
+      description: 'A simple test tool',
+      parameters: { type: 'object', properties: {}, required: [] },
+      execute: async () => ({ success: true, output: 'ok' }),
+    });
+
+    let callCount = 0;
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          // First turn: 1 tool call (within maximum of 2)
+          return {
+            content: '',
+            tool_calls: [
+              { id: 'tc-1', name: 'test-tool', arguments: {} },
+            ],
+            finish_reason: 'tool_calls',
+          };
+        }
+        // Second turn: final response with valid output
+        return {
+          content: JSON.stringify({ summary: 'done' }),
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+        };
+      }),
+    };
+
+    const engine = new PipelineEngine({
+      configsDir: PROJECT_DIR,
+      providerRegistry: { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as any,
+      toolRegistry: toolRegistry as any,
+      db: new InMemoryRunStore(),
+    });
+
+    const result = await engine.run({ pipeline: 'maximum-only', input: 'test maximum within bounds' });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0].status).toBe('success');
   });
 });

@@ -501,6 +501,7 @@ schema:
     - files_changed
 tool_calls:
   minimum: 1
+  maximum: 15    # Fail si l'agent fait plus de 15 appels réussis (détection de boucle)
   required_tools:
     - repo_manager.write_file       # Format avec point dans le YAML
 ```
