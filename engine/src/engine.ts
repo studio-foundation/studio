@@ -14,6 +14,7 @@ import type {
   OutputContract,
   ToolCall,
   RunSpawner,
+  StageStatus,
 } from '@studio/contracts';
 import { isStageGroup } from '@studio/contracts';
 import {
@@ -135,14 +136,14 @@ export interface RunInput {
 
 interface StageResult {
   stageRun: StageRun;
-  status: string;
+  status: StageStatus;
   postValidation?: PostValidationResult;
   lastAgentOutput?: unknown;
   toolCalls?: ToolCall[];
 }
 
 interface GroupResult {
-  status: string;
+  status: StageStatus;
   stageRuns: StageRun[];
   stagesExecuted: number;
   context: PipelineContext;
@@ -250,7 +251,7 @@ export class PipelineEngine {
     for (const entry of pipeline.stages) {
       // Check for cancellation before each pipeline entry
       if (signal?.aborted) {
-        pipelineRun.status = 'cancelled' as any;
+        pipelineRun.status = 'cancelled';
         pipelineRun.completed_at = new Date().toISOString();
         const lastStage = pipelineRun.stages[pipelineRun.stages.length - 1];
         this.events?.onPipelineCancelled?.({
@@ -297,7 +298,7 @@ export class PipelineEngine {
         clearGroupFeedback(pipelineContext);
 
         if (groupResult.status === 'rejected' || groupResult.status === 'failed' || groupResult.status === 'cancelled') {
-          pipelineRun.status = groupResult.status as any;
+          pipelineRun.status = groupResult.status;
           pipelineRun.completed_at = new Date().toISOString();
           if (groupResult.status === 'cancelled') {
             const lastStage = pipelineRun.stages[pipelineRun.stages.length - 1];
