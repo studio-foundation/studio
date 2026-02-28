@@ -12,7 +12,7 @@ import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio/runner';
-import { validateTemplateDir } from './template/validate.js';
+import { installPackage } from './registry/install.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -42,32 +42,25 @@ const STUDIO_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
 
 /**
  * Create or populate .studio/ with subdirs.
- * If templateName is provided, copies content from the template root (flat — no project/ subdir).
+ * If installedTemplateDir is provided, copies studio-specific subdirs (pipelines, agents, etc.)
+ * from that directory into .studio/.
  * If withTools is false, creates an empty tools/ dir instead of copying from template.
  */
 async function copyTemplateToStudio(
   studioDir: string,
-  templateName?: string,
+  installedTemplateDir?: string,
   options: { withTools?: boolean } = {}
 ): Promise<void> {
   const withTools = options.withTools ?? true;
 
-  if (templateName) {
-    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
-    const templateExists = await access(templateDir).then(() => true).catch(() => false);
-    if (!templateExists) {
-      throw new Error(
-        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
-      );
-    }
+  await mkdir(studioDir, { recursive: true });
 
-    await mkdir(studioDir, { recursive: true });
-
+  if (installedTemplateDir) {
     // Copy only the studio-specific subdirs into .studio/ — never the app scaffold
     // files (src/, prisma/, package.json, README.md); those are handled by generateAppFiles.
     for (const sub of STUDIO_SUBDIRS) {
       if (!withTools && sub === 'tools') continue;
-      const srcDir = join(templateDir, sub);
+      const srcDir = join(installedTemplateDir, sub);
       const destDir = join(studioDir, sub);
       const srcExists = await access(srcDir).then(() => true).catch(() => false);
       if (srcExists) {
@@ -88,7 +81,9 @@ async function copyTemplateToStudio(
 
 /**
  * Create the full .studio/ directory structure in `cwd`.
- * If templateName is provided, copies the template files directly into .studio/ (flat structure).
+ * If templateName is provided and is not 'blank', installs the template from the registry
+ * to .studio/projects/<name>/ and copies studio-specific subdirs (pipelines, agents, etc.)
+ * from the installed location into .studio/.
  * Throws if .studio/ already exists anywhere in the directory tree.
  */
 export async function createStudioStructure(
@@ -106,13 +101,38 @@ export async function createStudioStructure(
   }
 
   const studioDir = resolve(cwd, '.studio');
-  await copyTemplateToStudio(studioDir, templateName, { withTools });
+
+  let installedTemplateDir: string | undefined;
+  if (templateName && templateName !== 'blank') {
+    // Install template from registry to .studio/projects/<name>/
+    await installPackage(templateName, { studioDir });
+    installedTemplateDir = resolve(studioDir, 'projects', templateName);
+    // Verify the install actually placed files (guards against mock/network failures)
+    const installed = await access(installedTemplateDir).then(() => true).catch(() => false);
+    if (!installed) {
+      throw new Error(
+        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
+      );
+    }
+  } else if (templateName === 'blank') {
+    // blank has no registry equivalent — validate it still "exists" as a concept
+    const localBlankDir = resolve(TEMPLATES_DIR, 'projects', 'blank');
+    const blankExists = await access(localBlankDir).then(() => true).catch(() => false);
+    if (!blankExists) {
+      throw new Error(
+        `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
+      );
+    }
+    // blank creates empty dirs — no installedTemplateDir to copy from
+  }
+
+  await copyTemplateToStudio(studioDir, installedTemplateDir, { withTools });
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
 
   // Write registry.lock.json (empty, committed)
-  await writeFile(join(studioDir, 'registry.lock.json'), '{}\n', 'utf-8');
+  await writeFile(join(studioDir, 'registry.lock.json'), '{"installed":{}}\n', 'utf-8');
 
   // Copy config template (only if config.yaml doesn't already exist)
   const configPath = join(studioDir, 'config.yaml');
@@ -339,10 +359,9 @@ interface GenerateFullAppOptions {
 
 /**
  * Generate a complete app from a template:
- * 1. Validates the template structure
- * 2. Creates .studio/ workspace
- * 3. Copies app scaffold files (src/, prisma/, package.json, README.md)
- * 4. Initializes a git repository (unless skipGit)
+ * 1. Creates .studio/ workspace and installs the template from the registry to .studio/projects/<name>/
+ * 2. Copies app scaffold files (src/, prisma/, package.json, README.md) from the installed template
+ * 3. Initializes a git repository (unless skipGit)
  *
  * Does NOT write provider config — call writeProviderToConfig separately.
  *
@@ -355,30 +374,22 @@ export async function generateFullApp(
   templateName: string,
   options: GenerateFullAppOptions = {}
 ): Promise<{ gitInitialized: boolean; generatedFiles: string[] }> {
-  const templateDir = join(TEMPLATES_DIR, 'projects', templateName);
+  const studioDir = resolve(cwd, '.studio');
 
-  // 1. Validate template
-  const validation = await validateTemplateDir(templateDir);
-  if (!validation.valid) {
-    const allErrors = [...validation.structuralErrors, ...validation.semanticErrors];
-    throw new Error(
-      `Template '${templateName}' failed validation:\n` +
-      allErrors.map((e) => `  • ${e}`).join('\n')
-    );
-  }
-
-  // 2. Create .studio/ workspace (flat — no projects/<name>/ layer)
+  // 1. Create .studio/ workspace and install template from registry to .studio/projects/<name>/
+  //    createStudioStructure handles both the directory creation and registry install.
   await createStudioStructure(cwd, templateName, !options.noTools);
 
-  // 3. Copy app scaffold files with placeholder replacement
+  // 2. Copy app scaffold files from installed template to project root with placeholder replacement
+  const installedTemplateDir = resolve(studioDir, 'projects', templateName);
   const vars = {
     PROJECT_NAME: projectName,
     TEMPLATE_NAME: templateName,
     YEAR: String(new Date().getFullYear()),
   };
-  const generatedFiles = await generateAppFiles(templateDir, cwd, vars);
+  const generatedFiles = await generateAppFiles(installedTemplateDir, cwd, vars);
 
-  // 4. Initialize git repo (unless already initialized or skipped)
+  // 3. Initialize git repo (unless already initialized or skipped)
   let gitInitialized = false;
   if (!options.skipGit) {
     gitInitialized = await initGitRepo(cwd);

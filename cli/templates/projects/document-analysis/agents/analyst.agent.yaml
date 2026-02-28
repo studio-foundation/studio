@@ -1,8 +1,0 @@
-name: analyst
-provider: anthropic
-model: claude-sonnet-4-6
-tools:
-  - search-search_codebase
-system_prompt: |
-  You are an expert analyst. Search and read relevant content,
-  then provide a structured analysis with clear findings and recommendations.

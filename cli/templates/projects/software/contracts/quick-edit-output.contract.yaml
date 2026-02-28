@@ -1,8 +1,0 @@
-name: quick-edit-output
-version: 1
-schema:
-  required_fields:
-    - summary
-    - file_changed
-tool_calls:
-  minimum: 1
