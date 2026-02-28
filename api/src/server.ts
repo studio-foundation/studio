@@ -16,6 +16,7 @@ import { toolsRoutes } from './routes/tools.js';
 import { agentsRoutes } from './routes/agents.js';
 import { configRoutes } from './routes/config.js';
 import { skillsRoutes } from './routes/skills.js';
+import { validateRoutes } from './routes/validate.js';
 import { webhooksRoutes } from './routes/webhooks.js';
 import { linearWebhookRoute } from './routes/linear-webhook.js';
 
@@ -89,6 +90,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(agentsRoutes, { prefix: '/api', deps });
   void fastify.register(configRoutes, { prefix: '/api', deps });
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
+  void fastify.register(validateRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
   void fastify.register(linearWebhookRoute, { prefix: '/api', deps });
 
