@@ -16,6 +16,7 @@ import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
 import { apiStartCommand } from './commands/api.js';
+import { createRegistryCommand } from './commands/registry/index.js';
 
 const program = new Command();
 
@@ -134,5 +135,7 @@ program
       process.exit(1);
     }
   });
+
+program.addCommand(createRegistryCommand());
 
 program.parse();
