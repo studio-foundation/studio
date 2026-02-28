@@ -15,6 +15,7 @@ import {
   ToolRegistry,
   loadProjectTools,
   loadPlugins,
+  loadProjectIntegrations,
   MCPClient,
   type SkillContent,
 } from '@studio/runner';
@@ -23,7 +24,8 @@ import { RunEventBus } from './event-bus.js';
 import type { MaskedConfig } from './server.js';
 import { WebhookStore } from './webhook-store.js';
 import { WebhookDispatcher } from './webhook-dispatcher.js';
-import { LinearStore } from './linear-store.js';
+import { IntegrationStore } from './integration-store.js';
+import { IntegrationRuntime } from './integration-runtime.js';
 import { HttpApiSpawner } from './spawners/http-api-spawner.js';
 
 export interface StudioApiConfig {
@@ -33,7 +35,8 @@ export interface StudioApiConfig {
   };
   paths?: { projects_dir?: string };
   defaults?: { provider?: string; model?: string };
-  api?: { key?: string; port?: number; linear_webhook_secret?: string };
+  api?: { key?: string; port?: number };
+  integrations?: Record<string, Record<string, unknown>>;
 }
 
 export interface BootstrapResult {
@@ -43,12 +46,13 @@ export interface BootstrapResult {
   /** Raw projects_dir from config (may contain ~). Used by route handlers for repo cloning. */
   projectsDir?: string;
   projectName: string;
-  apiConfig: { key?: string; port?: number; linear_webhook_secret?: string };
+  apiConfig: { key?: string; port?: number };
   cleanup: () => Promise<void>;
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
-  linearStore: LinearStore;
+  integrationStore: IntegrationStore;
+  integrationRuntime: IntegrationRuntime;
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {
@@ -157,7 +161,20 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   const projectName = studioDir.split('/').slice(-2, -1)[0] ?? 'studio-project';
 
   const webhookStore = new WebhookStore(dbPath);
-  const linearStore = new LinearStore(dbPath);
+  const integrationStore = new IntegrationStore(dbPath);
+  const integrationsDir = join(studioDir, 'integrations');
+  const loadedIntegrations = await loadProjectIntegrations(integrationsDir);
+  const integrationConfigs = (config.integrations ?? {}) as Record<string, Record<string, unknown>>;
+  const integrationRuntime = new IntegrationRuntime({
+    integrations: loadedIntegrations,
+    store: integrationStore,
+    launcher,
+    configsDir: studioDir,
+    projectsDir: config.paths?.projects_dir,
+    apiConfig: config.api ?? {},
+    integrationConfigs,
+  });
+  integrationRuntime.setupEventBus(bus);
   const webhookDispatcher = new WebhookDispatcher(webhookStore, projectName);
   bus.subscribeAll((runId, event) => {
     void webhookDispatcher.handleBusEvent(runId, event.type, event.data);
@@ -173,7 +190,8 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     studioVersion,
     maskedConfig,
     webhookStore,
-    linearStore,
+    integrationStore,
+    integrationRuntime,
     cleanup: async () => {
       for (const client of mcpClients) {
         try { await client.close(); } catch { /* ignore */ }
@@ -182,7 +200,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
         (store as { close: () => void }).close();
       }
       webhookStore.close();
-      linearStore.close();
+      integrationStore.close();
     },
   };
 }
