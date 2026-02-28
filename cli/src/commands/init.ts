@@ -1,5 +1,5 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { resolve, join, basename, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
@@ -447,7 +447,8 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const existing = await findStudioDir(cwd);
 
     if (existing && !options.force) {
-      console.error(chalk.red('  ✗ Studio is already initialized in this directory.'));
+      const location = existing === resolve(cwd, '.studio') ? 'this directory' : existing;
+      console.error(chalk.red(`  ✗ Studio is already initialized at ${location}`));
       console.log('');
       console.log('To reconfigure:');
       console.log(`  ${chalk.cyan('studio config add-provider')}     # Add/update LLM provider`);
@@ -470,7 +471,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
           process.exit(0);
         }
       }
-      const backupPath = await backupStudioDir(cwd);
+      const backupPath = await backupStudioDir(dirname(existing));
       const backupName = backupPath.split('/').at(-1)!;
       console.log('');
       console.log(chalk.green(`  ✓ Backed up to ${backupName}/`));
@@ -577,6 +578,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     const templateName = await select({
       message: 'What type of app are you building?',
       choices: templateChoices,
+      default: options.template,
     });
 
     // Show template details card

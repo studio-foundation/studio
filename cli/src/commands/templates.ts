@@ -1,6 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import chalk from 'chalk';
+import { RegistryCache } from '../registry/cache.js';
+import { syncRegistry } from './registry/sync.js';
 
 const PROJECTS_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/projects');
 
@@ -17,6 +19,8 @@ export interface TemplateMetadata {
 }
 
 export async function listTemplates(): Promise<TemplateMetadata[]> {
+  // 1. Load local (bundled) templates
+  const localTemplates: TemplateMetadata[] = [];
   try {
     const entries = await readdir(PROJECTS_TEMPLATES_DIR, { withFileTypes: true });
     const dirs = entries
@@ -24,20 +28,45 @@ export async function listTemplates(): Promise<TemplateMetadata[]> {
       .map((e) => e.name)
       .sort();
 
-    const templates: TemplateMetadata[] = [];
     for (const dir of dirs) {
       try {
         const metaPath = join(PROJECTS_TEMPLATES_DIR, dir, 'metadata.json');
         const meta = JSON.parse(await readFile(metaPath, 'utf-8')) as TemplateMetadata;
-        templates.push(meta);
+        localTemplates.push(meta);
       } catch {
         // Skip malformed or missing metadata
       }
     }
-    return templates;
   } catch {
-    return [];
+    // templates dir missing — continue
   }
+
+  // 2. Merge with registry templates (sync silently if stale, fall back gracefully)
+  const registryTemplates: TemplateMetadata[] = [];
+  try {
+    await syncRegistry({ force: false, silent: true });
+    const cache = new RegistryCache();
+    const index = await cache.read();
+    if (index) {
+      const localNames = new Set(localTemplates.map((t) => t.name));
+      for (const pkg of index.packages) {
+        if (pkg.type === 'template' && !localNames.has(pkg.name)) {
+          registryTemplates.push({
+            name: pkg.name,
+            version: pkg.version,
+            description: pkg.description,
+            author: pkg.author,
+            tags: pkg.tags,
+            studio_version: pkg.studio_version ?? undefined,
+          });
+        }
+      }
+    }
+  } catch {
+    // Registry unreachable — show local templates only
+  }
+
+  return [...localTemplates, ...registryTemplates];
 }
 
 export async function templatesCommand(action: string, _args: string[]): Promise<void> {

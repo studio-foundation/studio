@@ -14,7 +14,7 @@ export class RegistryCache {
   private cachePath: string;
 
   constructor(cacheDir?: string) {
-    this.cacheDir = cacheDir ?? resolve(homedir(), '.studio', 'registry');
+    this.cacheDir = cacheDir ?? resolve(homedir(), '.cache', 'studio', 'registry');
     this.cachePath = resolve(this.cacheDir, 'index.json');
   }
 

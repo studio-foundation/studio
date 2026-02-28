@@ -51,6 +51,6 @@ export const INSTALL_DIRS: Record<PackageType, string> = {
   skill: 'skills',
 };
 
-export const REGISTRY_REPO = 'studio-community/registry';
+export const REGISTRY_REPO = 'PipStudio/studio-community';
 export const REGISTRY_RAW_BASE = `https://raw.githubusercontent.com/${REGISTRY_REPO}/main`;
 export const REGISTRY_API_BASE = `https://api.github.com/repos/${REGISTRY_REPO}`;
