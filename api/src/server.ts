@@ -35,6 +35,8 @@ export interface ServerDeps {
   store: RunStore;
   launcher: RunLauncher;
   configsDir: string;
+  /** Raw projects_dir from config (may contain ~). Used by route handlers for repo cloning. */
+  projectsDir?: string;
   projectName: string;
   apiConfig: ApiConfig;
   studioVersion: string;

@@ -30,6 +30,8 @@ export interface LaunchConfig {
   pipeline: string;
   input: Record<string, unknown>;
   configsDir: string;
+  /** Pre-resolved repo path (cloned or local). Overrides engineConfig.repoPath for this run. */
+  repoPath?: string;
   providerOverride?: string;
   depth?: number;
   parentRunId?: string;
@@ -126,7 +128,10 @@ export class InProcessLauncher implements RunLauncher {
       },
     };
 
-    const engine = this.engineFactory(this.engineConfig, perRunEvents);
+    const runEngineConfig: EngineConfig = config.repoPath !== undefined
+      ? { ...this.engineConfig, repoPath: config.repoPath }
+      : this.engineConfig;
+    const engine = this.engineFactory(runEngineConfig, perRunEvents);
 
     void engine
       .run({ pipeline, input, meta, signal: controller.signal, id: runId, depth: config.depth, parentRunId })

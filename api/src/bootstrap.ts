@@ -30,6 +30,7 @@ export interface StudioApiConfig {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
   };
+  paths?: { projects_dir?: string };
   defaults?: { provider?: string; model?: string };
   api?: { key?: string; port?: number; linear_webhook_secret?: string };
 }
@@ -38,6 +39,8 @@ export interface BootstrapResult {
   store: RunStore;
   launcher: RunLauncher;
   configsDir: string;
+  /** Raw projects_dir from config (may contain ~). Used by route handlers for repo cloning. */
+  projectsDir?: string;
   projectName: string;
   apiConfig: { key?: string; port?: number; linear_webhook_secret?: string };
   cleanup: () => Promise<void>;
@@ -161,6 +164,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     store,
     launcher,
     configsDir: studioDir,
+    projectsDir: config.paths?.projects_dir,
     projectName,
     apiConfig: config.api ?? {},
     studioVersion,
