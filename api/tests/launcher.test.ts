@@ -6,11 +6,6 @@ import { RunEventBus } from '../src/event-bus.js';
 import { InMemoryRunStore } from '@studio/engine';
 import type { EngineConfig, EngineEvents } from '@studio/engine';
 
-// Mock linear-notifier so tests don't hit the network
-vi.mock('../src/linear-notifier.js', () => ({
-  notifyLinearFailure: vi.fn().mockResolvedValue(undefined),
-}));
-
 const TMP_RUNS_DIR = resolve('/tmp', `studio-launcher-test-${Date.now()}`);
 
 afterAll(() => {
@@ -133,17 +128,16 @@ describe('InProcessLauncher', () => {
 });
 
 describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
-  it('calls notifyLinearFailure when pipeline fails with linear_issue_id in meta', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
+  it('pipeline_complete bus event includes meta and last_group_feedback when pipeline fails', async () => {
     const store = new InMemoryRunStore();
     const bus = new RunEventBus();
     let capturedEvents: EngineEvents = {};
 
     const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
     const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
+
+    const received: Array<{ type: string; data: unknown }> = [];
+    launcher.subscribe('run-fail-linear', ({ type, data }) => received.push({ type, data }));
 
     await launcher.launch({
       runId: 'run-fail-linear',
@@ -169,25 +163,21 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
       total_tool_calls: 12,
     });
 
-    // notifyLinearFailure is called async (fire-and-forget) — wait a tick
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(notifyMock).toHaveBeenCalledOnce();
-    expect(notifyMock).toHaveBeenCalledWith({
-      issueId: 'issue-abc-123',
-      runId: 'run-fail-linear',
-      durationMs: 180000,
-      iterations: 3,
-      rejectionReason: 'QA rejected the code',
-      rejectionDetails: ['Hardcoded strings (blocking)', 'Missing error handling (blocking)'],
+    const pipelineCompleteEvent = received.find(e => e.type === 'pipeline_complete');
+    expect(pipelineCompleteEvent).toBeDefined();
+    const data = pipelineCompleteEvent!.data as Record<string, unknown>;
+    expect(data['meta']).toEqual({ linear_issue_id: 'issue-abc-123' });
+    expect(data['last_group_feedback']).toMatchObject({
+      group_name: 'implementation-review',
+      iteration: 3,
+      rejection_reason: 'QA rejected the code',
+      rejection_details: ['Hardcoded strings (blocking)', 'Missing error handling (blocking)'],
     });
   });
 
-  it('does NOT call notifyLinearFailure when pipeline succeeds', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
+  it('pipeline_complete bus event includes meta with no last_group_feedback when no group feedback occurred', async () => {
     const store = new InMemoryRunStore();
     const bus = new RunEventBus();
     let capturedEvents: EngineEvents = {};
@@ -195,73 +185,8 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
     const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
     const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
 
-    await launcher.launch({
-      runId: 'run-success-linear',
-      pipeline: 'feature-builder',
-      input: {},
-      configsDir: TMP_RUNS_DIR,
-      meta: { linear_issue_id: 'issue-abc-123' },
-    });
-
-    capturedEvents.onPipelineComplete?.({
-      pipeline_name: 'feature-builder',
-      run_id: 'run-success-linear',
-      status: 'success',
-      duration_ms: 120000,
-      total_tokens: 3000,
-      total_tool_calls: 8,
-    });
-
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(notifyMock).not.toHaveBeenCalled();
-  });
-
-  it('does NOT call notifyLinearFailure when meta has no linear_issue_id', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
-    const store = new InMemoryRunStore();
-    const bus = new RunEventBus();
-    let capturedEvents: EngineEvents = {};
-
-    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
-    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
-
-    await launcher.launch({
-      runId: 'run-no-meta',
-      pipeline: 'feature-builder',
-      input: {},
-      configsDir: TMP_RUNS_DIR,
-      // no meta
-    });
-
-    capturedEvents.onPipelineComplete?.({
-      pipeline_name: 'feature-builder',
-      run_id: 'run-no-meta',
-      status: 'rejected',
-      duration_ms: 60000,
-      total_tokens: 1000,
-      total_tool_calls: 4,
-    });
-
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(notifyMock).not.toHaveBeenCalled();
-  });
-
-  it('passes undefined rejection fields when no group feedback occurred', async () => {
-    const { notifyLinearFailure } = await import('../src/linear-notifier.js');
-    const notifyMock = vi.mocked(notifyLinearFailure);
-    notifyMock.mockClear();
-
-    const store = new InMemoryRunStore();
-    const bus = new RunEventBus();
-    let capturedEvents: EngineEvents = {};
-
-    const { factory } = makeMockFactory((evts) => { capturedEvents = evts; });
-    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
+    const received: Array<{ type: string; data: unknown }> = [];
+    launcher.subscribe('run-fail-no-feedback', ({ type, data }) => received.push({ type, data }));
 
     await launcher.launch({
       runId: 'run-fail-no-feedback',
@@ -283,14 +208,11 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
 
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(notifyMock).toHaveBeenCalledWith({
-      issueId: 'issue-xyz',
-      runId: 'run-fail-no-feedback',
-      durationMs: 30000,
-      iterations: undefined,
-      rejectionReason: undefined,
-      rejectionDetails: undefined,
-    });
+    const pipelineCompleteEvent = received.find(e => e.type === 'pipeline_complete');
+    expect(pipelineCompleteEvent).toBeDefined();
+    const data = pipelineCompleteEvent!.data as Record<string, unknown>;
+    expect(data['meta']).toEqual({ linear_issue_id: 'issue-xyz' });
+    expect(data['last_group_feedback']).toBeUndefined();
   });
 });
 

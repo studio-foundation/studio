@@ -5,9 +5,26 @@ import { mkdirSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import { WebhookStore } from '../src/webhook-store.js';
-import { LinearStore } from '../src/linear-store.js';
+import { IntegrationStore } from '../src/integration-store.js';
+import { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationPluginDef } from '@studio/contracts';
 
 const WEBHOOK_SECRET = 'test-whsec-abc123';
+
+const linearIntegration: IntegrationPluginDef = {
+  name: 'linear',
+  version: 1,
+  webhook: {
+    hmac: {
+      header: 'linear-signature',
+      secret_env: 'LINEAR_WEBHOOK_SECRET',
+    },
+    handler: 'linear-webhook',
+  },
+  on_failure: {
+    handler: 'linear-failure',
+  },
+};
 
 function sign(body: string, secret: string): string {
   return createHmac('sha256', secret).update(Buffer.from(body)).digest('hex');
@@ -18,10 +35,10 @@ function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean; active?:
   mkdirSync(dir, { recursive: true });
   const dbPath = resolve(dir, 'runs.db');
   const webhookStore = new WebhookStore(dbPath);
-  const linearStore = new LinearStore(dbPath);
+  const integrationStore = new IntegrationStore(dbPath);
 
   // Default to active so existing tests trigger launches as before
-  linearStore.patchConfig({ active: opts.active ?? true });
+  integrationStore.patchConfig('linear', { active: opts.active ?? true });
 
   const launched: Array<{ pipeline: string; input: Record<string, unknown>; meta?: Record<string, unknown> }> = [];
   const launcher = {
@@ -33,22 +50,35 @@ function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean; active?:
     subscribe: vi.fn(() => () => {}),
   };
 
+  const integrationRuntime = new IntegrationRuntime({
+    integrations: [linearIntegration],
+    store: integrationStore,
+    launcher,
+    configsDir: dir,
+    apiConfig: { ...(opts.withApiKey ? { key: 'sk-studio-test' } : {}) },
+    integrationConfigs: {
+      linear: {
+        ...(opts.withSecret ? { LINEAR_WEBHOOK_SECRET: WEBHOOK_SECRET } : {}),
+      },
+    },
+  });
+
   const server = buildServer({
     store: new InMemoryRunStore(),
     launcher,
     configsDir: dir,
     projectName: 'test-project',
     apiConfig: {
-      ...(opts.withSecret ? { linear_webhook_secret: WEBHOOK_SECRET } : {}),
       ...(opts.withApiKey ? { key: 'sk-studio-test' } : {}),
     },
     studioVersion: '0.0.0',
     maskedConfig: { providers: [] },
     webhookStore,
-    linearStore,
+    integrationRuntime,
+    integrationStore,
   });
 
-  return { server, launched, launcher, linearStore, cleanup: () => { webhookStore.close(); linearStore.close(); } };
+  return { server, launched, launcher, integrationStore, cleanup: () => { webhookStore.close(); integrationStore.close(); } };
 }
 
 function inProgressPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -271,11 +301,11 @@ describe('POST /api/integrations/linear/webhook — with API key auth enabled', 
 
 describe('GET /api/integrations/linear', () => {
   let server: ReturnType<typeof makeServer>['server'];
-  let linearStore: ReturnType<typeof makeServer>['linearStore'];
+  let integrationStore: ReturnType<typeof makeServer>['integrationStore'];
   let cleanup: () => void;
 
   beforeEach(() => {
-    ({ server, linearStore, cleanup } = makeServer({ active: false }));
+    ({ server, integrationStore, cleanup } = makeServer({ active: false }));
   });
 
   afterEach(() => {
@@ -293,7 +323,7 @@ describe('GET /api/integrations/linear', () => {
   });
 
   test('reflects config and trigger records after updates', async () => {
-    linearStore.patchConfig({ pipeline: 'feature-builder-cc-linear', active: true });
+    integrationStore.patchConfig('linear', { pipeline: 'feature-builder-cc-linear', active: true });
 
     const res = await server.inject({ method: 'GET', url: '/api/integrations/linear' });
     const body = res.json<{ pipeline: string; active: boolean }>();

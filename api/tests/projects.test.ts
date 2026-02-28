@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const TMP_DIR = resolve('/tmp', `.studio-api-test-${Date.now()}`);
 const PIPELINES_DIR = resolve(TMP_DIR, 'pipelines');
@@ -54,6 +56,9 @@ afterAll(() => {
   rmSync(PROJECT_TMP, { recursive: true, force: true });
 });
 
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
+
 function makeServer() {
   return buildServer({
     store: new InMemoryRunStore(),
@@ -63,6 +68,8 @@ function makeServer() {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 
@@ -77,6 +84,8 @@ function makeProjectServer(opts: { withConfig?: boolean } = {}) {
     maskedConfig: opts.withConfig
       ? { defaults: { provider: 'anthropic', model: 'claude-haiku' }, providers: ['anthropic'] }
       : { providers: [] },
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 
@@ -152,6 +161,8 @@ describe('GET /api/project', () => {
       apiConfig: {},
       studioVersion: '0.0.0-test',
       maskedConfig: { providers: [] },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
     const res = await server.inject({ method: 'GET', url: '/api/project' });
     expect(res.statusCode).toBe(200);
@@ -211,6 +222,8 @@ describe('GET /api/projects/:id/inputs', () => {
       apiConfig: {},
       studioVersion: '0.0.0-test',
       maskedConfig: { providers: [] },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
     const { projects } = (await server.inject({ method: 'GET', url: '/api/projects' })).json() as {
       projects: Array<{ id: string }>;

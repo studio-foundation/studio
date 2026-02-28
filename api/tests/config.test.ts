@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const BASE_CONFIG_YAML = `providers:
   anthropic:
@@ -19,6 +21,9 @@ const GET_TMP = resolve('/tmp', `.studio-config-get-test-${Date.now()}`);
 const PATCH_TMP = resolve('/tmp', `.studio-config-patch-test-${Date.now()}`);
 const POST_TMP = resolve('/tmp', `.studio-config-post-test-${Date.now()}`);
 
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
+
 function makeServer(configsDir: string) {
   return buildServer({
     store: new InMemoryRunStore(),
@@ -28,6 +33,8 @@ function makeServer(configsDir: string) {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 }
 

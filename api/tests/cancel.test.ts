@@ -3,6 +3,8 @@ import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import type { RunLauncher } from '../src/launcher.js';
 import type { PipelineRun } from '@studio/contracts';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -14,6 +16,9 @@ function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
     ...overrides,
   } as PipelineRun;
 }
+
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
 
 function makeServer(store = new InMemoryRunStore(), launcher?: Partial<RunLauncher>) {
   return buildServer({
@@ -27,6 +32,8 @@ function makeServer(store = new InMemoryRunStore(), launcher?: Partial<RunLaunch
     configsDir: '/tmp/.studio',
     projectName: 'test',
     apiConfig: {},
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   } as any);
 }
 

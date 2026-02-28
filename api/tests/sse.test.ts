@@ -3,9 +3,14 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import type { RunLauncher } from '../src/launcher.js';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 const TMP = resolve('/tmp', `studio-sse-test-${Date.now()}`);
 mkdirSync(TMP, { recursive: true });
+
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
 
 afterEach(() => {
   rmSync(TMP, { recursive: true, force: true });
@@ -52,6 +57,8 @@ describe('GET /api/runs/:id/stream', () => {
       configsDir: TMP,
       projectName: 'test',
       apiConfig: {},
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/runs/unknown-id/stream' });
@@ -78,6 +85,8 @@ describe('GET /api/runs/:id/stream', () => {
       configsDir: TMP,
       projectName: 'test',
       apiConfig: {},
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await fastify.inject({ method: 'GET', url: '/api/runs/run-1/stream' });
@@ -105,6 +114,8 @@ describe('GET /api/runs/:id/stream', () => {
       configsDir: TMP,
       projectName: 'test',
       apiConfig: {},
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await fastify.inject({

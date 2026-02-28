@@ -4,6 +4,11 @@ import { mkdirSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import { WebhookStore } from '../src/webhook-store.js';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
+
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
 
 function makeServer() {
   const dir = resolve('/tmp', `.studio-webhooks-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -23,6 +28,8 @@ function makeServer() {
     studioVersion: '0.0.0',
     maskedConfig: { providers: [] },
     webhookStore,
+    integrationRuntime: nullIntegrationRuntime,
+    integrationStore: nullIntegrationStore,
   });
 
   return { server, webhookStore, cleanup: () => webhookStore.close() };

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import type { RunLauncher } from '../src/launcher.js';
+import type { IntegrationRuntime } from '../src/integration-runtime.js';
+import type { IntegrationStore } from '../src/integration-store.js';
 
 function makeMockLauncher(): RunLauncher {
   return {
@@ -9,6 +11,9 @@ function makeMockLauncher(): RunLauncher {
     cancel: async () => {},
   };
 }
+
+const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
+const nullIntegrationStore = {} as unknown as IntegrationStore;
 
 describe('buildServer — auth', () => {
   it('no api key configured → requests pass without Authorization', async () => {
@@ -18,6 +23,8 @@ describe('buildServer — auth', () => {
       configsDir: '/tmp/.studio',
       projectName: 'test-project',
       apiConfig: {},   // no key
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await server.inject({ method: 'GET', url: '/api/projects' });
@@ -31,6 +38,8 @@ describe('buildServer — auth', () => {
       configsDir: '/tmp/.studio',
       projectName: 'test-project',
       apiConfig: { key: 'sk-studio-secret' },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await server.inject({ method: 'GET', url: '/api/projects' });
@@ -45,6 +54,8 @@ describe('buildServer — auth', () => {
       configsDir: '/tmp/.studio',
       projectName: 'test-project',
       apiConfig: { key: 'sk-studio-secret' },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await server.inject({
@@ -62,6 +73,8 @@ describe('buildServer — auth', () => {
       configsDir: '/tmp/.studio',
       projectName: 'test-project',
       apiConfig: { key: 'sk-studio-secret' },
+      integrationRuntime: nullIntegrationRuntime,
+      integrationStore: nullIntegrationStore,
     });
 
     const res = await server.inject({
