@@ -11,6 +11,7 @@ import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
 import { toolsCommand } from './commands/tools.js';
+import { integrationsCommand } from './commands/integrations.js';
 import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
@@ -94,6 +95,13 @@ program
   .command('tools <action> [args...]')
   .description('Manage Studio tools (list, add, remove, info)')
   .action(toolsCommand);
+
+program
+  .command('integrations <action> [args...]')
+  .description('Manage Studio integrations (install, list, remove, test, set)')
+  .action((action: string, args: string[]) => {
+    void integrationsCommand(action, args, {});
+  });
 
 program
   .command('templates <action> [args...]')

@@ -21,6 +21,7 @@ export interface StudioConfig {
     key?: string;
     port?: number;
   };
+  integrations?: Record<string, Record<string, unknown>>;
   /** Resolved path to .studio/ dir — set at load time, not from YAML */
   resolvedStudioDir?: string;
 }
