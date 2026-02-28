@@ -8,7 +8,8 @@ import swaggerUi from '@fastify/swagger-ui';
 import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
-import type { LinearStore } from './linear-store.js';
+import type { IntegrationStore } from './integration-store.js';
+import type { IntegrationRuntime } from './integration-runtime.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
@@ -19,12 +20,10 @@ import { configRoutes } from './routes/config.js';
 import { skillsRoutes } from './routes/skills.js';
 import { validateRoutes } from './routes/validate.js';
 import { webhooksRoutes } from './routes/webhooks.js';
-import { linearWebhookRoute } from './routes/linear-webhook.js';
 
 export interface ApiConfig {
   key?: string;
   port?: number;
-  linear_webhook_secret?: string;
 }
 
 export type MaskedConfig = {
@@ -43,7 +42,8 @@ export interface ServerDeps {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
-  linearStore: LinearStore;
+  integrationStore: IntegrationStore;
+  integrationRuntime: IntegrationRuntime;
 }
 
 export function buildServer(deps: ServerDeps) {
@@ -96,7 +96,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
   void fastify.register(validateRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
-  void fastify.register(linearWebhookRoute, { prefix: '/api', deps });
+  deps.integrationRuntime.registerRoutes(fastify, '/api');
 
   return fastify;
 }

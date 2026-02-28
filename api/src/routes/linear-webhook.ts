@@ -6,9 +6,10 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import type { ServerDeps } from '../server.js';
 import { loadPipelineByName } from '@studio/engine';
 import { resolveRepoPath } from '../utils/repo-resolver.js';
+import type { RunLauncher } from '../launcher.js';
+import { LinearStore } from '../linear-store.js';
 
 // Linear webhook payload shape (simplified)
 interface LinearIssuePayload {
@@ -35,9 +36,17 @@ function verifyLinearSignature(rawBody: Buffer, signature: string, secret: strin
   }
 }
 
+interface LinearWebhookDeps {
+  launcher: RunLauncher;
+  configsDir: string;
+  projectsDir?: string;
+  apiConfig: { linear_webhook_secret?: string };
+  linearStore: LinearStore;
+}
+
 export async function linearWebhookRoute(
   fastify: FastifyInstance,
-  options: { deps: ServerDeps },
+  options: { deps: LinearWebhookDeps },
 ): Promise<void> {
   const { launcher, configsDir, projectsDir, apiConfig, linearStore } = options.deps;
 
