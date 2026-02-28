@@ -34,6 +34,37 @@ async function listNames(dir: string, suffix: string): Promise<Set<string>> {
   }
 }
 
+/**
+ * Read tool plugin YAMLs and return the `name` field from each.
+ * Falls back to the filename stem if the YAML cannot be parsed.
+ */
+async function listToolPluginNames(dir: string): Promise<Set<string>> {
+  try {
+    const { readFile } = await import('node:fs/promises');
+    const entries = await readdir(dir);
+    const names = new Set<string>();
+    await Promise.all(
+      entries
+        .filter(f => f.endsWith('.tool.yaml'))
+        .map(async (f) => {
+          try {
+            const raw = await readFile(join(dir, f), 'utf-8');
+            const parsed = yaml.load(raw) as Record<string, unknown> | null;
+            const name = parsed && typeof parsed.name === 'string'
+              ? parsed.name
+              : f.slice(0, -'.tool.yaml'.length);
+            names.add(name);
+          } catch {
+            names.add(f.slice(0, -'.tool.yaml'.length));
+          }
+        })
+    );
+    return names;
+  } catch {
+    return new Set();
+  }
+}
+
 type StageRef = { agents: string[]; contracts: string[] };
 
 function collectStageRefs(stage: Record<string, unknown>): StageRef {
@@ -147,7 +178,7 @@ export async function validateRoutes(
     if (type === 'agent') {
       const toolsUsed = obj.tools;
       if (Array.isArray(toolsUsed)) {
-        const customPlugins = await listNames(join(configsDir, 'tools'), '.tool.yaml');
+        const customPlugins = await listToolPluginNames(join(configsDir, 'tools'));
         for (const tool of toolsUsed) {
           if (typeof tool !== 'string') continue;
           // Custom tool actions follow <plugin>-<action> naming (e.g. claude_code-run
