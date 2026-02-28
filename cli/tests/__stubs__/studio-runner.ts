@@ -69,3 +69,36 @@ export async function listAvailableIntegrationTemplates(): Promise<{ name: strin
 export async function loadProjectIntegrations(): Promise<unknown[]> {
   return [];
 }
+
+// ── Runtime stubs (used by run.ts — only needs to be importable) ──────────────
+
+export function createDefaultRegistry(..._args: unknown[]): unknown {
+  return {};
+}
+
+export class ToolRegistry {
+  addTool(..._args: unknown[]): void {}
+  getTools(): unknown[] { return []; }
+}
+
+export function createRepoManagerTools(..._args: unknown[]): unknown[] {
+  return [];
+}
+
+export async function loadProjectTools(..._args: unknown[]): Promise<unknown[]> {
+  return [];
+}
+
+export async function loadPlugins(..._args: unknown[]): Promise<unknown[]> {
+  return [];
+}
+
+export class MCPClient {
+  constructor(..._args: unknown[]) {}
+  async connect(): Promise<void> {}
+  async disconnect(): Promise<void> {}
+}
+
+export class StudioOAuthProvider {
+  constructor(..._args: unknown[]) {}
+}
