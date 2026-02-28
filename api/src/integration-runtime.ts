@@ -107,6 +107,13 @@ export class IntegrationRuntime {
           schema: {
             tags: ['integrations'],
             summary: `Update ${name} integration config`,
+            body: {
+              type: 'object',
+              properties: {
+                pipeline: { type: 'string' },
+                active: { type: 'boolean' },
+              },
+            },
             response: {
               200: {
                 type: 'object',
