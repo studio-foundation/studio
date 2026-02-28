@@ -46,4 +46,23 @@ export class RegistryLockfile {
     const data = await this.read();
     return Object.entries(data.installed).map(([name, entry]) => ({ name, ...entry }));
   }
+
+  async addRequiredBy(name: string, requiredBy: string): Promise<void> {
+    const data = await this.read();
+    const entry = data.installed[name];
+    if (!entry) return;
+    const existing = entry.required_by ?? [];
+    if (!existing.includes(requiredBy)) {
+      data.installed[name] = { ...entry, required_by: [...existing, requiredBy] };
+      await this.write(data);
+    }
+  }
+
+  async removeRequiredBy(name: string, requiredBy: string): Promise<void> {
+    const data = await this.read();
+    const entry = data.installed[name];
+    if (!entry) return;
+    data.installed[name] = { ...entry, required_by: (entry.required_by ?? []).filter(r => r !== requiredBy) };
+    await this.write(data);
+  }
 }

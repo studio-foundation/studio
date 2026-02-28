@@ -6,7 +6,8 @@ import { RegistryLockfile } from '../../registry/lockfile.js';
 import { RegistryCache } from '../../registry/cache.js';
 import { syncRegistry } from './sync.js';
 import { findStudioDir } from '../../studio-dir.js';
-import type { PackageMetadata, PackageType } from '../../registry/types.js';
+import { resolveDependencies } from '../../registry/resolver.js';
+import type { PackageMetadata, PackageType, RegistryIndex, Lockfile } from '../../registry/types.js';
 import { INSTALL_DIRS } from '../../registry/types.js';
 
 const SINGLE_FILE_EXTENSIONS: Partial<Record<PackageType, string>> = {
@@ -23,35 +24,51 @@ interface InstallOptions {
   studioDir?: string;
   force?: boolean;
   cwd?: string;
+  requiredBy?: string;
+  _depth?: number;
+  _metaCache?: Map<string, PackageMetadata>;
 }
 
-export async function installPackage(nameAtVersion: string, options: InstallOptions = {}): Promise<void> {
+async function doInstallPackage(
+  nameAtVersion: string,
+  options: InstallOptions,
+  client: RegistryClient,
+  lockfile: RegistryLockfile,
+  index: RegistryIndex,
+  lockfileData: Lockfile,
+  metaCache: Map<string, PackageMetadata>,
+): Promise<void> {
   const [name, requestedVersion] = nameAtVersion.split('@');
-
-  const studioDir = options.studioDir ??
-    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
-  const lockfile = new RegistryLockfile(studioDir);
+  const studioDir = options.studioDir!;
+  const depth = options._depth ?? 0;
+  const indent = '  '.repeat(depth);
 
   // Check already installed
   const existing = await lockfile.get(name);
   if (existing && !options.force) {
-    console.log(chalk.yellow(`${name} v${existing.version} is already installed. Use --force to reinstall.`));
+    if (options.requiredBy) {
+      await lockfile.addRequiredBy(name, options.requiredBy);
+    }
+    if (depth === 0) {
+      console.log(chalk.yellow(`${name} v${existing.version} is already installed. Use --force to reinstall.`));
+    }
     return;
   }
 
-  // Sync cache and resolve package type
-  await syncRegistry({ force: false, silent: true });
-  const cache = new RegistryCache();
-  const index = await cache.read();
-  const indexEntry = index?.packages.find(p => p.name === name);
+  const indexEntry = index.packages.find(p => p.name === name);
   if (!indexEntry) throw new Error(`Package '${name}' not found in registry`);
 
   const type = indexEntry.type as PackageType;
-  const client = new RegistryClient();
-  const meta = await client.fetchMetadata(type, name) as PackageMetadata;
+
+  // Use cached metadata if available (populated by resolver's fetcher)
+  let meta = metaCache.get(name);
+  if (!meta) {
+    meta = await client.fetchMetadata(type, name) as PackageMetadata;
+    metaCache.set(name, meta);
+  }
   const version = requestedVersion ?? meta.version;
 
-  console.log(`Installing ${chalk.bold(name)} v${version} [${type}]...`);
+  console.log(`${indent}Installing ${depth > 0 ? 'dependency: ' : ''}${chalk.bold(name)} v${version} [${type}]...`);
 
   let sha256: string;
   const destBaseDir = resolve(studioDir, INSTALL_DIRS[type]);
@@ -67,7 +84,6 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
     const result = await client.downloadFile(type, name, filename, destBaseDir);
     sha256 = result.sha256;
 
-    // Security check for shell commands
     const content = await readFile(result.destPath, 'utf8');
     if (SHELL_EXEC_PATTERN.test(content)) {
       const { confirm } = await import('@inquirer/prompts');
@@ -84,7 +100,6 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
     }
   }
 
-  // Check requires_binaries
   if (meta.requires_binaries?.length) {
     const { spawnSync } = await import('node:child_process');
     for (const bin of meta.requires_binaries) {
@@ -100,9 +115,96 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
     type,
     installed_at: new Date().toISOString().split('T')[0],
     sha256,
+    required_by: options.requiredBy ? [options.requiredBy] : [],
   });
 
-  console.log(chalk.green(`✓ Installed ${name} v${version}`));
+  console.log(`${indent}${chalk.green(`✓ Installed ${name} v${version}`)}`);
+
+  // Resolve and install dependencies
+  if (meta.dependencies) {
+    const graph = await resolveDependencies(
+      name,
+      meta,
+      index,
+      lockfileData,
+      (depName) => {
+        const depEntry = index.packages.find(p => p.name === depName);
+        const depType = (depEntry?.type ?? 'tool') as PackageType;
+        const cached = metaCache.get(depName);
+        if (cached) return Promise.resolve(cached);
+        return client.fetchMetadata(depType, depName).then(m => {
+          metaCache.set(depName, m as PackageMetadata);
+          return m as PackageMetadata;
+        });
+      },
+    );
+
+    for (const dep of graph.required) {
+      await doInstallPackage(
+        dep.name,
+        { studioDir, requiredBy: name, _depth: depth + 1 },
+        client,
+        lockfile,
+        index,
+        lockfileData,
+        metaCache,
+      );
+    }
+
+    if (depth === 0 && graph.recommended.length > 0) {
+      const names = graph.recommended.map(d => d.name).join(', ');
+      const { confirm } = await import('@inquirer/prompts');
+      const install = await confirm({
+        message: `Install recommended packages? [${names}]`,
+        default: true,
+      });
+      if (install) {
+        for (const dep of graph.recommended) {
+          await doInstallPackage(
+            dep.name,
+            { studioDir, _depth: depth + 1 },
+            client,
+            lockfile,
+            index,
+            lockfileData,
+            metaCache,
+          );
+        }
+      }
+    }
+  }
+}
+
+export async function installPackage(nameAtVersion: string, options: InstallOptions = {}): Promise<void> {
+  const [name] = nameAtVersion.split('@');
+
+  const studioDir = options.studioDir ??
+    (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
+  const resolvedOptions = { ...options, studioDir };
+
+  const lockfile = new RegistryLockfile(studioDir);
+
+  // Sync cache and resolve package type
+  await syncRegistry({ force: false, silent: true });
+  const cache = new RegistryCache();
+  const index = await cache.read();
+  if (!index?.packages.find(p => p.name === name)) {
+    throw new Error(`Package '${name}' not found in registry`);
+  }
+
+  const client = new RegistryClient();
+  const lockfileData = await lockfile.read();
+  const metaCache = options._metaCache ?? new Map<string, PackageMetadata>();
+
+  await doInstallPackage(
+    nameAtVersion,
+    resolvedOptions,
+    client,
+    lockfile,
+    index,
+    lockfileData,
+    metaCache,
+  );
 }
 
 export async function installCommand(nameAtVersion: string, options: { force?: boolean } = {}): Promise<void> {

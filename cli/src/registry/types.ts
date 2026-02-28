@@ -25,8 +25,17 @@ export interface RegistryIndex {
   packages: PackageEntry[];
 }
 
+export interface PackageDependencies {
+  tools?:     { required?: string[]; recommended?: string[] };
+  agents?:    { required?: string[]; recommended?: string[] };
+  skills?:    { required?: string[]; recommended?: string[] };
+  templates?: { required?: string[]; recommended?: string[] };
+  pipelines?: { required?: string[]; recommended?: string[] };
+}
+
 export interface PackageMetadata extends PackageEntry {
   requires_binaries?: string[];
+  dependencies?: PackageDependencies;
 }
 
 export interface LockfileEntry {
@@ -34,6 +43,7 @@ export interface LockfileEntry {
   type: PackageType;
   installed_at: string;
   sha256: string;
+  required_by?: string[];
 }
 
 export interface Lockfile {
