@@ -25,7 +25,6 @@ import { loadProjectTools } from '@studio/runner';
 import { join } from 'node:path';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
-import { notifyLinearFailure } from './linear-notifier.js';
 
 export interface LaunchConfig {
   runId: string;
@@ -84,7 +83,7 @@ export class InProcessLauncher implements RunLauncher {
       logger.log({ event: type, ...(data as Record<string, unknown>) });
     };
 
-    // Track last group feedback for Linear failure notifications (STU-98)
+    // Track last group feedback for inclusion in the pipeline_complete bus event
     let lastGroupFeedback: GroupFeedbackEvent | undefined;
 
     const perRunEvents: EngineEvents = {
@@ -107,22 +106,8 @@ export class InProcessLauncher implements RunLauncher {
       onToolCallStart:     (e: StagedToolCallStartEvent) =>    emit('tool_call_start', e),
       onToolCallComplete:  (e: StagedToolCallCompleteEvent) => emit('tool_call_complete', e),
       onPipelineComplete:  (e: PipelineCompleteEvent) => {
-        emit('pipeline_complete', e);
+        emit('pipeline_complete', { ...e, meta: meta ?? {}, last_group_feedback: lastGroupFeedback });
         this.bus.close(runId);
-
-        // Fire-and-forget Linear failure notification (STU-98)
-        // Success case is handled by the close-ticket stage inside the pipeline.
-        const linearIssueId = meta?.['linear_issue_id'];
-        if (typeof linearIssueId === 'string' && e.status !== 'success') {
-          void notifyLinearFailure({
-            issueId: linearIssueId,
-            runId,
-            durationMs: e.duration_ms,
-            iterations: lastGroupFeedback?.iteration,
-            rejectionReason: lastGroupFeedback?.rejection_reason,
-            rejectionDetails: lastGroupFeedback?.rejection_details,
-          });
-        }
       },
       onPipelineCancelled: (e: PipelineCancelledEvent) => {
         emit('pipeline_cancelled', e);
