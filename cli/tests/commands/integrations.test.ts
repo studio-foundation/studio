@@ -3,7 +3,8 @@ import { mkdtemp, mkdir, writeFile, rm, readFile, access, unlink } from 'node:fs
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { IntegrationPluginDef } from '@studio/contracts';
-import { installIntegration, getIntegrationStatus, removeIntegration } from '../../src/commands/integrations.js';
+import { installIntegration, getIntegrationStatus, removeIntegration, runIntegrationTest } from '../../src/commands/integrations.js';
+import type { IntegrationTestResult } from '../../src/commands/integrations.js';
 
 let studioDir: string;
 let integrationsDir: string;
@@ -98,5 +99,60 @@ describe('removeIntegration', () => {
     await expect(
       removeIntegration('doesnotexist', integrationsDir)
     ).rejects.toThrow("Integration 'doesnotexist' not found");
+  });
+});
+
+describe('runIntegrationTest', () => {
+  it('makes an HTTP request with correct headers when auth is provided', async () => {
+    const fetchCalls: { url: string; init: RequestInit }[] = [];
+    const mockFetch = async (url: string, init: RequestInit) => {
+      fetchCalls.push({ url, init });
+      return new Response('{"data":{"viewer":{"id":"1","name":"Test"}}}', { status: 200 });
+    };
+
+    const plugin: IntegrationPluginDef = {
+      name: 'linear',
+      version: 1,
+      test: {
+        type: 'http',
+        endpoint: 'https://api.linear.app/graphql',
+        method: 'POST',
+        auth: 'bearer:${LINEAR_API_KEY}',
+        body: '{"query":"{ viewer { id name } }"}',
+        expect: { status: 200 },
+      },
+    };
+    const config = { LINEAR_API_KEY: 'my-api-key' };
+
+    const result = await runIntegrationTest(plugin, config, mockFetch as typeof fetch);
+    expect(result.success).toBe(true);
+    expect(fetchCalls[0]!.url).toBe('https://api.linear.app/graphql');
+    expect((fetchCalls[0]!.init.headers as Record<string, string>)['Authorization']).toBe('Bearer my-api-key');
+  });
+
+  it('returns success=false when HTTP status does not match expect.status', async () => {
+    const mockFetch = async () => new Response('Unauthorized', { status: 401 });
+    const plugin: IntegrationPluginDef = {
+      name: 'linear',
+      version: 1,
+      test: {
+        type: 'http',
+        endpoint: 'https://api.linear.app/graphql',
+        method: 'POST',
+        auth: 'bearer:my-key',
+        body: '{"query":"{ viewer { id } }"}',
+        expect: { status: 200 },
+      },
+    };
+    const result = await runIntegrationTest(plugin, {}, mockFetch as typeof fetch);
+    expect(result.success).toBe(false);
+    expect(result.statusCode).toBe(401);
+  });
+
+  it('throws when plugin has no test: block', async () => {
+    const plugin: IntegrationPluginDef = { name: 'webhook', version: 1 };
+    await expect(runIntegrationTest(plugin, {}, fetch)).rejects.toThrow(
+      "Integration 'webhook' has no test: configuration"
+    );
   });
 });

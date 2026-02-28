@@ -116,6 +116,59 @@ async function saveIntegrationConfig(configFile: string, config: Record<string, 
   await writeFile(configFile, yaml.dump(config), 'utf-8');
 }
 
+export interface IntegrationTestResult {
+  success: boolean;
+  statusCode?: number;
+  body?: string;
+  error?: string;
+}
+
+export async function runIntegrationTest(
+  plugin: IntegrationPluginDef,
+  config: Record<string, unknown>,
+  fetcher: typeof fetch = fetch
+): Promise<IntegrationTestResult> {
+  const testDef = plugin.test;
+  if (!testDef) {
+    throw new Error(`Integration '${plugin.name}' has no test: configuration`);
+  }
+
+  const resolveVar = (str: string) =>
+    str.replace(/\$\{([^}]+)\}/g, (_, key: string) => String(config[key.trim()] ?? ''));
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (testDef.auth) {
+    const resolvedAuth = resolveVar(testDef.auth);
+    const colonIdx = resolvedAuth.indexOf(':');
+    if (colonIdx !== -1) {
+      const scheme = resolvedAuth.slice(0, colonIdx);
+      const token = resolvedAuth.slice(colonIdx + 1);
+      headers['Authorization'] = `${scheme.charAt(0).toUpperCase()}${scheme.slice(1)} ${token}`;
+    }
+  }
+
+  try {
+    const response = await fetcher(testDef.endpoint, {
+      method: testDef.method ?? 'GET',
+      headers,
+      ...(testDef.body ? { body: testDef.body } : {}),
+    });
+
+    const body = await response.text().catch(() => '');
+    const expectedStatus = testDef.expect?.status ?? 200;
+
+    if (response.status !== expectedStatus) {
+      return { success: false, statusCode: response.status, body };
+    }
+    return { success: true, statusCode: response.status, body };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function integrationsCommand(
   action: string,
   _args: string[],
@@ -182,8 +235,52 @@ export async function integrationsCommand(
         console.log(chalk.green(`✓ Integration '${name}' removed`));
         break;
       }
-      case 'test':
-        throw new Error(`Not implemented yet: ${action}`);
+      case 'test': {
+        const name = _args[0];
+        if (!name) {
+          console.error('Usage: studio integrations test <name>');
+          process.exit(1);
+        }
+        const studioDir = await resolveStudioDir();
+        const intDir = getIntegrationsDir(studioDir);
+        const plugins = await loadProjectIntegrations(intDir);
+        const plugin = plugins.find(p => p.name === name);
+
+        if (!plugin) {
+          console.error(
+            `Error: '${name}' not installed. Run: studio integrations install @studio/integration-${name}`
+          );
+          process.exit(1);
+        }
+
+        if (!plugin.test) {
+          console.error(`Error: Integration '${name}' has no test: configuration in its .integration.yaml`);
+          process.exit(1);
+        }
+
+        const intConfig = await loadRawIntegrationsConfig(studioDir);
+        const pluginConfig = intConfig[name] ?? {};
+        const required = plugin.config?.required ?? [];
+        const missing = required.filter(key => !pluginConfig[key] && !process.env[key]);
+        if (missing.length > 0) {
+          for (const key of missing) {
+            console.error(`Error: ${key} not set. Run: studio integrations set ${name}.${key} <value>`);
+          }
+          process.exit(1);
+        }
+
+        const spinner = ora(`Testing ${name} connection...`).start();
+        const result = await runIntegrationTest(plugin, pluginConfig as Record<string, unknown>);
+
+        if (result.success) {
+          spinner.succeed(chalk.green(`✓ ${name} connected`));
+        } else {
+          const detail = result.error ?? `HTTP ${result.statusCode}`;
+          spinner.fail(chalk.red(`✗ ${name} error — ${detail}`));
+          process.exit(1);
+        }
+        break;
+      }
       case 'set': {
         const dotPath = _args[0];
         const value = _args[1];
