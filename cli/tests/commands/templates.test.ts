@@ -1,5 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { listTemplates } from '../../src/commands/templates.js';
+
+// Mock registry so tests only exercise local (bundled) templates
+vi.mock('../../src/commands/registry/sync.js', () => ({
+  syncRegistry: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../src/registry/cache.js', () => {
+  class RegistryCache {
+    read() { return Promise.resolve(null); }
+    write() { return Promise.resolve(undefined); }
+    isFresh() { return Promise.resolve(false); }
+  }
+  return { RegistryCache };
+});
 
 describe('listTemplates', () => {
   it('returns blank as the only built-in template (others are in the registry)', async () => {
