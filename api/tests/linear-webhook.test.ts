@@ -5,6 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio/engine';
 import { WebhookStore } from '../src/webhook-store.js';
+import { LinearStore } from '../src/linear-store.js';
 
 const WEBHOOK_SECRET = 'test-whsec-abc123';
 
@@ -12,10 +13,15 @@ function sign(body: string, secret: string): string {
   return createHmac('sha256', secret).update(Buffer.from(body)).digest('hex');
 }
 
-function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean } = {}) {
+function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean; active?: boolean } = {}) {
   const dir = resolve('/tmp', `.studio-linear-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   mkdirSync(dir, { recursive: true });
-  const webhookStore = new WebhookStore(resolve(dir, 'runs.db'));
+  const dbPath = resolve(dir, 'runs.db');
+  const webhookStore = new WebhookStore(dbPath);
+  const linearStore = new LinearStore(dbPath);
+
+  // Default to active so existing tests trigger launches as before
+  linearStore.patchConfig({ active: opts.active ?? true });
 
   const launched: Array<{ pipeline: string; input: Record<string, unknown>; meta?: Record<string, unknown> }> = [];
   const launcher = {
@@ -39,9 +45,10 @@ function makeServer(opts: { withSecret?: boolean; withApiKey?: boolean } = {}) {
     studioVersion: '0.0.0',
     maskedConfig: { providers: [] },
     webhookStore,
+    linearStore,
   });
 
-  return { server, launched, launcher, cleanup: () => webhookStore.close() };
+  return { server, launched, launcher, linearStore, cleanup: () => { webhookStore.close(); linearStore.close(); } };
 }
 
 function inProgressPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -259,5 +266,95 @@ describe('POST /api/integrations/linear/webhook — with API key auth enabled', 
     });
 
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('GET /api/integrations/linear', () => {
+  let server: ReturnType<typeof makeServer>['server'];
+  let linearStore: ReturnType<typeof makeServer>['linearStore'];
+  let cleanup: () => void;
+
+  beforeEach(() => {
+    ({ server, linearStore, cleanup } = makeServer({ active: false }));
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  test('returns default config with empty trigger log', async () => {
+    const res = await server.inject({ method: 'GET', url: '/api/integrations/linear' });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ webhook_url: string; pipeline: null; active: boolean; triggers: unknown[] }>();
+    expect(body.webhook_url).toMatch(/\/api\/integrations\/linear\/webhook$/);
+    expect(body.active).toBe(false);
+    expect(body.triggers).toEqual([]);
+  });
+
+  test('reflects config and trigger records after updates', async () => {
+    linearStore.patchConfig({ pipeline: 'feature-builder-cc-linear', active: true });
+
+    const res = await server.inject({ method: 'GET', url: '/api/integrations/linear' });
+    const body = res.json<{ pipeline: string; active: boolean }>();
+    expect(body.pipeline).toBe('feature-builder-cc-linear');
+    expect(body.active).toBe(true);
+  });
+});
+
+describe('PATCH /api/integrations/linear', () => {
+  let server: ReturnType<typeof makeServer>['server'];
+  let cleanup: () => void;
+
+  beforeEach(() => {
+    ({ server, cleanup } = makeServer({ active: false }));
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  test('updates pipeline and active flag', async () => {
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/api/integrations/linear',
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify({ pipeline: 'feature-builder-cc-linear', active: true }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ pipeline: string; active: boolean }>();
+    expect(body.pipeline).toBe('feature-builder-cc-linear');
+    expect(body.active).toBe(true);
+  });
+});
+
+describe('POST /api/integrations/linear/webhook — active flag', () => {
+  let server: ReturnType<typeof makeServer>['server'];
+  let launched: ReturnType<typeof makeServer>['launched'];
+  let cleanup: () => void;
+
+  beforeEach(() => {
+    ({ server, launched, cleanup } = makeServer({ active: false }));
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  test('ignores webhook when integration is inactive', async () => {
+    const payload = inProgressPayload();
+    const res = await server.inject({
+      method: 'POST',
+      url: '/api/integrations/linear/webhook',
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify(payload),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ ignored: boolean; reason: string }>();
+    expect(body.ignored).toBe(true);
+    expect(body.reason).toContain('inactive');
+    expect(launched).toHaveLength(0);
   });
 });

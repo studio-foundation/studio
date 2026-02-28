@@ -8,6 +8,7 @@ import swaggerUi from '@fastify/swagger-ui';
 import type { RunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
+import type { LinearStore } from './linear-store.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
@@ -42,6 +43,7 @@ export interface ServerDeps {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
+  linearStore: LinearStore;
 }
 
 export function buildServer(deps: ServerDeps) {

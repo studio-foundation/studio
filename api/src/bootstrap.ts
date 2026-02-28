@@ -23,6 +23,7 @@ import { RunEventBus } from './event-bus.js';
 import type { MaskedConfig } from './server.js';
 import { WebhookStore } from './webhook-store.js';
 import { WebhookDispatcher } from './webhook-dispatcher.js';
+import { LinearStore } from './linear-store.js';
 import { HttpApiSpawner } from './spawners/http-api-spawner.js';
 
 export interface StudioApiConfig {
@@ -47,6 +48,7 @@ export interface BootstrapResult {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
+  linearStore: LinearStore;
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {
@@ -155,6 +157,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   const projectName = studioDir.split('/').slice(-2, -1)[0] ?? 'studio-project';
 
   const webhookStore = new WebhookStore(dbPath);
+  const linearStore = new LinearStore(dbPath);
   const webhookDispatcher = new WebhookDispatcher(webhookStore, projectName);
   bus.subscribeAll((runId, event) => {
     void webhookDispatcher.handleBusEvent(runId, event.type, event.data);
@@ -170,6 +173,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     studioVersion,
     maskedConfig,
     webhookStore,
+    linearStore,
     cleanup: async () => {
       for (const client of mcpClients) {
         try { await client.close(); } catch { /* ignore */ }
@@ -178,6 +182,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
         (store as { close: () => void }).close();
       }
       webhookStore.close();
+      linearStore.close();
     },
   };
 }

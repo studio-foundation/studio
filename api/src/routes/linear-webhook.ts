@@ -1,11 +1,9 @@
-// Incoming webhook handler — Linear → Studio
-// POST /api/integrations/linear/webhook
-//
-// Triggered when a Linear issue changes status.
-// Filters for transitions to "In Progress" and launches the feature-builder pipeline.
+// Linear integration routes
+// GET  /api/integrations/linear          → config + trigger log
+// PATCH /api/integrations/linear         → update config (pipeline, active)
+// POST /api/integrations/linear/webhook  → incoming Linear webhook (HMAC-verified)
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { randomUUID } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
 
@@ -38,16 +36,66 @@ export async function linearWebhookRoute(
   fastify: FastifyInstance,
   options: { deps: ServerDeps },
 ): Promise<void> {
-  const { launcher, configsDir, apiConfig } = options.deps;
+  const { launcher, configsDir, apiConfig, linearStore } = options.deps;
 
   // Parse body as raw Buffer so we can verify HMAC before JSON-parsing.
-  // This content type parser is scoped to this plugin only.
+  // Scoped to this plugin — GET has no body, PATCH body is manually parsed below.
   fastify.addContentTypeParser(
     'application/json',
     { parseAs: 'buffer' },
     (_req, body, done) => done(null, body),
   );
 
+  // GET /api/integrations/linear — returns config + trigger log
+  fastify.get('/integrations/linear', {
+    schema: {
+      tags: ['integrations'],
+      summary: 'Get Linear integration config and trigger log',
+    },
+  }, async (request, reply) => {
+    const config = linearStore.getConfig();
+    const triggers = linearStore.listTriggers(50);
+
+    const baseUrl = process.env['STUDIO_BASE_URL'] ?? `${request.protocol}://${request.hostname}`;
+    const webhookUrl = `${baseUrl}/api/integrations/linear/webhook`;
+
+    return reply.status(200).send({
+      webhook_url: webhookUrl,
+      pipeline: config.pipeline ?? null,
+      active: config.active,
+      triggers,
+    });
+  });
+
+  // PATCH /api/integrations/linear — update pipeline and/or active flag
+  fastify.patch('/integrations/linear', {
+    schema: {
+      tags: ['integrations'],
+      summary: 'Update Linear integration config',
+    },
+  }, async (request, reply) => {
+    // Body arrives as Buffer due to the plugin-scoped content type parser
+    let data: { pipeline?: string; active?: boolean };
+    try {
+      data = JSON.parse((request.body as Buffer).toString('utf-8')) as typeof data;
+    } catch {
+      return reply.status(400).send({ error: 'Invalid JSON' });
+    }
+
+    linearStore.patchConfig(data);
+    const updated = linearStore.getConfig();
+
+    const baseUrl = process.env['STUDIO_BASE_URL'] ?? `${request.protocol}://${request.hostname}`;
+    const webhookUrl = `${baseUrl}/api/integrations/linear/webhook`;
+
+    return reply.status(200).send({
+      webhook_url: webhookUrl,
+      pipeline: updated.pipeline ?? null,
+      active: updated.active,
+    });
+  });
+
+  // POST /api/integrations/linear/webhook — incoming Linear issue event
   fastify.post('/integrations/linear/webhook', {
     schema: {
       tags: ['integrations'],
@@ -101,7 +149,16 @@ export async function linearWebhookRoute(
       return reply.status(200).send({ ignored: true, reason: `state is "${issue.state?.name ?? 'unknown'}"` });
     }
 
-    // Construct structured input for feature-builder
+    // Check integration is active
+    const config = linearStore.getConfig();
+    if (!config.active) {
+      return reply.status(200).send({ ignored: true, reason: 'integration is inactive' });
+    }
+
+    const pipeline = config.pipeline ?? 'feature-builder';
+    const issueUrl = `https://linear.app/studioag/issue/${issue.identifier}`;
+
+    // Construct structured input for the configured pipeline
     const input: Record<string, unknown> = {
       brief_summary: [issue.identifier, issue.title].filter(Boolean).join(' — '),
       description: issue.description ?? '',
@@ -111,17 +168,45 @@ export async function linearWebhookRoute(
     const meta: Record<string, unknown> = {
       linear_issue_id: issue.id,
       linear_issue_identifier: issue.identifier,
-      linear_issue_url: `https://linear.app/studioag/issue/${issue.identifier}`,
+      linear_issue_url: issueUrl,
     };
 
     const runId = randomUUID();
-    await launcher.launch({
-      runId,
-      pipeline: 'feature-builder',
-      input,
-      configsDir,
-      meta,
-    });
+    const triggerId = randomUUID();
+    const receivedAt = new Date().toISOString();
+
+    try {
+      await launcher.launch({
+        runId,
+        pipeline,
+        input,
+        configsDir,
+        meta,
+      });
+
+      linearStore.insertTrigger({
+        id: triggerId,
+        received_at: receivedAt,
+        issue_id: issue.id,
+        issue_title: [issue.identifier, issue.title].filter(Boolean).join(' — '),
+        issue_url: issueUrl,
+        pipeline,
+        run_id: runId,
+        status: 'success',
+      });
+    } catch (err) {
+      linearStore.insertTrigger({
+        id: triggerId,
+        received_at: receivedAt,
+        issue_id: issue.id,
+        issue_title: [issue.identifier, issue.title].filter(Boolean).join(' — '),
+        issue_url: issueUrl,
+        pipeline,
+        run_id: runId,
+        status: 'failed',
+      });
+      throw err;
+    }
 
     return reply.status(202).send({
       run_id: runId,
