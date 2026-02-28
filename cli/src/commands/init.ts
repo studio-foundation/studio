@@ -133,7 +133,7 @@ export async function createStudioStructure(
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });
 
   // Write registry.lock.json (empty, committed)
-  await writeFile(join(studioDir, 'registry.lock.json'), '{}\n', 'utf-8');
+  await writeFile(join(studioDir, 'registry.lock.json'), '{"installed":{}}\n', 'utf-8');
 
   // Copy config template (only if config.yaml doesn't already exist)
   const configPath = join(studioDir, 'config.yaml');

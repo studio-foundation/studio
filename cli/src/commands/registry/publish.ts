@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import type { PackageMetadata } from '../../registry/types.js';
+import { REGISTRY_REPO } from '../../registry/types.js';
 
 const REQUIRED_METADATA_FIELDS = ['name', 'version', 'description', 'author', 'license', 'type'];
 
@@ -58,7 +59,7 @@ export async function publishCommand(packagePath: string, options: PublishOption
     console.log('Creating GitHub PR...');
 
     // Fork the registry (idempotent)
-    spawnSync('gh', ['repo', 'fork', 'studio-community/registry', '--clone=false'], {
+    spawnSync('gh', ['repo', 'fork', REGISTRY_REPO, '--clone=false'], {
       encoding: 'utf8',
     });
 
@@ -89,7 +90,7 @@ export async function publishCommand(packagePath: string, options: PublishOption
     // Open PR
     const prResult = spawnSync('gh', [
       'pr', 'create',
-      '--repo', 'studio-community/registry',
+      '--repo', REGISTRY_REPO,
       '--title', `[${meta.type}] ${meta.name} v${meta.version}`,
       '--body', `## ${meta.name}\n\n${meta.description}\n\n**Author:** ${meta.author}\n**License:** ${meta.license}\n**Version:** ${meta.version}`,
       '--head', `${userLogin}:${branchName}`,

@@ -126,7 +126,7 @@ describe('createStudioStructure', () => {
     await createStudioStructure(TMP);
 
     const content = await readFile(resolve(TMP, '.studio', 'registry.lock.json'), 'utf-8');
-    expect(JSON.parse(content)).toEqual({});
+    expect(JSON.parse(content)).toEqual({ installed: {} });
   });
 });
 
