@@ -8,25 +8,55 @@ vi.mock('@studio/runner', () => ({
   listAvailableToolTemplates: vi.fn().mockResolvedValue([]),
 }));
 
-// Mock installPackage so generateFullApp tests don't hit the network.
-// The mock simulates the registry install by copying the local bundled template
-// into .studio/projects/<name>/ — mirroring what the real installPackage does for templates.
+// Mock installPackage so tests don't hit the network.
+// For known registry templates (software, content, document-analysis, software-full),
+// the mock creates a minimal synthetic template at .studio/projects/<name>/ with the
+// files the tests need — mirroring what the real installPackage does for templates.
+// Unknown template names produce no directory (simulating "not found in registry").
 vi.mock('../../src/commands/registry/install.js', async () => {
-  const { cp, mkdir } = await import('node:fs/promises');
-  const { resolve: _resolve } = await import('node:path');
-  const { existsSync } = await import('node:fs');
-  const BUNDLED_TEMPLATES = _resolve(
-    new URL('../../templates/projects', import.meta.url).pathname
-  );
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const { resolve: _resolve, join: _join } = await import('node:path');
+
+  const KNOWN_TEMPLATES = new Set(['software', 'content', 'document-analysis', 'software-full']);
+
+  async function createSyntheticTemplate(destDir: string, templateName: string): Promise<void> {
+    await mkdir(_join(destDir, 'pipelines'), { recursive: true });
+    await mkdir(_join(destDir, 'agents'), { recursive: true });
+    await mkdir(_join(destDir, 'contracts'), { recursive: true });
+    await mkdir(_join(destDir, 'tools'), { recursive: true });
+    await mkdir(_join(destDir, 'inputs'), { recursive: true });
+    await mkdir(_join(destDir, 'src'), { recursive: true });
+    await mkdir(_join(destDir, 'prisma'), { recursive: true });
+
+    await writeFile(_join(destDir, 'pipelines', 'feature-builder.pipeline.yaml'), 'name: feature-builder\n', 'utf-8');
+    await writeFile(_join(destDir, 'agents', 'coder.agent.yaml'), 'name: coder\n', 'utf-8');
+    await writeFile(_join(destDir, 'contracts', 'code-output.contract.yaml'), 'name: code-output\n', 'utf-8');
+    await writeFile(_join(destDir, 'tools', 'repo-manager.tool.yaml'), 'name: repo-manager\n', 'utf-8');
+    await writeFile(_join(destDir, 'inputs', 'example.input.yaml'), 'input: example\n', 'utf-8');
+    await writeFile(_join(destDir, 'src', 'index.ts'), '// {{PROJECT_NAME}}\nexport {};\n', 'utf-8');
+    await writeFile(_join(destDir, 'prisma', 'schema.prisma'), '// prisma schema\n', 'utf-8');
+    await writeFile(
+      _join(destDir, 'package.json'),
+      JSON.stringify({ name: '{{PROJECT_NAME}}', version: '0.0.1' }, null, 2) + '\n',
+      'utf-8'
+    );
+    await writeFile(
+      _join(destDir, 'README.md'),
+      '# {{PROJECT_NAME}}\n\nTemplate: {{TEMPLATE_NAME}}\n',
+      'utf-8'
+    );
+  }
+
   return {
     installPackage: vi.fn(async (templateName: string, options: { studioDir?: string } = {}) => {
-      const studioDir = options.studioDir ?? _resolve(process.cwd(), '.studio');
-      const srcDir = _resolve(BUNDLED_TEMPLATES, templateName);
-      const destDir = _resolve(studioDir, 'projects', templateName);
-      if (existsSync(srcDir)) {
-        await mkdir(destDir, { recursive: true });
-        await cp(srcDir, destDir, { recursive: true });
+      if (!KNOWN_TEMPLATES.has(templateName)) {
+        // Unknown template — do nothing (no directory created)
+        // createStudioStructure will detect the missing dir and throw the expected error.
+        return;
       }
+      const studioDir = options.studioDir ?? _resolve(process.cwd(), '.studio');
+      const destDir = _resolve(studioDir, 'projects', templateName);
+      await createSyntheticTemplate(destDir, templateName);
     }),
   };
 });
@@ -389,10 +419,27 @@ describe('writeProviderToConfig', () => {
   });
 });
 
+// Helper: create a synthetic template directory with the files generateAppFiles needs.
+// Used by generateAppFiles tests since the bundled project templates were removed
+// (they now live in the community registry).
+async function createSyntheticTemplateDir(dir: string): Promise<void> {
+  await mkdir(resolve(dir, 'src'), { recursive: true });
+  await mkdir(resolve(dir, 'prisma'), { recursive: true });
+  await writeFile(resolve(dir, 'src', 'index.ts'), '// {{PROJECT_NAME}}\nexport {};\n', 'utf-8');
+  await writeFile(resolve(dir, 'prisma', 'schema.prisma'), '// prisma schema\n', 'utf-8');
+  await writeFile(
+    resolve(dir, 'package.json'),
+    JSON.stringify({ name: '{{PROJECT_NAME}}', version: '0.0.1' }, null, 2) + '\n',
+    'utf-8'
+  );
+  await writeFile(resolve(dir, 'README.md'), '# {{PROJECT_NAME}}\n\nTemplate: {{TEMPLATE_NAME}}\n', 'utf-8');
+}
+
 describe('generateAppFiles', () => {
   it('copies src/ with placeholder replacement', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+    const templateDir = resolve(TMP, '_template');
+    await createSyntheticTemplateDir(templateDir);
 
     await generateAppFiles(templateDir, TMP, {
       PROJECT_NAME: 'my-app',
@@ -407,7 +454,8 @@ describe('generateAppFiles', () => {
 
   it('copies package.json with placeholder replacement', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+    const templateDir = resolve(TMP, '_template');
+    await createSyntheticTemplateDir(templateDir);
 
     await generateAppFiles(templateDir, TMP, {
       PROJECT_NAME: 'cool-project',
@@ -421,7 +469,8 @@ describe('generateAppFiles', () => {
 
   it('copies README.md with placeholder replacement', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+    const templateDir = resolve(TMP, '_template');
+    await createSyntheticTemplateDir(templateDir);
 
     await generateAppFiles(templateDir, TMP, {
       PROJECT_NAME: 'my-app',
@@ -437,7 +486,8 @@ describe('generateAppFiles', () => {
 
   it('copies prisma/schema.prisma', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+    const templateDir = resolve(TMP, '_template');
+    await createSyntheticTemplateDir(templateDir);
 
     await generateAppFiles(templateDir, TMP, {
       PROJECT_NAME: 'my-app',
@@ -450,7 +500,9 @@ describe('generateAppFiles', () => {
 
   it('skips items not present in template (blank template has no src/)', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/blank', import.meta.url).pathname;
+    // Use an empty template dir (no src/, no package.json, etc.)
+    const templateDir = resolve(TMP, '_blank_template');
+    await mkdir(templateDir, { recursive: true });
 
     await expect(
       generateAppFiles(templateDir, TMP, {
@@ -466,7 +518,8 @@ describe('generateAppFiles', () => {
 
   it('returns list of generated top-level items', async () => {
     const { generateAppFiles } = await import('../../src/commands/init.js');
-    const templateDir = new URL('../../templates/projects/software', import.meta.url).pathname;
+    const templateDir = resolve(TMP, '_template');
+    await createSyntheticTemplateDir(templateDir);
 
     const generated = await generateAppFiles(templateDir, TMP, {
       PROJECT_NAME: 'my-app',

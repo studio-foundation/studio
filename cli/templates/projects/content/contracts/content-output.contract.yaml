@@ -1,7 +1,0 @@
-name: content-output
-version: 1
-schema:
-  required_fields:
-    - title
-    - content
-    - summary
