@@ -15,3 +15,4 @@ export * from './tool-plugin.js';
 export * from './runner-events.js';
 
 export * from './spawner.js';
+export * from './integration-plugin.js';
