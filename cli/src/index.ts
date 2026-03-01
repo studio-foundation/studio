@@ -15,7 +15,7 @@ import { integrationsCommand } from './commands/integrations.js';
 import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
-import { apiStartCommand } from './commands/api.js';
+import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/api.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 
 const program = new Command();
@@ -124,14 +124,18 @@ program
 
 program
   .command('api <action>')
-  .description('Manage the Studio API server (start)')
+  .description('Manage the Studio API server (start, stop, status)')
   .option('--port <port>', 'Port to listen on (default: 3700)')
   .option('--config <path>', 'Path to config file')
   .action((action: string, options: { port?: string; config?: string }) => {
     if (action === 'start') {
       void apiStartCommand(options);
+    } else if (action === 'stop') {
+      void apiStopCommand();
+    } else if (action === 'status') {
+      void apiStatusCommand(options);
     } else {
-      console.error(`Unknown api action: ${action}. Use: studio api start`);
+      console.error(`Unknown api action: ${action}. Use: studio api start|stop|status`);
       process.exit(1);
     }
   });
