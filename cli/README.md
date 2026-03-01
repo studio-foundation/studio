@@ -19,7 +19,9 @@ studio run <pipeline> --input-file input.yaml  # Run with YAML input file
 studio run <pipeline> --live                   # Stream tool calls in real-time
 studio run <pipeline> --provider mock          # Run with mock provider (no API calls)
 studio run <pipeline> --anonymize              # Anonymize PII before sending to LLM
-studio status [run-id]                         # Check run status
+studio status [run-id]                         # Check run status (latest run if no ID given)
+studio logs [run-id]                           # View JSONL logs for a run
+studio replay [run-id]                         # Replay a completed run
 studio list projects                           # List available projects
 studio list pipelines                          # List available pipelines
 
@@ -41,8 +43,27 @@ studio tools add git                           # Add specific tool
 studio tools remove nutrition                  # Remove a tool
 studio tools info git                          # Show tool details
 
+# Registry
+studio registry install <name>                 # Install a tool from the registry
+studio registry remove <name>                  # Remove a registry-installed tool
+studio registry search <query>                 # Search available tools in the registry
+studio registry publish <path>                 # Publish a tool to the registry
+studio registry audit                          # Audit installed tools for updates/issues
+studio registry sync                           # Sync registry.lock.json with installed tools
+studio registry update [name]                  # Update installed tools (all or specific)
+
 # Templates
+studio templates                               # List available templates
 studio template validate <path>               # Validate a template structure
+
+# Integrations
+studio integrations                            # Manage integrations (Linear, etc.)
+
+# Project
+studio project                                 # Project management
+
+# API server
+studio api start                               # Start the HTTP REST API server
 
 # Validation
 studio validate <contract> <output.json>       # Validate output against contract without LLM
@@ -138,7 +159,7 @@ studio --version
 
 ## Rules
 
-- cli depends on engine + contracts only (not ralph or runner directly).
+- cli is the composition root — it imports from engine, runner (ToolRegistry, ProviderRegistry, MCPClient), and api (for `studio api start`). This is a documented exception to the package DAG (see INVARIANTS.md).
 - cli never contains business logic — it wires up dependencies and delegates.
 - All output rendering is in `output/` — keep display logic separate from command logic.
 - `findStudioDir()` walks up the directory tree — tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has `.studio/` at its root).

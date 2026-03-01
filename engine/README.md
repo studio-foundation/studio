@@ -115,4 +115,4 @@ Per-agent anonymization also supported via `anonymize: true` in agent YAML.
 - **engine is domain-agnostic.** No references to "code", "file", "git", "QA" in engine source. All domain knowledge is in YAML configs.
 - **engine doesn't execute tools.** It passes tool configs to runner. The runner decides what `repo_manager-write_file` means.
 - **engine doesn't build prompts.** That's runner's job.
-- Persistence: `SQLiteRunStore` for production, `InMemoryRunStore` for tests.
+- Persistence: `PgRunStore` (PostgreSQL) for production, `InMemoryRunStore` for tests. Both implement `AnyRunStore`.

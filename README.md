@@ -190,13 +190,12 @@ studio run software/feature-builder --input "Add dark mode support"
 my-builder/
 ├── .studio/                          # Studio config (like .git/)
 │   ├── config.yaml                   # Provider config (gitignored)
-│   ├── projects/
-│   │   └── software/                 # Copied from template
-│   │       ├── pipelines/            # Pipeline definitions (YAML)
-│   │       ├── contracts/            # Output contracts (YAML)
-│   │       ├── agents/               # Agent profiles (YAML)
-│   │       ├── tools/                # Tool plugins (YAML)
-│   │       └── inputs/               # Input examples (YAML)
+│   ├── pipelines/                    # Pipeline definitions (YAML)
+│   ├── contracts/                    # Output contracts (YAML)
+│   ├── agents/                       # Agent profiles (YAML)
+│   ├── tools/                        # Tool plugins (YAML)
+│   ├── inputs/                       # Input examples (YAML)
+│   ├── skills/                       # .skill.md files (optional)
 │   ├── registry.lock.json            # Tool versions (committed)
 │   └── runs/                         # Runtime data (gitignored)
 ├── src/                              # Your app code
@@ -251,7 +250,7 @@ The pipelines, tools, and contracts are **versioned with your code** in git. You
 Tool plugins are the extension system. Any capability an agent needs — calling an API, running a script, querying a database — can be packaged as a self-contained `.tool.yaml` file.
 
 ```yaml
-# .studio/projects/cuisine/tools/nutrition.tool.yaml
+# .studio/tools/nutrition.tool.yaml
 name: nutrition
 description: Nutritional analysis tools
 version: 1
@@ -312,11 +311,15 @@ Different agents can use different providers. Switch models without changing pip
 ```
 @studio/cli          → User interface (terminal)
     │
+@studio/api          → HTTP REST API (Fastify + Swagger UI)
+    │
 @studio/engine       → Pipeline orchestration, state, governance
     │
-    ├── @studio/ralph    → Execute, validate, retry
+    ├── @studio/ralph        → Execute, validate, retry
     │
-    └── @studio/runner   → LLM calls, tool plugin runtime, multi-provider
+    ├── @studio/runner       → LLM calls, tool plugin runtime, multi-provider
+    │
+    └── @studio/anonymizer   → PII anonymization middleware
     │
 @studio/contracts    → Shared types (zero dependencies)
 
@@ -328,7 +331,7 @@ Templates/           → Architectural patterns
     └── conversation/
 ```
 
-Five packages in a single monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
+Seven packages in a single monorepo. Each fits in a single context window. Each is testable in isolation. The runner is a tool plugin runtime — it loads `.tool.yaml` files and executes them alongside LLM calls. The engine never touches tool logic directly.
 
 **Build from source:**
 
@@ -357,6 +360,7 @@ studio run <pipeline> --live                   # Stream tool calls in real-time
 studio run <pipeline> --provider mock          # Test without API calls
 studio run <pipeline> --anonymize              # Anonymize PII before sending to LLM
 studio status [run-id]                         # Check run status
+studio logs [run-id]                           # View run logs
 studio list pipelines                          # List available pipelines
 studio validate <contract> <output>            # Validate output against contract
 
@@ -368,8 +372,18 @@ studio tools list                              # List tools in current project
 studio tools add git                           # Install a tool plugin (wizard)
 studio tools info git                          # Show tool details
 
-# Templates
+# Registry
+studio registry install <name>                 # Install a tool from the registry
+studio registry search <query>                 # Search available tools
+studio registry update                         # Update installed tools
+
+# Templates & integrations
+studio templates                               # List available templates
 studio template validate <path>               # Validate a template structure
+studio integrations                            # Manage integrations (Linear, etc.)
+
+# API server
+studio api start                               # Start the HTTP REST API
 ```
 
 ---
@@ -433,7 +447,7 @@ Studio v7 is in active development.
 
 **What's functional:**
 - RALPH loop, pipeline engine, group-based feedback loops
-- YAML tool plugin system (`repo_manager`, `shell`, `search`, `git`, `patch`)
+- YAML tool plugin system (`repo_manager`, `shell`, `search`, `git`, `patch`, `studio_run`)
 - Lifecycle hooks (`on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`)
 - Dynamic pipeline startup context (`on_pipeline_start` commands)
 - Skills system (`.skill.md` files auto-injected into agent prompts)
@@ -442,8 +456,13 @@ Studio v7 is in active development.
 - `studio init` interactive wizard (template selection, provider config, tool selection)
 - `studio init --template` direct mode (CI/CD-friendly)
 - Template system (`software` template complete with full Code Builder pipeline)
-- Multi-provider (Anthropic with prompt caching, OpenAI, Mock)
-- `pnpm monorepo` with `contracts`, `ralph`, `runner`, `engine`, `cli`
+- Multi-provider (Anthropic with prompt caching, OpenAI, OpenAI Responses API, Mock)
+- HTTP REST API (`@studio/api` — Fastify + Swagger UI, SSE streaming, webhook support)
+- Linear integration (webhook handler → auto-launch pipeline on issue status change)
+- Registry system (`studio registry install/remove/search/publish` + `registry.lock.json`)
+- Sub-pipeline spawning (`studio_run` tool + `RunSpawner` interface)
+- PostgreSQL persistence (`PgRunStore` via `@studio/engine`)
+- `pnpm monorepo` with `contracts`, `ralph`, `runner`, `anonymizer`, `engine`, `api`, `cli`
 
 **Current priority:** Code Builder end-to-end validation — Linear webhook → pipeline run → commit + PR creation.
 

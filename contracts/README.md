@@ -17,17 +17,19 @@ contracts ← cli
 
 | Module | Purpose |
 |--------|---------|
-| `pipeline.ts` | `PipelineDefinition`, `StageDefinition`, `StageGroup`, `StageHooks`, `ToolHookDef`, `StageHookDef`, `StartupCommand` |
-| `stage.ts` | `StageStatus`, `StageResult`, `StageOutput` |
-| `task.ts` | `TaskDefinition`, `RalphSettings` |
-| `agent.ts` | `AgentProfile`, `AgentConfig` (includes `plugins`, `skills`, `anonymize`) |
-| `run.ts` | `RunRecord`, `RunStatus`, `RunSummary` |
-| `validation.ts` | `OutputContract`, `ValidationResult`, `ToolCallConstraints` |
-| `provider.ts` | `LLMResponse`, `ToolCall`, `TokenUsage` |
-| `errors.ts` | `StudioError` and subtypes |
-| `context-pack.ts` | `ContextPack`, `ContextPackDefinition` |
-| `tool-plugin.ts` | `ToolPlugin`, `ToolPluginCommand` |
-| `runner-events.ts` | Callback interfaces for streaming: `onToolCallStart`, `onToolCallComplete`, `onAgentThinking`, `onAgentToken` |
+| `pipeline.ts` | `PipelineDefinition`, `StageDefinition`, `StageGroup`, `StageHooks`, `ToolHookDef`, `StageHookDef`, `StartupCommand`, `isStageGroup()` |
+| `stage.ts` | `StageStatus`, `StageKind`, `StageResult` |
+| `task.ts` | `TaskStatus` |
+| `agent.ts` | `AgentConfig`, `AgentProfile`, `ToolCall` (includes `plugins`, `skills`, `anonymize`) |
+| `run.ts` | `PipelineRun`, `StageRun`, `TaskRun`, `AgentRun`, `AgentStatus` |
+| `validation.ts` | `OutputContract`, `ToolCallRequirements`, `ValidationResult`, `ValidationRule` |
+| `provider.ts` | `LLMRequest`, `LLMResponse`, `Message`, `ToolDefinition` |
+| `errors.ts` | `ErrorCode` (enum), `StudioError` |
+| `context-pack.ts` | `ContextPackDefinition`, `ResolvedContextPack` |
+| `tool-plugin.ts` | `ToolPluginDef`, `ToolCommandDef`, `ShellExecute`, `BuiltinExecute`, `ParameterDef` |
+| `runner-events.ts` | `RunnerCallbacks`, `ToolCallStartEvent`, `ToolCallCompleteEvent`, `AgentThinkingEvent`, `AgentProgressEvent`, `AgentTokenEvent` |
+| `spawner.ts` | `RunSpawner`, `SpawnConfig`, `SpawnResult` |
+| `integration-plugin.ts` | `IntegrationPluginDef` |
 
 ## Key types
 
@@ -79,9 +81,26 @@ interface StartupCommand {
 }
 ```
 
+### Sub-pipeline spawning (spawner.ts)
+
+```typescript
+interface RunSpawner {
+  spawnAndWait(config: SpawnConfig): Promise<SpawnResult>;
+}
+
+interface SpawnConfig {
+  pipeline: string;
+  input: Record<string, unknown>;
+  parentRunId: string;
+  depth: number;
+}
+```
+
+Used by the `studio_run` builtin tool to spawn sub-pipelines from within an agent run.
+
 ## Rules
 
 - **Zero dependencies** — no imports from other `@studio/*` packages, ever.
-- **Zero logic** — types and interfaces only. No functions, no classes.
+- **Zero logic** — types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
 - If you need to add a type used by two packages, put it here.
 - If you're adding logic, you're in the wrong package.

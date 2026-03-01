@@ -30,17 +30,19 @@ const result = await ralph({
   maxAttempts: 3,
   retryStrategy: exponentialBackoff(1000, 30000),
   onRetry: async (event) => { /* observability hook */ },
+  signal: abortController.signal,  // optional — enables cooperative cancellation
 });
-// result.status: 'success' | 'exhausted'
+// result.status: 'success' | 'exhausted' | 'cancelled'
 ```
 
 ## How it works
 
 1. Calls `executor` with current context
 2. Validates the output using the `validator` function (composed validators)
-3. If pass → returns `{ status: 'success', result }`
+3. If pass → returns `{ status: 'success', result, attempts }`
 4. If fail → calls `onRetry`, waits (retry strategy), retries with failure context
-5. If max attempts reached → returns `{ status: 'exhausted', attempts }`
+5. If max attempts reached → returns `{ status: 'exhausted', lastResult, failures, attempts }`
+6. If `signal` is aborted at any point → returns `{ status: 'cancelled', lastResult?, attempts }`
 
 ## Validators
 

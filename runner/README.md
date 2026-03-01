@@ -67,6 +67,9 @@ Use `createDefaultRegistry()` to get all providers wired up. Use `--provider moc
 | `git-pull` | `createGitTools()` | Pull from remote |
 | `git-status` | `createGitTools()` | Show working tree status |
 | `git-diff` | `createGitTools()` | Show diffs |
+| `studio_run` | `createStudioRunTool()` | Spawn and await a sub-pipeline run |
+
+`studio_run` is only registered when a `RunSpawner` is injected into the engine (via `EngineConfig.spawner`). Agents use it to trigger nested pipelines and receive their output.
 
 Tools are registered into a `ToolRegistry` and passed to `runAgent`. The runner injects tool descriptions into the system prompt automatically.
 

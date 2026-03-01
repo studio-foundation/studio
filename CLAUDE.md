@@ -236,6 +236,51 @@ PUT    /api/agents/:name        → créer ou modifier un agent (body: JSON)
 DELETE /api/agents/:name        → supprimer un agent
 ```
 
+**Contracts CRUD**
+
+```
+GET    /api/contracts           → liste tous les contrats disponibles
+GET    /api/contracts/:name     → contenu parsé d'un contrat (YAML → JSON)
+PUT    /api/contracts/:name     → créer ou modifier un contrat (body: JSON)
+DELETE /api/contracts/:name     → supprimer un contrat
+```
+
+**Skills CRUD**
+
+```
+GET    /api/skills              → liste tous les skills disponibles
+GET    /api/skills/:name        → contenu d'un skill (.skill.md)
+PUT    /api/skills/:name        → créer ou modifier un skill (body: markdown)
+DELETE /api/skills/:name        → supprimer un skill
+```
+
+**Tools**
+
+```
+GET    /api/tools               → liste les tools disponibles (plugins YAML + builtins)
+```
+
+**Validation**
+
+```
+POST   /api/validate            → valider un output JSON contre un contrat
+```
+
+**Config**
+
+```
+GET    /api/config              → configuration courante (API keys masquées)
+PUT    /api/config              → modifier la configuration
+```
+
+**Webhooks**
+
+```
+POST   /api/webhooks            → enregistrer un webhook (url + events)
+GET    /api/webhooks            → lister les webhooks configurés
+DELETE /api/webhooks/:id        → supprimer un webhook
+```
+
 **Swagger UI (dev/local uniquement)**
 
 ```
@@ -349,6 +394,14 @@ Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin run
 | `repo_manager-list_files` | Lister les fichiers |
 | `shell-run_command` | Exécuter une commande shell |
 | `search-search_codebase` | Rechercher dans le code |
+| `patch-apply_patch` | Appliquer un unified diff |
+| `git-checkout` | Checkout ou créer une branche |
+| `git-commit` | Créer un commit |
+| `git-push` | Pousser vers le remote |
+| `git-pull` | Tirer depuis le remote |
+| `git-status` | Afficher le status du working tree |
+| `git-diff` | Afficher les diffs |
+| `studio_run` | Spawner un sous-pipeline et attendre son résultat (requiert `RunSpawner` dans `EngineConfig`) |
 
 **Format des tools :** Les noms utilisent des tirets (`-`), pas des points (`.`). Exemple : `repo_manager-write_file`, pas `repo_manager.write_file`.
 
@@ -432,7 +485,9 @@ studio run <pipeline> --input-file X.yaml        # Lancer avec input YAML
 studio run <pipeline> --live                     # Streaming temps réel (tool calls visibles)
 studio run <pipeline> --provider mock            # Run sans API keys (mock provider)
 studio run <pipeline> --anonymize                # Anonymisation PII avant envoi au LLM
-studio status [run-id]                           # Vérifier le status
+studio status [run-id]                           # Vérifier le status (dernier run si pas d'ID)
+studio logs [run-id]                             # Afficher les logs JSONL d'un run
+studio replay [run-id]                           # Rejouer un run complété
 studio list projects                             # Lister les projets
 studio list pipelines                            # Lister les pipelines
 
@@ -450,8 +505,27 @@ studio tools add git                             # Installer un tool (wizard int
 studio tools remove nutrition                    # Supprimer un tool
 studio tools info git                            # Détail d'un tool
 
+# Registry
+studio registry install <name>                   # Installer un tool depuis le registry
+studio registry remove <name>                    # Supprimer un tool registry
+studio registry search <query>                   # Rechercher dans le registry
+studio registry publish <path>                   # Publier un tool
+studio registry audit                            # Auditer les tools installés
+studio registry sync                             # Synchroniser registry.lock.json
+studio registry update [name]                    # Mettre à jour les tools installés
+
 # Templates
+studio templates                                 # Lister les templates disponibles
 studio template validate <path>                  # Valider la structure d'un template
+
+# Intégrations
+studio integrations                              # Gérer les intégrations (Linear, etc.)
+
+# Projet
+studio project                                   # Gestion de projet
+
+# API
+studio api start                                 # Démarrer le serveur HTTP REST API
 
 # Validation
 studio validate <contract> <output.json>         # Valider sans LLM
