@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -13,6 +13,8 @@ const { apiStopCommand, apiStatusCommand, writePid, readPid, clearPid, isProcess
 
 afterEach(async () => {
   await clearPid();
+  // Remove the .studio dir created by writePid to avoid polluting other tests
+  await rm(join(tmpdir(), '.studio'), { recursive: true, force: true });
 });
 
 describe('writePid / readPid / clearPid', () => {

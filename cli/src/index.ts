@@ -16,6 +16,7 @@ import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
 import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/api.js';
+import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 
 const program = new Command();
@@ -138,6 +139,13 @@ program
       console.error(`Unknown api action: ${action}. Use: studio api start|stop|status`);
       process.exit(1);
     }
+  });
+
+program
+  .command('install <extension>')
+  .description('Install a Studio extension (api)')
+  .action((extension: string) => {
+    void installExtensionCommand(extension);
   });
 
 program.addCommand(createRegistryCommand());
