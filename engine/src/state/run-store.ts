@@ -14,6 +14,18 @@ export interface RunStore {
   close?(): void;
 }
 
+export interface AsyncRunStore {
+  savePipelineRun(run: PipelineRun): Promise<void>;
+  getPipelineRun(id: string): Promise<PipelineRun | null>;
+  listPipelineRuns(options?: { limit?: number; status?: string }): Promise<PipelineRun[]>;
+  getLatestRun(pipelineName?: string): Promise<PipelineRun | null>;
+  saveLogPath(runId: string, logPath: string): Promise<void>;
+  getLogPath(runId: string): Promise<string | null>;
+  close?(): Promise<void>;
+}
+
+export type AnyRunStore = RunStore | AsyncRunStore;
+
 // In-memory store for tests and simple usage
 export class InMemoryRunStore implements RunStore {
   private runs: Map<string, PipelineRun> = new Map();
