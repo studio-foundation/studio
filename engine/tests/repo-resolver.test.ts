@@ -1,18 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { homedir } from 'node:os';
 
-// Mock node:child_process so tests don't actually run git
-vi.mock('node:child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, execSync: vi.fn() };
-});
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(),
+}));
 
-// Mock node:fs/promises — mkdir only
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { resolveRepoPath, cloneRepo } from '../../src/utils/repo-resolver.js';
+import { resolveRepoPath, cloneRepo } from '../src/repo-resolver.js';
 import { execSync } from 'node:child_process';
 
 const mockExecSync = vi.mocked(execSync);
