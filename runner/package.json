@@ -1,6 +1,6 @@
 {
   "name": "@studio/runner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Multi-provider LLM agent runner with tool execution",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
