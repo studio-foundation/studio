@@ -20,7 +20,12 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
   },
-  "keywords": ["studio", "engine", "pipeline", "orchestration"],
+  "keywords": [
+    "studio",
+    "engine",
+    "pipeline",
+    "orchestration"
+  ],
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
@@ -28,11 +33,13 @@
     "@studio/ralph": "workspace:*",
     "@studio/runner": "workspace:*",
     "better-sqlite3": "^9.0.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "pg": "^8.19.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/js-yaml": "^4.0.9",
+    "@types/pg": "^8.18.0",
     "typescript": "^5.3.0",
     "vitest": "^2.1.9"
   }

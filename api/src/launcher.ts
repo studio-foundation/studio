@@ -5,7 +5,7 @@
 import type {
   EngineConfig,
   EngineEvents,
-  RunStore,
+  AnyRunStore,
   PipelineStartEvent,
   StageStartEvent,
   StageCompleteEvent,
@@ -55,7 +55,7 @@ export class InProcessLauncher implements RunLauncher {
 
   constructor(
     private engineConfig: EngineConfig,
-    private store: RunStore,
+    private store: AnyRunStore,
     private runsDir: string,
     private bus: RunEventBus,
     private engineFactory: EngineFactory = (cfg, evts) => new PipelineEngine(cfg, evts),
@@ -76,7 +76,7 @@ export class InProcessLauncher implements RunLauncher {
     // For InMemoryRunStore this is a simple Map.set() and works regardless of row existence.
     // For SQLiteRunStore the UPDATE is a no-op here (row not yet created), but onPipelineStart
     // below calls saveLogPath again after the engine creates the row.
-    this.store.saveLogPath(runId, logger.logPath);
+    void this.store.saveLogPath(runId, logger.logPath);
 
     const emit = (type: SseEventType, data: object) => {
       this.bus.emit(runId, type, data);
@@ -89,7 +89,7 @@ export class InProcessLauncher implements RunLauncher {
     const perRunEvents: EngineEvents = {
       onPipelineStart: (e: PipelineStartEvent) => {
         // Row exists now — persist log_path for SQLiteRunStore (the call in launch() was a no-op there).
-        this.store.saveLogPath(runId, logger.logPath);
+        void this.store.saveLogPath(runId, logger.logPath);
         emit('pipeline_start', e);
       },
       onStageStart:        (e: StageStartEvent) =>        emit('stage_start', e),

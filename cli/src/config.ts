@@ -22,6 +22,10 @@ export interface StudioConfig {
     port?: number;
   };
   integrations?: Record<string, Record<string, unknown>>;
+  db?: {
+    type?: 'sqlite' | 'postgres' | 'inmemory';
+    url?: string;   // required when type is 'postgres'
+  };
   /** Resolved path to .studio/ dir — set at load time, not from YAML */
   resolvedStudioDir?: string;
 }

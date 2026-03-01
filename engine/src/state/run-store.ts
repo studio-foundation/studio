@@ -1,5 +1,5 @@
 // Persistence layer for pipeline runs
-// Two implementations: InMemoryRunStore (tests) + SQLiteRunStore (production)
+// Three implementations: InMemoryRunStore (tests), SQLiteRunStore (local), PgRunStore (postgres)
 
 import { createRequire } from 'node:module';
 import type { PipelineRun } from '@studio/contracts';
@@ -208,5 +208,155 @@ export class SQLiteRunStore implements RunStore {
 
   close(): void {
     this.db.close();
+  }
+}
+
+// PostgreSQL store — async implementation using raw pg (no Prisma)
+// Creates its own `studio_pipeline_runs` table on first use (like SQLiteRunStore does with initSchema).
+// Stores the entire PipelineRun as JSON in `result` — same pattern as SQLiteRunStore.
+// Uses table prefix `studio_` to avoid conflicts with the user app's own tables.
+export class PgRunStore implements AsyncRunStore {
+  private pool: import('pg').Pool;
+  private schemaReady: Promise<void> | null = null;
+
+  constructor(connectionString: string) {
+    const _require = createRequire(import.meta.url);
+    const { Pool } = _require('pg') as typeof import('pg');
+    this.pool = new Pool({ connectionString });
+  }
+
+  private ensureSchema(): Promise<void> {
+    if (!this.schemaReady) {
+      this.schemaReady = this.initSchema();
+    }
+    return this.schemaReady;
+  }
+
+  private async initSchema(): Promise<void> {
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS studio_pipeline_runs (
+        id            TEXT PRIMARY KEY,
+        pipeline_name TEXT NOT NULL,
+        status        TEXT NOT NULL,
+        result        TEXT NOT NULL,
+        started_at    TEXT NOT NULL,
+        completed_at  TEXT,
+        log_path      TEXT,
+        parent_run_id TEXT,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_studio_pipeline_runs_status
+        ON studio_pipeline_runs(status)
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_studio_pipeline_runs_created
+        ON studio_pipeline_runs(created_at DESC)
+    `);
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_studio_pipeline_runs_parent
+        ON studio_pipeline_runs(parent_run_id)
+    `);
+  }
+
+  async savePipelineRun(run: PipelineRun): Promise<void> {
+    await this.ensureSchema();
+    await this.pool.query(
+      `INSERT INTO studio_pipeline_runs
+         (id, pipeline_name, status, result, started_at, completed_at, parent_run_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (id) DO UPDATE SET
+         pipeline_name = EXCLUDED.pipeline_name,
+         status        = EXCLUDED.status,
+         result        = EXCLUDED.result,
+         started_at    = EXCLUDED.started_at,
+         completed_at  = EXCLUDED.completed_at,
+         parent_run_id = EXCLUDED.parent_run_id`,
+      [
+        run.id,
+        run.pipeline_name,
+        run.status,
+        JSON.stringify(run),
+        run.started_at,
+        run.completed_at ?? null,
+        run.parent_run_id ?? null,
+      ]
+    );
+  }
+
+  async getPipelineRun(id: string): Promise<PipelineRun | null> {
+    await this.ensureSchema();
+    const res = await this.pool.query<{ result: string }>(
+      'SELECT result FROM studio_pipeline_runs WHERE id = $1',
+      [id]
+    );
+    if (res.rows.length === 0) return null;
+    return JSON.parse(res.rows[0].result) as PipelineRun;
+  }
+
+  async listPipelineRuns(options?: { limit?: number; status?: string }): Promise<PipelineRun[]> {
+    await this.ensureSchema();
+    const params: unknown[] = [];
+    let sql = 'SELECT result FROM studio_pipeline_runs';
+
+    if (options?.status) {
+      params.push(options.status);
+      sql += ` WHERE status = $${params.length}`;
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    if (options?.limit) {
+      params.push(options.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+
+    const res = await this.pool.query<{ result: string }>(sql, params);
+    return res.rows.map((r) => JSON.parse(r.result) as PipelineRun);
+  }
+
+  async getLatestRun(pipelineName?: string): Promise<PipelineRun | null> {
+    await this.ensureSchema();
+    const params: unknown[] = [];
+    let sql = 'SELECT result FROM studio_pipeline_runs';
+
+    if (pipelineName) {
+      params.push(pipelineName);
+      sql += ` WHERE pipeline_name = $${params.length}`;
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT 1';
+
+    const res = await this.pool.query<{ result: string }>(sql, params);
+    if (res.rows.length === 0) return null;
+    return JSON.parse(res.rows[0].result) as PipelineRun;
+  }
+
+  async saveLogPath(runId: string, logPath: string): Promise<void> {
+    await this.ensureSchema();
+    await this.pool.query(
+      'UPDATE studio_pipeline_runs SET log_path = $1 WHERE id = $2',
+      [logPath, runId]
+    );
+  }
+
+  async getLogPath(runId: string): Promise<string | null> {
+    await this.ensureSchema();
+    const res = await this.pool.query<{ log_path: string | null }>(
+      'SELECT log_path FROM studio_pipeline_runs WHERE id = $1',
+      [runId]
+    );
+    return res.rows[0]?.log_path ?? null;
+  }
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+
+  /** Test-only: wipe table contents. Never call in production. */
+  async dangerouslyTruncateForTests(): Promise<void> {
+    await this.ensureSchema();
+    await this.pool.query('TRUNCATE TABLE studio_pipeline_runs');
   }
 }

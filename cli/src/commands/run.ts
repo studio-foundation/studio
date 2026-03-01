@@ -13,7 +13,7 @@ import { FileChangeCollector, formatFileChanges } from '../output/file-changes.j
 import { formatResult } from '../output/formatter.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 import { createRunStore } from '../run-store-factory.js';
-import type { RunStore } from '@studio/engine';
+import type { AnyRunStore } from '@studio/engine';
 
 interface RunOptions {
   input?: string;
@@ -185,9 +185,9 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     const config = await loadConfig(options.config);
 
     // Create run store — fail-silent so a broken SQLite never blocks a run
-    let runStore: RunStore | null = null;
+    let runStore: AnyRunStore | null = null;
     try {
-      runStore = createRunStore(config);
+      runStore = await createRunStore(config);
     } catch (err) {
       console.warn(chalk.yellow(`⚠ Run store unavailable: ${err instanceof Error ? err.message : String(err)}. Continuing with JSONL logging only.`));
     }
@@ -412,9 +412,9 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       process.off('SIGTERM', onInterrupt);
       await runLogger.close();
       if (runStore && result) {
-        runStore.saveLogPath(result.id, runLogger.getLogPath());
+        await runStore.saveLogPath(result.id, runLogger.getLogPath());
       }
-      runStore?.close?.();
+      await runStore?.close?.();
       // Stop all MCP servers (even if pipeline failed)
       await Promise.allSettled(mcpClients.map((c) => c.close()));
     }

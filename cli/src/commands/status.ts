@@ -133,9 +133,9 @@ export async function statusCommand(
     let run: PipelineRun | null = null;
     try {
       const config = await loadConfig();
-      const store = createRunStore(config);
-      run = runId ? store.getPipelineRun(runId) : store.getLatestRun();
-      store.close?.();
+      const store = await createRunStore(config);
+      run = runId ? await store.getPipelineRun(runId) : await store.getLatestRun();
+      await store.close?.();
     } catch {
       // DB not available or not initialized
     }

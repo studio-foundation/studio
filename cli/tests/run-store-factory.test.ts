@@ -10,8 +10,8 @@ afterEach(async () => {
 });
 
 describe('createRunStore', () => {
-  it('returns a RunStore that can round-trip a PipelineRun', () => {
-    const store = createRunStore({ resolvedStudioDir: tmpDir });
+  it('returns a RunStore that can round-trip a PipelineRun', async () => {
+    const store = await createRunStore({ resolvedStudioDir: tmpDir });
 
     const run: PipelineRun = {
       id: 'abc-123',
@@ -21,18 +21,18 @@ describe('createRunStore', () => {
       stages: [],
     };
 
-    store.savePipelineRun(run);
-    const retrieved = store.getPipelineRun('abc-123');
+    await store.savePipelineRun(run);
+    const retrieved = await store.getPipelineRun('abc-123');
 
     expect(retrieved?.id).toBe('abc-123');
     expect(retrieved?.pipeline_name).toBe('test-pipeline');
     expect(retrieved?.status).toBe('success');
 
-    store.close?.();
+    await store.close?.();
   });
 
-  it('saves and retrieves log path', () => {
-    const store = createRunStore({ resolvedStudioDir: tmpDir });
+  it('saves and retrieves log path', async () => {
+    const store = await createRunStore({ resolvedStudioDir: tmpDir });
 
     const run: PipelineRun = {
       id: 'log-run',
@@ -41,11 +41,11 @@ describe('createRunStore', () => {
       started_at: '2026-01-01T00:00:00.000Z',
       stages: [],
     };
-    store.savePipelineRun(run);
-    store.saveLogPath('log-run', '/tmp/some.jsonl');
+    await store.savePipelineRun(run);
+    await store.saveLogPath('log-run', '/tmp/some.jsonl');
 
-    expect(store.getLogPath('log-run')).toBe('/tmp/some.jsonl');
+    expect(await store.getLogPath('log-run')).toBe('/tmp/some.jsonl');
 
-    store.close?.();
+    await store.close?.();
   });
 });
