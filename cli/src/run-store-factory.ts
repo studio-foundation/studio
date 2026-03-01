@@ -1,17 +1,30 @@
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { StudioConfig } from './config.js';
-import { SQLiteRunStore } from '@studio/engine';
-import type { RunStore } from '@studio/engine';
+import { SQLiteRunStore, InMemoryRunStore, PgRunStore } from '@studio/engine';
+import type { AnyRunStore } from '@studio/engine';
 
 /**
  * Create the production RunStore from config.
- * Derives the SQLite path from config.resolvedStudioDir.
- * Future: read config.db.adapter to return PostgreSQL/Supabase store instead.
+ * Returns AnyRunStore (sync RunStore or async AsyncRunStore) based on config.db.type.
+ * Defaults to SQLite when no db config is present.
  */
-export function createRunStore(config: StudioConfig): RunStore {
+export async function createRunStore(config: StudioConfig): Promise<AnyRunStore> {
+  const dbType = config.db?.type ?? 'sqlite';
+
+  if (dbType === 'inmemory') {
+    return new InMemoryRunStore();
+  }
+
+  if (dbType === 'postgres') {
+    const url = config.db?.url;
+    if (!url) throw new Error('db.url is required when db.type is postgres');
+    return new PgRunStore(url);
+  }
+
+  // Default: sqlite
   const studioDir = config.resolvedStudioDir ?? join(process.cwd(), '.studio');
-  mkdirSync(studioDir, { recursive: true });
-  const dbPath = join(studioDir, 'runs.db');
+  mkdirSync(join(studioDir, 'runs'), { recursive: true });
+  const dbPath = join(studioDir, 'runs', 'runs.db');
   return new SQLiteRunStore(dbPath);
 }
