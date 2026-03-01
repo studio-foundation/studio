@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import type { EngineEvents } from '@studio/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
-import { resolveRepoPath } from '@studio/api';
+import { resolveRepoPath } from '@studio/engine';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
