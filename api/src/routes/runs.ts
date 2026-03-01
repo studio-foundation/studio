@@ -170,7 +170,7 @@ export async function runsRoutes(
     },
   }, async (request, reply) => {
     const { status, limit } = request.query;
-    const runs = store.listPipelineRuns({
+    const runs = await store.listPipelineRuns({
       status,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
@@ -193,7 +193,7 @@ export async function runsRoutes(
       },
     },
   }, async (request, reply) => {
-    const run = store.getPipelineRun(request.params.id);
+    const run = await store.getPipelineRun(request.params.id);
     if (!run) {
       return reply.status(404).send({ error: 'Run not found' });
     }
@@ -242,12 +242,12 @@ export async function runsRoutes(
     const { id } = request.params;
     const isRaw = request.query.raw === 'true';
 
-    const run = store.getPipelineRun(id);
+    const run = await store.getPipelineRun(id);
     if (!run) {
       return reply.status(404).send({ error: 'Run not found' });
     }
 
-    const logPath = store.getLogPath(id);
+    const logPath = await store.getLogPath(id);
     if (!logPath) {
       return reply.status(404).send({ error: 'Log not yet available' });
     }
@@ -302,7 +302,7 @@ export async function runsRoutes(
     },
   }, async (request, reply) => {
     const { id } = request.params;
-    const run = store.getPipelineRun(id);
+    const run = await store.getPipelineRun(id);
     if (!run) {
       return reply.status(404).send({ error: 'Run not found' });
     }
@@ -339,7 +339,7 @@ export async function runsRoutes(
     const filterParam = request.query.events;
     const filter = filterParam ? filterParam.split(',') : null;
 
-    const run = store.getPipelineRun(id);
+    const run = await store.getPipelineRun(id);
     if (!run) {
       return reply.status(404).send({ error: 'Run not found' });
     }
@@ -356,7 +356,7 @@ export async function runsRoutes(
     };
 
     // Replay historical events from JSONL
-    const logPath = store.getLogPath(id);
+    const logPath = await store.getLogPath(id);
     if (logPath) await replayJsonl(logPath, send);
 
     const TERMINAL = ['success', 'failed', 'rejected', 'cancelled'];
@@ -402,7 +402,7 @@ export async function runsRoutes(
   }, async (request, reply) => {
     const { id } = request.params;
 
-    const originalRun = store.getPipelineRun(id);
+    const originalRun = await store.getPipelineRun(id);
     if (!originalRun) {
       return reply.status(404).send({ error: 'Run not found' });
     }

@@ -5,7 +5,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import type { RunStore } from '@studio/engine';
+import type { AnyRunStore } from '@studio/engine';
 import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
 import type { IntegrationStore } from './integration-store.js';
@@ -32,7 +32,7 @@ export type MaskedConfig = {
 };
 
 export interface ServerDeps {
-  store: RunStore;
+  store: AnyRunStore;
   launcher: RunLauncher;
   configsDir: string;
   /** Raw projects_dir from config (may contain ~). Used by route handlers for repo cloning. */

@@ -8,7 +8,9 @@ import yaml from 'js-yaml';
 import {
   type EngineConfig,
   SQLiteRunStore,
-  type RunStore,
+  InMemoryRunStore,
+  PgRunStore,
+  type AnyRunStore,
 } from '@studio/engine';
 import {
   createDefaultRegistry,
@@ -40,7 +42,7 @@ export interface StudioApiConfig {
 }
 
 export interface BootstrapResult {
-  store: RunStore;
+  store: AnyRunStore;
   launcher: RunLauncher;
   configsDir: string;
   /** Raw projects_dir from config (may contain ~). Used by route handlers for repo cloning. */
@@ -99,9 +101,25 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     providers: Object.keys(config.providers ?? {}),
   };
 
-  const dbPath = join(studioDir, 'runs', 'runs.db');
   const runsDir = join(studioDir, 'runs');
-  const store = new SQLiteRunStore(dbPath);
+
+  const rawConfig = config as StudioApiConfig & { db?: { type?: string; url?: string } };
+  const dbType = rawConfig.db?.type ?? 'sqlite';
+
+  let store: AnyRunStore;
+  if (dbType === 'postgres') {
+    const url = rawConfig.db?.url;
+    if (!url) throw new Error('db.url is required when db.type is postgres');
+    store = new PgRunStore(url);
+  } else if (dbType === 'inmemory') {
+    store = new InMemoryRunStore();
+  } else {
+    const dbPath = join(studioDir, 'runs', 'runs.db');
+    store = new SQLiteRunStore(dbPath);
+  }
+
+  // WebhookStore and IntegrationStore are always SQLite — they are separate from RunStore
+  const dbPath = join(studioDir, 'runs', 'runs.db');
 
   const providerRegistry = createDefaultRegistry({
     openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
