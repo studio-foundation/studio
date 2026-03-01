@@ -58,3 +58,7 @@ export { validateSchema } from '@studio/ralph';
 
 // Spawners
 export { DirectEngineSpawner } from './spawners/direct-engine-spawner.js';
+
+// Repo resolution
+export { resolveRepoPath, cloneRepo } from './repo-resolver.js';
+export type { RepoResolveOptions } from './repo-resolver.js';
