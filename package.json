@@ -1,5 +1,5 @@
 {
-  "name": "studio-workspace",
+  "name": "studio",
   "version": "0.3.0",
   "private": true,
   "description": "Studio v7 — Agentic pipeline orchestrator (monorepo)",

@@ -1,31 +1,33 @@
 # @studio/contracts
 
-Types et interfaces partagés par tous les packages Studio. ZERO logique.
+Types et interfaces partagés par tous les packages Studio. ZERO dépendances. ZERO logique.
 
 ## Règles
 
-- Ce package n'a AUCUNE dépendance
-- JAMAIS de logique, uniquement des types/interfaces/enums TypeScript
-- Tout changement ici impacte TOUS les autres repos — être conservateur
-- Exporter tout depuis index.ts
+- Ce package n'a AUCUNE dépendance (pas de `@studio/*`, pas de libs externes)
+- JAMAIS de logique — uniquement des types, interfaces, enums TypeScript
+- Exception unique : `isStageGroup()` dans `pipeline.ts` (type guard pur, sans état)
+- Tout changement ici impacte TOUS les autres packages — être conservateur
+- Exporter tout depuis `index.ts`
 
 ## Fichiers clés
 
-- `pipeline.ts` — PipelineDefinition, StageDefinition
-- `stage.ts` — StageStatus, StageKind, StageResult
-- `task.ts` — TaskStatus, TaskResult, TaskConfig
-- `agent.ts` — AgentConfig, AgentProfile, ToolCall
-- `run.ts` — PipelineRun, StageRun, TaskRun, AgentRun
-- `validation.ts` — OutputContract, ValidationResult, ValidationRule
-- `provider.ts` — LLMProvider, LLMRequest, LLMResponse, ToolDefinition
-- `errors.ts` — StudioError, error codes enum
+- `pipeline.ts` — `PipelineDefinition`, `StageDefinition`, `StageGroup`, `StageHooks`, `ToolHookDef`, `StageHookDef`, `StartupCommand`, `isStageGroup()`
+- `stage.ts` — `StageStatus`, `StageKind` (= string), `StageResult`
+- `task.ts` — `TaskStatus`
+- `agent.ts` — `AgentConfig`, `AgentProfile`, `ToolCall`
+- `run.ts` — `PipelineRun`, `StageRun`, `TaskRun`, `AgentRun`, `AgentStatus`
+- `validation.ts` — `OutputContract`, `ToolCallRequirements`, `ValidationResult`, `ValidationRule`
+- `provider.ts` — `LLMRequest`, `LLMResponse`, `Message`, `ToolDefinition`
+- `errors.ts` — `ErrorCode` (enum), `StudioError`
+- `context-pack.ts` — `ContextPackDefinition`, `ResolvedContextPack`
+- `tool-plugin.ts` — `ToolPluginDef`, `ToolCommandDef`, `ShellExecute`, `BuiltinExecute`, `ParameterDef`
+- `runner-events.ts` — `RunnerCallbacks`, événements de streaming tool calls et tokens
+- `spawner.ts` — `RunSpawner`, `SpawnConfig`, `SpawnResult`
+- `integration-plugin.ts` — `IntegrationPluginDef`
 
 ## Test
 
 ```bash
-npm test  # compile-time type checks uniquement
+pnpm test
 ```
-
-## Philosophy
-
-This is the foundation. Keep it stable. Keep it simple. Keep it pure types.

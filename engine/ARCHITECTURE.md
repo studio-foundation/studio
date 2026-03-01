@@ -4,32 +4,54 @@ Orchestrateur de pipelines. Le cerveau de Studio.
 
 ## Concept
 
-Charge une pipeline YAML → exécute les stages en séquence →
-pour chaque task: ralph(runner.run, validator) → persiste les runs en SQLite.
+Charge une pipeline YAML → exécute les stages en séquence (ou en groups avec feedback loops) → pour chaque stage : hooks + `ralph(runAgent, validator)` → persiste les runs → émet des events.
 
 ## Règles
 
-- UN pipeline = séquence de stages (pas de DAG pour la v7, KISS)
-- deriveStageStatusFromTasks() est LA fonction critique — elle doit être
-  déterministe et testée exhaustivement
-- La DB (SQLite) est UNIQUEMENT dans ce repo
-- Context propagation : output stage N → input stage N+1
-- Events (onStageStart, etc.) pour hooks futurs (UI, logging)
+- **Domain-agnostic.** Pas de référence à "code", "file", "git", "QA" dans le source. `StageKind = string`.
+- `deriveStageStatus()` dans `state/status-derivation.ts` est LA fonction critique — mapping déterministe ralph result → stage status
+- La DB est configurable : `SQLiteRunStore` | `PgRunStore` | `InMemoryRunStore` (union `AnyRunStore`)
+- Le engine ne construit pas de prompts — c'est runner
+- Le engine ne sait pas ce qu'est `repo_manager-write_file` — c'est runner
+- Dépend de `@studio/contracts`, `@studio/ralph`, `@studio/runner`, `@studio/anonymizer`
 
 ## Fichiers clés
 
-- `engine.ts` — PipelineEngine, la classe principale
-- `state/state-machine.ts` — lifecycle des stages
-- `state/status-derivation.ts` — deriveStageStatusFromTasks() ← CRITIQUE
-- `state/run-store.ts` — persistence SQLite via Prisma
-- `pipeline/loader.ts` — charge YAML → PipelineDefinition
-- `pipeline/context-propagation.ts` — passe le contexte entre stages
+- `engine.ts` — `PipelineEngine` (classe principale), `EngineConfig`, `RunInput`
+- `events.ts` — `EngineEvents`, `PipelineEventEmitter`
+- `state/status-derivation.ts` — `deriveStageStatus()` ← CRITIQUE
+- `state/run-store.ts` — `AnyRunStore`, `InMemoryRunStore`
+- `pipeline/loader.ts` — charge YAML → `PipelineDefinition`
+- `pipeline/agent-loader.ts` — charge agent YAML + injecte skills
+- `pipeline/contract-loader.ts` — charge contract YAML
+- `pipeline/context-propagation.ts` — `createInitialContext`, `addStageOutput`, `getContextForStage`
+- `pipeline/context-pack-loader.ts` — charge les context packs
+- `pipeline/hook-executor.ts` — `runStageHook()`, `runToolHook()` (4 points de hook)
+- `pipeline/startup-executor.ts` — `executeStartupCommands()` pour `on_pipeline_start`
+- `pipeline/post-validator.ts` — `postValidate()` (rejection detection)
+- `pipeline/skill-loader.ts` — charge les `.skill.md` files
+- `db/client.ts` — SQLite client (pour WebhookStore, IntegrationStore côté api)
+- `spawners/direct-engine-spawner.ts` — `DirectEngineSpawner` implémente `RunSpawner`
 
-## Le test qui compte
+## Groups (feedback loops)
 
-tests/e2e/feature-v5.test.ts — FAQ sur About.tsx, doit passer 10/10.
-Si ce test passe pas de façon fiable, rien d'autre compte.
+Un group contient plusieurs stages qui itèrent ensemble. Si le dernier stage rejette (via `post_validation.rejection_detection`), le group redémarre depuis le début avec le feedback accumulé. `max_iterations` cap.
+
+## Hooks lifecycle
+
+4 points déterministes : `on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`.
+`on_failure: warn | reject | fail`. Les hooks `pre_tool_use` avec reject bloquent le tool call.
+
+## État machine
+
+```
+pending → running → success
+                  → failed     (ralph exhausted, ou hook on_failure: fail)
+                  → rejected   (post_validation, ou hook on_failure: reject)
+                  → skipped
+                  → cancelled  (AbortSignal)
+```
 
 ## Dépendances
 
-@studio/contracts, @studio/ralph, @studio/runner
+`@studio/contracts`, `@studio/ralph`, `@studio/runner`, `@studio/anonymizer`

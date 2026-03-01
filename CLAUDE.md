@@ -703,7 +703,7 @@ Les fichiers `commit-conventions.skill.md` et `react-patterns.skill.md` sont aut
 
 ### 2. Dépendance inversée accidentelle
 
-Vérifie le graphe : `contracts` → rien, `ralph` → contracts, `runner` → contracts, `engine` → ralph + runner + contracts, `cli` → engine + contracts.
+Vérifie le graphe : `contracts` → rien, `ralph` → contracts, `runner` → contracts, `anonymizer` → contracts, `engine` → ralph + runner + anonymizer + contracts, `api` → engine + contracts, `cli` → engine + contracts (+ runner et api en tant que composition root — exception documentée dans INVARIANTS.md).
 
 ### 3. Format des tools incohérent
 

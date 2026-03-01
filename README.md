@@ -336,8 +336,8 @@ Seven packages in a single monorepo. Each fits in a single context window. Each 
 **Build from source:**
 
 ```bash
-git clone https://github.com/arianeguay/studio-workspace
-cd studio-workspace
+git clone https://github.com/arianeguay/studio
+cd studio
 pnpm install
 pnpm build
 ```
@@ -362,7 +362,7 @@ studio run <pipeline> --anonymize              # Anonymize PII before sending to
 studio status [run-id]                         # Check run status
 studio logs [run-id]                           # View run logs
 studio list pipelines                          # List available pipelines
-studio validate <contract> <output>            # Validate output against contract
+studio validate <contract> <output.json>       # Validate output against contract
 
 # Setup & config
 studio config add-provider                     # Add an LLM provider (wizard)
