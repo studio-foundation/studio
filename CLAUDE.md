@@ -411,17 +411,17 @@ Les tools sont des plugins YAML (`.tool.yaml`). Le runner est un tool plugin run
 
 ## Configs YAML — source de vérité
 
-Les configs sont organisées directement dans `.studio/` dans le repo utilisateur (structure plate — pas de `projects/<nom>/`).
+Les configs sont organisées directement dans `.studio/` dans le repo utilisateur.
 
-**Pipelines :** `<projet>/pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
+**Pipelines :** `pipelines/*.pipeline.yaml` — séquence de stages, ralph settings par stage.
 
-**Contracts :** `<projet>/contracts/*.contract.yaml` — JSON schema + contraintes (tool_calls minimum, rejection detection).
+**Contracts :** `contracts/*.contract.yaml` — JSON schema + contraintes (tool_calls minimum, rejection detection).
 
-**Agents :** `<projet>/agents/*.agent.yaml` — provider, model, temperature, tools autorisés, system prompt.
+**Agents :** `agents/*.agent.yaml` — provider, model, temperature, tools autorisés, system prompt.
 
-**Tools :** `<projet>/tools/*.tool.yaml` — tool plugins (commandes, paramètres, prompt snippet, contraintes).
+**Tools :** `tools/*.tool.yaml` — tool plugins (commandes, paramètres, prompt snippet, contraintes).
 
-**Inputs :** `<projet>/inputs/*.input.yaml` — fichiers d'input exemple.
+**Inputs :** `inputs/*.input.yaml` — fichiers d'input exemple.
 
 **Ne hardcode JAMAIS dans le code ce qui peut être dans un YAML.** Si tu te retrouves à écrire `if (stage.kind === 'qa')` dans le engine, c'est une erreur — ça devrait être dans le contract.
 

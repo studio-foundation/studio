@@ -146,7 +146,7 @@ arbitraire et configurable — source de bugs et de comportements surprenants.
 ## INV-09 — Un projet est 100% autonome dans son dossier
 
 **Description :** Tout ce qui concerne un projet (pipelines, agents, contracts,
-tools) vit dans `.studio/projects/<projet>/`. Aucun projet ne référence les
+tools) vit dans `.studio/`. Aucun projet ne référence les
 configs d'un autre projet. Les loaders sont scopés par dossier projet.
 
 **Enforcé par :** [`engine/src/engine.ts`](engine/src/engine.ts) —
