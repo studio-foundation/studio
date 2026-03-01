@@ -62,7 +62,7 @@ import {
 import { deriveStageStatus } from './state/status-derivation.js';
 import { postValidate, type PostValidationResult } from './pipeline/post-validator.js';
 import { loadContextPacks } from './pipeline/context-pack-loader.js';
-import type { RunStore } from './state/run-store.js';
+import type { AnyRunStore } from './state/run-store.js';
 import type { EngineEvents, ToolCallSummary, StageContextEvent } from './events.js';
 import { PipelineEventEmitter } from './events.js';
 
@@ -95,7 +95,7 @@ export interface EngineConfig {
   repoPath?: string;
   providerRegistry: ProviderRegistry;
   toolRegistry: ToolRegistry;
-  db?: RunStore;
+  db?: AnyRunStore;
   providerOverride?: string;
   /**
    * Skills content from active plugins, keyed by plugin name.
@@ -204,7 +204,7 @@ export class PipelineEngine {
     const runMiddleware = runAnonymize ? new AnonymizationMiddleware() : null;
 
     // Persist the run immediately so log_path can be written before terminal states
-    this.config.db?.savePipelineRun(pipelineRun);
+    await this.config.db?.savePipelineRun(pipelineRun);
 
     // Build per-run tool registry: clone the shared registry and inject studio-run
     // with run-specific context (run ID, depth) if a spawner is configured.
@@ -268,7 +268,7 @@ export class PipelineEngine {
           total_tool_calls: this.pipelineTotals.toolCalls,
         });
         this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-        this.config.db?.savePipelineRun(pipelineRun);
+        await this.config.db?.savePipelineRun(pipelineRun);
         return pipelineRun;
       }
 
@@ -317,7 +317,7 @@ export class PipelineEngine {
             total_tool_calls: this.pipelineTotals.toolCalls,
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-          this.config.db?.savePipelineRun(pipelineRun);
+          await this.config.db?.savePipelineRun(pipelineRun);
           if (runMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
@@ -361,7 +361,7 @@ export class PipelineEngine {
             total_tool_calls: this.pipelineTotals.toolCalls,
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-          this.config.db?.savePipelineRun(pipelineRun);
+          await this.config.db?.savePipelineRun(pipelineRun);
           if (runMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
@@ -393,7 +393,7 @@ export class PipelineEngine {
       total_tool_calls: this.pipelineTotals.toolCalls,
     });
     this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-    this.config.db?.savePipelineRun(pipelineRun);
+    await this.config.db?.savePipelineRun(pipelineRun);
     if (runMiddleware) {
       await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
     }

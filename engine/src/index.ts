@@ -33,7 +33,7 @@ export type { StageLifecycleState } from './state/state-machine.js';
 
 // Run store
 export { InMemoryRunStore, SQLiteRunStore } from './state/run-store.js';
-export type { RunStore } from './state/run-store.js';
+export type { RunStore, AsyncRunStore, AnyRunStore } from './state/run-store.js';
 
 // Pipeline loaders
 export { loadPipeline, loadPipelineByName, parsePipelineYaml } from './pipeline/loader.js';
