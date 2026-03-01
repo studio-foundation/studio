@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { SQLiteRunStore } from './run-store.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { SQLiteRunStore, PgRunStore } from './run-store.js';
 import type { PipelineRun } from '@studio/contracts';
 
 function makeRun(overrides?: Partial<PipelineRun>): PipelineRun {
@@ -63,3 +63,95 @@ describe('SQLiteRunStore', () => {
     });
   });
 });
+
+const TEST_PG_URL = process.env.TEST_DATABASE_URL;
+
+describe.skipIf(!TEST_PG_URL)('PgRunStore', () => {
+  let store: PgRunStore;
+
+  beforeEach(async () => {
+    store = new PgRunStore(TEST_PG_URL!);
+    await store.dangerouslyTruncateForTests();
+  });
+
+  afterEach(async () => {
+    await store.close();
+  });
+
+  it('saves and retrieves a pipeline run', async () => {
+    const run = makePgRun('pg-run-1');
+    await store.savePipelineRun(run);
+    const found = await store.getPipelineRun('pg-run-1');
+    expect(found).toMatchObject({ id: 'pg-run-1', status: 'success' });
+  });
+
+  it('returns null for unknown id', async () => {
+    const found = await store.getPipelineRun('doesnt-exist');
+    expect(found).toBeNull();
+  });
+
+  it('updates an existing run (upsert)', async () => {
+    const run = makePgRun('pg-run-2');
+    await store.savePipelineRun(run);
+    await store.savePipelineRun({ ...run, status: 'failed' });
+    const found = await store.getPipelineRun('pg-run-2');
+    expect(found?.status).toBe('failed');
+  });
+
+  it('lists runs with status filter', async () => {
+    await store.savePipelineRun(makePgRun('pg-1', 'success'));
+    await store.savePipelineRun(makePgRun('pg-2', 'failed'));
+    const successes = await store.listPipelineRuns({ status: 'success' });
+    expect(successes).toHaveLength(1);
+    expect(successes[0].id).toBe('pg-1');
+  });
+
+  it('lists runs with limit', async () => {
+    for (let i = 0; i < 5; i++) {
+      await store.savePipelineRun(makePgRun(`pg-limit-${i}`));
+    }
+    const runs = await store.listPipelineRuns({ limit: 3 });
+    expect(runs).toHaveLength(3);
+  });
+
+  it('getLatestRun returns most recent', async () => {
+    await store.savePipelineRun(makePgRun('pg-old', 'success', '2024-01-01T00:00:00Z'));
+    await store.savePipelineRun(makePgRun('pg-new', 'success', '2024-06-01T00:00:00Z'));
+    const latest = await store.getLatestRun();
+    expect(latest?.id).toBe('pg-new');
+  });
+
+  it('getLatestRun filters by pipeline name', async () => {
+    await store.savePipelineRun(makePgRun('pg-a', 'success', undefined, 'pipeline-a'));
+    await store.savePipelineRun(makePgRun('pg-b', 'success', undefined, 'pipeline-b'));
+    const latest = await store.getLatestRun('pipeline-a');
+    expect(latest?.id).toBe('pg-a');
+  });
+
+  it('saves and retrieves log path', async () => {
+    await store.savePipelineRun(makePgRun('pg-log-1'));
+    await store.saveLogPath('pg-log-1', '/tmp/test.jsonl');
+    const path = await store.getLogPath('pg-log-1');
+    expect(path).toBe('/tmp/test.jsonl');
+  });
+
+  it('returns null log path for unknown run', async () => {
+    const path = await store.getLogPath('no-such-run');
+    expect(path).toBeNull();
+  });
+});
+
+function makePgRun(
+  id: string,
+  status: string = 'success',
+  startedAt: string = new Date().toISOString(),
+  pipelineName: string = 'test-pipeline'
+) {
+  return {
+    id,
+    pipeline_name: pipelineName,
+    status,
+    started_at: startedAt,
+    stages: [],
+  } as PipelineRun;
+}
