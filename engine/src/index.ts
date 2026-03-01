@@ -32,7 +32,7 @@ export { isValidTransition, transition } from './state/state-machine.js';
 export type { StageLifecycleState } from './state/state-machine.js';
 
 // Run store
-export { InMemoryRunStore, SQLiteRunStore } from './state/run-store.js';
+export { InMemoryRunStore, SQLiteRunStore, PgRunStore } from './state/run-store.js';
 export type { RunStore, AsyncRunStore, AnyRunStore } from './state/run-store.js';
 
 // Pipeline loaders
