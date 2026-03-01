@@ -3,9 +3,12 @@ import { writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+// Use a unique fake home dir so tests don't collide with other test files using /tmp
+const FAKE_HOME = join(tmpdir(), `.studio-api-test-${process.pid}`);
+
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>();
-  return { ...actual, homedir: () => tmpdir() };
+  return { ...actual, homedir: () => FAKE_HOME };
 });
 
 // Import after mocking
@@ -13,8 +16,8 @@ const { apiStopCommand, apiStatusCommand, writePid, readPid, clearPid, isProcess
 
 afterEach(async () => {
   await clearPid();
-  // Remove the .studio dir created by writePid to avoid polluting other tests
-  await rm(join(tmpdir(), '.studio'), { recursive: true, force: true });
+  // Remove the .studio dir created by writePid
+  await rm(join(FAKE_HOME, '.studio'), { recursive: true, force: true });
 });
 
 describe('writePid / readPid / clearPid', () => {
@@ -61,7 +64,7 @@ describe('apiStopCommand', () => {
   it('prints "stale PID" and clears file when process is dead', async () => {
     await writePid(3700);
     // Overwrite with a dead PID
-    const pidFile = join(tmpdir(), '.studio', 'api.pid');
+    const pidFile = join(FAKE_HOME, '.studio', 'api.pid');
     await writeFile(pidFile, '999999999:3700', 'utf-8');
 
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
