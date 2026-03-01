@@ -1,5 +1,5 @@
 // Persistence layer for pipeline runs
-// Two implementations: InMemoryRunStore (tests) + SQLiteRunStore (production)
+// Three implementations: InMemoryRunStore (tests), SQLiteRunStore (local), PgRunStore (postgres)
 
 import { createRequire } from 'node:module';
 import type { PipelineRun } from '@studio/contracts';
@@ -217,7 +217,7 @@ export class SQLiteRunStore implements RunStore {
 // Uses table prefix `studio_` to avoid conflicts with the user app's own tables.
 export class PgRunStore implements AsyncRunStore {
   private pool: import('pg').Pool;
-  private initialized = false;
+  private schemaReady: Promise<void> | null = null;
 
   constructor(connectionString: string) {
     const _require = createRequire(import.meta.url);
@@ -225,8 +225,14 @@ export class PgRunStore implements AsyncRunStore {
     this.pool = new Pool({ connectionString });
   }
 
-  private async ensureSchema(): Promise<void> {
-    if (this.initialized) return;
+  private ensureSchema(): Promise<void> {
+    if (!this.schemaReady) {
+      this.schemaReady = this.initSchema();
+    }
+    return this.schemaReady;
+  }
+
+  private async initSchema(): Promise<void> {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS studio_pipeline_runs (
         id            TEXT PRIMARY KEY,
@@ -252,7 +258,6 @@ export class PgRunStore implements AsyncRunStore {
       CREATE INDEX IF NOT EXISTS idx_studio_pipeline_runs_parent
         ON studio_pipeline_runs(parent_run_id)
     `);
-    this.initialized = true;
   }
 
   async savePipelineRun(run: PipelineRun): Promise<void> {

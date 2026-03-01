@@ -39,6 +39,10 @@ export interface StudioApiConfig {
   defaults?: { provider?: string; model?: string };
   api?: { key?: string; port?: number };
   integrations?: Record<string, Record<string, unknown>>;
+  db?: {
+    type?: 'sqlite' | 'postgres' | 'inmemory';
+    url?: string;
+  };
 }
 
 export interface BootstrapResult {
@@ -103,23 +107,21 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
 
   const runsDir = join(studioDir, 'runs');
 
-  const rawConfig = config as StudioApiConfig & { db?: { type?: string; url?: string } };
-  const dbType = rawConfig.db?.type ?? 'sqlite';
+  const dbType = config.db?.type ?? 'sqlite';
+
+  // WebhookStore and IntegrationStore are always SQLite — they are separate from RunStore
+  const dbPath = join(studioDir, 'runs', 'runs.db');
 
   let store: AnyRunStore;
   if (dbType === 'postgres') {
-    const url = rawConfig.db?.url;
+    const url = config.db?.url;
     if (!url) throw new Error('db.url is required when db.type is postgres');
     store = new PgRunStore(url);
   } else if (dbType === 'inmemory') {
     store = new InMemoryRunStore();
   } else {
-    const dbPath = join(studioDir, 'runs', 'runs.db');
     store = new SQLiteRunStore(dbPath);
   }
-
-  // WebhookStore and IntegrationStore are always SQLite — they are separate from RunStore
-  const dbPath = join(studioDir, 'runs', 'runs.db');
 
   const providerRegistry = createDefaultRegistry({
     openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
@@ -214,8 +216,8 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
       for (const client of mcpClients) {
         try { await client.close(); } catch { /* ignore */ }
       }
-      if ('close' in store && typeof (store as { close?: () => void }).close === 'function') {
-        (store as { close: () => void }).close();
+      if ('close' in store && typeof (store as AnyRunStore & { close?: () => unknown }).close === 'function') {
+        await (store as AnyRunStore & { close(): Promise<void> | void }).close();
       }
       webhookStore.close();
       integrationStore.close();
