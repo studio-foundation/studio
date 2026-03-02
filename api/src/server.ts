@@ -10,6 +10,9 @@ import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
 import type { IntegrationStore } from './integration-store.js';
 import type { IntegrationRuntime } from './integration-runtime.js';
+import type { UserStore } from './user-store.js';
+import type { PgUserStore } from './user-store-pg.js';
+import type { PlansConfig } from './plans.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
@@ -44,6 +47,10 @@ export interface ServerDeps {
   webhookStore: WebhookStore;
   integrationStore: IntegrationStore;
   integrationRuntime: IntegrationRuntime;
+  userStore?: UserStore | PgUserStore;
+  plans?: PlansConfig;
+  /** true when at least one user exists in the DB — computed at bootstrap time to avoid per-request DB calls */
+  hasUsers?: boolean;
 }
 
 export function buildServer(deps: ServerDeps) {

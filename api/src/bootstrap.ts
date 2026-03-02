@@ -29,6 +29,9 @@ import { WebhookDispatcher } from './webhook-dispatcher.js';
 import { IntegrationStore } from './integration-store.js';
 import { IntegrationRuntime } from './integration-runtime.js';
 import { HttpApiSpawner } from './spawners/http-api-spawner.js';
+import { resolvePlans, type PlansConfig } from './plans.js';
+import { UserStore } from './user-store.js';
+import { PgUserStore } from './user-store-pg.js';
 
 export interface StudioApiConfig {
   providers?: {
@@ -43,6 +46,12 @@ export interface StudioApiConfig {
     type?: 'sqlite' | 'postgres' | 'inmemory';
     url?: string;
   };
+  plans?: Record<string, {
+    runs_per_day?: number;
+    max_concurrent?: number;
+    max_tokens_per_run?: number;
+    rate_limit_per_minute?: number;
+  }>;
 }
 
 export interface BootstrapResult {
@@ -59,6 +68,8 @@ export interface BootstrapResult {
   webhookStore: WebhookStore;
   integrationStore: IntegrationStore;
   integrationRuntime: IntegrationRuntime;
+  userStore: UserStore | PgUserStore;
+  plans: PlansConfig;
 }
 
 async function findStudioDir(startDir: string): Promise<string | null> {
@@ -122,6 +133,18 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   } else {
     store = new SQLiteRunStore(dbPath);
   }
+
+  // UserStore — same DB as run store
+  let userStore: UserStore | PgUserStore;
+  if (dbType === 'postgres') {
+    const url = config.db?.url;
+    if (!url) throw new Error('db.url is required when db.type is postgres');
+    userStore = new PgUserStore(url);
+  } else {
+    userStore = new UserStore(dbPath);
+  }
+
+  const plans = resolvePlans(config.plans as Record<string, import('./plans.js').PlanLimits> | undefined);
 
   const providerRegistry = createDefaultRegistry({
     openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
@@ -213,12 +236,17 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     webhookStore,
     integrationStore,
     integrationRuntime,
+    userStore,
+    plans,
     cleanup: async () => {
       for (const client of mcpClients) {
         try { await client.close(); } catch { /* ignore */ }
       }
       if ('close' in store && typeof (store as AnyRunStore & { close?: () => unknown }).close === 'function') {
         await (store as AnyRunStore & { close(): Promise<void> | void }).close();
+      }
+      if (userStore && 'close' in userStore && typeof userStore.close === 'function') {
+        await userStore.close();
       }
       webhookStore.close();
       integrationStore.close();
