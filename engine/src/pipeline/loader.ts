@@ -54,9 +54,22 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
       for (const s of entry.stages) {
         validateStageFields(s, context);
       }
+
+      const mode = entry.mode === 'parallel' ? 'parallel' : undefined;
+      let maxIterations: number = entry.max_iterations ?? 3;
+
+      if (mode === 'parallel' && maxIterations > 1) {
+        console.warn(
+          `[studio] parallel group '${entry.group}' has max_iterations > 1 — iterations are ignored in parallel mode, using 1`
+        );
+        maxIterations = 1;
+      }
+
       stages.push({
         group: entry.group,
-        max_iterations: entry.max_iterations ?? 3,
+        max_iterations: maxIterations,
+        ...(mode ? { mode } : {}),
+        ...(entry.on_failure ? { on_failure: entry.on_failure } : {}),
         stages: entry.stages.map((s: any) => ({ ...s, hooks: parseStageHooks(s) })),
       } as StageGroup);
     } else {
