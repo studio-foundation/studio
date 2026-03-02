@@ -53,6 +53,13 @@ export interface ServerDeps {
   hasUsers?: boolean;
 }
 
+// request.user type augmentation for Fastify
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: import('./user-store.js').User;
+  }
+}
+
 export function buildServer(deps: ServerDeps) {
   const fastify = Fastify({ logger: false });
 
@@ -79,19 +86,38 @@ export function buildServer(deps: ServerDeps) {
     });
   }
 
-  // Auth hook — only active if api key is configured
-  // Skips /api/integrations/* routes (they use their own auth mechanism, e.g. HMAC)
-  if (deps.apiConfig.key) {
-    const expectedKey = deps.apiConfig.key;
-    fastify.addHook('onRequest', async (request, reply) => {
-      const path = request.url.split('?')[0];
-      if (path.startsWith('/api/integrations/')) return;
-      const auth = request.headers['authorization'];
-      if (!auth || auth !== `Bearer ${expectedKey}`) {
+  // Auth hook — supports three modes:
+  //   1. Multi-user: userStore provided + hasUsers=true → lookup by api_key
+  //   2. Legacy single-key: hasUsers=false + api.key configured → Bearer check
+  //   3. Open/dev: no users, no api.key → allow all (local dev only)
+  fastify.addHook('onRequest', async (request, reply) => {
+    const path = request.url.split('?')[0];
+    if (path.startsWith('/api/integrations/')) return;
+
+    const auth = request.headers['authorization'];
+    const token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+
+    if (deps.userStore && deps.hasUsers) {
+      // Multi-user mode: look up user by api_key
+      const user = token ? await deps.userStore.getUserByApiKey(token) : null;
+      if (!user) {
+        await reply.status(401).send({ error: 'Unauthorized' });
+        return;
+      }
+      request.user = user;
+      return;
+    }
+
+    // Legacy single-key mode
+    if (deps.apiConfig.key) {
+      if (!auth || auth !== `Bearer ${deps.apiConfig.key}`) {
         await reply.status(401).send({ error: 'Unauthorized' });
       }
-    });
-  }
+      return;
+    }
+
+    // No userStore with users, no api.key → open (local dev)
+  });
 
   void fastify.register(runsRoutes, { prefix: '/api', deps });
   void fastify.register(projectsRoutes, { prefix: '/api', deps });
