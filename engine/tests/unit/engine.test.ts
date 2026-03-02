@@ -5,6 +5,26 @@ import { InMemoryRunStore } from '../../src/state/run-store.js';
 import type { EngineEvents } from '../../src/events.js';
 import { ToolRegistry } from '@studio/runner';
 
+// Provider mock that hangs forever unless the abort signal fires.
+// Using a never-resolving inner promise means the abort is the ONLY way
+// the test completes — no timing race possible.
+function createHangingProvider() {
+  return {
+    name: 'anthropic',
+    call: vi.fn().mockImplementation(
+      (_req: unknown, _onToken: unknown, signal?: AbortSignal) => {
+        if (signal?.aborted) {
+          return Promise.reject(new DOMException('Aborted', 'AbortError'));
+        }
+        return new Promise<never>((_, reject) => {
+          if (!signal) return; // never resolves (only reached if no signal)
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+      }
+    ),
+  };
+}
+
 // Minimal mock for ProviderRegistry
 function createMockProviderRegistry() {
   const mockProvider = {
@@ -205,6 +225,34 @@ stages:
       include:
         - input
         - pipeline_start_context
+`);
+
+  writeFileSync(join(PIPELINES_DIR, 'group-simple.pipeline.yaml'), `
+name: group-simple
+description: Pipeline with a simple group for cancellation testing
+version: 1
+stages:
+  - group: review-loop
+    max_iterations: 2
+    stages:
+      - name: review-stage-1
+        kind: analysis
+        agent: test-agent
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - input
+      - name: review-stage-2
+        kind: analysis
+        agent: test-agent
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - input
 `);
 }
 
@@ -502,6 +550,80 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('cancelled');
     expect(result.stages).toHaveLength(0);
+  });
+
+  it('cancels cleanly when signal is aborted while a stage is executing', async () => {
+    const controller = new AbortController();
+
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(createHangingProvider()), register: vi.fn() } as any,
+    });
+
+    // Abort after the engine has started (next microtask), before the hanging provider resolves
+    queueMicrotask(() => controller.abort());
+
+    const result = await engine.run({
+      pipeline: 'simple',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+  });
+
+  it('cancels between stages when signal is aborted after first stage completes', async () => {
+    const controller = new AbortController();
+    let stage1Completed = false;
+
+    const events: EngineEvents = {
+      onStageComplete: (e) => {
+        if (e.stage_name === 'stage-1') {
+          stage1Completed = true;
+          controller.abort(); // abort after stage 1 finishes
+        }
+      },
+    };
+
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as any,
+        toolRegistry: createMockToolRegistry() as any,
+        db: new InMemoryRunStore(),
+      },
+      events
+    );
+
+    const result = await engine.run({
+      pipeline: 'two-stage',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(stage1Completed).toBe(true);
+    expect(result.stages).toHaveLength(1);
+    expect(result.stages[0].stage_name).toBe('stage-1');
+    expect(result.stages[0].status).toBe('success');
+  });
+
+  it('cancels cleanly when signal is aborted during a group stage', async () => {
+    const controller = new AbortController();
+
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(createHangingProvider()), register: vi.fn() } as any,
+    });
+
+    // Abort after the engine has started (next microtask), before the hanging provider resolves
+    queueMicrotask(() => controller.abort());
+
+    const result = await engine.run({
+      pipeline: 'group-simple',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
   });
 
   it('on_pipeline_start output is injected into stage context', async () => {

@@ -1,9 +1,9 @@
 // Stage lifecycle state machine
 // Keeps it simple: linear transitions, no DAG
 
-export type StageLifecycleState = 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'rejected';
+export type StageLifecycleState = 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'rejected' | 'cancelled';
 
-type StageEvent = 'start' | 'succeed' | 'fail' | 'skip' | 'reject';
+type StageEvent = 'start' | 'succeed' | 'fail' | 'skip' | 'reject' | 'cancel';
 
 const VALID_TRANSITIONS: Record<string, StageLifecycleState> = {
   'pending:start': 'running',
@@ -11,6 +11,7 @@ const VALID_TRANSITIONS: Record<string, StageLifecycleState> = {
   'running:fail': 'failed',
   'pending:skip': 'skipped',
   'running:reject': 'rejected',
+  'running:cancel': 'cancelled',
 };
 
 export function isValidTransition(from: StageLifecycleState, to: StageLifecycleState): boolean {

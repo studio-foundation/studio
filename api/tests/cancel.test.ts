@@ -83,3 +83,38 @@ describe('POST /api/runs/:id/cancel', () => {
     }
   });
 });
+
+describe('DELETE /api/runs/:id', () => {
+  it('returns 200 with run_id when run is running', async () => {
+    const store = new InMemoryRunStore();
+    const cancelFn = vi.fn().mockResolvedValue(undefined);
+    store.savePipelineRun(makeRun({ id: 'run-del-1', status: 'running' }));
+    const server = makeServer(store, { cancel: cancelFn });
+
+    const res = await server.inject({ method: 'DELETE', url: '/api/runs/run-del-1' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ run_id: 'run-del-1' });
+    expect(cancelFn).toHaveBeenCalledWith('run-del-1');
+  });
+
+  it('returns 404 when run does not exist', async () => {
+    const server = makeServer();
+
+    const res = await server.inject({ method: 'DELETE', url: '/api/runs/nonexistent' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toMatch(/not found/i);
+  });
+
+  it('returns 409 when run is already terminal', async () => {
+    const store = new InMemoryRunStore();
+    store.savePipelineRun(makeRun({ id: 'run-done', status: 'success' }));
+    const server = makeServer(store);
+
+    const res = await server.inject({ method: 'DELETE', url: '/api/runs/run-done' });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toMatch(/not cancellable/i);
+  });
+});

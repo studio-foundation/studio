@@ -63,6 +63,7 @@ import {
   type PipelineContext,
 } from './pipeline/context-propagation.js';
 import { deriveStageStatus } from './state/status-derivation.js';
+import { transition } from './state/state-machine.js';
 import { postValidate, type PostValidationResult } from './pipeline/post-validator.js';
 import { loadContextPacks } from './pipeline/context-pack-loader.js';
 import type { AnyRunStore } from './state/run-store.js';
@@ -276,6 +277,7 @@ export class PipelineEngine {
           cancelled_at_stage: lastStage?.stage_name ?? 'before_first_stage',
           duration_ms: Date.now() - pipelineStartTime,
         });
+        await this.config.db?.savePipelineRun(pipelineRun);
         this.events?.onPipelineComplete?.({
           pipeline_name: pipeline.name,
           run_id: pipelineRun.id,
@@ -285,7 +287,6 @@ export class PipelineEngine {
           total_tool_calls: this.pipelineTotals.toolCalls,
         });
         this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-        await this.config.db?.savePipelineRun(pipelineRun);
         return pipelineRun;
       }
 
@@ -325,6 +326,10 @@ export class PipelineEngine {
               duration_ms: Date.now() - pipelineStartTime,
             });
           }
+          await this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
           this.events?.onPipelineComplete?.({
             pipeline_name: pipeline.name,
             run_id: pipelineRun.id,
@@ -334,10 +339,6 @@ export class PipelineEngine {
             total_tool_calls: this.pipelineTotals.toolCalls,
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-          await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
-            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
-          }
           return pipelineRun;
         }
       } else {
@@ -369,6 +370,10 @@ export class PipelineEngine {
               duration_ms: Date.now() - pipelineStartTime,
             });
           }
+          await this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
           this.events?.onPipelineComplete?.({
             pipeline_name: pipeline.name,
             run_id: pipelineRun.id,
@@ -378,10 +383,6 @@ export class PipelineEngine {
             total_tool_calls: this.pipelineTotals.toolCalls,
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-          await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
-            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
-          }
           return pipelineRun;
         }
 
@@ -400,7 +401,11 @@ export class PipelineEngine {
     pipelineRun.status = 'success';
     pipelineRun.completed_at = new Date().toISOString();
 
-    // 6. Emit + persist
+    // 6. Persist then emit (DB must be updated before SSE fires, so spawnAndWait GET sees final status)
+    await this.config.db?.savePipelineRun(pipelineRun);
+    if (runMiddleware) {
+      await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+    }
     this.events?.onPipelineComplete?.({
       pipeline_name: pipeline.name,
       run_id: pipelineRun.id,
@@ -410,10 +415,6 @@ export class PipelineEngine {
       total_tool_calls: this.pipelineTotals.toolCalls,
     });
     this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
-    await this.config.db?.savePipelineRun(pipelineRun);
-    if (runMiddleware) {
-      await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
-    }
 
     return pipelineRun;
   }
@@ -752,7 +753,7 @@ export class PipelineEngine {
 
     // Cancelled — skip post-validation and hooks
     if (stageStatus === 'cancelled') {
-      stageRun.status = 'cancelled';
+      stageRun.status = transition('running', 'cancel');
       stageRun.completed_at = new Date().toISOString();
       taskRun.status = 'failed'; // closest existing TaskRun status
       taskRun.completed_at = new Date().toISOString();
