@@ -162,7 +162,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
 
   // Self-referential spawner: allows pipelines to spawn child runs via the API
   const apiPort = config.api?.port ?? 3000;
-  const spawner = new HttpApiSpawner(`http://localhost:${apiPort}`);
+  const spawner = new HttpApiSpawner(`http://localhost:${apiPort}`, config.api?.key);
 
   const engineConfig: EngineConfig = {
     configsDir: studioDir,
