@@ -1,8 +1,9 @@
 // Fastify server builder — takes deps via injection for testability
 // buildServer(deps) → FastifyInstance, ready to listen
 
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import type { AnyRunStore } from '@studio/engine';
@@ -12,7 +13,7 @@ import type { IntegrationStore } from './integration-store.js';
 import type { IntegrationRuntime } from './integration-runtime.js';
 import type { UserStore } from './user-store.js';
 import type { PgUserStore } from './user-store-pg.js';
-import type { PlansConfig } from './plans.js';
+import { getPlanLimits, DEFAULT_PLANS, type PlansConfig } from './plans.js';
 import { runsRoutes } from './routes/runs.js';
 import { projectsRoutes } from './routes/projects.js';
 import { contractsRoutes } from './routes/contracts.js';
@@ -70,6 +71,23 @@ export function buildServer(deps: ServerDeps) {
   });
 
   void fastify.register(cors, { origin: true });
+
+  void fastify.register(rateLimit, {
+    global: true,
+    max: (req: FastifyRequest) => {
+      const planName = req.user?.plan ?? 'free';
+      const plans = deps.plans ?? DEFAULT_PLANS;
+      return getPlanLimits(plans, planName).rate_limit_per_minute;
+    },
+    timeWindow: '1 minute',
+    keyGenerator: (req: FastifyRequest) => req.user?.id ?? req.ip ?? 'anonymous',
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+    },
+    allowList: (req: FastifyRequest) => req.url.startsWith('/api/integrations/'),
+  });
 
   if (process.env['NODE_ENV'] !== 'production') {
     void fastify.register(swagger, {
