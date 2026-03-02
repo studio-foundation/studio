@@ -79,6 +79,9 @@ export class OpenAIProvider implements Provider {
     let usage: LLMResponse['usage'];
 
     for await (const chunk of stream) {
+      // KEY FIX: check signal at the start of each chunk so we don't keep
+      // consuming buffered data after Ctrl-C.
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const delta = chunk.choices[0]?.delta;
       if (delta?.content) {
         textContent += delta.content;
