@@ -313,6 +313,38 @@ export async function runsRoutes(
     return reply.send({ run_id: id });
   });
 
+  // DELETE /api/runs/:id — cancel a running pipeline (spec-aligned alias for POST /runs/:id/cancel)
+  fastify.delete<{ Params: { id: string } }>('/runs/:id', {
+    schema: {
+      tags: ['runs'],
+      summary: 'Cancel a running pipeline (DELETE alias for POST /runs/:id/cancel)',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: { run_id: { type: 'string' } },
+        },
+        404: errorSchema,
+        409: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const run = await store.getPipelineRun(id);
+    if (!run) {
+      return reply.status(404).send({ error: 'Run not found' });
+    }
+    if (run.status !== 'running') {
+      return reply.status(409).send({ error: `Run is not cancellable (status: ${run.status})` });
+    }
+    await launcher.cancel(id);
+    return reply.send({ run_id: id });
+  });
+
   // GET /api/runs/:id/stream — SSE
   fastify.get<{
     Params: { id: string };
