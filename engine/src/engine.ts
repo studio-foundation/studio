@@ -47,6 +47,7 @@ import { loadAgentProfile } from './pipeline/agent-loader.js';
 import { loadContract } from './pipeline/contract-loader.js';
 import { loadSkillFiles } from './pipeline/skill-loader.js';
 import { executeStartupCommands } from './pipeline/startup-executor.js';
+import { loadInvariantsFile } from './pipeline/invariants-loader.js';
 import { runStageHook, runToolHook } from './pipeline/hook-executor.js';
 import {
   createInitialContext,
@@ -242,6 +243,9 @@ export class PipelineEngine {
         cwd
       );
     }
+
+    // Load .studio/invariants.md if present — injected into every agent's system_prompt
+    pipelineContext.invariantsContent = await loadInvariantsFile(projectPaths.projectDir);
 
     // 4. Execute stages sequentially (handling groups)
     const totalStages = countTotalStages(pipeline.stages);
