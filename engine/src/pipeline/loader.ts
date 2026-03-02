@@ -143,6 +143,7 @@ function parseStageHooks(entry: any): StageHooks | undefined {
 
 function validateStageFields(stage: any, context: string): void {
   if (!stage.name) throw new Error(`Stage missing 'name'${context}`);
-  if (!stage.kind) throw new Error(`Stage '${stage.name}' missing 'kind'${context}`);
-  if (!stage.agent) throw new Error(`Stage '${stage.name}' missing 'agent'${context}`);
+  if (!stage.kind && !stage.executor) throw new Error(`Stage '${stage.name}' missing 'kind'${context}`);
+  if (!stage.agent && stage.executor !== 'script') throw new Error(`Stage '${stage.name}' missing 'agent'${context}`);
+  if (stage.executor === 'script' && !stage.script) throw new Error(`Stage '${stage.name}' missing 'script' (required when executor: 'script')${context}`);
 }

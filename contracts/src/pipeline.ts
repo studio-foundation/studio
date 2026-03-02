@@ -60,7 +60,7 @@ export interface StageDefinition {
   name: string;
   kind?: StageKind;
   agent?: string;           // optional — not needed for script executor
-  executor?: string;        // 'script' or absent (defaults to LLM)
+  executor?: 'script';      // 'script' or absent (defaults to LLM)
   script?: string;          // path to script file (required when executor: 'script')
   runtime?: 'python' | 'node' | 'shell'; // runtime for script executor
   timeout_ms?: number;      // script timeout in ms (default: 30000)

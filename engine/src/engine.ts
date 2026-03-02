@@ -446,7 +446,10 @@ export class PipelineEngine {
     this.emitter.emit({ type: 'stage_start', stageId: stageRunId, stageName: stageDef.name });
 
     // Load agent profile
-    const agentConfig = await loadAgentProfile(stageDef.agent!, paths.agentsDir);
+    if (!stageDef.agent) {
+      throw new Error(`Stage '${stageDef.name}' has no agent configured (script executor stages are not yet supported at this call site)`);
+    }
+    const agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
     if (this.config.providerOverride) {
       agentConfig.provider = this.config.providerOverride;
     }
