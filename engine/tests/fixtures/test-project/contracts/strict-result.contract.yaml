@@ -1,0 +1,7 @@
+
+name: strict-result
+version: 1
+schema:
+  required_fields:
+    - result
+    - must_exist

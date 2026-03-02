@@ -1,0 +1,38 @@
+
+name: parallel-context-isolation-test
+description: context isolation test
+version: 1
+stages:
+  - name: pre-stage
+    kind: analysis
+    agent: test-agent
+    contract: basic-result
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+  - group: parallel-work
+    mode: parallel
+    stages:
+      - name: stage-a
+        kind: analysis
+        agent: test-agent
+        contract: basic-result
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - all_stage_outputs
+      - name: stage-b
+        kind: analysis
+        agent: test-agent
+        contract: basic-result
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - all_stage_outputs
