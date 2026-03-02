@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
-import { rmSync } from 'node:fs';
+import { rmSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InProcessLauncher } from '../src/launcher.js';
 import { RunEventBus } from '../src/event-bus.js';
 import { InMemoryRunStore } from '@studio/engine';
 import type { EngineConfig, EngineEvents } from '@studio/engine';
+import { UserStore } from '../src/user-store.js';
+import type { PlansConfig } from '../src/plans.js';
 
 const TMP_RUNS_DIR = resolve('/tmp', `studio-launcher-test-${Date.now()}`);
 
@@ -240,6 +242,79 @@ describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
     const data = pipelineCompleteEvent!.data as Record<string, unknown>;
     expect(data['meta']).toEqual({ linear_issue_id: 'issue-xyz' });
     expect(data['last_group_feedback']).toBeUndefined();
+  });
+});
+
+function makeTempUserStore(): UserStore {
+  const dir = resolve('/tmp', `.studio-launcher-quota-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(dir, { recursive: true });
+  return new UserStore(resolve(dir, 'runs.db'));
+}
+
+const strictPlan: PlansConfig = {
+  strict: { runs_per_day: 2, max_concurrent: 1, max_tokens_per_run: 1000, rate_limit_per_minute: 10 },
+};
+
+describe('InProcessLauncher — quota enforcement', () => {
+  it('increments runs_count when a run is launched with userId', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    const userStore = makeTempUserStore();
+    userStore.saveUser({ id: 'user-1', email: 'a@a.com', plan: 'strict', api_key: 'k1', created_at: '' });
+    const { factory } = makeMockFactory();
+    factory.mockImplementation(() => ({
+      run: vi.fn().mockResolvedValue({ id: 'r1', pipeline_name: 'p', status: 'success', started_at: '', stages: [] }),
+    }));
+
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory, userStore, strictPlan);
+    await launcher.launch({ runId: 'r1', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR, userId: 'user-1' });
+
+    const today = new Date().toISOString().slice(0, 10);
+    expect(userStore.getDailyUsage('user-1', today).runs_count).toBe(1);
+    userStore.close();
+  });
+
+  it('throws when daily limit is reached', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    const userStore = makeTempUserStore();
+    userStore.saveUser({ id: 'user-1', email: 'a@a.com', plan: 'strict', api_key: 'k1', created_at: '' });
+    const { factory } = makeMockFactory();
+    factory.mockImplementation(() => ({
+      run: vi.fn().mockResolvedValue({ id: 'r1', pipeline_name: 'p', status: 'success', started_at: '', stages: [] }),
+    }));
+
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory, userStore, strictPlan);
+    await launcher.launch({ runId: 'r1', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR, userId: 'user-1' });
+    // Wait for the engine's void promise chain to settle so activePerUser is cleaned up
+    await new Promise((r) => setTimeout(r, 50));
+    await launcher.launch({ runId: 'r2', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR, userId: 'user-1' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    await expect(
+      launcher.launch({ runId: 'r3', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR, userId: 'user-1' })
+    ).rejects.toThrow('Daily run limit exceeded');
+    userStore.close();
+  });
+
+  it('does not enforce quota when no userId', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    const userStore = makeTempUserStore();
+    const { factory } = makeMockFactory();
+    factory.mockImplementation(() => ({
+      run: vi.fn().mockResolvedValue({ id: 'r1', pipeline_name: 'p', status: 'success', started_at: '', stages: [] }),
+    }));
+
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory, userStore, strictPlan);
+
+    // Should not throw even beyond limit when no userId
+    await launcher.launch({ runId: 'r1', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR });
+    await launcher.launch({ runId: 'r2', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR });
+    await expect(
+      launcher.launch({ runId: 'r3', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR })
+    ).resolves.toBeDefined();
+    userStore.close();
   });
 });
 

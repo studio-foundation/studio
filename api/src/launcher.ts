@@ -26,6 +26,8 @@ import { loadProjectTools } from '@studio/runner';
 import { join } from 'node:path';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
+import type { UserStore } from './user-store.js';
+import { getPlanLimits, DEFAULT_PLANS, type PlansConfig } from './plans.js';
 
 export interface LaunchConfig {
   runId: string;
@@ -38,6 +40,7 @@ export interface LaunchConfig {
   depth?: number;
   parentRunId?: string;
   meta?: Record<string, unknown>;
+  userId?: string;
 }
 
 export type EngineFactory = (
@@ -53,6 +56,7 @@ export interface RunLauncher {
 
 export class InProcessLauncher implements RunLauncher {
   private active = new Map<string, AbortController>();
+  private activePerUser = new Map<string, Set<string>>(); // userId → Set<runId>
 
   constructor(
     private engineConfig: EngineConfig,
@@ -60,6 +64,8 @@ export class InProcessLauncher implements RunLauncher {
     private runsDir: string,
     private bus: RunEventBus,
     private engineFactory: EngineFactory = (cfg, evts) => new PipelineEngine(cfg, evts),
+    private userStore?: UserStore,
+    private plans: PlansConfig = DEFAULT_PLANS,
   ) {}
 
   subscribe(runId: string, listener: BusListener): () => void {
@@ -67,7 +73,46 @@ export class InProcessLauncher implements RunLauncher {
   }
 
   async launch(config: LaunchConfig): Promise<{ run_id: string }> {
-    const { runId, pipeline, input, meta, parentRunId } = config;
+    const { runId, pipeline, input, meta, parentRunId, userId } = config;
+
+    // Quota enforcement (only if userId provided and userStore available)
+    if (userId && this.userStore) {
+      const user = this.userStore.getUserById(userId);
+      if (user) {
+        const today = new Date().toISOString().slice(0, 10);
+        const limits = getPlanLimits(this.plans, user.plan);
+
+        // Check runs_per_day
+        if (limits.runs_per_day !== -1) {
+          const usage = this.userStore.getDailyUsage(userId, today);
+          if (usage.runs_count >= limits.runs_per_day) {
+            throw Object.assign(
+              new Error('Daily run limit exceeded'),
+              { code: 'QUOTA_EXCEEDED', limit: limits.runs_per_day, used: usage.runs_count }
+            );
+          }
+        }
+
+        // Check max_concurrent
+        const activeForUser = this.activePerUser.get(userId)?.size ?? 0;
+        if (activeForUser >= limits.max_concurrent) {
+          throw Object.assign(
+            new Error('Concurrent run limit exceeded'),
+            { code: 'QUOTA_EXCEEDED', limit: limits.max_concurrent, used: activeForUser }
+          );
+        }
+
+        // Increment runs_count
+        this.userStore.incrementRuns(userId, today);
+      }
+    }
+
+    // Track active run for user (before creating the controller)
+    if (userId) {
+      if (!this.activePerUser.has(userId)) this.activePerUser.set(userId, new Set());
+      this.activePerUser.get(userId)!.add(runId);
+    }
+
     const controller = new AbortController();
     this.active.set(runId, controller);
 
@@ -153,6 +198,9 @@ export class InProcessLauncher implements RunLauncher {
       })
       .finally(() => {
         this.active.delete(runId);
+        if (userId) {
+          this.activePerUser.get(userId)?.delete(runId);
+        }
       });
 
     return { run_id: runId };
