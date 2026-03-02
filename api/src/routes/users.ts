@@ -49,11 +49,6 @@ export async function usersRoutes(
   }, async (request, reply) => {
     const { email, plan = 'free' } = request.body;
 
-    const existing = await userStore.listUsers();
-    if (existing.some((u) => u.email === email)) {
-      return reply.status(409).send({ error: `User with email ${email} already exists` });
-    }
-
     const apiKey = randomBytes(32).toString('hex');
     const user = {
       id: randomUUID(),
@@ -63,7 +58,15 @@ export async function usersRoutes(
       created_at: new Date().toISOString(),
     };
 
-    await userStore.saveUser(user);
+    try {
+      await userStore.saveUser(user);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('UNIQUE constraint failed')) {
+        return reply.status(409).send({ error: `User with email ${email} already exists` });
+      }
+      throw err;
+    }
     return reply.status(201).send(user);
   });
 
