@@ -49,6 +49,18 @@ describe('isValidTransition', () => {
   it('rejected → running is INVALID', () => {
     expect(isValidTransition('rejected', 'running')).toBe(false);
   });
+
+  it('running → cancelled is valid', () => {
+    expect(isValidTransition('running', 'cancelled')).toBe(true);
+  });
+
+  it('pending → cancelled is INVALID', () => {
+    expect(isValidTransition('pending', 'cancelled')).toBe(false);
+  });
+
+  it('cancelled → running is INVALID', () => {
+    expect(isValidTransition('cancelled', 'running')).toBe(false);
+  });
 });
 
 describe('transition', () => {
@@ -86,5 +98,13 @@ describe('transition', () => {
 
   it('pending + reject throws', () => {
     expect(() => transition('pending', 'reject')).toThrow('Invalid state transition');
+  });
+
+  it('running + cancel → cancelled', () => {
+    expect(transition('running', 'cancel')).toBe('cancelled');
+  });
+
+  it('pending + cancel throws', () => {
+    expect(() => transition('pending', 'cancel')).toThrow('Invalid state transition');
   });
 });

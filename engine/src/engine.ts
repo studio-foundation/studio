@@ -63,6 +63,7 @@ import {
   type PipelineContext,
 } from './pipeline/context-propagation.js';
 import { deriveStageStatus } from './state/status-derivation.js';
+import { transition } from './state/state-machine.js';
 import { postValidate, type PostValidationResult } from './pipeline/post-validator.js';
 import { loadContextPacks } from './pipeline/context-pack-loader.js';
 import type { AnyRunStore } from './state/run-store.js';
@@ -752,7 +753,7 @@ export class PipelineEngine {
 
     // Cancelled — skip post-validation and hooks
     if (stageStatus === 'cancelled') {
-      stageRun.status = 'cancelled';
+      stageRun.status = transition('running', 'cancel');
       stageRun.completed_at = new Date().toISOString();
       taskRun.status = 'failed'; // closest existing TaskRun status
       taskRun.completed_at = new Date().toISOString();
