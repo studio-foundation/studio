@@ -837,6 +837,39 @@ export class PipelineEngine {
     runId?: string,
     signal?: AbortSignal,
   ): Promise<GroupResult> {
+    if (group.mode === 'parallel') {
+      return this.runGroupParallel(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
+    }
+    return this.runGroupSequential(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
+  }
+
+  private async runGroupParallel(
+    _group: StageGroup,
+    _context: PipelineContext,
+    _stageOffset: number,
+    _totalStages: number,
+    _userInput: string | Record<string, unknown>,
+    _paths: ProjectPaths,
+    _toolRegistry: ToolRegistry,
+    _runMiddleware?: AnonymizationMiddleware | null,
+    _runId?: string,
+    _signal?: AbortSignal,
+  ): Promise<GroupResult> {
+    throw new Error('runGroupParallel: not yet implemented');
+  }
+
+  private async runGroupSequential(
+    group: StageGroup,
+    context: PipelineContext,
+    stageOffset: number,
+    totalStages: number,
+    userInput: string | Record<string, unknown>,
+    paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
+    runMiddleware?: AnonymizationMiddleware | null,
+    runId?: string,
+    signal?: AbortSignal,
+  ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
 
