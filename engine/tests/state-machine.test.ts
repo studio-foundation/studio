@@ -87,4 +87,18 @@ describe('transition', () => {
   it('pending + reject throws', () => {
     expect(() => transition('pending', 'reject')).toThrow('Invalid state transition');
   });
+
+  it('running + cancel → cancelled', () => {
+    expect(transition('running', 'cancel')).toBe('cancelled');
+  });
+
+  it('pending + cancel throws', () => {
+    expect(() => transition('pending', 'cancel')).toThrow('Invalid state transition');
+  });
+});
+
+describe('isValidTransition (cancel)', () => {
+  it('running → cancelled is valid transition', () => {
+    expect(isValidTransition('running', 'cancelled')).toBe(true);
+  });
 });
