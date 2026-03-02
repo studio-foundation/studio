@@ -183,6 +183,10 @@ export class PipelineEngine {
     // Resolve the effective user input (support both 'input' and 'userInput' aliases)
     const userInputValue: string | Record<string, unknown> = input.userInput ?? input.input ?? '';
 
+    if (!input.pipeline && !input.pipelineDef) {
+      throw new Error('RunInput must provide either "pipeline" (pipeline name) or "pipelineDef" (inline definition)');
+    }
+
     // 1. Resolve paths — configsDir is now the project root directly
     const projectPaths = resolveProjectPaths(this.config.configsDir);
 
@@ -484,6 +488,11 @@ export class PipelineEngine {
       if (pipelineContext.invariantsContent) {
         agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n---\n\n## Project Invariants\n\n${pipelineContext.invariantsContent}`;
       }
+    }
+
+    // Validate: stage must have either agent (LLM) or script (script executor)
+    if (!stageDef.agent && !stageDef.script) {
+      throw new Error(`Stage '${stageDef.name}' must have either 'agent' (for LLM) or 'script' (for script executor)`);
     }
 
     const stageHooks = stageDef.hooks;

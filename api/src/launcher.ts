@@ -119,7 +119,8 @@ export class InProcessLauncher implements RunLauncher {
     if (config.repoPath !== undefined) {
       const toolsDir = join(this.engineConfig.configsDir, 'tools');
       const freshPlugins = await loadProjectTools(toolsDir, config.repoPath);
-      const freshRegistry = this.engineConfig.toolRegistry.clone();
+      // toolRegistry is always provided when using the API launcher
+      const freshRegistry = this.engineConfig.toolRegistry!.clone();
       for (const plugin of freshPlugins) {
         freshRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);
       }
