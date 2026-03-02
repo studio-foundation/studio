@@ -206,6 +206,34 @@ stages:
         - input
         - pipeline_start_context
 `);
+
+  writeFileSync(join(PIPELINES_DIR, 'group-simple.pipeline.yaml'), `
+name: group-simple
+description: Pipeline with a simple group for cancellation testing
+version: 1
+stages:
+  - group: review-loop
+    max_iterations: 2
+    stages:
+      - name: review-stage-1
+        kind: analysis
+        agent: test-agent
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - input
+      - name: review-stage-2
+        kind: analysis
+        agent: test-agent
+        ralph:
+          max_attempts: 1
+          retry_strategy: none
+        context:
+          include:
+            - input
+`);
 }
 
 // Setup fixtures before all tests
@@ -502,6 +530,145 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('cancelled');
     expect(result.stages).toHaveLength(0);
+  });
+
+  it('cancels cleanly when signal is aborted while a stage is executing', async () => {
+    const controller = new AbortController();
+
+    // Make the provider slow (100ms) and signal-aware so raceSignal can interrupt it
+    const slowProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(
+        (_req: unknown, _onToken: unknown, signal?: AbortSignal) => {
+          const slowPromise = new Promise<{
+            content: string;
+            tool_calls: unknown[];
+            finish_reason: string;
+            usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+          }>((resolve) =>
+            setTimeout(() => resolve({
+              content: JSON.stringify({ summary: 'done', requirements: [], acceptance_criteria: [] }),
+              tool_calls: [],
+              finish_reason: 'stop',
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            }), 100)
+          );
+
+          // Race the slow promise against the abort signal
+          if (!signal) return slowPromise;
+          if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+          return new Promise((resolve, reject) => {
+            const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+            signal.addEventListener('abort', onAbort, { once: true });
+            slowPromise
+              .then((v) => { signal.removeEventListener('abort', onAbort); resolve(v); })
+              .catch((e) => { signal.removeEventListener('abort', onAbort); reject(e); });
+          });
+        }
+      ),
+    };
+
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(slowProvider), register: vi.fn() } as any,
+    });
+
+    // Abort after 10ms (before the 100ms provider resolves)
+    setTimeout(() => controller.abort(), 10);
+
+    const result = await engine.run({
+      pipeline: 'simple',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+  });
+
+  it('cancels between stages when signal is aborted after first stage completes', async () => {
+    const controller = new AbortController();
+    let stage1Completed = false;
+
+    const events: EngineEvents = {
+      onStageComplete: (e) => {
+        if (e.stage_name === 'stage-1') {
+          stage1Completed = true;
+          controller.abort(); // abort after stage 1 finishes
+        }
+      },
+    };
+
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as any,
+        toolRegistry: createMockToolRegistry() as any,
+        db: new InMemoryRunStore(),
+      },
+      events
+    );
+
+    const result = await engine.run({
+      pipeline: 'two-stage',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(stage1Completed).toBe(true);
+    expect(result.stages).toHaveLength(1);
+    expect(result.stages[0].stage_name).toBe('stage-1');
+    expect(result.stages[0].status).toBe('success');
+  });
+
+  it('cancels cleanly when signal is aborted during a group stage', async () => {
+    const controller = new AbortController();
+
+    // Slow provider that respects the abort signal mid-call
+    const slowProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(
+        (_req: unknown, _onToken: unknown, signal?: AbortSignal) => {
+          const slowPromise = new Promise<{
+            content: string;
+            tool_calls: unknown[];
+            finish_reason: string;
+            usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+          }>((resolve) =>
+            setTimeout(() => resolve({
+              content: JSON.stringify({ summary: 'done', requirements: [], acceptance_criteria: [] }),
+              tool_calls: [],
+              finish_reason: 'stop',
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            }), 100)
+          );
+
+          if (!signal) return slowPromise;
+          if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+          return new Promise((resolve, reject) => {
+            const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+            signal.addEventListener('abort', onAbort, { once: true });
+            slowPromise
+              .then((v) => { signal.removeEventListener('abort', onAbort); resolve(v); })
+              .catch((e) => { signal.removeEventListener('abort', onAbort); reject(e); });
+          });
+        }
+      ),
+    };
+
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(slowProvider), register: vi.fn() } as any,
+    });
+
+    // Abort after 10ms (before the 100ms provider resolves)
+    setTimeout(() => controller.abort(), 10);
+
+    const result = await engine.run({
+      pipeline: 'group-simple',
+      input: 'test input',
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
   });
 
   it('on_pipeline_start output is injected into stage context', async () => {
