@@ -1,7 +1,11 @@
 import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio/contracts';
 
 export class HttpApiSpawner implements RunSpawner {
-  constructor(private apiUrl: string) {}
+  constructor(private apiUrl: string, private apiKey?: string) {}
+
+  private authHeaders(): Record<string, string> {
+    return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+  }
 
   async spawnAndWait(config: SpawnConfig): Promise<SpawnResult> {
     // 1. Launch the run
@@ -11,6 +15,7 @@ export class HttpApiSpawner implements RunSpawner {
         'Content-Type': 'application/json',
         'X-Studio-Depth': String(config.depth),
         'X-Studio-Parent-Run-Id': config.parentRunId,
+        ...this.authHeaders(),
       },
       body: JSON.stringify({ pipeline: config.pipeline, input: config.input }),
     });
@@ -26,7 +31,9 @@ export class HttpApiSpawner implements RunSpawner {
     await this.waitForCompletion(run_id);
 
     // 3. Fetch full run result to get output
-    const getRes = await fetch(`${this.apiUrl}/api/runs/${run_id}`);
+    const getRes = await fetch(`${this.apiUrl}/api/runs/${run_id}`, {
+      headers: { ...this.authHeaders() },
+    });
     if (!getRes.ok) {
       throw new Error(`Failed to fetch child run result ${run_id}: ${getRes.status}`);
     }
@@ -45,7 +52,7 @@ export class HttpApiSpawner implements RunSpawner {
   private waitForCompletion(runId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       fetch(`${this.apiUrl}/api/runs/${runId}/stream`, {
-        headers: { Accept: 'text/event-stream' },
+        headers: { Accept: 'text/event-stream', ...this.authHeaders() },
       })
         .then(response => {
           if (!response.ok || !response.body) {
