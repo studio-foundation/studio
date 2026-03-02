@@ -171,7 +171,7 @@ describe('runScript', () => {
       proc.emit('close', 0);
     }, 10);
 
-    const ctx = makeContext({ input: 'hello world' });
+    const ctx = makeContext({ additional_context: 'hello world' });
     await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: ctx });
 
     expect(stdinMock.write).toHaveBeenCalledWith(JSON.stringify(ctx));
