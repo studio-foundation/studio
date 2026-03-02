@@ -26,3 +26,26 @@ describe('loadInvariantsFile', () => {
     expect(content).toBeUndefined();
   });
 });
+
+describe('invariants content is suitable for system_prompt injection', () => {
+  it('non-empty content can be concatenated into a system_prompt string', async () => {
+    const dir = join('/tmp', '.studio-invariants-integration-' + Date.now());
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      join(dir, 'invariants.md'),
+      '## Invariants\n\n- Never hallucinate entity names\n- Cite sources'
+    );
+
+    const content = await loadInvariantsFile(dir);
+
+    expect(content).toBeDefined();
+    expect(typeof content).toBe('string');
+    expect(content!.length).toBeGreaterThan(0);
+
+    const systemPrompt = `You are an agent.\n\n---\n\n## Project Invariants\n\n${content}`;
+    expect(systemPrompt).toContain('Never hallucinate entity names');
+    expect(systemPrompt).toContain('## Project Invariants');
+
+    await rm(dir, { recursive: true, force: true });
+  });
+});
