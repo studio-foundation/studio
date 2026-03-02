@@ -32,12 +32,12 @@ export const DEFAULT_PLANS: PlansConfig = {
 };
 
 /** Merge user-supplied partial plans with defaults. Unknown plans fall back to 'free'. */
-export function resolvePlans(configPlans?: Partial<PlansConfig>): PlansConfig {
+export function resolvePlans(configPlans?: Record<string, PlanLimits>): PlansConfig {
   if (!configPlans) return DEFAULT_PLANS;
-  return { ...DEFAULT_PLANS, ...configPlans } as PlansConfig;
+  return { ...DEFAULT_PLANS, ...configPlans };
 }
 
 /** Get plan limits for a user, defaulting to 'free' if plan is unknown. */
 export function getPlanLimits(plans: PlansConfig, planName: string): PlanLimits {
-  return plans[planName] ?? plans['free'] ?? DEFAULT_PLANS['free'];
+  return plans[planName] ?? plans.free ?? DEFAULT_PLANS.free;
 }
