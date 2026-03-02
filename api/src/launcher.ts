@@ -111,7 +111,6 @@ export class InProcessLauncher implements RunLauncher {
       },
       onPipelineCancelled: (e: PipelineCancelledEvent) => {
         emit('pipeline_cancelled', e);
-        this.bus.close(runId);
       },
     };
 

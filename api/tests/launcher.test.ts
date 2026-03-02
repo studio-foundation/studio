@@ -125,6 +125,33 @@ describe('InProcessLauncher', () => {
     const launcher = new InProcessLauncher(stubConfig, new InMemoryRunStore(), TMP_RUNS_DIR, new RunEventBus());
     await expect(launcher.cancel('nonexistent')).resolves.toBeUndefined();
   });
+
+  it('bus stays open after pipeline_cancelled so pipeline_complete can close it', async () => {
+    const store = new InMemoryRunStore();
+    const bus = new RunEventBus();
+    const closeSpy = vi.spyOn(bus, 'close');
+
+    let capturedEvents!: EngineEvents;
+    const factory = vi.fn().mockImplementation((_cfg: EngineConfig, events: EngineEvents) => {
+      capturedEvents = events;
+      return { run: vi.fn().mockResolvedValue({ id: 'r1', pipeline_name: 'p', status: 'cancelled', started_at: '', stages: [] }) };
+    });
+
+    const launcher = new InProcessLauncher(stubConfig, store, TMP_RUNS_DIR, bus, factory);
+    await launcher.launch({ runId: 'r1', pipeline: 'p', input: {}, configsDir: TMP_RUNS_DIR });
+    await new Promise((r) => setTimeout(r, 10)); // let factory.run capture events
+
+    // Manually fire engine events in order (as the engine does for a cancelled run)
+    capturedEvents.onPipelineCancelled?.({ run_id: 'r1', cancelled_at_stage: 's1', duration_ms: 5 });
+    // Bus should NOT be closed yet — pipeline_complete hasn't fired
+    expect(closeSpy).not.toHaveBeenCalledWith('r1');
+
+    capturedEvents.onPipelineComplete?.({ pipeline_name: 'p', run_id: 'r1', status: 'cancelled', duration_ms: 5, total_tokens: 0, total_tool_calls: 0 });
+    // Bus should be closed now (by pipeline_complete)
+    expect(closeSpy).toHaveBeenCalledWith('r1');
+    // And only once (not twice)
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('InProcessLauncher — Linear failure notification (STU-98)', () => {
