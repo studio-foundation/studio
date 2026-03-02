@@ -55,6 +55,14 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let settled = false;
+
+    const settle = (result: Parameters<typeof resolve>[0]) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -69,16 +77,15 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
     proc.stdin.end();
 
     proc.on('close', (exitCode) => {
-      clearTimeout(timer);
       const duration_ms = Date.now() - startTime;
 
       if (timedOut) {
-        resolve({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script timed out after ${timeoutMs}ms` });
+        settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script timed out after ${timeoutMs}ms` });
         return;
       }
 
       if (exitCode !== 0) {
-        resolve({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script exited with code ${exitCode}: ${stderr.trim()}` });
+        settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script exited with code ${exitCode}: ${stderr.trim()}` });
         return;
       }
 
@@ -86,16 +93,15 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
       try {
         output = JSON.parse(stdout.trim());
       } catch {
-        resolve({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script output is not valid JSON: ${stdout.slice(0, 200)}` });
+        settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms, error: `Script output is not valid JSON: ${stdout.slice(0, 200)}` });
         return;
       }
 
-      resolve({ output, tool_calls: [], tool_calls_count: 0, duration_ms });
+      settle({ output, tool_calls: [], tool_calls_count: 0, duration_ms });
     });
 
     proc.on('error', (err) => {
-      clearTimeout(timer);
-      resolve({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms: Date.now() - startTime, error: `Script process error: ${err.message}` });
+      settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms: Date.now() - startTime, error: `Script process error: ${err.message}` });
     });
   });
 }
