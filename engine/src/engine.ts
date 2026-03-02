@@ -837,6 +837,154 @@ export class PipelineEngine {
     runId?: string,
     signal?: AbortSignal,
   ): Promise<GroupResult> {
+    if (group.mode === 'parallel') {
+      return this.runGroupParallel(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
+    }
+    return this.runGroupSequential(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
+  }
+
+  private async runGroupParallel(
+    group: StageGroup,
+    context: PipelineContext,
+    stageOffset: number,
+    totalStages: number,
+    userInput: string | Record<string, unknown>,
+    paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
+    runMiddleware?: AnonymizationMiddleware | null,
+    runId?: string,
+    signal?: AbortSignal,
+  ): Promise<GroupResult> {
+    this.events?.onGroupStart?.({
+      group_name: group.group,
+      max_iterations: group.max_iterations,
+    });
+    this.emitter.emit({
+      type: 'group_start',
+      groupName: group.group,
+      maxIterations: group.max_iterations,
+    });
+
+    // Parallel groups run exactly one iteration
+    this.events?.onGroupIteration?.({
+      group_name: group.group,
+      iteration: 1,
+      max_iterations: group.max_iterations,
+    });
+    this.emitter.emit({
+      type: 'group_iteration',
+      groupName: group.group,
+      iteration: 1,
+      maxIterations: group.max_iterations,
+    });
+
+    if (signal?.aborted) {
+      this.events?.onGroupComplete?.({ group_name: group.group, iterations: 1, status: 'cancelled' });
+      this.emitter.emit({ type: 'group_complete', groupName: group.group, iterations: 1, status: 'cancelled' });
+      return { status: 'cancelled', stageRuns: [], stagesExecuted: group.stages.length, context };
+    }
+
+    // All parallel stages read the same pre-group context snapshot.
+    // previousStageName = the last stage before this group.
+    let previousStageName: string | undefined;
+    for (const [name] of context.stageOutputs) {
+      previousStageName = name;
+    }
+
+    // fail-fast: create a shared AbortController to cancel siblings on first failure
+    const groupAbort = (group.on_failure ?? 'fail-fast') === 'fail-fast'
+      ? new AbortController()
+      : null;
+    if (groupAbort && signal) {
+      signal.addEventListener('abort', () => groupAbort.abort(), { once: true });
+    }
+    const stageSignal = groupAbort?.signal ?? signal;
+
+    // Launch all stages concurrently
+    const settled = await Promise.allSettled(
+      group.stages.map(async (stage, i) => {
+        const result = await this.executeStage(
+          stage,
+          context,
+          previousStageName,
+          userInput,
+          stageOffset + i,
+          totalStages,
+          paths,
+          toolRegistry,
+          runMiddleware,
+          runId,
+          stageSignal,
+        );
+        // fail-fast: abort remaining stages on first non-success
+        if (groupAbort && result.status !== 'success') {
+          groupAbort.abort();
+        }
+        return { stageName: stage.name, result };
+      }),
+    );
+
+    // Build result map keyed by stage name
+    const resultMap = new Map<string, StageResult>();
+    for (const s of settled) {
+      if (s.status === 'fulfilled') {
+        resultMap.set(s.value.stageName, s.value.result);
+      }
+    }
+
+    // Collect stage runs in definition order (deterministic output ordering)
+    const allStageRuns: StageRun[] = [];
+    for (const stage of group.stages) {
+      const result = resultMap.get(stage.name);
+      if (result) allStageRuns.push(result.stageRun);
+    }
+
+    // Derive group status: cancelled > failed > success
+    // rejected treated as failed in parallel mode (no feedback loop)
+    let groupStatus: StageStatus = 'success';
+    for (const stage of group.stages) {
+      const result = resultMap.get(stage.name);
+      if (!result) { groupStatus = 'failed'; continue; }
+      if (result.status === 'cancelled' && groupStatus === 'success') groupStatus = 'cancelled';
+      if (result.status === 'failed' || result.status === 'rejected') groupStatus = 'failed';
+    }
+
+    // Merge successful outputs into context in definition order (regardless of group status)
+    // This preserves observability for collect-all partial failures
+    for (const stage of group.stages) {
+      const result = resultMap.get(stage.name);
+      if (!result || result.status !== 'success') continue;
+      if (result.lastAgentOutput !== undefined) {
+        addStageOutput(context, stage.name, result.lastAgentOutput);
+      }
+      if (result.toolCalls?.length) {
+        addStageToolResults(context, stage.name, result.toolCalls);
+      }
+    }
+
+    this.events?.onGroupComplete?.({ group_name: group.group, iterations: 1, status: groupStatus });
+    this.emitter.emit({ type: 'group_complete', groupName: group.group, iterations: 1, status: groupStatus });
+
+    return {
+      status: groupStatus,
+      stageRuns: allStageRuns,
+      stagesExecuted: group.stages.length,
+      context,
+    };
+  }
+
+  private async runGroupSequential(
+    group: StageGroup,
+    context: PipelineContext,
+    stageOffset: number,
+    totalStages: number,
+    userInput: string | Record<string, unknown>,
+    paths: ProjectPaths,
+    toolRegistry: ToolRegistry,
+    runMiddleware?: AnonymizationMiddleware | null,
+    runId?: string,
+    signal?: AbortSignal,
+  ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
 

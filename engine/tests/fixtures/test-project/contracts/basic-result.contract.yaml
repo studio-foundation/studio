@@ -1,0 +1,6 @@
+
+name: basic-result
+version: 1
+schema:
+  required_fields:
+    - result

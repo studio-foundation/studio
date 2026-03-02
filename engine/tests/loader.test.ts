@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
 import { parsePipelineYaml, loadPipeline, loadPipelineByName } from '../src/pipeline/loader.js';
 import { parseAgentYaml } from '../src/pipeline/agent-loader.js';
@@ -298,5 +298,84 @@ schema:
 
   it('throws when version is missing', () => {
     expect(() => parseContractYaml('name: x')).toThrow("missing required field 'version'");
+  });
+});
+
+describe('parsePipelineYaml — parallel group', () => {
+  it('parses mode: parallel and on_failure: collect-all', () => {
+    const yaml = `
+name: parallel-test
+description: parallel
+version: 1
+stages:
+  - group: work
+    mode: parallel
+    on_failure: collect-all
+    stages:
+      - name: stage-a
+        kind: analysis
+        agent: analyst
+      - name: stage-b
+        kind: analysis
+        agent: analyst
+`;
+    const pipeline = parsePipelineYaml(yaml);
+    const group = pipeline.stages[0];
+    expect(isStageGroup(group)).toBe(true);
+    if (isStageGroup(group)) {
+      expect(group.mode).toBe('parallel');
+      expect(group.on_failure).toBe('collect-all');
+    }
+  });
+
+  it('defaults mode to sequential when omitted', () => {
+    const yaml = `
+name: seq-test
+description: seq
+version: 1
+stages:
+  - group: work
+    stages:
+      - name: stage-a
+        kind: analysis
+        agent: analyst
+      - name: stage-b
+        kind: analysis
+        agent: analyst
+`;
+    const pipeline = parsePipelineYaml(yaml);
+    const group = pipeline.stages[0];
+    if (isStageGroup(group)) {
+      expect(group.mode).toBeUndefined();
+    }
+  });
+
+  it('warns and sets max_iterations to 1 when mode is parallel and max_iterations > 1', () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const yaml = `
+name: parallel-warn-test
+description: parallel warn
+version: 1
+stages:
+  - group: work
+    mode: parallel
+    max_iterations: 3
+    stages:
+      - name: stage-a
+        kind: analysis
+        agent: analyst
+      - name: stage-b
+        kind: analysis
+        agent: analyst
+`;
+    const pipeline = parsePipelineYaml(yaml);
+    const group = pipeline.stages[0];
+    if (isStageGroup(group)) {
+      expect(group.max_iterations).toBe(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("parallel group 'work' has max_iterations > 1")
+      );
+    }
+    consoleSpy.mockRestore();
   });
 });
