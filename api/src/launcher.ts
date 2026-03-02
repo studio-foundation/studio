@@ -2,6 +2,7 @@
 // InProcessLauncher creates a new PipelineEngine per run for event isolation.
 // Future: BullMQLauncher, etc.
 
+import type { PipelineRun } from '@studio/contracts';
 import type {
   EngineConfig,
   EngineEvents,
@@ -72,10 +73,23 @@ export class InProcessLauncher implements RunLauncher {
 
     const logger = createApiLogger(this.runsDir, runId, pipeline);
 
+    // Pre-create the run in the store so GET /api/runs/:id/stream can find it immediately
+    // after launch() returns. The engine will upsert it again at onPipelineStart with the
+    // same id (savePipelineRun is ON CONFLICT DO UPDATE in all store implementations).
+    const stubRun: PipelineRun = {
+      id: runId,
+      pipeline_name: pipeline,
+      status: 'running',
+      started_at: new Date().toISOString(),
+      stages: [],
+      ...(input && typeof input === 'object' ? { input: input as Record<string, unknown> } : {}),
+      ...(parentRunId ? { parent_run_id: parentRunId } : {}),
+    };
+    await this.store.savePipelineRun(stubRun);
+
     // Save log path immediately so callers can locate the log file right after launch().
     // For InMemoryRunStore this is a simple Map.set() and works regardless of row existence.
-    // For SQLiteRunStore the UPDATE is a no-op here (row not yet created), but onPipelineStart
-    // below calls saveLogPath again after the engine creates the row.
+    // For SQLiteRunStore/PgRunStore the row now exists, so the UPDATE will take effect.
     void this.store.saveLogPath(runId, logger.logPath);
 
     const emit = (type: SseEventType, data: object) => {
