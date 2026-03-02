@@ -28,7 +28,7 @@ export interface AgentRunResult {
   output: unknown;
   tool_calls: ToolCall[];
   tool_calls_count: number;
-  raw_response: LLMResponse;
+  raw_response?: LLMResponse;
   duration_ms: number;
   token_usage?: {
     prompt_tokens: number;
