@@ -82,6 +82,8 @@ export type PipelineEntry = StageDefinition | StageGroup;
 export interface StageGroup {
   group: string;
   max_iterations: number;
+  mode?: 'sequential' | 'parallel';         // default: 'sequential'
+  on_failure?: 'fail-fast' | 'collect-all'; // parallel only, default: 'fail-fast'
   stages: StageDefinition[];
 }
 
