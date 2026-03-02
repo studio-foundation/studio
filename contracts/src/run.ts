@@ -23,6 +23,7 @@ export interface StageRun {
   started_at: string;
   completed_at?: string;
   tasks: TaskRun[];
+  output?: unknown;  // final output of the stage (populated by engine for observability)
 }
 
 export interface TaskRun {

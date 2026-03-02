@@ -8,6 +8,7 @@ import type {
   PipelineEntry,
   StageGroup,
   PipelineRun,
+  PipelineDefinition,
   StageRun,
   TaskRun,
   AgentRun,
@@ -34,6 +35,7 @@ import {
 } from '@studio/ralph';
 import {
   runAgent,
+  runScript,
   type AgentRunResult,
   type ToolRegistry,
   type ProviderRegistry,
@@ -95,7 +97,7 @@ export interface EngineConfig {
   configsDir: string;
   repoPath?: string;
   providerRegistry: ProviderRegistry;
-  toolRegistry: ToolRegistry;
+  toolRegistry?: ToolRegistry;  // optional — not needed for script-only pipelines
   db?: AnyRunStore;
   providerOverride?: string;
   /**
@@ -126,8 +128,10 @@ function resolveProjectPaths(configsDir: string): ProjectPaths {
 
 export interface RunInput {
   id?: string;          // ← pre-generated run ID (e.g. from the API)
-  pipeline: string;
-  input: string | Record<string, unknown>;
+  pipeline?: string;    // pipeline name (loads from YAML file)
+  pipelineDef?: PipelineDefinition; // inline pipeline definition (skips YAML loading — for tests/programmatic use)
+  input?: string | Record<string, unknown>;
+  userInput?: string | Record<string, unknown>; // alias for input (used in tests and programmatic API)
   meta?: Record<string, unknown>;
   anonymize?: boolean;
   signal?: AbortSignal;
@@ -176,12 +180,16 @@ export class PipelineEngine {
   async run(input: RunInput): Promise<PipelineRun> {
     const signal = input.signal;
 
+    // Resolve the effective user input (support both 'input' and 'userInput' aliases)
+    const userInputValue: string | Record<string, unknown> = input.userInput ?? input.input ?? '';
+
     // 1. Resolve paths — configsDir is now the project root directly
-    const pipelineName = input.pipeline;
     const projectPaths = resolveProjectPaths(this.config.configsDir);
 
-    // 2. Load the pipeline YAML
-    const pipeline = await loadPipelineByName(pipelineName, projectPaths.pipelinesDir);
+    // 2. Load the pipeline — either from an inline definition or a YAML file
+    const pipeline: PipelineDefinition = input.pipelineDef
+      ? input.pipelineDef
+      : await loadPipelineByName(input.pipeline!, projectPaths.pipelinesDir);
 
     // 2. Create the PipelineRun
     const pipelineRun: PipelineRun = {
@@ -190,8 +198,8 @@ export class PipelineEngine {
       status: 'running',
       started_at: new Date().toISOString(),
       stages: [],
-      ...(typeof input.input === 'object' && input.input !== null
-        ? { input: input.input as Record<string, unknown> }
+      ...(typeof userInputValue === 'object' && userInputValue !== null
+        ? { input: userInputValue as Record<string, unknown> }
         : {}),
       ...(input.parentRunId ? { parent_run_id: input.parentRunId } : {}),
     };
@@ -209,13 +217,14 @@ export class PipelineEngine {
 
     // Build per-run tool registry: clone the shared registry and inject studio-run
     // with run-specific context (run ID, depth) if a spawner is configured.
-    const runToolRegistry = this.config.spawner
+    // For script-only pipelines, toolRegistry may be undefined.
+    const runToolRegistry = this.config.spawner && this.config.toolRegistry
       ? (() => {
           const registry = this.config.toolRegistry.clone();
           registry.registerPlugin(
             'studio_run',
             createStudioRunTool({
-              spawner: this.config.spawner,
+              spawner: this.config.spawner!,
               currentRunId: pipelineRun.id,
               currentDepth: input.depth ?? 0,
               maxDepth: this.config.maxDepth ?? 3,
@@ -233,7 +242,7 @@ export class PipelineEngine {
     this.emitter.emit({ type: 'pipeline_start', pipelineId: pipelineRun.id });
 
     // 3. Initialize context
-    const pipelineContext = createInitialContext(input.input, this.config.repoPath);
+    const pipelineContext = createInitialContext(userInputValue, this.config.repoPath);
 
     // Run on_pipeline_start commands to bootstrap dynamic context
     if (pipeline.on_pipeline_start?.length) {
@@ -283,7 +292,7 @@ export class PipelineEngine {
           pipelineContext,
           stageCounter,
           totalStages,
-          input.input,
+          userInputValue,
           projectPaths,
           runToolRegistry,
           runMiddleware,
@@ -334,7 +343,7 @@ export class PipelineEngine {
           entry,
           pipelineContext,
           previousStageName,
-          input.input,
+          userInputValue,
           stageCounter - 1,
           totalStages,
           projectPaths,
@@ -420,7 +429,7 @@ export class PipelineEngine {
     stageIndex: number,
     totalStages: number,
     paths: ProjectPaths,
-    toolRegistry: ToolRegistry,
+    toolRegistry: ToolRegistry | undefined,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
@@ -445,36 +454,36 @@ export class PipelineEngine {
     });
     this.emitter.emit({ type: 'stage_start', stageId: stageRunId, stageName: stageDef.name });
 
-    // Load agent profile
-    if (!stageDef.agent) {
-      throw new Error(`Stage '${stageDef.name}' has no agent configured (script executor stages are not yet supported at this call site)`);
-    }
-    const agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
-    if (this.config.providerOverride) {
-      agentConfig.provider = this.config.providerOverride;
-    }
-    // Inject plugin skills into system_prompt for agents that declare plugins
-    if (agentConfig.plugins?.length && this.config.pluginSkills) {
-      const skillChunks = agentConfig.plugins
-        .flatMap((p) => this.config.pluginSkills![p] ?? []);
-      if (skillChunks.length > 0) {
-        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+    // Load agent profile — only for LLM stages (script stages have no agent)
+    let agentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
+    if (stageDef.agent) {
+      agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
+      if (this.config.providerOverride) {
+        agentConfig.provider = this.config.providerOverride;
       }
-    }
-
-    // Inject project skills (.studio/skills/*.skill.md) for agents that declare skills
-    if (agentConfig.skills?.length) {
-      const skillsDir = join(paths.projectDir, 'skills');
-      const loaded = await loadSkillFiles(agentConfig.skills, skillsDir);
-      if (loaded.length > 0) {
-        const skillChunks = loaded.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
-        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+      // Inject plugin skills into system_prompt for agents that declare plugins
+      if (agentConfig.plugins?.length && this.config.pluginSkills) {
+        const skillChunks = agentConfig.plugins
+          .flatMap((p) => this.config.pluginSkills![p] ?? []);
+        if (skillChunks.length > 0) {
+          agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+        }
       }
-    }
 
-    // Inject project domain invariants (.studio/invariants.md) into system_prompt
-    if (pipelineContext.invariantsContent) {
-      agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n---\n\n## Project Invariants\n\n${pipelineContext.invariantsContent}`;
+      // Inject project skills (.studio/skills/*.skill.md) for agents that declare skills
+      if (agentConfig.skills?.length) {
+        const skillsDir = join(paths.projectDir, 'skills');
+        const loaded = await loadSkillFiles(agentConfig.skills, skillsDir);
+        if (loaded.length > 0) {
+          const skillChunks = loaded.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
+          agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
+        }
+      }
+
+      // Inject project domain invariants (.studio/invariants.md) into system_prompt
+      if (pipelineContext.invariantsContent) {
+        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n---\n\n## Project Invariants\n\n${pipelineContext.invariantsContent}`;
+      }
     }
 
     const stageHooks = stageDef.hooks;
@@ -510,7 +519,7 @@ export class PipelineEngine {
         run_id: runId ?? '',
         context_keys: buildContextKeys(agentContext, pipelineContext.stageOutputSizes),
         ...(includeContent ? { context_content: buildContextContent(agentContext) } : {}),
-        ...(includePrompt  ? { system_prompt: agentConfig.system_prompt } : {}),
+        ...(includePrompt && agentConfig ? { system_prompt: agentConfig.system_prompt } : {}),
       };
 
       this.events.onStageContext(contextEvent);
@@ -532,7 +541,7 @@ export class PipelineEngine {
     const retryStrategy = this.resolveRetryStrategy(stageDef.ralph?.retry_strategy);
 
     // Create per-stage middleware if agent requests it (and no run-level middleware)
-    const stageMiddleware = (!runMiddleware && agentConfig.anonymize)
+    const stageMiddleware = (!runMiddleware && agentConfig?.anonymize)
       ? new AnonymizationMiddleware()
       : null;
 
@@ -639,44 +648,52 @@ export class PipelineEngine {
           })),
         };
 
-        const result = await runAgent({
-          agent: agentConfig,
-          task: taskInput,
-          context: agentContext,
-          executionContext: runnerExecContext,
-          toolRegistry: toolRegistry,
-          providerRegistry: this.config.providerRegistry,
-          outputContract: contract ?? undefined,
-          maxToolCalls: stageDef.ralph?.max_tool_calls,
-          anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
-          signal,
-          callbacks: {
-            ...(this.events ? {
-              onToolCallStart: this.events.onToolCallStart
-                ? (e) => this.events!.onToolCallStart!({ stage: stageDef.name, ...e })
-                : undefined,
-              onToolCallComplete: this.events.onToolCallComplete
-                ? (e) => this.events!.onToolCallComplete!({ stage: stageDef.name, ...e })
-                : undefined,
-              onAgentThinking: this.events.onAgentThinking
-                ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
-                : undefined,
-              onAgentProgress: this.events.onAgentProgress
-                ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
-                : undefined,
-              onAgentToken: this.events.onAgentToken
-                ? (e) => this.events!.onAgentToken!({ stage: stageDef.name, ...e })
-                : undefined,
-            } : {}),
-            ...(onPreToolUse ? { onPreToolUse } : {}),
-            ...(onPostToolUse ? { onPostToolUse } : {}),
-          },
-        });
+        const result = stageDef.agent
+          ? await runAgent({
+              agent: agentConfig!,
+              task: taskInput,
+              context: agentContext,
+              executionContext: runnerExecContext,
+              toolRegistry: toolRegistry!,
+              providerRegistry: this.config.providerRegistry,
+              outputContract: contract ?? undefined,
+              maxToolCalls: stageDef.ralph?.max_tool_calls,
+              anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
+              signal,
+              callbacks: {
+                ...(this.events ? {
+                  onToolCallStart: this.events.onToolCallStart
+                    ? (e) => this.events!.onToolCallStart!({ stage: stageDef.name, ...e })
+                    : undefined,
+                  onToolCallComplete: this.events.onToolCallComplete
+                    ? (e) => this.events!.onToolCallComplete!({ stage: stageDef.name, ...e })
+                    : undefined,
+                  onAgentThinking: this.events.onAgentThinking
+                    ? (e) => this.events!.onAgentThinking!({ stage: stageDef.name, ...e })
+                    : undefined,
+                  onAgentProgress: this.events.onAgentProgress
+                    ? (e) => this.events!.onAgentProgress!({ stage: stageDef.name, ...e })
+                    : undefined,
+                  onAgentToken: this.events.onAgentToken
+                    ? (e) => this.events!.onAgentToken!({ stage: stageDef.name, ...e })
+                    : undefined,
+                } : {}),
+                ...(onPreToolUse ? { onPreToolUse } : {}),
+                ...(onPostToolUse ? { onPostToolUse } : {}),
+              },
+            })
+          : await runScript({
+              scriptPath: stageDef.script!,
+              runtime: stageDef.runtime ?? 'shell',
+              context: agentContext,
+              cwd: this.config.repoPath ?? this.config.configsDir,
+              timeoutMs: stageDef.timeout_ms,
+            });
 
         // Record agent run
         const agentRun: AgentRun = {
           id: agentRunId,
-          agent_name: agentConfig.name,
+          agent_name: agentConfig?.name ?? `script:${stageDef.script ?? 'unknown'}`,
           attempt: execContext.attempt,
           status: 'success',
           tool_calls: result.tool_calls_count,
@@ -798,6 +815,11 @@ export class PipelineEngine {
 
     // Extract result data for observability
     const lastResult = ralphResult.status === 'success' ? ralphResult.result : undefined;
+
+    // Populate stage output for observability and context propagation
+    if (lastResult?.output !== undefined) {
+      stageRun.output = lastResult.output;
+    }
     const stageDurationMs = stageRun.completed_at && stageRun.started_at
       ? new Date(stageRun.completed_at).getTime() - new Date(stageRun.started_at).getTime()
       : 0;
@@ -844,7 +866,7 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
-    toolRegistry: ToolRegistry,
+    toolRegistry: ToolRegistry | undefined,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
@@ -862,7 +884,7 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
-    toolRegistry: ToolRegistry,
+    toolRegistry: ToolRegistry | undefined,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
@@ -992,7 +1014,7 @@ export class PipelineEngine {
     totalStages: number,
     userInput: string | Record<string, unknown>,
     paths: ProjectPaths,
-    toolRegistry: ToolRegistry,
+    toolRegistry: ToolRegistry | undefined,
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
