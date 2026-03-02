@@ -24,10 +24,11 @@ async function main() {
 
   let hasUsers = false;
   try {
-    const users = await (userStore as import('./user-store.js').UserStore).listUsers?.();
-    hasUsers = Array.isArray(users) && users.length > 0;
+    // listUsers() is sync on UserStore and async on PgUserStore; await handles both
+    const users = await userStore.listUsers();
+    hasUsers = users.length > 0;
   } catch {
-    // PgUserStore or error — default to false (dev/open mode)
+    // DB unavailable at startup — default to open/dev mode
   }
 
   const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime, userStore, plans, hasUsers });
