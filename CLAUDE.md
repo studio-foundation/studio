@@ -157,6 +157,7 @@ my-project/                           # Le repo de l'utilisateur
 │   ├── agents/                       # *.agent.yaml
 │   ├── contracts/                    # *.contract.yaml
 │   ├── tools/                        # *.tool.yaml (tool plugins)
+│   ├── invariants.md                 # Invariants de domaine du projet (optionnel, commité)
 │   ├── inputs/                       # *.input.yaml
 │   ├── registry.lock.json            # Versions tools installés (commité)
 │   └── runs/                         # Données runtime (gitignored)
@@ -168,7 +169,7 @@ my-project/                           # Le repo de l'utilisateur
 ```
 
 **Git strategy :**
-- **Commité :** `.studio/pipelines/`, `.studio/agents/`, `.studio/contracts/`, `.studio/tools/`, `.studio/registry.lock.json`, `src/`, `prisma/`
+- **Commité :** `.studio/pipelines/`, `.studio/agents/`, `.studio/contracts/`, `.studio/tools/`, `.studio/invariants.md` (si présent), `.studio/registry.lock.json`, `src/`, `prisma/`
 - **Gitignored :** `.studio/config.yaml` (API keys), `.studio/runs/`
 
 `findStudioDir()` remonte les dossiers parents jusqu'à trouver `.studio/`, exactement comme `git` cherche `.git/`.
@@ -347,6 +348,8 @@ Pattern `errorSchema` réutilisé par fichier : `const errorSchema = { type: 'ob
 Chaque hook a un `on_failure`: `warn` (défaut, log et continue), `reject` (stage → rejected, triggerable group retry), `fail` (stage → failed, stop pipeline). Les hooks `pre_tool_use` avec `on_failure: reject` bloquent le tool call.
 
 **Skills (.skill.md)** — Fichiers markdown dans `.studio/skills/` qui décrivent du contexte procédural (conventions, étapes, patterns d'architecture). Injectés automatiquement dans le system prompt des agents qui les déclarent via `skills: [name]` dans l'agent YAML. Pas de code — juste du markdown.
+
+**Project Invariants (.studio/invariants.md)** — Fichier markdown optionnel qui documente les invariants de domaine du projet (ex: "ne jamais reproduire de passages verbatim du livre source"). Si ce fichier existe, son contenu est automatiquement injecté dans le `system_prompt` de chaque agent au runtime — aucune configuration nécessaire. Sert de "constitution" du projet, analogue à `INVARIANTS.md` dans le kernel. L'enforcement reste dans les contracts et hooks existants.
 
 **Plugin Claude Code** — Studio supporte le format plugin Claude Code complet (`.mcp.json`, `skills/`, `agents/`). Un plugin Claude Code existant peut être utilisé dans Studio sans modification. Les agents déclarent les plugins via `plugins: [plugin-name]` dans l'agent YAML.
 
