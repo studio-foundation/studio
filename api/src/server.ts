@@ -24,6 +24,7 @@ import { configRoutes } from './routes/config.js';
 import { skillsRoutes } from './routes/skills.js';
 import { validateRoutes } from './routes/validate.js';
 import { webhooksRoutes } from './routes/webhooks.js';
+import { usersRoutes } from './routes/users.js';
 
 export interface ApiConfig {
   key?: string;
@@ -147,6 +148,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(skillsRoutes, { prefix: '/api', deps });
   void fastify.register(validateRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
+  void fastify.register(usersRoutes, { prefix: '/api', deps });
   deps.integrationRuntime.registerRoutes(fastify, '/api');
 
   return fastify;
