@@ -11,6 +11,7 @@ import type {
   Tool,
   TextBlockParam
 } from '@anthropic-ai/sdk/resources/messages';
+import { raceSignal } from '../utils/race-signal.js';
 
 export class AnthropicProvider implements Provider {
   readonly name = 'anthropic';
@@ -28,13 +29,19 @@ export class AnthropicProvider implements Provider {
     if (onToken) {
       // Streaming path
       const stream = this.client.messages.stream(params, { signal });
-      stream.on('text', (textDelta: string) => onToken(textDelta));
-      const response = await stream.finalMessage();
+      stream.on('text', (textDelta: string) => {
+        if (signal?.aborted) return; // guard: don't emit after abort
+        onToken(textDelta);
+      });
+      // KEY FIX: race finalMessage() against signal abort.
+      // Without this, finalMessage() hangs forever when the HTTP connection
+      // is killed mid-stream (the stream 'end' event never fires).
+      const response = await raceSignal(stream.finalMessage(), signal);
       return this.parseResponse(response);
     }
 
     // Non-streaming path
-    const response = await this.client.messages.create(params, { signal });
+    const response = await raceSignal(this.client.messages.create(params, { signal }), signal);
     return this.parseResponse(response);
   }
 
