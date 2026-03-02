@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ServerDeps } from '../server.js';
 import { resolveRepoPath } from '../utils/repo-resolver.js';
 import { loadPipelineByName } from '@studio/engine';
@@ -60,6 +60,19 @@ export async function runsRoutes(
   options: { deps: ServerDeps }
 ): Promise<void> {
   const { store, launcher } = options.deps;
+
+  // Shared cancel handler — used by both POST /runs/:id/cancel and DELETE /runs/:id
+  const handleCancel = async (id: string, reply: FastifyReply): Promise<unknown> => {
+    const run = await store.getPipelineRun(id);
+    if (!run) {
+      return reply.status(404).send({ error: 'Run not found' });
+    }
+    if (run.status !== 'running') {
+      return reply.status(409).send({ error: `Run is not cancellable (status: ${run.status})` });
+    }
+    await launcher.cancel(id);
+    return reply.send({ run_id: id });
+  };
 
   // POST /api/runs — fire-and-forget
   fastify.post<{
@@ -301,16 +314,7 @@ export async function runsRoutes(
       },
     },
   }, async (request, reply) => {
-    const { id } = request.params;
-    const run = await store.getPipelineRun(id);
-    if (!run) {
-      return reply.status(404).send({ error: 'Run not found' });
-    }
-    if (run.status !== 'running') {
-      return reply.status(409).send({ error: `Run is not cancellable (status: ${run.status})` });
-    }
-    await launcher.cancel(id);
-    return reply.send({ run_id: id });
+    return handleCancel(request.params.id, reply);
   });
 
   // DELETE /api/runs/:id — cancel a running pipeline (spec-aligned alias for POST /runs/:id/cancel)
@@ -333,16 +337,7 @@ export async function runsRoutes(
       },
     },
   }, async (request, reply) => {
-    const { id } = request.params;
-    const run = await store.getPipelineRun(id);
-    if (!run) {
-      return reply.status(404).send({ error: 'Run not found' });
-    }
-    if (run.status !== 'running') {
-      return reply.status(409).send({ error: `Run is not cancellable (status: ${run.status})` });
-    }
-    await launcher.cancel(id);
-    return reply.send({ run_id: id });
+    return handleCancel(request.params.id, reply);
   });
 
   // GET /api/runs/:id/stream — SSE
