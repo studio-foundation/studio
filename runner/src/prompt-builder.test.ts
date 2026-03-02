@@ -142,3 +142,26 @@ describe('buildPrompt — skills injection', () => {
     expect(sysMsg).not.toContain('## Skill:');
   });
 });
+
+describe('buildPrompt — stage_name', () => {
+  it('renders ## Stage Name section when stage_name is provided', () => {
+    const messages = buildPrompt({
+      agent: AGENT,
+      task: TASK,
+      context: { stage_name: 'recipe-1' },
+    });
+    const userMsg = messages.find(m => m.role === 'user')!.content as string;
+    expect(userMsg).toContain('## Stage Name');
+    expect(userMsg).toContain('recipe-1');
+  });
+
+  it('does not render ## Stage Name when stage_name is absent', () => {
+    const messages = buildPrompt({
+      agent: AGENT,
+      task: TASK,
+      context: {},
+    });
+    const userMsg = messages.find(m => m.role === 'user')!.content as string;
+    expect(userMsg).not.toContain('## Stage Name');
+  });
+});

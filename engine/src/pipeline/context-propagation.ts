@@ -181,6 +181,10 @@ export function getContextForStage(
         };
         break;
 
+      case 'stage_name':
+        agentContext.stage_name = stage.name;
+        break;
+
       case 'group_feedback':
         if (context.groupFeedback) {
           agentContext.group_feedback = {

@@ -34,6 +34,7 @@ export interface AgentContext {
   group_feedback?: GroupFeedbackContext;
   context_packs?: ResolvedContextPack[];
   startup_context?: Record<string, string>;
+  stage_name?: string;
 }
 
 export interface PromptBuildConfig {
@@ -145,6 +146,11 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
   // Add additional context
   if (context.additional_context) {
     userContent += `## Additional Context\n\n${context.additional_context}\n\n`;
+  }
+
+  // Add stage name (used in parallel groups so agents can identify their slot)
+  if (context.stage_name) {
+    userContent += `## Stage Name\n\n${context.stage_name}\n\n`;
   }
 
   // Render pipeline startup context — each key as a ### section
