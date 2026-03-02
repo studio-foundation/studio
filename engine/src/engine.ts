@@ -469,6 +469,11 @@ export class PipelineEngine {
       }
     }
 
+    // Inject project domain invariants (.studio/invariants.md) into system_prompt
+    if (pipelineContext.invariantsContent) {
+      agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n---\n\n## Project Invariants\n\n${pipelineContext.invariantsContent}`;
+    }
+
     const stageHooks = stageDef.hooks;
     const hookCwd = this.config.repoPath ?? this.config.configsDir;
 
