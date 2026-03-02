@@ -318,7 +318,8 @@ describe('Parallel group', () => {
     // 3 calls total: stage-a, stage-b (parallel), then merge-results (sequential)
     expect(provider.call).toHaveBeenCalledTimes(3);
     // Verify merge-results received stage outputs (check via the last provider call's messages)
-    const lastCallMessages = (provider.call.mock.calls[2] as any[])[0];
+    const lastCallArg = (provider.call.mock.calls[2] as any[])[0];
+    const lastCallMessages: any[] = lastCallArg?.messages ?? lastCallArg ?? [];
     const userMsg = lastCallMessages.find((m: any) => m.role === 'user');
     expect(userMsg?.content).toContain('stage-a');
     expect(userMsg?.content).toContain('stage-b');
@@ -371,7 +372,7 @@ stages:
     let callCount = 0;
     const provider = mockProvider((...args: any[]) => {
       callCount++;
-      capturedMessages[`call-${callCount}`] = args[0];
+      capturedMessages[`call-${callCount}`] = args[0]?.messages ?? args[0] ?? [];
       return successResponse({ call_num: callCount });
     });
     const engine = createEngine(provider);
