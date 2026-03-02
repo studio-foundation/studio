@@ -26,7 +26,7 @@ import { loadProjectTools } from '@studio/runner';
 import { join } from 'node:path';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
-import type { UserStore } from './user-store.js';
+import type { AnyUserStore } from './user-store-pg.js';
 import { getPlanLimits, DEFAULT_PLANS, type PlansConfig } from './plans.js';
 
 export interface LaunchConfig {
@@ -64,7 +64,7 @@ export class InProcessLauncher implements RunLauncher {
     private runsDir: string,
     private bus: RunEventBus,
     private engineFactory: EngineFactory = (cfg, evts) => new PipelineEngine(cfg, evts),
-    private userStore?: UserStore,
+    private userStore?: AnyUserStore,
     private plans: PlansConfig = DEFAULT_PLANS,
   ) {}
 
@@ -77,14 +77,14 @@ export class InProcessLauncher implements RunLauncher {
 
     // Quota enforcement (only if userId provided and userStore available)
     if (userId && this.userStore) {
-      const user = this.userStore.getUserById(userId);
+      const user = await this.userStore.getUserById(userId);
       if (user) {
         const today = new Date().toISOString().slice(0, 10);
         const limits = getPlanLimits(this.plans, user.plan);
 
         // Check runs_per_day
         if (limits.runs_per_day !== -1) {
-          const usage = this.userStore.getDailyUsage(userId, today);
+          const usage = await this.userStore.getDailyUsage(userId, today);
           if (usage.runs_count >= limits.runs_per_day) {
             throw Object.assign(
               new Error('Daily run limit exceeded'),
@@ -103,7 +103,7 @@ export class InProcessLauncher implements RunLauncher {
         }
 
         // Increment runs_count
-        this.userStore.incrementRuns(userId, today);
+        await this.userStore.incrementRuns(userId, today);
       }
     }
 
