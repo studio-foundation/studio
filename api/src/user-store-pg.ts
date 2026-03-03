@@ -63,6 +63,15 @@ export class PgUserStore {
     return res.rows[0] ?? null;
   }
 
+  async getUserByEmail(email: string): Promise<User | null> {
+    await this.ensureSchema();
+    const res = await this.pool.query<User>(
+      'SELECT id, email, plan, api_key, created_at FROM studio_users WHERE email = $1',
+      [email]
+    );
+    return res.rows[0] ?? null;
+  }
+
   async listUsers(): Promise<User[]> {
     await this.ensureSchema();
     const res = await this.pool.query<User>(

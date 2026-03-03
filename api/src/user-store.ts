@@ -65,6 +65,13 @@ export class UserStore {
     return row ?? null;
   }
 
+  getUserByEmail(email: string): User | null {
+    const row = this.db
+      .prepare('SELECT id, email, plan, api_key, created_at FROM users WHERE email = ?')
+      .get(email) as User | undefined;
+    return row ?? null;
+  }
+
   listUsers(): User[] {
     return this.db
       .prepare('SELECT id, email, plan, api_key, created_at FROM users ORDER BY created_at ASC')

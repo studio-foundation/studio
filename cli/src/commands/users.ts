@@ -1,7 +1,7 @@
 // cli/src/commands/users.ts
 import { randomBytes, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import chalk from 'chalk';
 import { findStudioDir } from '../studio-dir.js';
 import { UserStore } from '@studio/api/user-store';
@@ -11,7 +11,7 @@ async function getStore(): Promise<{ store: UserStore; close: () => void }> {
   if (!studioDir) throw new Error('No .studio/ directory found. Run studio init first.');
 
   const dbPath = join(studioDir, 'runs', 'runs.db');
-  mkdirSync(join(studioDir, 'runs'), { recursive: true });
+  await mkdir(join(studioDir, 'runs'), { recursive: true });
   const store = new UserStore(dbPath);
   return { store, close: () => store.close() };
 }
@@ -30,8 +30,8 @@ export async function usersCommand(
           console.log(chalk.gray('No users found.'));
         } else {
           console.log(chalk.bold('Users:'));
-          for (const u of users) {
-            console.log(`  ${chalk.cyan(u.email)} — plan: ${chalk.yellow(u.plan)} — id: ${chalk.gray(u.id)}`);
+          for (const { email, plan, id } of users) {
+            console.log(`  ${chalk.cyan(email)} — plan: ${chalk.yellow(plan)} — id: ${chalk.gray(id)}`);
           }
         }
       } finally {
@@ -48,6 +48,10 @@ export async function usersCommand(
       }
       const { store, close } = await getStore();
       try {
+        if (store.getUserByEmail(email)) {
+          console.error(chalk.red(`User ${email} already exists.`));
+          process.exit(1);
+        }
         const apiKey = randomBytes(32).toString('hex');
         const user = {
           id: randomUUID(),
@@ -56,16 +60,7 @@ export async function usersCommand(
           api_key: apiKey,
           created_at: new Date().toISOString(),
         };
-        try {
-          store.saveUser(user);
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes('UNIQUE constraint failed: users.email')) {
-            console.error(chalk.red(`User ${email} already exists.`));
-            process.exit(1);
-          }
-          throw err;
-        }
+        store.saveUser(user);
         console.log(chalk.green(`✓ User created: ${email} (plan: ${user.plan})`));
         console.log(chalk.bold('API Key (shown only once):'));
         console.log(chalk.yellow(apiKey));
@@ -83,8 +78,7 @@ export async function usersCommand(
       }
       const { store, close } = await getStore();
       try {
-        const users = store.listUsers();
-        const user = users.find((u) => u.email === email);
+        const user = store.getUserByEmail(email);
         if (!user) {
           console.error(chalk.red(`User ${email} not found.`));
           process.exit(1);
@@ -105,8 +99,7 @@ export async function usersCommand(
       }
       const { store, close } = await getStore();
       try {
-        const users = store.listUsers();
-        const user = users.find((u) => u.email === email);
+        const user = store.getUserByEmail(email);
         if (!user) {
           console.error(chalk.red(`User ${email} not found.`));
           process.exit(1);
