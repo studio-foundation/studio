@@ -330,6 +330,30 @@ describe('Group feedback loop', () => {
     expect(userMessage.content).toContain('No input validation');
   });
 
+  it('fails pipeline (not group retry) when executor throws during group iteration', async () => {
+    let callCount = 0;
+    const provider = createMockProvider(() => {
+      callCount++;
+      if (callCount === 1) return analysisResponse();   // pre-group analysis
+      if (callCount === 2) return codeGenResponse();     // iter 1: code-gen OK
+      if (callCount === 3) return qaRejectResponse(      // iter 1: QA rejects
+        'Missing error handling',
+        ['No try-catch around API call']
+      );
+      // iter 2: code-gen throws a technical error (network timeout, etc.)
+      throw new Error('Network timeout');
+    });
+
+    const engine = createEngine(provider);
+    const result = await engine.run({ pipeline: 'group-test', input: 'Build feature' });
+
+    // Technical throw → stage failed → pipeline failed, no infinite group retry
+    expect(result.status).toBe('failed');
+    // analysis + code-gen(iter1) + qa-reject(iter1) + code-gen(iter2 throws) = 4
+    expect(result.stages).toHaveLength(4);
+    expect(provider.call).toHaveBeenCalledTimes(4);
+  });
+
   it('emits group lifecycle events', async () => {
     let callCount = 0;
     const provider = createMockProvider(() => {
