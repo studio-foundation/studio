@@ -12,6 +12,10 @@
     },
     "./standalone": {
       "import": "./dist/index.js"
+    },
+    "./user-store": {
+      "import": "./dist/user-store.js",
+      "types": "./dist/user-store.d.ts"
     }
   },
   "bin": {
