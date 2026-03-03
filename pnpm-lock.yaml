@@ -84,6 +84,9 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.2.1
         version: 8.2.1(@types/node@25.2.3)
+      '@studio/api':
+        specifier: workspace:*
+        version: link:../api
       '@studio/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -109,9 +112,6 @@ importers:
         specifier: ^9.3.0
         version: 9.3.0
     devDependencies:
-      '@studio/api':
-        specifier: workspace:*
-        version: link:../api
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
