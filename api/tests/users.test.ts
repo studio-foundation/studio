@@ -77,6 +77,91 @@ describe('POST /api/users', () => {
   });
 });
 
+describe('GET /api/users', () => {
+  let userStore: UserStore;
+
+  beforeEach(() => { userStore = makeTempUserStore(); });
+  afterEach(() => { userStore.close(); });
+
+  it('lists users without exposing api_key', async () => {
+    userStore.saveUser({ id: 'u1', email: 'alice@example.com', plan: 'free', api_key: 'secret-key', created_at: '2026-01-01T00:00:00.000Z' });
+    const server = buildTestServer(userStore);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/users',
+      headers: { Authorization: 'Bearer secret-key' },
+    });
+    expect(res.statusCode).toBe(200);
+    const users = res.json();
+    expect(users).toHaveLength(1);
+    expect(users[0].email).toBe('alice@example.com');
+    expect(users[0].api_key).toBeUndefined();
+  });
+});
+
+describe('GET /api/users/:id', () => {
+  let userStore: UserStore;
+
+  beforeEach(() => { userStore = makeTempUserStore(); });
+  afterEach(() => { userStore.close(); });
+
+  it('returns user with today_usage', async () => {
+    userStore.saveUser({ id: 'u1', email: 'alice@example.com', plan: 'pro', api_key: 'user-key', created_at: '2026-01-01T00:00:00.000Z' });
+    const server = buildTestServer(userStore);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/users/u1',
+      headers: { Authorization: 'Bearer user-key' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.email).toBe('alice@example.com');
+    expect(body.today_usage).toEqual({ runs_count: 0, tokens_used: 0 });
+    expect(body.api_key).toBeUndefined();
+  });
+
+  it('returns 404 for unknown id', async () => {
+    userStore.saveUser({ id: 'u1', email: 'alice@example.com', plan: 'pro', api_key: 'user-key', created_at: '2026-01-01T00:00:00.000Z' });
+    const server = buildTestServer(userStore);
+    const res = await server.inject({
+      method: 'GET',
+      url: '/api/users/nonexistent',
+      headers: { Authorization: 'Bearer user-key' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('DELETE /api/users/:id', () => {
+  let userStore: UserStore;
+
+  beforeEach(() => { userStore = makeTempUserStore(); });
+  afterEach(() => { userStore.close(); });
+
+  it('deletes a user and returns 204', async () => {
+    userStore.saveUser({ id: 'u1', email: 'alice@example.com', plan: 'free', api_key: 'user-key', created_at: '2026-01-01T00:00:00.000Z' });
+    const server = buildTestServer(userStore);
+    const res = await server.inject({
+      method: 'DELETE',
+      url: '/api/users/u1',
+      headers: { Authorization: 'Bearer user-key' },
+    });
+    expect(res.statusCode).toBe(204);
+    expect(userStore.getUserById('u1')).toBeNull();
+  });
+
+  it('returns 404 for unknown id', async () => {
+    userStore.saveUser({ id: 'u1', email: 'alice@example.com', plan: 'free', api_key: 'user-key', created_at: '2026-01-01T00:00:00.000Z' });
+    const server = buildTestServer(userStore);
+    const res = await server.inject({
+      method: 'DELETE',
+      url: '/api/users/nonexistent',
+      headers: { Authorization: 'Bearer user-key' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
 describe('GET /api/users/me', () => {
   let userStore: UserStore;
 

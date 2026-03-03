@@ -20,6 +20,22 @@ const userWithKeySchema = {
   properties: { ...userSchema.properties, api_key: { type: 'string' } },
 };
 
+const todayUsageSchema = {
+  type: 'object',
+  properties: {
+    runs_count: { type: 'number' },
+    tokens_used: { type: 'number' },
+  },
+};
+
+const userWithUsageSchema = {
+  type: 'object',
+  properties: {
+    ...userSchema.properties,
+    today_usage: todayUsageSchema,
+  },
+};
+
 export async function usersRoutes(
   fastify: FastifyInstance,
   options: { deps: ServerDeps },
@@ -62,8 +78,8 @@ export async function usersRoutes(
       await userStore.saveUser(user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('UNIQUE constraint failed')) {
-        return reply.status(409).send({ error: `User with email ${email} already exists` });
+      if (msg.includes('UNIQUE constraint failed: users.email')) {
+        return reply.status(409).send({ error: 'Email already in use' });
       }
       throw err;
     }
@@ -90,19 +106,7 @@ export async function usersRoutes(
       tags: ['users'],
       summary: 'Get current authenticated user',
       response: {
-        200: {
-          type: 'object',
-          properties: {
-            ...userSchema.properties,
-            today_usage: {
-              type: 'object',
-              properties: {
-                runs_count: { type: 'number' },
-                tokens_used: { type: 'number' },
-              },
-            },
-          },
-        },
+        200: userWithUsageSchema,
         401: errorSchema,
       },
     },
@@ -126,19 +130,7 @@ export async function usersRoutes(
       summary: 'Get a user by ID',
       params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       response: {
-        200: {
-          type: 'object',
-          properties: {
-            ...userSchema.properties,
-            today_usage: {
-              type: 'object',
-              properties: {
-                runs_count: { type: 'number' },
-                tokens_used: { type: 'number' },
-              },
-            },
-          },
-        },
+        200: userWithUsageSchema,
         404: errorSchema,
       },
     },
