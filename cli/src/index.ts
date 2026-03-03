@@ -18,6 +18,7 @@ import { projectCommand } from './commands/project.js';
 import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/api.js';
 import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
+import { usersCommand } from './commands/users.js';
 
 const program = new Command();
 
@@ -149,5 +150,28 @@ program
   });
 
 program.addCommand(createRegistryCommand());
+
+const usersCmd = program.command('users').description('Manage users');
+
+usersCmd
+  .command('list')
+  .description('List all users')
+  .action(() => { void usersCommand('list', [], {}); });
+
+usersCmd
+  .command('add <email>')
+  .description('Create a new user')
+  .option('--plan <plan>', 'User plan (free|pro|unlimited)', 'free')
+  .action((email: string, opts: { plan?: string }) => { void usersCommand('add', [email], opts); });
+
+usersCmd
+  .command('remove <email>')
+  .description('Remove a user')
+  .action((email: string) => { void usersCommand('remove', [email], {}); });
+
+usersCmd
+  .command('info <email>')
+  .description("Show user details and today's usage")
+  .action((email: string) => { void usersCommand('info', [email], {}); });
 
 program.parse();

@@ -12,6 +12,10 @@
     },
     "./standalone": {
       "import": "./dist/index.js"
+    },
+    "./user-store": {
+      "import": "./dist/user-store.js",
+      "types": "./dist/user-store.d.ts"
     }
   },
   "bin": {
@@ -33,6 +37,7 @@
   "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^10.0.2",
+    "@fastify/rate-limit": "^10.3.0",
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
     "@studio/contracts": "workspace:*",
@@ -40,12 +45,14 @@
     "@studio/runner": "workspace:*",
     "better-sqlite3": "^9.0.0",
     "fastify": "^5.3.2",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "pg": "^8.19.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.3",
+    "@types/pg": "^8.18.0",
     "typescript": "^5.3.0",
     "vitest": "^4.0.18"
   }

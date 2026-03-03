@@ -29,6 +29,9 @@ importers:
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
+      '@fastify/rate-limit':
+        specifier: ^10.3.0
+        version: 10.3.0
       '@fastify/swagger':
         specifier: ^9.7.0
         version: 9.7.0
@@ -53,6 +56,9 @@ importers:
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1
+      pg:
+        specifier: ^8.19.0
+        version: 8.19.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.8
@@ -63,6 +69,9 @@ importers:
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -75,6 +84,9 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.2.1
         version: 8.2.1(@types/node@25.2.3)
+      '@studio/api':
+        specifier: workspace:*
+        version: link:../api
       '@studio/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -100,9 +112,6 @@ importers:
         specifier: ^9.3.0
         version: 9.3.0
     devDependencies:
-      '@studio/api':
-        specifier: workspace:*
-        version: link:../api
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -564,6 +573,9 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
+
+  '@fastify/rate-limit@10.3.0':
+    resolution: {integrity: sha512-eIGkG9XKQs0nyynatApA3EVrojHOuq4l6fhB4eeCk4PIOeadvOJz9/4w3vGI44Go17uaXOWEcPkaD8kuKm7g6Q==}
 
   '@fastify/send@4.1.0':
     resolution: {integrity: sha512-TMYeQLCBSy2TOFmV95hQWkiTYgC/SEx7vMdV+wnZVX4tt8VBLKzmH8vV9OzJehV0+XBfg+WxPMt5wp+JBUKsVw==}
@@ -2406,6 +2418,12 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.3.0
+
+  '@fastify/rate-limit@10.3.0':
+    dependencies:
+      '@lukeed/ms': 2.0.2
+      fastify-plugin: 5.1.0
+      toad-cache: 3.7.0
 
   '@fastify/send@4.1.0':
     dependencies:

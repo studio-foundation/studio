@@ -103,6 +103,7 @@ export async function runsRoutes(
           },
         },
         400: errorSchema,
+        429: errorSchema,
       },
     },
   }, async (request, reply) => {
@@ -140,16 +141,27 @@ export async function runsRoutes(
       return reply.status(400).send({ error: err instanceof Error ? err.message : String(err) });
     }
 
-    const { run_id } = await launcher.launch({
-      runId,
-      pipeline,
-      input,
-      configsDir: options.deps.configsDir,
-      repoPath,
-      providerOverride: provider,
-      depth,
-      parentRunId,
-    });
+    let run_id: string;
+    try {
+      const result = await launcher.launch({
+        runId,
+        pipeline,
+        input,
+        configsDir: options.deps.configsDir,
+        repoPath,
+        providerOverride: provider,
+        depth,
+        parentRunId,
+        userId: request.user?.id,
+      });
+      run_id = result.run_id;
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === 'QUOTA_EXCEEDED') {
+        return reply.status(429).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+      return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+    }
 
     return reply.status(201).send({
       run_id,

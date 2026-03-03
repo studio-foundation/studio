@@ -19,10 +19,19 @@ async function main() {
     process.exit(1);
   }
 
-  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime } = result;
+  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime, userStore, plans } = result;
   const port = apiConfig.port ?? DEFAULT_PORT;
 
-  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime });
+  let hasUsers = false;
+  try {
+    // listUsers() is sync on UserStore and async on PgUserStore; await handles both
+    const users = await userStore.listUsers();
+    hasUsers = users.length > 0;
+  } catch {
+    // DB unavailable at startup — default to open/dev mode
+  }
+
+  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime, userStore, plans, hasUsers });
 
   // Graceful shutdown
   const shutdown = async () => {
