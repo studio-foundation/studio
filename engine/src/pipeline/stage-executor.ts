@@ -603,7 +603,6 @@ export class StageExecutor {
     if (Object.keys(keymap).length === 0) return;
     try {
       const { mkdir, writeFile } = await import('node:fs/promises');
-      const { join } = await import('node:path');
       // configsDir is .studio/ directly — keymap goes in .studio/runs/anonymization/
       const anonDir = join(this.config.configsDir, 'runs', 'anonymization');
       await mkdir(anonDir, { recursive: true });
