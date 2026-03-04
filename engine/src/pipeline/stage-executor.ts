@@ -304,8 +304,11 @@ export class StageExecutor {
         }
       : undefined;
 
-    // Execute ralph loop
-    const ralphResult = await ralph<AgentRunResult>({
+    // Execute ralph loop — catch unexpected executor throws (network errors, etc.)
+    // and convert them to a failed stage rather than crashing the pipeline.
+    let ralphResult: Awaited<ReturnType<typeof ralph<AgentRunResult>>>;
+    try {
+      ralphResult = await ralph<AgentRunResult>({
       executor: async (execContext: RalphExecutionContext) => {
         const agentRunId = randomUUID();
         const agentRunStartedAt = new Date().toISOString();
@@ -407,7 +410,24 @@ export class StageExecutor {
           rawOutput,
         });
       },
-    });
+      });
+    } catch (err) {
+      // AbortError from signal propagation is handled inside ralph (returns 'cancelled').
+      // Any other throw is a technical failure (network, timeout, etc.) — mark stage failed.
+      stageRun.status = transition('running', 'fail');
+      stageRun.completed_at = new Date().toISOString();
+      stageRun.tasks = [taskRun];
+      this.config.events?.onStageComplete?.({
+        stage_name: stageDef.name,
+        stage_index: stageIndex,
+        total_stages: totalStages,
+        status: 'failed',
+        attempts: 1,
+        duration_ms: Date.now() - new Date(stageStartedAt).getTime(),
+      });
+      this.config.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
+      return { stageRun, status: 'failed' };
+    }
 
     // Persist stage-level keymap if we created a stage middleware
     if (stageMiddleware) {
