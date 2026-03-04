@@ -10,8 +10,8 @@ import {
 } from './context-propagation.js';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import type { ToolRegistry, AnonymizationMiddleware } from '@studio/runner';
-import { StageExecutor } from './stage-executor.js';
-import type { GroupResult, ProjectPaths } from './types.js';
+import type { StageExecutor } from './stage-executor.js';
+import type { GroupResult, ProjectPaths, StageResult } from './types.js';
 
 export interface GroupOrchestratorConfig {
   events?: EngineEvents;
@@ -125,7 +125,7 @@ export class GroupOrchestrator {
     );
 
     // Build result map keyed by stage name
-    const resultMap = new Map<string, import('./types.js').StageResult>();
+    const resultMap = new Map<string, StageResult>();
     for (const s of settled) {
       if (s.status === 'fulfilled') {
         resultMap.set(s.value.stageName, s.value.result);
