@@ -6,6 +6,7 @@ import type { Provider } from './provider.js';
 import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OpenAIResponsesProvider } from './openai-responses.js';
+import { OllamaProvider } from './ollama.js';
 
 export class ProviderRegistry {
   private providers: Map<string, Provider> = new Map();
@@ -52,6 +53,7 @@ export function createDefaultRegistry(config: {
   openai?: { apiKey: string; baseUrl?: string };
   anthropic?: { apiKey: string };
   openaiResponses?: { apiKey: string };
+  ollama?: { baseUrl?: string };
 }): ProviderRegistry {
   const registry = new ProviderRegistry();
 
@@ -65,6 +67,10 @@ export function createDefaultRegistry(config: {
 
   if (config.openaiResponses) {
     registry.register(new OpenAIResponsesProvider(config.openaiResponses.apiKey));
+  }
+
+  if (config.ollama) {
+    registry.register(new OllamaProvider(config.ollama.baseUrl));
   }
 
   return registry;
