@@ -37,6 +37,7 @@ export interface StudioApiConfig {
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
+    ollama?: { baseUrl?: string };   // ADD THIS
   };
   paths?: { projects_dir?: string };
   defaults?: { provider?: string; model?: string };
@@ -149,6 +150,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   const providerRegistry = createDefaultRegistry({
     openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
     anthropic: config.providers?.anthropic ? { apiKey: config.providers.anthropic.apiKey } : undefined,
+    ollama: config.providers?.ollama ? { baseUrl: config.providers.ollama.baseUrl } : undefined,
   });
 
   const toolsDir = join(studioDir, 'tools');

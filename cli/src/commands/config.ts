@@ -13,7 +13,7 @@ export const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514' },
   { id: 'openai',    label: 'OpenAI (GPT)',        defaultModel: 'gpt-4o' },
   { id: 'google',    label: 'Google (Gemini)',     defaultModel: 'gemini-1.5-pro' },
-  { id: 'local',     label: 'Local (Ollama)',      defaultModel: 'llama3.2' },
+  { id: 'ollama',    label: 'Ollama (local)',      defaultModel: 'llama3.2' },
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number]['id'];
@@ -27,7 +27,7 @@ export function validateApiKeyForProvider(provider: string, key: string): true |
   } else if (provider === 'google') {
     if (!key.startsWith('AIza')) return 'Google API keys must start with AIza';
   }
-  // local / unknown providers: no format constraint
+  // ollama / unknown providers: no format constraint
   return true;
 }
 
@@ -43,7 +43,11 @@ export async function addProviderConfig(
   if (!config.providers || typeof config.providers !== 'object') {
     config.providers = {};
   }
-  (config.providers as Record<string, unknown>)[provider] = { apiKey };
+  if (provider === 'ollama') {
+    (config.providers as Record<string, unknown>)[provider] = { baseUrl: apiKey };
+  } else {
+    (config.providers as Record<string, unknown>)[provider] = { apiKey };
+  }
 
   if (setDefault) {
     const meta = PROVIDERS.find((p) => p.id === provider);
@@ -156,15 +160,15 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
     }
   }
 
-  // Step 3: Ask for API key (or base URL for local)
+  // Step 3: Ask for API key (or base URL for ollama)
   let apiKey = '';
-  if (providerId === 'local') {
+  if (providerId === 'ollama') {
     apiKey = await input({
       message: 'Ollama base URL:',
       default: 'http://localhost:11434',
     });
     const spinner = ora('Validating connection...').start();
-    const result = await validateApiKeyLive('local', '', { baseUrl: apiKey });
+    const result = await validateApiKeyLive('ollama', '', { baseUrl: apiKey });
     if (result.status === 'valid') spinner.succeed('Connected');
     else if (result.status === 'warning') spinner.warn(result.message);
     else spinner.fail(result.error);
@@ -202,7 +206,7 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
 
   // Step 4b: Choose default model (if setting as default and models are available)
   let defaultModel: string | undefined;
-  if (setDefault && providerId !== 'local') {
+  if (setDefault && providerId !== 'ollama') {
     const models = await getAvailableModels(providerId, apiKey);
     const meta = PROVIDERS.find((p) => p.id === providerId);
     const fallbackModel = meta?.defaultModel ?? 'claude-sonnet-4-20250514';
@@ -353,14 +357,14 @@ export async function configCommand(
         }
 
         // Direct mode
-        if (provider !== 'local' && !options.apiKey) {
+        if (provider !== 'ollama' && !options.apiKey) {
           console.error(`Error: --api-key is required for provider '${provider}'`);
           process.exit(1);
         }
 
         const apiKey = options.apiKey ?? '';
 
-        if (provider !== 'local') {
+        if (provider !== 'ollama') {
           const validation = validateApiKeyForProvider(provider, apiKey);
           if (validation !== true) {
             console.error(`Error: ${validation}`);
@@ -378,7 +382,7 @@ export async function configCommand(
           }
         } else {
           process.stdout.write('Validating connection...');
-          const result = await validateApiKeyLive('local', '', {
+          const result = await validateApiKeyLive('ollama', '', {
             baseUrl: apiKey || 'http://localhost:11434',
           });
           const msg = 'message' in result ? result.message : '';

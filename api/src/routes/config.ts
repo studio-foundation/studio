@@ -4,7 +4,7 @@ import * as yaml from 'js-yaml';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
 
-const KNOWN_PROVIDERS = new Set(['anthropic', 'openai']);
+const KNOWN_PROVIDERS = new Set(['anthropic', 'openai', 'ollama']);
 
 interface RawConfig {
   providers?: Record<string, { apiKey?: string }>;

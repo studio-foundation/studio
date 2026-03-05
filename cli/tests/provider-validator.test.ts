@@ -141,32 +141,32 @@ describe('validateApiKeyLive — google', () => {
   });
 });
 
-// ─── Local ───────────────────────────────────────────────────────────────────
+// ─── Ollama ──────────────────────────────────────────────────────────────────
 
-describe('validateApiKeyLive — local', () => {
+describe('validateApiKeyLive — ollama', () => {
   it('returns valid when Ollama /api/tags returns 200', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse(200));
-    const result = await validateApiKeyLive('local', '', { baseUrl: 'http://localhost:11434' });
+    const result = await validateApiKeyLive('ollama', '', { baseUrl: 'http://localhost:11434' });
     expect(result.status).toBe('valid');
   });
 
   it('uses default http://localhost:11434 when no baseUrl', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse(200));
-    await validateApiKeyLive('local', '');
+    await validateApiKeyLive('ollama', '');
     const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('localhost:11434');
   });
 
   it('uses custom baseUrl when provided', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse(200));
-    await validateApiKeyLive('local', '', { baseUrl: 'http://my-ollama:8080' });
+    await validateApiKeyLive('ollama', '', { baseUrl: 'http://my-ollama:8080' });
     const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('my-ollama:8080');
   });
 
   it('returns warning on connection refused', async () => {
     mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-    const result = await validateApiKeyLive('local', '', { baseUrl: 'http://localhost:11434' });
+    const result = await validateApiKeyLive('ollama', '', { baseUrl: 'http://localhost:11434' });
     expect(result.status).toBe('warning');
   });
 });
