@@ -278,6 +278,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         openai: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
         anthropic: config.providers?.anthropic ? { apiKey: config.providers.anthropic.apiKey } : undefined,
         openaiResponses: config.providers?.openai ? { apiKey: config.providers.openai.apiKey } : undefined,
+        ollama: config.providers?.ollama ? { baseUrl: config.providers.ollama.baseUrl } : undefined,
       }
     );
 

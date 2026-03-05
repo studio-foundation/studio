@@ -7,6 +7,7 @@ export interface StudioConfig {
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
+    ollama?: { baseUrl?: string };
   };
   paths?: {
     configs?: string;
