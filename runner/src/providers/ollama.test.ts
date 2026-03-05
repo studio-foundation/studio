@@ -59,8 +59,8 @@ describe('OllamaProvider', () => {
 
     expect(result.content).toBe('{"result":"ok"}');
     expect(result.tool_calls).toHaveLength(1);
-    expect(result.tool_calls[0].name).toBe('repo_manager-read_file');
-    expect(result.tool_calls[0].arguments).toEqual({ path: 'src/foo.ts' });
+    expect(result.tool_calls![0].name).toBe('repo_manager-read_file');
+    expect(result.tool_calls![0].arguments).toEqual({ path: 'src/foo.ts' });
     expect(result.usage?.total_tokens).toBe(30);
   });
 
