@@ -30,7 +30,7 @@ export async function validateApiKeyLive(
       return await validateOpenAIKey(apiKey, abort.signal);
     } else if (provider === 'google') {
       return await validateGoogleKey(apiKey, abort.signal);
-    } else if (provider === 'local') {
+    } else if (provider === 'ollama') {
       return await validateLocalOllama(
         options.baseUrl ?? 'http://localhost:11434',
         abort.signal

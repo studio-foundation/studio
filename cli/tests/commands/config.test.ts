@@ -59,12 +59,12 @@ describe('maskSecrets', () => {
 });
 
 describe('PROVIDERS', () => {
-  it('includes anthropic, openai, google, local', () => {
+  it('includes anthropic, openai, google, ollama', () => {
     const ids = PROVIDERS.map((p) => p.id);
     expect(ids).toContain('anthropic');
     expect(ids).toContain('openai');
     expect(ids).toContain('google');
-    expect(ids).toContain('local');
+    expect(ids).toContain('ollama');
   });
 
   it('each provider has id, label, and defaultModel', () => {
@@ -112,9 +112,9 @@ describe('validateApiKeyForProvider', () => {
     expect(result).toContain('AIza');
   });
 
-  it('accepts any value for local provider (no validation)', () => {
-    expect(validateApiKeyForProvider('local', 'http://localhost:11434')).toBe(true);
-    expect(validateApiKeyForProvider('local', '')).toBe(true);
+  it('accepts any value for ollama provider (no validation)', () => {
+    expect(validateApiKeyForProvider('ollama', 'http://localhost:11434')).toBe(true);
+    expect(validateApiKeyForProvider('ollama', '')).toBe(true);
   });
 
   it('accepts any value for unknown providers', () => {
