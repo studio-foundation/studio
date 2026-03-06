@@ -698,3 +698,20 @@ describe('generateFullApp (registry-backed)', () => {
     vi.resetModules();
   });
 });
+
+describe('detectHardware', () => {
+  it('returns totalRamGb as a positive number', async () => {
+    const { detectHardware } = await import('../../src/commands/init.js');
+    const hw = detectHardware();
+    expect(hw.totalRamGb).toBeGreaterThan(0);
+  });
+
+  it('returns all expected fields', async () => {
+    const { detectHardware } = await import('../../src/commands/init.js');
+    const hw = detectHardware();
+    expect(typeof hw.hasDocker).toBe('boolean');
+    expect(typeof hw.hasNativeOllama).toBe('boolean');
+    expect(typeof hw.ollamaAvailable).toBe('boolean');
+    expect(hw.ollamaAvailable).toBe(hw.hasDocker || hw.hasNativeOllama);
+  });
+});

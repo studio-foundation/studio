@@ -1,6 +1,7 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
 import { resolve, join, basename, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { totalmem } from 'node:os';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -406,6 +407,25 @@ interface InitOptions {
   force?: boolean;
   yes?: boolean;
   tools?: boolean;  // false when --no-tools is passed, true otherwise
+}
+
+export interface HardwareInfo {
+  totalRamGb: number;
+  hasDocker: boolean;
+  hasNativeOllama: boolean;
+  ollamaAvailable: boolean;
+}
+
+export function detectHardware(): HardwareInfo {
+  const totalRamGb = totalmem() / (1024 ** 3);
+  const hasDocker = spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0;
+  const hasNativeOllama = spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0;
+  return {
+    totalRamGb,
+    hasDocker,
+    hasNativeOllama,
+    ollamaAvailable: hasDocker || hasNativeOllama,
+  };
 }
 
 function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
