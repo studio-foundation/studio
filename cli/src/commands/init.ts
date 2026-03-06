@@ -194,7 +194,7 @@ export function hasAdequateRam(): boolean {
 export async function writeProviderToConfig(
   studioDir: string,
   provider: string,
-  apiKey: string,
+  credentials: { apiKey?: string; baseUrl?: string },
   model?: string
 ): Promise<void> {
   const configPath = join(studioDir, 'config.yaml');
@@ -212,7 +212,13 @@ export async function writeProviderToConfig(
   if (!parsed.providers || typeof parsed.providers !== 'object') {
     parsed.providers = {};
   }
-  (parsed.providers as Record<string, unknown>)[provider] = { apiKey };
+  if (provider === 'ollama') {
+    (parsed.providers as Record<string, unknown>)[provider] =
+      credentials.baseUrl ? { baseUrl: credentials.baseUrl } : {};
+  } else {
+    (parsed.providers as Record<string, unknown>)[provider] =
+      credentials.apiKey ? { apiKey: credentials.apiKey } : {};
+  }
 
   // Set defaults
   parsed.defaults = {
@@ -239,7 +245,7 @@ export async function directInit(
   await createStudioStructure(cwd, templateName, !noTools);
   if (provider !== 'later' && apiKey) {
     const studioDir = resolve(cwd, '.studio');
-    await writeProviderToConfig(studioDir, provider, apiKey);
+    await writeProviderToConfig(studioDir, provider, { apiKey });
   }
 }
 
@@ -532,7 +538,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         }));
         if (options.provider !== 'later' && options.apiKey) {
           const studioDir = resolve(cwd, '.studio');
-          await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
+          await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey });
         }
         spinner.stop();
       } catch (err) {
@@ -711,7 +717,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
       if (provider !== 'later' && apiKey) {
-        await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
+        await writeProviderToConfig(studioDir, provider, { apiKey }, selectedModel);
       }
 
       spinner.stop();

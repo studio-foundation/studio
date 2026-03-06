@@ -404,7 +404,7 @@ describe('writeProviderToConfig', () => {
     await createStudioStructure(TMP);
 
     const studioDir = resolve(TMP, '.studio');
-    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-test-key');
+    await writeProviderToConfig(studioDir, 'anthropic', { apiKey: 'sk-ant-test-key' });
 
     const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown>;
@@ -422,7 +422,7 @@ describe('writeProviderToConfig', () => {
     await createStudioStructure(TMP);
 
     const studioDir = resolve(TMP, '.studio');
-    await writeProviderToConfig(studioDir, 'openai', 'sk-openai-test-key');
+    await writeProviderToConfig(studioDir, 'openai', { apiKey: 'sk-openai-test-key' });
 
     const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown>;
@@ -440,13 +440,29 @@ describe('writeProviderToConfig', () => {
     await createStudioStructure(TMP);
 
     const studioDir = resolve(TMP, '.studio');
-    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-first');
-    await writeProviderToConfig(studioDir, 'anthropic', 'sk-ant-second');
+    await writeProviderToConfig(studioDir, 'anthropic', { apiKey: 'sk-ant-first' });
+    await writeProviderToConfig(studioDir, 'anthropic', { apiKey: 'sk-ant-second' });
 
     const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown>;
     const providers = parsed.providers as Record<string, { apiKey: string }>;
     expect(providers.anthropic.apiKey).toBe('sk-ant-second');
+  });
+
+  it('writes ollama config with empty credentials and llama3.3 default model', async () => {
+    const { createStudioStructure, writeProviderToConfig } = await import('../../src/commands/init.js');
+    await createStudioStructure(TMP);
+    const studioDir = resolve(TMP, '.studio');
+    await writeProviderToConfig(studioDir, 'ollama', {});
+
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, unknown>;
+    expect(providers.ollama).toEqual({});
+    expect(providers.ollama).not.toHaveProperty('apiKey');
+    const defaults = parsed.defaults as { provider: string; model: string };
+    expect(defaults.provider).toBe('ollama');
+    expect(defaults.model).toBe('llama3.3');
   });
 });
 
