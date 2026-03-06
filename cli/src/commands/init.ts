@@ -222,9 +222,9 @@ export async function directInit(
   noTools = false
 ): Promise<void> {
   await createStudioStructure(cwd, templateName, !noTools);
-  if (provider !== 'later' && apiKey) {
+  if (provider !== 'later' && (apiKey || provider === 'ollama')) {
     const studioDir = resolve(cwd, '.studio');
-    await writeProviderToConfig(studioDir, provider, apiKey);
+    await writeProviderToConfig(studioDir, provider, apiKey || undefined);
   }
 }
 
@@ -503,7 +503,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     if (isDirectMode) {
       // Validate required flags
-      if (options.provider !== 'later' && !options.apiKey) {
+      if (options.provider !== 'later' && options.provider !== 'ollama' && !options.apiKey) {
         console.error('Error: --api-key is required when --provider is not "later"');
         process.exit(1);
       }
@@ -534,7 +534,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
-        if (options.provider !== 'later' && options.apiKey) {
+        if (options.provider !== 'later' && (options.apiKey || options.provider === 'ollama')) {
           const studioDir = resolve(cwd, '.studio');
           await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
         }

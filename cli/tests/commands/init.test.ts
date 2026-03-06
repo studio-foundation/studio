@@ -355,6 +355,18 @@ describe('createStudioStructure with withTools: false', () => {
   });
 });
 
+describe('directInit with provider=ollama (no apiKey)', () => {
+  it('writes empty providers.ollama config without requiring an apiKey', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'software', 'ollama', '');
+
+    const raw = await readFile(resolve(TMP, '.studio', 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, unknown>;
+    expect(providers['ollama']).toEqual({});
+  });
+});
+
 describe('directInit with noTools: true', () => {
   it('creates project without copying tool files', async () => {
     const { directInit } = await import('../../src/commands/init.js');

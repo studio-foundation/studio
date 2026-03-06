@@ -107,13 +107,17 @@ export async function ollamaPullCommand(model: string, baseUrl: string): Promise
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let lastStatus = '';
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split('\n')) {
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
