@@ -1,6 +1,7 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
 import { resolve, join, basename, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import os from 'node:os';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -168,7 +169,22 @@ async function updateGitignore(cwd: string): Promise<void> {
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-4-20250514',
   openai: 'gpt-4o',
+  ollama: 'llama3.3',
 };
+
+export function detectOllamaInstalled(): boolean {
+  return spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0;
+}
+
+const RAM_16GB = 16 * 1024 ** 3;
+
+export function hasAdequateRam(): boolean {
+  try {
+    return os.totalmem() >= RAM_16GB;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Write provider credentials and defaults into .studio/config.yaml.
@@ -178,7 +194,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 export async function writeProviderToConfig(
   studioDir: string,
   provider: string,
-  apiKey: string,
+  credentials: { apiKey?: string; baseUrl?: string },
   model?: string
 ): Promise<void> {
   const configPath = join(studioDir, 'config.yaml');
@@ -196,7 +212,13 @@ export async function writeProviderToConfig(
   if (!parsed.providers || typeof parsed.providers !== 'object') {
     parsed.providers = {};
   }
-  (parsed.providers as Record<string, unknown>)[provider] = { apiKey };
+  if (provider === 'ollama') {
+    (parsed.providers as Record<string, unknown>)[provider] =
+      credentials.baseUrl ? { baseUrl: credentials.baseUrl } : {};
+  } else {
+    (parsed.providers as Record<string, unknown>)[provider] =
+      credentials.apiKey ? { apiKey: credentials.apiKey } : {};
+  }
 
   // Set defaults
   parsed.defaults = {
@@ -221,9 +243,9 @@ export async function directInit(
   noTools = false
 ): Promise<void> {
   await createStudioStructure(cwd, templateName, !noTools);
-  if (provider !== 'later' && apiKey) {
+  if (provider !== 'later') {
     const studioDir = resolve(cwd, '.studio');
-    await writeProviderToConfig(studioDir, provider, apiKey);
+    await writeProviderToConfig(studioDir, provider, { apiKey: apiKey || undefined });
   }
 }
 
@@ -483,11 +505,11 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     if (isDirectMode) {
       // Validate required flags
-      if (options.provider !== 'later' && !options.apiKey) {
-        console.error('Error: --api-key is required when --provider is not "later"');
+      if (options.provider !== 'later' && options.provider !== 'ollama' && !options.apiKey) {
+        console.error('Error: --api-key is required when --provider is not "later" or "ollama"');
         process.exit(1);
       }
-      if (options.provider !== 'later' && options.apiKey) {
+      if (options.provider !== 'later' && options.provider !== 'ollama' && options.apiKey) {
         const validation = validateApiKeyFormat(options.provider!, options.apiKey);
         if (validation !== true) {
           console.error(`Error: ${validation}`);
@@ -514,9 +536,10 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
-        if (options.provider !== 'later' && options.apiKey) {
+        if (options.provider !== 'later') {
           const studioDir = resolve(cwd, '.studio');
-          await writeProviderToConfig(studioDir, options.provider!, options.apiKey);
+          // For ollama: no apiKey needed — uses DEFAULT_MODELS['ollama'] ('llama3.3') as model fallback
+          await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey || undefined });
         }
         spinner.stop();
       } catch (err) {
@@ -544,10 +567,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
-        console.log('Set your API key first:');
-        console.log(
-          `  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`
-        );
+        console.log('Set your provider first:');
+        console.log(`  ${chalk.cyan('studio config set provider ollama')}              # local, no API key`);
+        console.log(`  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`);
       }
       console.log('');
       return;
@@ -595,19 +617,72 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       validate: validateProjectName,
     });
 
-    // Step 3: Provider
-    const provider = await select<string>({
-      message: 'LLM Provider:',
-      choices: [
+    // Step 3: Provider — detect Ollama and hardware first
+    const ollamaInstalled = detectOllamaInstalled();
+    const ramOk = hasAdequateRam();
+
+    type ProviderChoice =
+      | { value: string; name: string }
+      | { value: string; name: string; disabled: string };
+
+    const providerChoices: ProviderChoice[] = [];
+
+    if (ollamaInstalled && !ramOk) {
+      // Ollama present but hardware limited: warn, cloud providers first
+      console.log('');
+      console.log(chalk.yellow('  ⚠ Ollama detected but your system has less than 16GB RAM.'));
+      console.log(chalk.gray('    Results may be slow or limited for code generation.'));
+      console.log(chalk.gray('    You can switch to Ollama later: studio config set provider ollama'));
+      console.log('');
+      providerChoices.push(
+        { value: 'anthropic', name: 'Anthropic (Claude)' },
+        { value: 'openai', name: 'OpenAI (GPT)' },
+        { value: 'ollama', name: 'Ollama (llama3.3) — installed but limited hardware' },
+        { value: 'later', name: 'Configure later' },
+      );
+    } else if (ollamaInstalled) {
+      // Ollama present + good hardware: Ollama first, pre-selected
+      providerChoices.push(
+        { value: 'ollama', name: 'Ollama (llama3.3) — runs locally, no API key needed' },
         { value: 'anthropic', name: 'Anthropic (Claude)' },
         { value: 'openai', name: 'OpenAI (GPT)' },
         { value: 'later', name: 'Configure later' },
-      ],
+      );
+    } else {
+      // Ollama not installed: show as disabled, cloud providers selectable
+      providerChoices.push(
+        {
+          value: 'ollama-disabled',
+          name: 'Ollama (not installed — run: ollama pull llama3.3)',
+          disabled: 'not installed',
+        },
+        { value: 'anthropic', name: 'Anthropic (Claude)' },
+        { value: 'openai', name: 'OpenAI (GPT)' },
+        { value: 'later', name: 'Configure later' },
+      );
+    }
+
+    const providerDefault =
+      ollamaInstalled && ramOk ? 'ollama'
+      : 'anthropic';
+
+    const provider = await select<string>({
+      message: 'LLM Provider:',
+      choices: providerChoices,
+      default: providerDefault,
     });
 
-    // Step 4: API Key
+    // Guard: 'ollama-disabled' is shown as disabled in the UI but defend against it anyway
+    if (provider === 'ollama-disabled') {
+      console.log(chalk.yellow('\n  Ollama is not installed. Please install it first:'));
+      console.log(chalk.gray('    https://ollama.ai'));
+      console.log(chalk.gray('    Then re-run: studio init'));
+      process.exit(0);
+    }
+
+    // Step 4: API Key — skip for Ollama (runs locally, no key needed)
     let apiKey: string | undefined;
-    if (provider !== 'later') {
+    if (provider !== 'later' && provider !== 'ollama') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
       while (true) {
         apiKey = await password({
@@ -632,7 +707,14 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     // Step 5: Choose default model
     let selectedModel: string | undefined;
-    if (provider !== 'later' && apiKey) {
+    if (provider === 'ollama') {
+      // Don't call remote API — Ollama runs locally. Default is llama3.3.
+      // User can change later with: studio config set default.model <name>
+      selectedModel = await input({
+        message: 'Default model:',
+        default: 'llama3.3',
+      });
+    } else if (provider !== 'later' && apiKey) {
       const models = await getAvailableModels(provider, apiKey);
       const fallback = DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514';
 
@@ -694,8 +776,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     try {
       ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
-      if (provider !== 'later' && apiKey) {
-        await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
+      if (provider !== 'later') {
+        await writeProviderToConfig(
+          studioDir,
+          provider,
+          provider === 'ollama' ? {} : { apiKey },
+          selectedModel
+        );
       }
 
       spinner.stop();
@@ -750,10 +837,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     );
     if (provider === 'later') {
       console.log('');
-      console.log('Set your API key first:');
-      console.log(
-        `  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`
-      );
+      console.log('Set your provider first:');
+      console.log(`  ${chalk.cyan('studio config set provider ollama')}              # local, no API key`);
+      console.log(`  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`);
     }
     console.log('');
   } catch (error) {
