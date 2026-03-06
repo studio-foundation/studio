@@ -538,6 +538,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         }));
         if (options.provider !== 'later') {
           const studioDir = resolve(cwd, '.studio');
+          // For ollama: no apiKey needed — uses DEFAULT_MODELS['ollama'] ('llama3.3') as model fallback
           await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey || undefined });
         }
         spinner.stop();
