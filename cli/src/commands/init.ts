@@ -243,9 +243,9 @@ export async function directInit(
   noTools = false
 ): Promise<void> {
   await createStudioStructure(cwd, templateName, !noTools);
-  if (provider !== 'later' && apiKey) {
+  if (provider !== 'later') {
     const studioDir = resolve(cwd, '.studio');
-    await writeProviderToConfig(studioDir, provider, { apiKey });
+    await writeProviderToConfig(studioDir, provider, { apiKey: apiKey || undefined });
   }
 }
 
@@ -505,11 +505,11 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     if (isDirectMode) {
       // Validate required flags
-      if (options.provider !== 'later' && !options.apiKey) {
-        console.error('Error: --api-key is required when --provider is not "later"');
+      if (options.provider !== 'later' && options.provider !== 'ollama' && !options.apiKey) {
+        console.error('Error: --api-key is required when --provider is not "later" or "ollama"');
         process.exit(1);
       }
-      if (options.provider !== 'later' && options.apiKey) {
+      if (options.provider !== 'later' && options.provider !== 'ollama' && options.apiKey) {
         const validation = validateApiKeyFormat(options.provider!, options.apiKey);
         if (validation !== true) {
           console.error(`Error: ${validation}`);
@@ -536,9 +536,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
-        if (options.provider !== 'later' && options.apiKey) {
+        if (options.provider !== 'later') {
           const studioDir = resolve(cwd, '.studio');
-          await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey });
+          await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey || undefined });
         }
         spinner.stop();
       } catch (err) {

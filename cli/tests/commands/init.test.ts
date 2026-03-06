@@ -351,6 +351,19 @@ describe('directInit', () => {
     const providers = parsed.providers as Record<string, { apiKey: string }>;
     expect(providers.anthropic.apiKey).toBe('sk-ant-second');
   });
+
+  it('writes ollama config when provider is ollama (no api key needed)', async () => {
+    const { directInit } = await import('../../src/commands/init.js');
+    await directInit(TMP, 'software', 'ollama', '');
+    const studioDir = resolve(TMP, '.studio');
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, unknown>;
+    expect(providers.ollama).toEqual({});
+    const defaults = parsed.defaults as { provider: string; model: string };
+    expect(defaults.provider).toBe('ollama');
+    expect(defaults.model).toBe('llama3.3');
+  });
 });
 
 describe('createStudioStructure with withTools: false', () => {
