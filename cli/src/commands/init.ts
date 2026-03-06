@@ -615,19 +615,54 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       validate: validateProjectName,
     });
 
-    // Step 3: Provider
+    // Step 3: Hardware detection + dynamic provider choices
+    const hw = detectHardware();
+    const ramGb = Math.round(hw.totalRamGb);
+
+    const providerChoices: Array<{ value: string; name: string }> = [];
+
+    if (hw.ollamaAvailable) {
+      if (hw.totalRamGb >= 16) {
+        providerChoices.push({
+          value: 'ollama',
+          name: `Ollama (local, recommended — ${ramGb}GB RAM detected)`,
+        });
+      } else {
+        providerChoices.push({
+          value: 'ollama',
+          name: `Ollama (local — only ${ramGb}GB RAM detected, results may vary)`,
+        });
+      }
+    }
+    providerChoices.push(
+      { value: 'anthropic', name: 'Anthropic (Claude)' },
+      { value: 'openai', name: 'OpenAI (GPT)' },
+      { value: 'later', name: 'Configure later' },
+    );
+
+    if (!hw.ollamaAvailable) {
+      console.log(chalk.gray('  ℹ  Ollama not available (Docker or native install required).'));
+      console.log(chalk.gray('     Add later: studio config set provider ollama'));
+      console.log('');
+    }
+
     const provider = await select<string>({
       message: 'LLM Provider:',
-      choices: [
-        { value: 'anthropic', name: 'Anthropic (Claude)' },
-        { value: 'openai', name: 'OpenAI (GPT)' },
-        { value: 'later', name: 'Configure later' },
-      ],
+      choices: providerChoices,
+      default: hw.ollamaAvailable ? 'ollama' : 'anthropic',
     });
+
+    if (provider === 'ollama' && hw.totalRamGb < 16) {
+      console.log('');
+      console.log(chalk.yellow(`  ⚠  Only ${ramGb}GB RAM detected. Ollama will work but results may be inconsistent.`));
+      console.log(chalk.yellow('     Recommended: ≥16GB RAM for code-related pipelines.'));
+      console.log(chalk.gray('     You can switch providers later: studio config set provider anthropic'));
+      console.log('');
+    }
 
     // Step 4: API Key
     let apiKey: string | undefined;
-    if (provider !== 'later') {
+    if (provider !== 'later' && provider !== 'ollama') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
       while (true) {
         apiKey = await password({
@@ -652,7 +687,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     // Step 5: Choose default model
     let selectedModel: string | undefined;
-    if (provider !== 'later' && apiKey) {
+    if (provider !== 'later' && provider !== 'ollama' && apiKey) {
       const models = await getAvailableModels(provider, apiKey);
       const fallback = DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514';
 
@@ -714,7 +749,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     try {
       ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
-      if (provider !== 'later' && apiKey) {
+      if (provider === 'ollama') {
+        await writeProviderToConfig(studioDir, 'ollama', undefined, 'llama3.3');
+      } else if (provider !== 'later' && apiKey) {
         await writeProviderToConfig(studioDir, provider, apiKey, selectedModel);
       }
 

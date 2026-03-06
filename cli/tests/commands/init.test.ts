@@ -3,6 +3,16 @@ import { mkdir, rm, readFile, writeFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import * as yaml from 'js-yaml';
 
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, totalmem: vi.fn(actual.totalmem) };
+});
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, spawnSync: vi.fn(actual.spawnSync) };
+});
+
 // Mock @studio/runner since it may not be built in the worktree environment
 vi.mock('@studio/runner', () => ({
   listAvailableToolTemplates: vi.fn().mockResolvedValue([]),
@@ -731,5 +741,42 @@ describe('writeProviderToConfig — ollama (no apiKey)', () => {
     const defaults = parsed.defaults as Record<string, unknown>;
     expect(defaults['provider']).toBe('ollama');
     expect(defaults['model']).toBe('llama3.3');
+  });
+});
+
+describe('detectHardware with mocks', () => {
+  it('returns ollamaAvailable=true when docker reports success', async () => {
+    // spawnSync is mocked at module level — configure it
+    const cp = await import('node:child_process');
+    vi.mocked(cp.spawnSync).mockReturnValue({ status: 0 } as ReturnType<typeof cp.spawnSync>);
+    const os = await import('node:os');
+    vi.mocked(os.totalmem).mockReturnValue(16 * 1024 ** 3);
+
+    const { detectHardware } = await import('../../src/commands/init.js');
+    const hw = detectHardware();
+    expect(hw.hasDocker).toBe(true);
+    expect(hw.ollamaAvailable).toBe(true);
+  });
+
+  it('returns ollamaAvailable=false when neither docker nor ollama present', async () => {
+    const cp = await import('node:child_process');
+    vi.mocked(cp.spawnSync).mockReturnValue({ status: 1 } as ReturnType<typeof cp.spawnSync>);
+    const os = await import('node:os');
+    vi.mocked(os.totalmem).mockReturnValue(8 * 1024 ** 3);
+
+    const { detectHardware } = await import('../../src/commands/init.js');
+    const hw = detectHardware();
+    expect(hw.hasDocker).toBe(false);
+    expect(hw.hasNativeOllama).toBe(false);
+    expect(hw.ollamaAvailable).toBe(false);
+  });
+
+  it('returns totalRamGb correctly from os.totalmem()', async () => {
+    const os = await import('node:os');
+    vi.mocked(os.totalmem).mockReturnValue(32 * 1024 ** 3);
+
+    const { detectHardware } = await import('../../src/commands/init.js');
+    const hw = detectHardware();
+    expect(hw.totalRamGb).toBeCloseTo(32, 0);
   });
 });
