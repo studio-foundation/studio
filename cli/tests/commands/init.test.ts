@@ -715,3 +715,21 @@ describe('detectHardware', () => {
     expect(hw.ollamaAvailable).toBe(hw.hasDocker || hw.hasNativeOllama);
   });
 });
+
+describe('writeProviderToConfig — ollama (no apiKey)', () => {
+  it('writes empty providers.ollama object when apiKey is undefined', async () => {
+    const { writeProviderToConfig } = await import('../../src/commands/init.js');
+    const studioDir = resolve(TMP, '.studio');
+    await mkdir(studioDir, { recursive: true });
+
+    await writeProviderToConfig(studioDir, 'ollama', undefined, 'llama3.3');
+
+    const raw = await readFile(resolve(studioDir, 'config.yaml'), 'utf-8');
+    const parsed = yaml.load(raw) as Record<string, unknown>;
+    const providers = parsed.providers as Record<string, unknown>;
+    expect(providers['ollama']).toEqual({});
+    const defaults = parsed.defaults as Record<string, unknown>;
+    expect(defaults['provider']).toBe('ollama');
+    expect(defaults['model']).toBe('llama3.3');
+  });
+});

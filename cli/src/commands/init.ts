@@ -179,7 +179,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 export async function writeProviderToConfig(
   studioDir: string,
   provider: string,
-  apiKey: string,
+  apiKey?: string,
   model?: string
 ): Promise<void> {
   const configPath = join(studioDir, 'config.yaml');
@@ -197,7 +197,7 @@ export async function writeProviderToConfig(
   if (!parsed.providers || typeof parsed.providers !== 'object') {
     parsed.providers = {};
   }
-  (parsed.providers as Record<string, unknown>)[provider] = { apiKey };
+  (parsed.providers as Record<string, unknown>)[provider] = apiKey ? { apiKey } : {};
 
   // Set defaults
   parsed.defaults = {
