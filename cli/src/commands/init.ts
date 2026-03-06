@@ -566,10 +566,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (options.provider === 'later') {
         console.log('');
-        console.log('Set your API key first:');
-        console.log(
-          `  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`
-        );
+        console.log('Set your provider first:');
+        console.log(`  ${chalk.cyan('studio config set provider ollama')}              # local, no API key`);
+        console.log(`  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`);
       }
       console.log('');
       return;
@@ -672,9 +671,17 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       default: providerDefault,
     });
 
-    // Step 4: API Key
+    // Guard: 'ollama-disabled' is shown as disabled in the UI but defend against it anyway
+    if (provider === 'ollama-disabled') {
+      console.log(chalk.yellow('\n  Ollama is not installed. Please install it first:'));
+      console.log(chalk.gray('    https://ollama.ai'));
+      console.log(chalk.gray('    Then re-run: studio init'));
+      process.exit(0);
+    }
+
+    // Step 4: API Key — skip for Ollama (runs locally, no key needed)
     let apiKey: string | undefined;
-    if (provider !== 'later') {
+    if (provider !== 'later' && provider !== 'ollama') {
       const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'OpenAI';
       while (true) {
         apiKey = await password({
@@ -699,7 +706,14 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     // Step 5: Choose default model
     let selectedModel: string | undefined;
-    if (provider !== 'later' && apiKey) {
+    if (provider === 'ollama') {
+      // Don't call remote API — Ollama runs locally. Default is llama3.3.
+      // User can change later with: studio config set default.model <name>
+      selectedModel = await input({
+        message: 'Default model:',
+        default: 'llama3.3',
+      });
+    } else if (provider !== 'later' && apiKey) {
       const models = await getAvailableModels(provider, apiKey);
       const fallback = DEFAULT_MODELS[provider] ?? 'claude-sonnet-4-20250514';
 
@@ -761,8 +775,13 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     try {
       ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
 
-      if (provider !== 'later' && apiKey) {
-        await writeProviderToConfig(studioDir, provider, { apiKey }, selectedModel);
+      if (provider !== 'later') {
+        await writeProviderToConfig(
+          studioDir,
+          provider,
+          provider === 'ollama' ? {} : { apiKey },
+          selectedModel
+        );
       }
 
       spinner.stop();
@@ -817,10 +836,9 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     );
     if (provider === 'later') {
       console.log('');
-      console.log('Set your API key first:');
-      console.log(
-        `  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`
-      );
+      console.log('Set your provider first:');
+      console.log(`  ${chalk.cyan('studio config set provider ollama')}              # local, no API key`);
+      console.log(`  ${chalk.cyan('studio config set provider anthropic --api-key $ANTHROPIC_API_KEY')}`);
     }
     console.log('');
   } catch (error) {
