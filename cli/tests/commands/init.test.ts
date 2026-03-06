@@ -8,6 +8,36 @@ vi.mock('@studio/runner', () => ({
   listAvailableToolTemplates: vi.fn().mockResolvedValue([]),
 }));
 
+// Mock node:child_process so detectOllamaInstalled doesn't run real shell commands.
+// By default delegates to the real spawnSync for non-ollama commands so that
+// initGitRepo (which calls spawnSync('git', ['init'])) still works correctly.
+vi.mock('node:child_process', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:child_process')>();
+  const realSpawnSync = original.spawnSync;
+  const mockedSpawnSync = vi.fn((...args: Parameters<typeof original.spawnSync>) => {
+    if (args[0] === 'ollama') {
+      return { status: 0 } as ReturnType<typeof original.spawnSync>;
+    }
+    return (realSpawnSync as (...a: unknown[]) => unknown)(...args) as ReturnType<typeof original.spawnSync>;
+  });
+  return {
+    ...original,
+    spawnSync: mockedSpawnSync,
+  };
+});
+
+// Mock node:os so hasAdequateRam doesn't read real hardware
+vi.mock('node:os', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:os')>();
+  const totalMemFn = vi.fn().mockReturnValue(32 * 1024 ** 3); // default: 32GB
+  const mocked = {
+    ...original,
+    totalmem: totalMemFn,
+    default: { ...(original as unknown as Record<string, unknown>), totalmem: totalMemFn },
+  };
+  return mocked;
+});
+
 // Mock installPackage so tests don't hit the network.
 // For known registry templates (software, content, document-analysis, software-full),
 // the mock creates a minimal synthetic template at .studio/projects/<name>/ with the
@@ -639,6 +669,68 @@ describe('validateProjectName', () => {
   it('rejects names starting with a dot', async () => {
     const { validateProjectName } = await import('../../src/commands/init.js');
     expect(validateProjectName('.hidden')).toBeTypeOf('string');
+  });
+});
+
+describe('detectOllamaInstalled', () => {
+  let spawnSyncMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const childProcess = await import('node:child_process');
+    spawnSyncMock = vi.mocked(childProcess.spawnSync);
+    spawnSyncMock.mockReset(); // clear any mockReturnValue from previous test
+  });
+
+  it('returns true when ollama --version exits 0', async () => {
+    spawnSyncMock.mockReturnValue({ status: 0 });
+    const { detectOllamaInstalled } = await import('../../src/commands/init.js');
+    expect(detectOllamaInstalled()).toBe(true);
+  });
+
+  it('returns false when ollama --version exits non-zero', async () => {
+    spawnSyncMock.mockReturnValue({ status: 1 });
+    const { detectOllamaInstalled } = await import('../../src/commands/init.js');
+    expect(detectOllamaInstalled()).toBe(false);
+  });
+
+  it('returns false when ollama is not found (status null)', async () => {
+    spawnSyncMock.mockReturnValue({ status: null });
+    const { detectOllamaInstalled } = await import('../../src/commands/init.js');
+    expect(detectOllamaInstalled()).toBe(false);
+  });
+});
+
+describe('hasAdequateRam', () => {
+  let totalMemMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const os = await import('node:os');
+    totalMemMock = vi.mocked(os.totalmem);
+    totalMemMock.mockReset(); // clear any mockReturnValue from previous test
+  });
+
+  it('returns true when RAM >= 16GB', async () => {
+    totalMemMock.mockReturnValue(16 * 1024 ** 3);
+    const { hasAdequateRam } = await import('../../src/commands/init.js');
+    expect(hasAdequateRam()).toBe(true);
+  });
+
+  it('returns true when RAM > 16GB', async () => {
+    totalMemMock.mockReturnValue(32 * 1024 ** 3);
+    const { hasAdequateRam } = await import('../../src/commands/init.js');
+    expect(hasAdequateRam()).toBe(true);
+  });
+
+  it('returns false when RAM < 16GB', async () => {
+    totalMemMock.mockReturnValue(8 * 1024 ** 3);
+    const { hasAdequateRam } = await import('../../src/commands/init.js');
+    expect(hasAdequateRam()).toBe(false);
+  });
+
+  it('returns false when os.totalmem throws', async () => {
+    totalMemMock.mockImplementation(() => { throw new Error('no access'); });
+    const { hasAdequateRam } = await import('../../src/commands/init.js');
+    expect(hasAdequateRam()).toBe(false);
   });
 });
 

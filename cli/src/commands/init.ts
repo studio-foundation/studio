@@ -1,6 +1,7 @@
 import { mkdir, writeFile, readFile, access, rename, readdir, lstat, copyFile, cp } from 'node:fs/promises';
 import { resolve, join, basename, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import os from 'node:os';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -168,7 +169,22 @@ async function updateGitignore(cwd: string): Promise<void> {
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-4-20250514',
   openai: 'gpt-4o',
+  ollama: 'llama3.3',
 };
+
+export function detectOllamaInstalled(): boolean {
+  return spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0;
+}
+
+const RAM_16GB = 16 * 1024 ** 3;
+
+export function hasAdequateRam(): boolean {
+  try {
+    return os.totalmem() >= RAM_16GB;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Write provider credentials and defaults into .studio/config.yaml.
