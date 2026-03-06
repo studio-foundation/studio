@@ -617,14 +617,59 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       validate: validateProjectName,
     });
 
-    // Step 3: Provider
-    const provider = await select<string>({
-      message: 'LLM Provider:',
-      choices: [
+    // Step 3: Provider — detect Ollama and hardware first
+    const ollamaInstalled = detectOllamaInstalled();
+    const ramOk = hasAdequateRam();
+
+    type ProviderChoice =
+      | { value: string; name: string }
+      | { value: string; name: string; disabled: string };
+
+    const providerChoices: ProviderChoice[] = [];
+
+    if (ollamaInstalled && !ramOk) {
+      // Ollama present but hardware limited: warn, cloud providers first
+      console.log('');
+      console.log(chalk.yellow('  ⚠ Ollama detected but your system has less than 16GB RAM.'));
+      console.log(chalk.gray('    Results may be slow or limited for code generation.'));
+      console.log(chalk.gray('    You can switch to Ollama later: studio config set provider ollama'));
+      console.log('');
+      providerChoices.push(
+        { value: 'anthropic', name: 'Anthropic (Claude)' },
+        { value: 'openai', name: 'OpenAI (GPT)' },
+        { value: 'ollama', name: 'Ollama (llama3.3) — installed but limited hardware' },
+        { value: 'later', name: 'Configure later' },
+      );
+    } else if (ollamaInstalled) {
+      // Ollama present + good hardware: Ollama first, pre-selected
+      providerChoices.push(
+        { value: 'ollama', name: 'Ollama (llama3.3) — runs locally, no API key needed' },
         { value: 'anthropic', name: 'Anthropic (Claude)' },
         { value: 'openai', name: 'OpenAI (GPT)' },
         { value: 'later', name: 'Configure later' },
-      ],
+      );
+    } else {
+      // Ollama not installed: show as disabled, cloud providers selectable
+      providerChoices.push(
+        {
+          value: 'ollama-disabled',
+          name: 'Ollama (not installed — run: ollama pull llama3.3)',
+          disabled: 'not installed',
+        },
+        { value: 'anthropic', name: 'Anthropic (Claude)' },
+        { value: 'openai', name: 'OpenAI (GPT)' },
+        { value: 'later', name: 'Configure later' },
+      );
+    }
+
+    const providerDefault =
+      ollamaInstalled && ramOk ? 'ollama'
+      : 'anthropic';
+
+    const provider = await select<string>({
+      message: 'LLM Provider:',
+      choices: providerChoices,
+      default: providerDefault,
     });
 
     // Step 4: API Key
