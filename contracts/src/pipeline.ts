@@ -58,6 +58,7 @@ export interface StageHooks {
 
 export interface StageDefinition {
   name: string;
+  condition?: string;   // e.g. "input.meals_count >= 6" or "stages.foo.output.count > 0"
   kind?: StageKind;
   agent?: string;           // optional — not needed for script executor
   executor?: 'script';      // 'script' or absent (defaults to LLM)

@@ -3,6 +3,7 @@ import ora, { type Ora } from 'ora';
 import type { EngineEvents } from '@studio/engine';
 import { formatDuration } from './formatter.js';
 import { summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult, formatTokens, formatStageLine, countWriteFiles } from './formatters.js';
+import { ParallelRenderer } from './parallel-progress.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -11,10 +12,15 @@ export class ProgressDisplay {
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private isStreamingTokens = false;
+  private stageStartTime = 0;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Parallel group rendering
+  private isInParallelGroup = false;
+  private parallelRenderer: ParallelRenderer | null = null;
 
   // State tracking for stage progress
   runId = '';
-  private currentMaxAttempts = 3;
   private currentAttempt = 1;
   private currentStageIndex = 0;
   private currentTotalStages = 0;
@@ -36,7 +42,33 @@ export class ProgressDisplay {
     }
   }
 
+  private resetStageTimer(): void {
+    this.stageStartTime = Date.now();
+  }
+
+  private startTimer(updateFn: (elapsed: string) => void): void {
+    this.timerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - this.stageStartTime) / 1000);
+      updateFn(`${s}s`);
+    }, 1000);
+  }
+
+  private clearTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  private elapsedSeconds(): number {
+    return Math.floor((Date.now() - this.stageStartTime) / 1000);
+  }
+
   interrupt(): void {
+    this.clearTimer();
+    this.parallelRenderer?.interrupt();
+    this.parallelRenderer = null;
+    this.isInParallelGroup = false;
     if (this.isStreamingTokens) {
       process.stdout.write('\n');
       this.isStreamingTokens = false;
@@ -62,16 +94,33 @@ export class ProgressDisplay {
         this.currentStageIndex = event.stage_index;
         this.currentTotalStages = event.total_stages;
         this.currentStageName = event.stage_name;
-        this.currentMaxAttempts = event.max_attempts;
         this.currentAttempt = 1;
         const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
+
+        if (this.isInParallelGroup) {
+          // Parallel mode: delegate to multi-line renderer (no ora spinner)
+          this.parallelRenderer!.addStage(prefix, event.stage_name);
+          return;
+        }
+
         if (this.live) {
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
-          this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
+          this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
+          this.resetStageTimer();
+          this.startTimer((elapsed) => {
+            if (this.thinkingSpinner) {
+              this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
+            }
+          });
         } else {
-          const suffix = `(attempt ${this.currentAttempt}/${this.currentMaxAttempts})`;
-          this.spinnerText = formatStageLine(prefix, event.stage_name, suffix);
+          this.spinnerText = formatStageLine(prefix, event.stage_name, '');
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
+          this.resetStageTimer();
+          this.startTimer((elapsed) => {
+            if (this.spinner) {
+              this.spinner.text = formatStageLine(prefix, event.stage_name, `(${elapsed})`);
+            }
+          });
         }
       },
 
@@ -92,11 +141,26 @@ export class ProgressDisplay {
         }
         const infoStr = infoParts.join(', ');
 
+        if (this.isInParallelGroup) {
+          // Parallel mode: freeze the line with final status
+          let finalText: string;
+          if (event.status === 'success') {
+            finalText = formatStageLine(prefix, event.stage_name, chalk.green('✓') + chalk.gray(` (${infoStr})`));
+          } else if (event.status === 'rejected') {
+            finalText = formatStageLine(prefix, event.stage_name, chalk.red('✗ rejected') + chalk.gray(` (${duration})`));
+          } else {
+            finalText = formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`));
+          }
+          this.parallelRenderer?.completeStage(event.stage_name, finalText);
+          return;
+        }
+
         if (this.live) {
           if (this.isStreamingTokens) {
             process.stdout.write('\n');
             this.isStreamingTokens = false;
           }
+          this.clearTimer();
           this.thinkingSpinner?.stop();
           this.thinkingSpinner = null;
           if (event.status === 'success') {
@@ -133,6 +197,7 @@ export class ProgressDisplay {
             formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`))
           );
         }
+        this.clearTimer();
         this.spinner = null;
 
         // Tool call summary: quiet + verbose only (in live mode, each was shown individually)
@@ -161,6 +226,13 @@ export class ProgressDisplay {
 
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
+
+        if (this.isInParallelGroup) {
+          // In parallel mode the spinner keeps running; nothing to do here.
+          return;
+        }
+
+        this.clearTimer();
         // Stop any active spinners before printing retry info
         if (this.isStreamingTokens) {
           process.stdout.write('\n');
@@ -202,8 +274,12 @@ export class ProgressDisplay {
         }
       },
 
-      onGroupStart: () => {
-        // Silent — group is transparent at the pipeline level
+      onGroupStart: (event) => {
+        if (event.parallel) {
+          this.isInParallelGroup = true;
+          this.parallelRenderer = new ParallelRenderer();
+        }
+        // Otherwise silent — sequential group is transparent at the pipeline level
       },
 
       onGroupIteration: (event) => {
@@ -225,6 +301,11 @@ export class ProgressDisplay {
       },
 
       onGroupComplete: (event) => {
+        if (this.isInParallelGroup) {
+          this.parallelRenderer?.stop();
+          this.parallelRenderer = null;
+          this.isInParallelGroup = false;
+        }
         if (this.jsonMode) return;
         if (event.iterations > 1) {
           if (event.status === 'success') {
@@ -236,7 +317,7 @@ export class ProgressDisplay {
       },
 
       onAgentThinking: (event) => {
-        if (this.jsonMode || !this.live) return;
+        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         for (const line of event.thought.trim().split('\n')) {
           const trimmed = line.trim();
           if (trimmed) console.log(chalk.dim(`  🤔 ${trimmed}`));
@@ -244,7 +325,7 @@ export class ProgressDisplay {
       },
 
       onAgentProgress: (event) => {
-        if (this.jsonMode || !this.live) return;
+        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         for (const line of event.message.trim().split('\n')) {
           const trimmed = line.trim();
           if (trimmed) console.log(chalk.dim(`  💭 ${trimmed}`));
@@ -252,8 +333,9 @@ export class ProgressDisplay {
       },
 
       onAgentToken: (event) => {
-        if (this.jsonMode || !this.live) return;
+        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         if (this.thinkingSpinner) {
+          this.clearTimer();
           this.thinkingSpinner.stop();
           this.thinkingSpinner = null;
           process.stdout.write('  '); // indent to match spinner position
@@ -263,12 +345,13 @@ export class ProgressDisplay {
       },
 
       onToolCallStart: (event) => {
-        if (this.jsonMode || !this.live) return;
+        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         // End any in-progress token stream line before starting tool spinner
         if (this.isStreamingTokens) {
           process.stdout.write('\n');
           this.isStreamingTokens = false;
         }
+        this.clearTimer();
         this.thinkingSpinner?.stop();
         this.thinkingSpinner = null;
         const icon = getToolIcon(event.tool);
@@ -282,7 +365,7 @@ export class ProgressDisplay {
       },
 
       onToolCallComplete: (event) => {
-        if (this.jsonMode || !this.live) return;
+        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         const summary = summarizeToolResult(event.result, event.error);
         if (event.error) {
           this.toolSpinner?.fail(chalk.red(`${this.currentToolText} — ${event.error}`));
@@ -300,7 +383,14 @@ export class ProgressDisplay {
         }
 
         // Restart thinking spinner even on error — LLM still processes the result and may retry
-        this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
+        const fromSec = this.elapsedSeconds();
+        this.thinkingSpinner = ora({ text: chalk.dim(`Thinking... (from ${fromSec}s)`), indent: 2, color: 'gray' }).start();
+        this.thinkingSpinner.text = chalk.dim(`Thinking... (from ${fromSec}s)`);
+        this.startTimer((elapsed) => {
+          if (this.thinkingSpinner) {
+            this.thinkingSpinner.text = chalk.dim(`Thinking... (from ${elapsed})`);
+          }
+        });
       },
 
       onPipelineComplete: (event) => {

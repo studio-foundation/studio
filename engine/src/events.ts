@@ -68,6 +68,7 @@ export interface StageRetryEvent {
 export interface GroupStartEvent {
   group_name: string;
   max_iterations: number;
+  parallel?: boolean;
 }
 
 export interface GroupIterationEvent {
