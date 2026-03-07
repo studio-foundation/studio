@@ -151,3 +151,80 @@ describe('ProgressDisplay — timer in non-live mode', () => {
     expect(mockOraInstance.text).toBe(textAfterInterrupt);
   });
 });
+
+function makeLiveDisplay() {
+  return new ProgressDisplay(false, 'live');
+}
+
+function toolCallStartEvent() {
+  return { tool: 'repo_manager-write_file', params: { path: 'out.json' }, timestamp: Date.now() };
+}
+
+function toolCallCompleteEvent() {
+  return { tool: 'repo_manager-write_file', result: 'ok', duration_ms: 100, timestamp: Date.now() };
+}
+
+describe('ProgressDisplay — timer in live mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('thinkingSpinner text includes elapsed seconds after ticks', () => {
+    const d = makeLiveDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+
+    vi.advanceTimersByTime(7000);
+
+    expect(mockOraInstance.text).toContain('7s');
+  });
+
+  it('after tool call completes, thinkingSpinner shows "from Xs" with accumulated time', () => {
+    const d = makeLiveDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(10000);         // 10s thinking
+    events.onToolCallStart!(toolCallStartEvent());
+    vi.advanceTimersByTime(2000);          // 2s tool call
+    events.onToolCallComplete!(toolCallCompleteEvent());
+
+    // Spinner restarts — should show "from 12s"
+    expect(mockOraInstance.text).toContain('from 12s');
+  });
+
+  it('clears timer on onStageComplete in live mode', () => {
+    const d = makeLiveDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(5000);
+
+    events.onStageComplete!({
+      stage_name: 'entity-extraction', stage_index: 0, total_stages: 3,
+      status: 'success', attempts: 1, duration_ms: 5000,
+    });
+
+    const textAfter = mockOraInstance.text;
+    vi.advanceTimersByTime(5000);
+    expect(mockOraInstance.text).toBe(textAfter);
+  });
+
+  it('clears timer on onAgentToken (stops updating while tokens stream)', () => {
+    const d = makeLiveDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(3000);
+
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    events.onAgentToken!({ token: 'Hello', stage: 'entity-extraction', timestamp: Date.now() });
+    writeSpy.mockRestore();
+
+    const textAfterToken = mockOraInstance.text;
+    vi.advanceTimersByTime(5000);
+    expect(mockOraInstance.text).toBe(textAfterToken);
+  });
+});

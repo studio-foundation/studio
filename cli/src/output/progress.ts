@@ -92,7 +92,13 @@ export class ProgressDisplay {
         const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
         if (this.live) {
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
-          this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
+          this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
+          this.resetStageTimer();
+          this.startTimer((elapsed) => {
+            if (this.thinkingSpinner) {
+              this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
+            }
+          });
         } else {
           this.spinnerText = formatStageLine(prefix, event.stage_name, '');
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
@@ -127,6 +133,7 @@ export class ProgressDisplay {
             process.stdout.write('\n');
             this.isStreamingTokens = false;
           }
+          this.clearTimer();
           this.thinkingSpinner?.stop();
           this.thinkingSpinner = null;
           if (event.status === 'success') {
@@ -286,6 +293,7 @@ export class ProgressDisplay {
       onAgentToken: (event) => {
         if (this.jsonMode || !this.live) return;
         if (this.thinkingSpinner) {
+          this.clearTimer();
           this.thinkingSpinner.stop();
           this.thinkingSpinner = null;
           process.stdout.write('  '); // indent to match spinner position
@@ -301,6 +309,7 @@ export class ProgressDisplay {
           process.stdout.write('\n');
           this.isStreamingTokens = false;
         }
+        this.clearTimer();
         this.thinkingSpinner?.stop();
         this.thinkingSpinner = null;
         const icon = getToolIcon(event.tool);
@@ -332,7 +341,14 @@ export class ProgressDisplay {
         }
 
         // Restart thinking spinner even on error — LLM still processes the result and may retry
-        this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
+        const fromSec = this.elapsedSeconds();
+        this.thinkingSpinner = ora({ text: chalk.dim(`Thinking... (from ${fromSec}s)`), indent: 2, color: 'gray' }).start();
+        this.thinkingSpinner.text = chalk.dim(`Thinking... (from ${fromSec}s)`);
+        this.startTimer((elapsed) => {
+          if (this.thinkingSpinner) {
+            this.thinkingSpinner.text = chalk.dim(`Thinking... (from ${elapsed})`);
+          }
+        });
       },
 
       onPipelineComplete: (event) => {
