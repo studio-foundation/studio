@@ -132,3 +132,113 @@ describe('engine — conditions inside sequential groups', () => {
     expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);  // only post-group-stage
   });
 });
+
+describe('engine — conditions inside parallel groups', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('marks parallel group as skipped when all stages are skipped', async () => {
+    vi.mocked(runScript).mockResolvedValue({
+      output: { done: true },
+      tool_calls: [],
+      tool_calls_count: 0,
+      duration_ms: 10,
+    });
+
+    const pipeline: PipelineDefinition = {
+      name: 'test-parallel-all-skipped',
+      description: 'test',
+      version: 1,
+      stages: [
+        {
+          group: 'optional-parallel',
+          max_iterations: 1,
+          mode: 'parallel',
+          stages: [
+            {
+              name: 'parallel-a',
+              executor: 'script',
+              script: 'scripts/a.py',
+              runtime: 'shell',
+              condition: 'input.enabled >= 1',
+            },
+            {
+              name: 'parallel-b',
+              executor: 'script',
+              script: 'scripts/b.py',
+              runtime: 'shell',
+              condition: 'input.enabled >= 1',
+            },
+          ],
+        },
+        {
+          name: 'post-group',
+          executor: 'script',
+          script: 'scripts/final.py',
+          runtime: 'shell',
+        },
+      ],
+    };
+
+    const engine = makeEngine();
+    const result = await engine.run({
+      pipelineDef: pipeline,
+      input: { enabled: 0 },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0]?.status).toBe('skipped');
+    expect(result.stages[1]?.status).toBe('skipped');
+    expect(result.stages[2]?.status).toBe('success');
+    expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);  // only post-group
+  });
+
+  it('runs parallel group normally when at least one stage is not skipped', async () => {
+    vi.mocked(runScript).mockResolvedValue({
+      output: { done: true },
+      tool_calls: [],
+      tool_calls_count: 0,
+      duration_ms: 10,
+    });
+
+    const pipeline: PipelineDefinition = {
+      name: 'test-parallel-partial-skip',
+      description: 'test',
+      version: 1,
+      stages: [
+        {
+          group: 'mixed-parallel',
+          max_iterations: 1,
+          mode: 'parallel',
+          stages: [
+            {
+              name: 'always-runs',
+              executor: 'script',
+              script: 'scripts/a.py',
+              runtime: 'shell',
+            },
+            {
+              name: 'conditional',
+              executor: 'script',
+              script: 'scripts/b.py',
+              runtime: 'shell',
+              condition: 'input.enabled >= 1',
+            },
+          ],
+        },
+      ],
+    };
+
+    const engine = makeEngine();
+    const result = await engine.run({
+      pipelineDef: pipeline,
+      input: { enabled: 0 },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0]?.status).toBe('success');
+    expect(result.stages[1]?.status).toBe('skipped');
+    expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);  // only always-runs
+  });
+});

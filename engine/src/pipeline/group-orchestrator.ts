@@ -156,6 +156,12 @@ export class GroupOrchestrator {
       if (result.status === 'failed' || result.status === 'rejected') groupStatus = 'failed';
     }
 
+    // If every stage was skipped, the group is skipped (not success)
+    const allSkipped = group.stages.every(
+      (s) => resultMap.get(s.name)?.status === 'skipped',
+    );
+    if (allSkipped) groupStatus = 'skipped';
+
     // Merge successful outputs into context in definition order (regardless of group status)
     // This preserves observability for collect-all partial failures
     for (const stage of group.stages) {
