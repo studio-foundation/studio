@@ -11,6 +11,8 @@ export class ProgressDisplay {
   private thinkingSpinner: Ora | null = null;
   private currentToolText = '';
   private isStreamingTokens = false;
+  private stageStartTime = 0;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   // State tracking for stage progress
   runId = '';
@@ -34,6 +36,28 @@ export class ProgressDisplay {
       this.live = mode.live;
       this.verbose = mode.verbose;
     }
+  }
+
+  private resetStageTimer(): void {
+    this.stageStartTime = Date.now();
+  }
+
+  private startTimer(updateFn: (elapsed: string) => void): void {
+    this.timerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - this.stageStartTime) / 1000);
+      updateFn(`${s}s`);
+    }, 1000);
+  }
+
+  private clearTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  private elapsedSeconds(): number {
+    return Math.floor((Date.now() - this.stageStartTime) / 1000);
   }
 
   interrupt(): void {
