@@ -58,6 +58,7 @@ export class GroupOrchestrator {
     this.config.events?.onGroupStart?.({
       group_name: group.group,
       max_iterations: group.max_iterations,
+      parallel: true,
     });
     this.config.emitter.emit({
       type: 'group_start',
