@@ -16,7 +16,6 @@ export class ProgressDisplay {
 
   // State tracking for stage progress
   runId = '';
-  private currentMaxAttempts = 3;
   private currentAttempt = 1;
   private currentStageIndex = 0;
   private currentTotalStages = 0;
@@ -87,7 +86,6 @@ export class ProgressDisplay {
         this.currentStageIndex = event.stage_index;
         this.currentTotalStages = event.total_stages;
         this.currentStageName = event.stage_name;
-        this.currentMaxAttempts = event.max_attempts;
         this.currentAttempt = 1;
         const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
         if (this.live) {
