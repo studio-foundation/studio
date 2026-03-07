@@ -19,6 +19,8 @@ import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/ap
 import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 import { usersCommand } from './commands/users.js';
+import { ollamaCommand } from './commands/ollama.js';
+import { loadConfig } from './config.js';
 
 const program = new Command();
 
@@ -173,5 +175,14 @@ usersCmd
   .command('info <email>')
   .description("Show user details and today's usage")
   .action((email: string) => { void usersCommand('info', [email], {}); });
+
+program
+  .command('ollama <action> [model]')
+  .description('Manage local Ollama instance (start, stop, status, pull <model>)')
+  .action(async (action: string, model: string | undefined) => {
+    const config = await loadConfig();
+    const baseUrl = config.providers?.ollama?.baseUrl ?? 'http://localhost:11434';
+    void ollamaCommand(action, model, baseUrl);
+  });
 
 program.parse();

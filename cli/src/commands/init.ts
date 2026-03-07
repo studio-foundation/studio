@@ -430,6 +430,25 @@ interface InitOptions {
   tools?: boolean;  // false when --no-tools is passed, true otherwise
 }
 
+export interface HardwareInfo {
+  totalRamGb: number;
+  hasDocker: boolean;
+  hasNativeOllama: boolean;
+  ollamaAvailable: boolean;
+}
+
+export function detectHardware(): HardwareInfo {
+  const totalRamGb = os.totalmem() / (1024 ** 3);
+  const hasDocker = spawnSync('docker', ['--version'], { stdio: 'ignore' }).status === 0;
+  const hasNativeOllama = spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0;
+  return {
+    totalRamGb,
+    hasDocker,
+    hasNativeOllama,
+    ollamaAvailable: hasDocker || hasNativeOllama,
+  };
+}
+
 function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
   const check = (cmd: string) =>
     spawnSync(cmd, ['--version'], { stdio: 'ignore' }).status === 0;
