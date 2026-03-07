@@ -45,6 +45,7 @@ import {
   buildContextContent,
   type PipelineContext,
 } from './context-propagation.js';
+import { evaluateCondition } from './condition-evaluator.js';
 import { deriveStageStatus } from '../state/status-derivation.js';
 import { transition } from '../state/state-machine.js';
 import { postValidate, type PostValidationResult } from './post-validator.js';
@@ -124,6 +125,29 @@ export class StageExecutor {
       max_attempts: stageDef.ralph?.max_attempts ?? 3,
     });
     this.config.emitter.emit({ type: 'stage_start', stageId: stageRunId, stageName: stageDef.name });
+
+    // Evaluate condition — skip stage if false
+    if (stageDef.condition !== undefined) {
+      const shouldRun = evaluateCondition(stageDef.condition, {
+        input: pipelineContext.input,
+        stageOutputs: pipelineContext.stageOutputs,
+      });
+      if (!shouldRun) {
+        stageRun.status = 'skipped';
+        stageRun.completed_at = new Date().toISOString();
+        stageRun.tasks = [];
+        this.config.events?.onStageComplete?.({
+          stage_name: stageDef.name,
+          stage_index: stageIndex,
+          total_stages: totalStages,
+          status: 'skipped',
+          attempts: 0,
+          duration_ms: 0,
+        });
+        this.config.emitter.emit({ type: 'stage_complete', stageId: stageRunId, stageName: stageDef.name });
+        return { stageRun, status: 'skipped' };
+      }
+    }
 
     // Load agent profile — only for LLM stages (script stages have no agent)
     let agentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
