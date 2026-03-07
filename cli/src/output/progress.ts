@@ -61,6 +61,7 @@ export class ProgressDisplay {
   }
 
   interrupt(): void {
+    this.clearTimer();
     if (this.isStreamingTokens) {
       process.stdout.write('\n');
       this.isStreamingTokens = false;
@@ -93,9 +94,14 @@ export class ProgressDisplay {
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
           this.thinkingSpinner = ora({ text: chalk.dim('Thinking...'), indent: 2, color: 'gray' }).start();
         } else {
-          const suffix = `(attempt ${this.currentAttempt}/${this.currentMaxAttempts})`;
-          this.spinnerText = formatStageLine(prefix, event.stage_name, suffix);
+          this.spinnerText = formatStageLine(prefix, event.stage_name, '');
           this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
+          this.resetStageTimer();
+          this.startTimer((elapsed) => {
+            if (this.spinner) {
+              this.spinner.text = formatStageLine(prefix, event.stage_name, `(${elapsed})`);
+            }
+          });
         }
       },
 
@@ -157,6 +163,7 @@ export class ProgressDisplay {
             formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`))
           );
         }
+        this.clearTimer();
         this.spinner = null;
 
         // Tool call summary: quiet + verbose only (in live mode, each was shown individually)
@@ -185,6 +192,7 @@ export class ProgressDisplay {
 
       onTaskRetry: (event) => {
         if (this.jsonMode) return;
+        this.clearTimer();
         // Stop any active spinners before printing retry info
         if (this.isStreamingTokens) {
           process.stdout.write('\n');

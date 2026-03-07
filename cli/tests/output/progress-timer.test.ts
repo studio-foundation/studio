@@ -10,6 +10,15 @@ const mockOraInstance = {
 };
 vi.mock('ora', () => ({ default: vi.fn(() => mockOraInstance) }));
 
+// Helper functions for non-live tests
+function makeQuietDisplay() {
+  return new ProgressDisplay(false, 'quiet');
+}
+
+function stageStartEvent(n = 1, total = 3) {
+  return { stage_name: 'entity-extraction', stage_index: n - 1, total_stages: total, max_attempts: 3 };
+}
+
 import { ProgressDisplay } from '../../src/output/progress.js';
 
 describe('ProgressDisplay — timer utilities', () => {
@@ -77,5 +86,68 @@ describe('ProgressDisplay — timer utilities', () => {
     p.resetStageTimer();
     vi.advanceTimersByTime(7500);
     expect(p.elapsedSeconds()).toBe(7);
+  });
+});
+
+describe('ProgressDisplay — timer in non-live mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('updates spinner text with elapsed seconds every second', () => {
+    const d = makeQuietDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+
+    vi.advanceTimersByTime(5000);
+
+    expect(mockOraInstance.text).toContain('5s');
+  });
+
+  it('clears timer on onStageComplete', () => {
+    const d = makeQuietDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(3000);
+
+    events.onStageComplete!({
+      stage_name: 'entity-extraction', stage_index: 0, total_stages: 3,
+      status: 'success', attempts: 1, duration_ms: 3000,
+    });
+
+    const textAfterComplete = mockOraInstance.text;
+    vi.advanceTimersByTime(5000);
+    expect(mockOraInstance.text).toBe(textAfterComplete);
+  });
+
+  it('clears timer on onTaskRetry', () => {
+    const d = makeQuietDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(2000);
+
+    events.onTaskRetry!({ stage: 'entity-extraction', attempt: 2, max_attempts: 3, failures: ['missing field'] });
+
+    const textAfterRetry = mockOraInstance.text;
+    vi.advanceTimersByTime(5000);
+    expect(mockOraInstance.text).toBe(textAfterRetry);
+  });
+
+  it('clears timer on interrupt()', () => {
+    const d = makeQuietDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.advanceTimersByTime(2000);
+
+    d.interrupt();
+
+    const textAfterInterrupt = mockOraInstance.text;
+    vi.advanceTimersByTime(5000);
+    expect(mockOraInstance.text).toBe(textAfterInterrupt);
   });
 });
