@@ -208,6 +208,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       temperature: agent.temperature,
       max_tokens: agent.max_tokens,
       stage_name: task.contract_name,
+      json_mode: !!task.contract_name,
     }, onToken, signal);
 
     lastResponse = response;

@@ -7,6 +7,7 @@ export interface LLMRequest {
   temperature?: number;
   max_tokens?: number;
   stage_name?: string;
+  json_mode?: boolean;
 }
 
 export interface Message {

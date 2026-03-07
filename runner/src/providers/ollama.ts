@@ -53,6 +53,7 @@ export class OllamaProvider implements Provider {
       tools: this.buildTools(request),
       temperature: request.temperature,
       max_tokens: request.max_tokens,
+      response_format: request.json_mode ? { type: 'json_object' } : undefined,
     }, { signal });
 
     const choice = completion.choices[0];
@@ -90,6 +91,7 @@ export class OllamaProvider implements Provider {
       tools: this.buildTools(request),
       temperature: request.temperature,
       max_tokens: request.max_tokens,
+      response_format: request.json_mode ? { type: 'json_object' } : undefined,
       stream: true as const,
     }, { signal }) as unknown as AsyncIterable<ChatCompletionChunk>;
 
