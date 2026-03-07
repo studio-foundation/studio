@@ -248,6 +248,7 @@ export class GroupOrchestrator {
       });
 
       let groupSucceeded = true;
+      let anyStageExecuted = false;
       let previousStageName: string | undefined;
       // Find the last stage name before this group in the pipeline context
       for (const [name] of context.stageOutputs) {
@@ -277,6 +278,7 @@ export class GroupOrchestrator {
         allStageRuns.push(result.stageRun);
         totalTokensDelta += result.tokensDelta ?? 0;
         totalToolCallsDelta += result.toolCallsDelta ?? 0;
+        if (result.status !== 'skipped') anyStageExecuted = true;
 
         // Cancelled → stop group
         if (result.status === 'cancelled') {
@@ -395,19 +397,20 @@ export class GroupOrchestrator {
       }
 
       if (groupSucceeded) {
+        const groupStatus = anyStageExecuted ? 'success' : 'skipped';
         this.config.events?.onGroupComplete?.({
           group_name: group.group,
           iterations: iteration,
-          status: 'success',
+          status: groupStatus,
         });
         this.config.emitter.emit({
           type: 'group_complete',
           groupName: group.group,
           iterations: iteration,
-          status: 'success',
+          status: groupStatus,
         });
         return {
-          status: 'success',
+          status: groupStatus,
           stageRuns: allStageRuns,
           stagesExecuted: group.stages.length,
           context,
