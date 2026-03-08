@@ -194,7 +194,7 @@ export function hasAdequateRam(): boolean {
 export async function writeProviderToConfig(
   studioDir: string,
   provider: string,
-  credentials: { apiKey?: string; baseUrl?: string },
+  credentials?: { apiKey?: string; baseUrl?: string },
   model?: string
 ): Promise<void> {
   const configPath = join(studioDir, 'config.yaml');
@@ -214,10 +214,10 @@ export async function writeProviderToConfig(
   }
   if (provider === 'ollama') {
     (parsed.providers as Record<string, unknown>)[provider] =
-      credentials.baseUrl ? { baseUrl: credentials.baseUrl } : {};
+      credentials?.baseUrl ? { baseUrl: credentials.baseUrl } : {};
   } else {
     (parsed.providers as Record<string, unknown>)[provider] =
-      credentials.apiKey ? { apiKey: credentials.apiKey } : {};
+      credentials?.apiKey ? { apiKey: credentials.apiKey } : {};
   }
 
   // Set defaults

@@ -760,6 +760,10 @@ describe('hasAdequateRam', () => {
     totalMemMock.mockReset(); // clear any mockReturnValue from previous test
   });
 
+  afterEach(() => {
+    totalMemMock.mockReturnValue(32 * 1024 ** 3); // restore default so later describe blocks aren't affected
+  });
+
   it('returns true when RAM >= 16GB', async () => {
     totalMemMock.mockReturnValue(16 * 1024 ** 3);
     const { hasAdequateRam } = await import('../../src/commands/init.js');

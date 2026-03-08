@@ -87,18 +87,26 @@ defaults:
   });
 
   it('should fall back to .studiorc.yaml when no .studio/', async () => {
-    // Use homedir base — avoids interference from /tmp/.studio (stale worktree test artifact)
-    // and from Studio repo's own .studio/ (which is under /home/.../Studio/, not under ~/)
-    const isolatedDir = resolve(process.env.HOME ?? '/tmp', `.studio-config-fallback-${Date.now()}`);
+    // Mock findStudioDir to return null — simulates a project with no .studio/ in any ancestor.
+    // This avoids environment-specific failures (e.g. ~/.studio/ existing on the runner).
+    vi.doMock('../src/studio-dir.js', () => ({
+      findStudioDir: vi.fn().mockResolvedValue(null),
+    }));
+    vi.resetModules();
+    const { loadConfig: loadConfigFresh } = await import('../src/config.js');
+
+    const isolatedDir = resolve('/tmp', `.studio-config-fallback-${Date.now()}`);
     await mkdir(isolatedDir, { recursive: true });
     try {
       const configPath = resolve(isolatedDir, '.studiorc.yaml');
       await writeFile(configPath, `providers:\n  openai:\n    apiKey: fallback-key\n`);
-      const config = await loadConfig(undefined, isolatedDir);
+      const config = await loadConfigFresh(undefined, isolatedDir);
       expect(config.providers?.openai?.apiKey).toBe('fallback-key');
       expect(config.resolvedStudioDir).toBeUndefined();
     } finally {
       await rm(isolatedDir, { recursive: true, force: true });
+      vi.doUnmock('../src/studio-dir.js');
+      vi.resetModules();
     }
   });
 
