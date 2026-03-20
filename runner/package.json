@@ -18,7 +18,7 @@
     "anthropic"
   ],
   "author": "Ariane Guay",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
     "@modelcontextprotocol/sdk": "^1.26.0",

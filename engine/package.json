@@ -27,7 +27,7 @@
     "orchestration"
   ],
   "author": "Ariane Guay",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@studio/contracts": "workspace:*",
     "@studio/ralph": "workspace:*",

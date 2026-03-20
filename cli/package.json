@@ -21,7 +21,7 @@
     "cli"
   ],
   "author": "Ariane Guay",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@inquirer/prompts": "^8.2.1",
     "@studio/api": "workspace:*",
