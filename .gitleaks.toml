@@ -1,0 +1,9 @@
+# gitleaks configuration
+# https://github.com/gitleaks/gitleaks
+
+[allowlist]
+description = "Known false positives in test files"
+# Fake test API key value used in env var resolution test
+# File: cli/tests/config.test.ts — vi.stubEnv('TEST_API_KEY', 'resolved-key-456')
+# This is a placeholder value with no real secret material.
+commits = ["5008fd0cdc2689277faf565336195ae744d7745f"]

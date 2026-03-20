@@ -8,6 +8,7 @@ dist/
 # Studio (local, not versioned)
 .studio/config.yaml
 .studio/runs/
+.studio/anonymization/
 *.keymap.json
 
 # IDE
