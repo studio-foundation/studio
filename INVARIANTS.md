@@ -149,10 +149,12 @@ arbitraire et configurable — source de bugs et de comportements surprenants.
 tools) vit dans `.studio/`. Aucun projet ne référence les
 configs d'un autre projet. Les loaders sont scopés par dossier projet.
 
-**Enforcé par :** [`engine/src/engine.ts`](engine/src/engine.ts) —
-`resolveProjectPaths()` dérive tous les chemins depuis `<configsDir>/<project>/`.
-Chaque loader (`loadPipelineByName`, `loadAgentProfile`, `loadContract`,
-`loadProjectTools`) prend un répertoire scoped et ne sort jamais de ce scope.
+**Enforcé par :** [`engine/src/pipeline/types.ts`](engine/src/pipeline/types.ts) —
+`resolveProjectPaths(configsDir)` dérive tous les chemins depuis `configsDir`
+(= `.studio/` du projet courant) : `pipelines/`, `agents/`, `contracts/`.
+[`engine/src/engine.ts`](engine/src/engine.ts) — `configsDir` est passé au
+engine comme racine du projet ; tous les loaders sont scopés à ce dossier et
+ne sortent jamais de ce scope.
 
 **Ce qui casse si violé :** Les projets s'entremêlent. Modifier les configs d'un
 projet peut affecter un autre. Le concept de projet comme unité isolée et

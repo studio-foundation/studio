@@ -2,6 +2,18 @@
 
 Templates are **architectural patterns** that generate complete application starters for different types of AI-powered work.
 
+## Current Status
+
+| Template | Status | Notes |
+|----------|--------|-------|
+| `software` | ✅ Functional | Complete pipelines, tools, and DB schema. Run end-to-end. |
+| `finance` | 🚧 Starter | Structure and pipelines defined. Domain tools (bank-api, etc.) are stubs — wire to your own integrations. |
+| `analysis` | 🚧 Starter | Structure and pipelines defined. Domain tools (text-processor, etc.) are stubs. |
+| `data` | 🚧 Starter | Structure only. |
+| `conversation` | 🚧 Starter | Structure only. |
+
+> **Note:** Only the `software` template is production-ready. The others are architectural starters — they give you the structure and patterns, but expect to implement domain-specific tools yourself.
+
 ## Core Concept
 
 **Templates are NOT finished products.** They are rich, functional starting points that you customize into your own product.
@@ -589,11 +601,7 @@ This should:
 
 ### Publishing templates
 
-```bash
-studio publish template ./my-custom-template
-```
-
-This submits your template to the community registry for others to discover and use.
+> ⚠️ **Not yet implemented** — template publishing to a community registry is on the roadmap. For now, share templates as git repos.
 
 ## Template Versioning
 
@@ -607,12 +615,7 @@ version: 1.2.0
 
 When you generate an app from a template, the version is locked in `.studio/registry.lock.json`.
 
-You can update later:
-```bash
-studio template update software --version 1.3.0
-```
-
-This updates pipelines/contracts/tools from the template, but **preserves your customizations**.
+> ⚠️ **`studio template update` not yet implemented** — version upgrades are on the roadmap. For now, manually copy updated pipeline/contract files from the template source.
 
 ## Template Registry (Future)
 

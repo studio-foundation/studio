@@ -131,7 +131,7 @@ stages:
 
 **Anti-theatre validation:** If the code-generation stage claims to have written files but made zero tool calls, it fails. No exceptions.
 
-### ADHD Finance (built with `finance` template)
+### ADHD Finance (example built with `finance` template)
 
 Help neurodivergent people manage money by automating transaction categorization, splitting accounts, and ensuring bills are covered before impulse spending happens.
 
@@ -140,7 +140,7 @@ Uses pipelines like:
 - `budget-planning` — Generate budget recommendations
 - `account-splitting` — Auto-split paychecks across accounts
 
-Integrates with Plaid for bank connections, scheduled jobs for automation.
+Wire to your bank API of choice (Plaid, Nordigen, direct CSV import) and add scheduled jobs for automation.
 
 ### Wiki Creator (built with `analysis` template)
 
