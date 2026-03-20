@@ -482,7 +482,11 @@ Roadmap:
 
 ## License
 
-[TBD — transitioning from proprietary to an open-source license that protects against commercial capture]
+Studio is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
+
+This means you can use, modify, and distribute Studio freely — including for commercial projects. However, if you run a modified version of Studio as a network service (SaaS), you must publish your source code under the same license. This protects the kernel as a commons and prevents cloud providers from capturing it without contributing back.
+
+See [LICENSE](./LICENSE) for the full license text.
 
 ---
 

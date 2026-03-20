@@ -27,7 +27,7 @@
     "validation"
   ],
   "author": "Ariane Guay",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@studio/contracts": "workspace:*",
     "js-yaml": "^4.1.1"

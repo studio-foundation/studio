@@ -34,7 +34,7 @@
     "api"
   ],
   "author": "Ariane Guay",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@fastify/cors": "^10.0.2",
     "@fastify/rate-limit": "^10.3.0",
