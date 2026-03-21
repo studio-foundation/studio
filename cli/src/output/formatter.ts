@@ -52,7 +52,7 @@ export function formatResult(run: PipelineRun): void {
           console.log(`${chalk.gray('        -')} ${lastAgentRun.error}`);
         }
       } else if (stage.status === 'skipped') {
-        const reasonText = stage.skipped_reason ? ` (${stage.skipped_reason})` : '';
+        const reasonText = stage.skipped_reason ? ` (skipped: ${stage.skipped_reason})` : '';
         console.log(
           `  ${index} ${name} ${chalk.gray(dots)} ${chalk.dim('⊘ skipped')}${chalk.gray(reasonText)}`
         );
