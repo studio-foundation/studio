@@ -127,6 +127,8 @@ interface RunInput {
 | `cli/src/commands/run.ts` | Update JSONL writer to log full `ToolCall[]` instead of `ToolCallSummary[]` on `stage_complete` |
 | `engine/src/engine.ts` | Add `resumeFromStage`, `priorStageOutputs`, `priorStageToolResults`, `originalRunId` to `RunInput`; pre-populate context; synthetic skipped stages in loop |
 
+| `cli/src/commands/status.ts` | Read and display `skipped_reason` when rendering a `StageRun` with status `'skipped'` |
+
 **No changes to:** `stage-executor.ts`, `context-propagation.ts`, `ralph/`, `runner/`
 
 ## Tests
