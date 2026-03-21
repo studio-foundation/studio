@@ -109,6 +109,23 @@ function countTotalStages(entries: PipelineEntry[]): number {
   return count;
 }
 
+/**
+ * Create a StageRun for a skipped stage (used during resume operations).
+ * Uses randomUUID() to ensure unique IDs across multiple resume runs.
+ */
+function makeSkippedStageRun(stageName: string, reason: string): StageRun {
+  const now = new Date().toISOString();
+  return {
+    id: randomUUID(),
+    stage_name: stageName,
+    status: 'skipped',
+    started_at: now,
+    completed_at: now,
+    tasks: [],
+    skipped_reason: reason,
+  };
+}
+
 export class PipelineEngine {
   private emitter: PipelineEventEmitter;
   private pipelineTotals = { tokens: 0, toolCalls: 0 };
@@ -270,21 +287,12 @@ export class PipelineEngine {
         const allGroupStagesSkipped = entry.stages.every(s => skipSet.has(s.name));
 
         if (allGroupStagesSkipped) {
-          const now = new Date().toISOString();
           const groupSkipReason = input.originalRunId
             ? `resumed from run ${input.originalRunId}`
             : 'resumed from prior run';
           for (const stage of entry.stages) {
             stageCounter++;
-            const skippedRun: StageRun = {
-              id: `skipped-${stage.name}`,
-              stage_name: stage.name,
-              status: 'skipped',
-              started_at: now,
-              completed_at: now,
-              tasks: [],
-              skipped_reason: groupSkipReason,
-            };
+            const skippedRun = makeSkippedStageRun(stage.name, groupSkipReason);
             this.events?.onStageComplete?.({
               stage_name: stage.name,
               stage_index: stageCounter - 1,
@@ -363,16 +371,7 @@ export class PipelineEngine {
           const skippedReason = input.originalRunId
             ? `resumed from run ${input.originalRunId}`
             : 'resumed from prior run';
-          const now = new Date().toISOString();
-          const skippedRun: StageRun = {
-            id: `skipped-${entry.name}`,
-            stage_name: entry.name,
-            status: 'skipped',
-            started_at: now,
-            completed_at: now,
-            tasks: [],
-            skipped_reason: skippedReason,
-          };
+          const skippedRun = makeSkippedStageRun(entry.name, skippedReason);
           this.events?.onStageComplete?.({
             stage_name: entry.name,
             stage_index: stageCounter - 1,

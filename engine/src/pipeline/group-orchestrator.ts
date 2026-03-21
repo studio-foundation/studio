@@ -1,6 +1,7 @@
 // GroupOrchestrator — extracted from PipelineEngine.runGroup/runGroupParallel/runGroupSequential()
 // Handles group-level orchestration: parallel and sequential iteration with feedback loops.
 
+import { randomUUID } from 'node:crypto';
 import type { StageGroup, StageRun, StageStatus } from '@studio/contracts';
 import {
   addStageOutput,
@@ -273,16 +274,15 @@ export class GroupOrchestrator {
 
         // On iteration 1 only, skip stages before resumeFromStage
         if (iteration === 1 && skipSet?.has(stage.name)) {
-          const now = new Date().toISOString();
           const skippedReason = originalRunId
             ? `resumed from run ${originalRunId}`
             : 'resumed from prior run';
           const skippedRun: StageRun = {
-            id: `skipped-${stage.name}`,
+            id: randomUUID(),
             stage_name: stage.name,
             status: 'skipped',
-            started_at: now,
-            completed_at: now,
+            started_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
             tasks: [],
             skipped_reason: skippedReason,
           };
