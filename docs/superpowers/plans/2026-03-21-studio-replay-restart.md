@@ -14,7 +14,7 @@
 
 | File | Change |
 |------|--------|
-| `engine/src/events.ts` | `StageCompleteEvent.tool_calls`: `ToolCallSummary[]` → `ToolCall[]` |
+| `engine/src/events.ts` | `StageCompleteEvent.tool_calls`: `ToolCallSummary[]` → `ToolCall[]`; add `skipped_reason?: string` field |
 | `engine/src/pipeline/stage-executor.ts` | Emit full `ToolCall[]` instead of `summarizeToolCalls()` |
 | `contracts/src/run.ts` | Add `skipped_reason?: string` to `StageRun` |
 | `engine/src/engine.ts` | New `RunInput` fields; `buildSkipSet` helper; resume pre-population; skip logic in stage loop |
@@ -68,6 +68,7 @@ export interface StageCompleteEvent {
   token_usage?: TokenUsage;
   rejection_reason?: string;
   rejection_details?: string[];
+  skipped_reason?: string;        // ADD: populated for synthetic skipped stages
 }
 ```
 
@@ -401,6 +402,9 @@ In the `else` branch of `if (isStageGroup(entry))`, before `stageCounter++` (aro
         ? `resumed from run ${input.originalRunId}`
         : 'resumed from prior run',
     };
+    const skippedReason = input.originalRunId
+      ? `resumed from run ${input.originalRunId}`
+      : 'resumed from prior run';
     this.events?.onStageComplete?.({
       stage_name: entry.name,
       stage_index: stageCounter - 1,
@@ -408,6 +412,7 @@ In the `else` branch of `if (isStageGroup(entry))`, before `stageCounter++` (aro
       status: 'skipped',
       attempts: 0,
       duration_ms: 0,
+      skipped_reason: skippedReason,  // IMPORTANT: must be in event so JSONL writer logs it
     });
     pipelineRun.stages.push(skippedRun);
     previousStageName = entry.name;
@@ -432,6 +437,9 @@ if (isStageGroup(entry)) {
     const now = new Date().toISOString();
     for (const stage of entry.stages) {
       stageCounter++;
+      const groupSkipReason = input.originalRunId
+        ? `resumed from run ${input.originalRunId}`
+        : 'resumed from prior run';
       const skippedRun: StageRun = {
         id: `skipped-${stage.name}`,
         stage_name: stage.name,
@@ -439,9 +447,7 @@ if (isStageGroup(entry)) {
         started_at: now,
         completed_at: now,
         tasks: [],
-        skipped_reason: input.originalRunId
-          ? `resumed from run ${input.originalRunId}`
-          : 'resumed from prior run',
+        skipped_reason: groupSkipReason,
       };
       this.events?.onStageComplete?.({
         stage_name: stage.name,
@@ -450,6 +456,7 @@ if (isStageGroup(entry)) {
         status: 'skipped',
         attempts: 0,
         duration_ms: 0,
+        skipped_reason: groupSkipReason,  // must be in event so JSONL writer logs it
       });
       pipelineRun.stages.push(skippedRun);
       previousStageName = stage.name;
@@ -771,6 +778,7 @@ import { createProgressDisplay } from '../output/progress.js'; // adjust if need
 interface RestartOptions {
   stage: string;
   verbose?: boolean;
+  provider?: string;   // optional provider override (e.g. mock), same as studio run --provider
 }
 
 export async function restartCommand(
@@ -799,7 +807,11 @@ export async function restartCommand(
     const pipeline = await loadPipelineByName(pipelineName, config); // see note below
     const resolvedStage = resolveStageFromPipeline(options.stage, pipeline);
 
-    if (resolvedStage === pipeline.stages[0] && stageOutputs.size === 0) {
+    // Warn if starting from stage 0 (nothing to skip)
+    const leafNames = Object.values(pipeline.stages).flatMap((e: any) =>
+      'group' in e ? e.stages.map((s: any) => s.name) : [e.name]
+    );
+    if (resolvedStage === leafNames[0]) {
       console.warn(
         chalk.yellow(
           `Warning: --stage resolves to the first stage (${resolvedStage}). No stages will be skipped — equivalent to a fresh run.`
@@ -879,13 +891,14 @@ program
   .option('--verbose', 'Show complete outputs and tool call results')
   .option('--restart', 'Re-execute pipeline from a specific stage (requires --stage)')
   .option('--stage <index|name>', 'Stage index (0-based) or name to restart from (use with --restart)')
-  .action((runId: string, options: { verbose?: boolean; restart?: boolean; stage?: string }) => {
+  .option('--provider <name>', 'Override LLM provider (e.g. mock) — applies to resumed stages only')
+  .action((runId: string, options: { verbose?: boolean; restart?: boolean; stage?: string; provider?: string }) => {
     if (options.restart) {
       if (!options.stage) {
         console.error(chalk.red('Error: --restart requires --stage <index|name>'));
         process.exit(1);
       }
-      return restartCommand(runId, { stage: options.stage, verbose: options.verbose });
+      return restartCommand(runId, { stage: options.stage, verbose: options.verbose, provider: options.provider });
     }
     return replayCommand(runId, options);
   });
