@@ -13,7 +13,7 @@ commands:
       max_results:
         type: number
         required: false
-        description: Maximum number of results to return (default: 5)
+        description: "Maximum number of results to return (default: 5)"
     execute:
       type: builtin
       parse_output: json
