@@ -9,7 +9,6 @@ import type {
   TaskRun,
   AgentRun,
   OutputContract,
-  ToolCall,
 } from '@studio/contracts';
 import {
   ralph,
@@ -50,7 +49,7 @@ import { deriveStageStatus } from '../state/status-derivation.js';
 import { transition } from '../state/state-machine.js';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 import { loadContextPacks } from './context-pack-loader.js';
-import type { EngineEvents, ToolCallSummary, StageContextEvent } from '../events.js';
+import type { EngineEvents, StageContextEvent } from '../events.js';
 import { PipelineEventEmitter } from '../events.js';
 import type { ProjectPaths, StageResult } from './types.js';
 
@@ -63,22 +62,6 @@ function summarizeOutput(output: unknown): string {
   return `${keys.length} fields: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}`;
 }
 
-function summarizeToolCalls(toolCalls: ToolCall[]): ToolCallSummary[] {
-  return toolCalls.map(tc => ({
-    name: tc.name,
-    arguments_summary: extractToolArgSummary(tc),
-  }));
-}
-
-function extractToolArgSummary(tc: ToolCall): string {
-  const args = tc.arguments as Record<string, unknown>;
-  for (const value of Object.values(args)) {
-    if (typeof value === 'string' && value.length > 0) {
-      return value.length > 60 ? value.slice(0, 60) + '...' : value;
-    }
-  }
-  return '';
-}
 
 export interface StageExecutorConfig {
   events?: EngineEvents;
@@ -555,7 +538,7 @@ export class StageExecutor {
         ? `REJECTED: ${postResult!.rejection_reason}`
         : lastResult ? summarizeOutput(lastResult.output) : undefined,
       output: lastResult?.output,
-      tool_calls: lastResult ? summarizeToolCalls(lastResult.tool_calls) : undefined,
+      tool_calls: lastResult ? lastResult.tool_calls : undefined,
       token_usage: lastResult?.token_usage,
       rejection_reason: postResult?.rejection_reason,
       rejection_details: postResult?.rejection_details,
