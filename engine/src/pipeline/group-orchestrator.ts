@@ -33,11 +33,13 @@ export class GroupOrchestrator {
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
+    skipSet?: Set<string>,
+    originalRunId?: string,
   ): Promise<GroupResult> {
     if (group.mode === 'parallel') {
       return this.runParallel(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
     }
-    return this.runSequential(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal);
+    return this.runSequential(group, context, stageOffset, totalStages, userInput, paths, toolRegistry, runMiddleware, runId, signal, skipSet, originalRunId);
   }
 
   private async runParallel(
@@ -199,6 +201,8 @@ export class GroupOrchestrator {
     runMiddleware?: AnonymizationMiddleware | null,
     runId?: string,
     signal?: AbortSignal,
+    skipSet?: Set<string>,
+    originalRunId?: string,
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
@@ -266,6 +270,35 @@ export class GroupOrchestrator {
 
         const stage = group.stages[i];
         const stageNumber = stageOffset + i;
+
+        // On iteration 1 only, skip stages before resumeFromStage
+        if (iteration === 1 && skipSet?.has(stage.name)) {
+          const now = new Date().toISOString();
+          const skippedReason = originalRunId
+            ? `resumed from run ${originalRunId}`
+            : 'resumed from prior run';
+          const skippedRun: StageRun = {
+            id: `skipped-${stage.name}`,
+            stage_name: stage.name,
+            status: 'skipped',
+            started_at: now,
+            completed_at: now,
+            tasks: [],
+            skipped_reason: skippedReason,
+          };
+          this.config.events?.onStageComplete?.({
+            stage_name: stage.name,
+            stage_index: stageNumber,
+            total_stages: totalStages,
+            status: 'skipped',
+            attempts: 0,
+            duration_ms: 0,
+            skipped_reason: skippedReason,
+          });
+          allStageRuns.push(skippedRun);
+          previousStageName = stage.name;
+          continue;
+        }
 
         const result = await this.config.stageExecutor.execute(
           stage,

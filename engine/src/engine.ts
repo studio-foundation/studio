@@ -7,6 +7,8 @@ import type {
   PipelineRun,
   PipelineDefinition,
   RunSpawner,
+  StageRun,
+  ToolCall,
 } from '@studio/contracts';
 import { isStageGroup } from '@studio/contracts';
 import {
@@ -60,6 +62,39 @@ export interface RunInput {
   signal?: AbortSignal;
   depth?: number;        // nesting depth (0 = top-level)
   parentRunId?: string;  // parent run ID if spawned by another pipeline
+  // Resume fields — used by `studio replay --restart`
+  resumeFromStage?: string;
+  priorStageOutputs?: Map<string, unknown>;
+  priorStageToolResults?: Map<string, ToolCall[]>;
+  originalRunId?: string;
+}
+
+/**
+ * Collect all leaf stage names in pipeline order (group containers are transparent).
+ */
+function collectLeafStageNames(entries: PipelineEntry[]): string[] {
+  const names: string[] = [];
+  for (const entry of entries) {
+    if (isStageGroup(entry)) {
+      for (const stage of entry.stages) names.push(stage.name);
+    } else {
+      names.push(entry.name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Returns the set of stage names that should be skipped (all leaf stages before resumeFromStage).
+ * Throws if resumeFromStage is not found in the pipeline.
+ */
+function buildSkipSet(entries: PipelineEntry[], resumeFromStage: string): Set<string> {
+  const leafNames = collectLeafStageNames(entries);
+  const targetIndex = leafNames.indexOf(resumeFromStage);
+  if (targetIndex < 0) {
+    throw new Error(`Stage "${resumeFromStage}" not found in pipeline`);
+  }
+  return new Set(leafNames.slice(0, targetIndex));
 }
 
 function countTotalStages(entries: PipelineEntry[]): number {
@@ -184,6 +219,21 @@ export class PipelineEngine {
     // Load .studio/invariants.md if present — injected into every agent's system_prompt
     pipelineContext.invariantsContent = await loadInvariantsFile(projectPaths.projectDir);
 
+    // Pre-populate context from prior run if resuming
+    const skipSet: Set<string> =
+      input.resumeFromStage
+        ? buildSkipSet(pipeline.stages, input.resumeFromStage)
+        : new Set();
+
+    if (input.resumeFromStage) {
+      for (const [stageName, output] of input.priorStageOutputs ?? []) {
+        addStageOutput(pipelineContext, stageName, output);
+      }
+      for (const [stageName, toolCalls] of input.priorStageToolResults ?? []) {
+        addStageToolResults(pipelineContext, stageName, toolCalls);
+      }
+    }
+
     // 4. Execute stages sequentially (handling groups)
     const totalStages = countTotalStages(pipeline.stages);
     let stageCounter = 0;
@@ -215,6 +265,42 @@ export class PipelineEngine {
 
       if (isStageGroup(entry)) {
         // ========== GROUP ==========
+
+        // Check if all group stages should be skipped
+        const allGroupStagesSkipped = entry.stages.every(s => skipSet.has(s.name));
+
+        if (allGroupStagesSkipped) {
+          const now = new Date().toISOString();
+          const groupSkipReason = input.originalRunId
+            ? `resumed from run ${input.originalRunId}`
+            : 'resumed from prior run';
+          for (const stage of entry.stages) {
+            stageCounter++;
+            const skippedRun: StageRun = {
+              id: `skipped-${stage.name}`,
+              stage_name: stage.name,
+              status: 'skipped',
+              started_at: now,
+              completed_at: now,
+              tasks: [],
+              skipped_reason: groupSkipReason,
+            };
+            this.events?.onStageComplete?.({
+              stage_name: stage.name,
+              stage_index: stageCounter - 1,
+              total_stages: totalStages,
+              status: 'skipped',
+              attempts: 0,
+              duration_ms: 0,
+              skipped_reason: groupSkipReason,
+            });
+            pipelineRun.stages.push(skippedRun);
+            previousStageName = stage.name;
+          }
+          clearGroupFeedback(pipelineContext);
+          continue;
+        }
+
         const groupResult = await this.groupOrchestrator.run(
           entry,
           pipelineContext,
@@ -226,6 +312,8 @@ export class PipelineEngine {
           runMiddleware,
           pipelineRun.id,
           signal,
+          skipSet,
+          input.originalRunId,
         );
         this.pipelineTotals.tokens += groupResult.totalTokensDelta;
         this.pipelineTotals.toolCalls += groupResult.totalToolCallsDelta;
@@ -269,6 +357,36 @@ export class PipelineEngine {
       } else {
         // ========== SIMPLE STAGE ==========
         stageCounter++;
+
+        // Skip stage if resuming from a later stage
+        if (skipSet.has(entry.name)) {
+          const skippedReason = input.originalRunId
+            ? `resumed from run ${input.originalRunId}`
+            : 'resumed from prior run';
+          const now = new Date().toISOString();
+          const skippedRun: StageRun = {
+            id: `skipped-${entry.name}`,
+            stage_name: entry.name,
+            status: 'skipped',
+            started_at: now,
+            completed_at: now,
+            tasks: [],
+            skipped_reason: skippedReason,
+          };
+          this.events?.onStageComplete?.({
+            stage_name: entry.name,
+            stage_index: stageCounter - 1,
+            total_stages: totalStages,
+            status: 'skipped',
+            attempts: 0,
+            duration_ms: 0,
+            skipped_reason: skippedReason,
+          });
+          pipelineRun.stages.push(skippedRun);
+          previousStageName = entry.name;
+          continue;
+        }
+
         const result = await this.stageExecutor.execute(
           entry,
           pipelineContext,
