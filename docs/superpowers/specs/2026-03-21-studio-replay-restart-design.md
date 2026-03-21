@@ -112,7 +112,7 @@ interface RunInput {
 | `--stage` targets a stage inside a group | Group starts fresh from that stage at iteration 1; prior group feedback not replayed |
 | Integer index with groups | Index counts **leaf stages only** (not group containers). A pipeline with stages `[brief-analysis, group(code-gen, qa-review)]` has indices 0=brief-analysis, 1=code-gen, 2=qa-review. Group containers are transparent to indexing. |
 | `on_pipeline_start` context inconsistency | `on_pipeline_start` re-runs and produces fresh startup context (e.g., new `git status`). Prior stage outputs were generated with the old startup context. This inconsistency is **intentional** — the user is restarting because the repo state changed. The tradeoff is documented, not prevented. |
-| JSONL `tool_calls` field shape | `stage_complete` events log `tool_calls` as a structured `ToolCall[]` array (confirmed in `cli/src/commands/run.ts`). The JSONL parser reconstructs this directly into `priorStageToolResults`. |
+| JSONL `tool_calls` field shape | `stage_complete` events currently log `tool_calls` as `ToolCallSummary[]` (name + arguments_summary string), not full `ToolCall[]`. As a prerequisite, `StageCompleteEvent.tool_calls` in `engine/src/events.ts` must be changed from `ToolCallSummary[]` to `ToolCall[]`, and the JSONL writer in `cli/src/commands/run.ts` updated accordingly. This enables faithful reconstruction of `priorStageToolResults` from the log. |
 
 ---
 
@@ -123,6 +123,8 @@ interface RunInput {
 | `cli/src/commands/replay.ts` | Add `--restart`, `--stage` flags; JSONL parsing; engine call |
 | `cli/src/index.ts` | Register new `--restart` and `--stage` options on the `replay` command |
 | `contracts/src/run.ts` | Add `skipped_reason?: string` to `StageRun` (note: `'skipped'` is already a valid `StageStatus`) |
+| `engine/src/events.ts` | Change `StageCompleteEvent.tool_calls` from `ToolCallSummary[]` to `ToolCall[]` (prerequisite for faithful JSONL reconstruction) |
+| `cli/src/commands/run.ts` | Update JSONL writer to log full `ToolCall[]` instead of `ToolCallSummary[]` on `stage_complete` |
 | `engine/src/engine.ts` | Add `resumeFromStage`, `priorStageOutputs`, `priorStageToolResults`, `originalRunId` to `RunInput`; pre-populate context; synthetic skipped stages in loop |
 
 **No changes to:** `stage-executor.ts`, `context-propagation.ts`, `ralph/`, `runner/`
