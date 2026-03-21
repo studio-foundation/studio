@@ -1,0 +1,24 @@
+name: web-search
+description: Search the web using Tavily (requires TAVILY_API_KEY)
+version: 1
+
+commands:
+  - name: web_search-search
+    description: Search the web and return relevant results
+    parameters:
+      query:
+        type: string
+        required: true
+        description: The search query
+      max_results:
+        type: number
+        required: false
+        description: Maximum number of results to return (default: 5)
+    execute:
+      type: builtin
+      parse_output: json
+
+prompt_snippet: |
+  You have access to a web search tool. Use it to find up-to-date information from the web.
+  Search in the language most relevant to the query (English for technical docs, French for local content).
+  Prefer specific, targeted queries over broad ones for better results.

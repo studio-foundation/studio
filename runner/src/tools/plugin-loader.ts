@@ -11,6 +11,7 @@ import { createShellTools } from './builtin/shell.js';
 import { createSearchTools } from './builtin/search.js';
 import { createPatchTools } from './builtin/patch.js';
 import { createGitTools } from './builtin/git.js';
+import { createWebSearchTools } from './builtin/web-search.js';
 import { ToolYamlError } from './errors.js';
 
 export interface LoadedPlugin {
@@ -28,6 +29,7 @@ function buildBuiltinMap(repoPath: string): Map<string, Tool> {
   add(createSearchTools(repoPath));
   add(createPatchTools(repoPath));
   add(createGitTools(repoPath));
+  add(createWebSearchTools());
   return map;
 }
 
@@ -164,6 +166,7 @@ export const BUILTIN_TOOL_NAMES = new Set([
   'shell',
   'search',
   'git',
+  'web-search',
 ]);
 
 /**

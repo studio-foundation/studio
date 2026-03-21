@@ -43,6 +43,7 @@ export { createSearchTools } from './tools/builtin/search.js';
 export { createPatchTools } from './tools/builtin/patch.js';
 export { createGitTools } from './tools/builtin/git.js';
 export { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from './tools/builtin/studio-run.js';
+export { createWebSearchTools, WEB_SEARCH_PROMPT_SNIPPET } from './tools/builtin/web-search.js';
 
 export { loadProjectTools, listAvailableToolTemplates, getBundledToolTemplate, BUILTIN_TOOL_NAMES } from './tools/plugin-loader.js';
 export type { LoadedPlugin } from './tools/plugin-loader.js';
