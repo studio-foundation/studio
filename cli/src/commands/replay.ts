@@ -3,6 +3,7 @@ import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { ProgressDisplay } from '../output/progress.js';
 import type { PipelineDefinition, ToolCall } from '@studio/contracts';
+import { isStageGroup } from '@studio/contracts';
 
 // ── JSONL file discovery ─────────────────────────────────────────────────────
 
@@ -213,6 +214,7 @@ export interface ResumeContext {
   pipelineInput: string | Record<string, unknown>;
   stageOutputs: Map<string, unknown>;
   stageToolResults: Map<string, ToolCall[]>;
+  pipelineName?: string;
 }
 
 /**
@@ -223,6 +225,7 @@ export function parseJsonlForResume(jsonlContent: string): ResumeContext {
   const stageOutputs = new Map<string, unknown>();
   const stageToolResults = new Map<string, ToolCall[]>();
   let pipelineInput: string | Record<string, unknown> = {};
+  let pipelineName: string | undefined;
 
   const lines = jsonlContent.split('\n').filter((l) => l.trim().length > 0);
 
@@ -236,8 +239,13 @@ export function parseJsonlForResume(jsonlContent: string): ResumeContext {
 
     const event = record.event as string;
 
-    if (event === 'pipeline_start' && record.input !== undefined) {
-      pipelineInput = record.input as string | Record<string, unknown>;
+    if (event === 'pipeline_start') {
+      if (record.input !== undefined) {
+        pipelineInput = record.input as string | Record<string, unknown>;
+      }
+      if (record.pipeline !== undefined) {
+        pipelineName = record.pipeline as string;
+      }
     }
 
     if (event === 'stage_complete') {
@@ -254,7 +262,7 @@ export function parseJsonlForResume(jsonlContent: string): ResumeContext {
     }
   }
 
-  return { pipelineInput, stageOutputs, stageToolResults };
+  return { pipelineInput, stageOutputs, stageToolResults, pipelineName };
 }
 
 /**
@@ -269,12 +277,10 @@ export function resolveStageFromPipeline(
   // Collect leaf stage names in order (groups are transparent)
   const leafNames: string[] = [];
   for (const entry of pipeline.stages) {
-    if ('group' in entry && Array.isArray((entry as unknown as Record<string, unknown>).stages)) {
-      for (const s of (entry as unknown as { stages: Array<{ name: string }> }).stages) {
-        leafNames.push(s.name);
-      }
-    } else if ('name' in entry) {
-      leafNames.push((entry as unknown as { name: string }).name);
+    if (isStageGroup(entry)) {
+      for (const s of entry.stages) leafNames.push(s.name);
+    } else {
+      leafNames.push(entry.name);
     }
   }
 
@@ -316,20 +322,7 @@ export async function restartCommand(
     const filePath = findJsonlFile(runsDir, runId);
     const content = readFileSync(filePath, 'utf-8');
 
-    const { pipelineInput, stageOutputs, stageToolResults } = parseJsonlForResume(content);
-
-    // Extract pipeline name from pipeline_start event
-    let pipelineName: string | undefined;
-    for (const raw of content.split('\n')) {
-      if (!raw.trim()) continue;
-      try {
-        const record = JSON.parse(raw) as Record<string, unknown>;
-        if (record.event === 'pipeline_start') {
-          pipelineName = record.pipeline as string;
-          break;
-        }
-      } catch { continue; }
-    }
+    const { pipelineInput, stageOutputs, stageToolResults, pipelineName } = parseJsonlForResume(content);
 
     if (!pipelineName) {
       throw new Error(`Could not determine pipeline name from run log for run ${runId}`);
@@ -337,9 +330,8 @@ export async function restartCommand(
 
     // Load config + dependencies (mirror run.ts pattern exactly)
     const { loadConfig } = await import('../config.js');
-    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner } = await import('@studio/engine');
+    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner, resolveRepoPath } = await import('@studio/engine');
     const { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } = await import('@studio/runner');
-    const { resolveRepoPath } = await import('@studio/engine');
     const { createRunStore } = await import('../run-store-factory.js');
     const { createRunLogger } = await import('../run-logger.js');
     const { mergeEvents } = await import('./run.js');
@@ -464,6 +456,21 @@ export async function restartCommand(
     const spawner = new DirectEngineSpawner(engineConfig);
     const engine = new PipelineEngine({ ...engineConfig, spawner, maxDepth: 3 }, events);
 
+    const controller = new AbortController();
+    let forceExitOnNextInterrupt = false;
+
+    const onInterrupt = () => {
+      if (forceExitOnNextInterrupt) {
+        process.exit(130);
+      }
+      forceExitOnNextInterrupt = true;
+      controller.abort();
+      progress.interrupt();
+      process.stderr.write('\n' + chalk.yellow('⚠ Cancelling run...') + '\n');
+    };
+    process.on('SIGINT', onInterrupt);
+    process.on('SIGTERM', onInterrupt);
+
     let result;
     try {
       result = await engine.run({
@@ -473,8 +480,11 @@ export async function restartCommand(
         priorStageOutputs: stageOutputs,
         priorStageToolResults: stageToolResults,
         originalRunId: runId,
+        signal: controller.signal,
       });
     } finally {
+      process.off('SIGINT', onInterrupt);
+      process.off('SIGTERM', onInterrupt);
       await runLogger.close();
       if (runStore && result) {
         await (runStore as { saveLogPath?: (id: string, path: string) => Promise<void> }).saveLogPath?.(result.id, runLogger.getLogPath());
@@ -485,7 +495,9 @@ export async function restartCommand(
 
     console.log('');
     console.log(chalk.gray(`Run ID: ${progress.runId}`));
-    process.exit(result.status === 'success' ? 0 : 1);
+    if (result) {
+      process.exit(result.status === 'success' ? 0 : 1);
+    }
   } catch (error) {
     console.error(chalk.red('Error:'), error instanceof Error ? error.message : error);
     process.exit(1);
