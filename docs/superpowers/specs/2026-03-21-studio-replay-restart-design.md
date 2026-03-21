@@ -71,10 +71,12 @@ These appear in `studio status` output.
 
 **Files:** `engine/src/engine.ts`, `@studio/contracts` (RunOptions)
 
-### New RunOptions Fields
+### New `RunInput` Fields
+
+The interface is `RunInput`, defined in `engine/src/engine.ts` (not in `@studio/contracts`). `ToolCall` is imported from `@studio/contracts` (exported via `contracts/src/agent.ts`).
 
 ```typescript
-interface RunOptions {
+interface RunInput {
   // ... existing fields ...
   resumeFromStage?: string;                         // stage name to start from
   priorStageOutputs?: Map<string, unknown>;         // keyed by stage name
@@ -108,6 +110,9 @@ interface RunOptions {
 | Missing output in JSONL (prior stage failed) | Output absent from `priorStageOutputs`; warning printed; execution continues with available context |
 | Pipeline YAML changed (stage names differ) | `--stage` resolution fails with clear error |
 | `--stage` targets a stage inside a group | Group starts fresh from that stage at iteration 1; prior group feedback not replayed |
+| Integer index with groups | Index counts **leaf stages only** (not group containers). A pipeline with stages `[brief-analysis, group(code-gen, qa-review)]` has indices 0=brief-analysis, 1=code-gen, 2=qa-review. Group containers are transparent to indexing. |
+| `on_pipeline_start` context inconsistency | `on_pipeline_start` re-runs and produces fresh startup context (e.g., new `git status`). Prior stage outputs were generated with the old startup context. This inconsistency is **intentional** — the user is restarting because the repo state changed. The tradeoff is documented, not prevented. |
+| JSONL `tool_calls` field shape | `stage_complete` events log `tool_calls` as a structured `ToolCall[]` array (confirmed in `cli/src/commands/run.ts`). The JSONL parser reconstructs this directly into `priorStageToolResults`. |
 
 ---
 
@@ -116,11 +121,18 @@ interface RunOptions {
 | File | Change |
 |------|--------|
 | `cli/src/commands/replay.ts` | Add `--restart`, `--stage` flags; JSONL parsing; engine call |
-| `contracts/src/run.ts` | Add `skipped_reason?: string` to `StageRun` |
-| `contracts/src/engine.ts` (or equivalent RunOptions location) | Add `resumeFromStage`, `priorStageOutputs`, `priorStageToolResults`, `originalRunId` to `RunOptions` |
-| `engine/src/engine.ts` | Pre-populate context; synthetic skipped stages in loop |
+| `cli/src/index.ts` | Register new `--restart` and `--stage` options on the `replay` command |
+| `contracts/src/run.ts` | Add `skipped_reason?: string` to `StageRun` (note: `'skipped'` is already a valid `StageStatus`) |
+| `engine/src/engine.ts` | Add `resumeFromStage`, `priorStageOutputs`, `priorStageToolResults`, `originalRunId` to `RunInput`; pre-populate context; synthetic skipped stages in loop |
 
 **No changes to:** `stage-executor.ts`, `context-propagation.ts`, `ralph/`, `runner/`
+
+## Tests
+
+| File | Coverage |
+|------|----------|
+| `cli/src/commands/replay.test.ts` | JSONL parsing logic: extract input, stage outputs, tool calls from past run events |
+| `engine/src/engine.test.ts` | Resume loop: stages before target are skipped; context pre-populated correctly; stages after target execute |
 
 ---
 
