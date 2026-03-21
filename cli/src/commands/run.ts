@@ -99,6 +99,7 @@ export function mergeEvents(
         output: e.output,
         ...(e.rejection_reason ? { rejection_reason: e.rejection_reason } : {}),
         ...(e.rejection_details?.length ? { rejection_details: e.rejection_details } : {}),
+        ...(e.skipped_reason ? { skipped_reason: e.skipped_reason } : {}),
       });
     },
     onTaskRetry: (e) => {
