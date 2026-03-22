@@ -1,5 +1,4 @@
 // cli/src/output/formatters.ts
-import type { ToolCallSummary } from '@studio/engine';
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -94,7 +93,7 @@ function toolAction(name: string): string {
  * Groups tool calls by type and returns a human-readable summary string.
  * E.g. "Read 3 files, wrote 1 file, ran 2 commands"
  */
-export function summarizeToolCalls(toolCalls: ToolCallSummary[]): string {
+export function summarizeToolCalls(toolCalls: { name: string }[]): string {
   if (toolCalls.length === 0) return '';
 
   const counts = new Map<string, number>();
@@ -128,7 +127,7 @@ export function summarizeToolCalls(toolCalls: ToolCallSummary[]): string {
 }
 
 /** Counts how many tool calls wrote or patched files. */
-export function countWriteFiles(toolCalls: ToolCallSummary[]): number {
+export function countWriteFiles(toolCalls: { name: string }[]): number {
   return toolCalls.filter((tc) => {
     const action = toolAction(tc.name);
     return action === 'write_file' || action === 'apply_patch';

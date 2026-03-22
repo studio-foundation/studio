@@ -60,7 +60,7 @@ async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun |
     let started_at = '';
     let completed_at: string | undefined;
     let status = 'running';
-    const stageCompletes: Array<{ stage_name: string; status: string; attempts: number }> = [];
+    const stageCompletes: Array<{ stage_name: string; status: string; attempts: number; skipped_reason?: string }> = [];
 
     for (const r of records) {
       const event = r.event as string;
@@ -76,6 +76,7 @@ async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun |
           stage_name: (r.stage as string) ?? '',
           status: (r.status as string) ?? 'unknown',
           attempts: (r.attempts as number) ?? 1,
+          skipped_reason: r.skipped_reason as string | undefined,
         });
       }
     }
@@ -93,6 +94,7 @@ async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun |
       status: s.status as StageRun['status'],
       started_at: started_at,
       completed_at: completed_at,
+      skipped_reason: s.skipped_reason,
       tasks: [
         {
           id: `task-${i}`,

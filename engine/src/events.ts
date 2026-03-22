@@ -1,4 +1,4 @@
-import type { ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio/contracts';
+import type { ToolCall, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio/contracts';
 
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)
@@ -50,10 +50,11 @@ export interface StageCompleteEvent {
   duration_ms: number;
   output_summary?: string;
   output?: unknown;
-  tool_calls?: ToolCallSummary[];
+  tool_calls?: ToolCall[];
   token_usage?: TokenUsage;
   rejection_reason?: string;
   rejection_details?: string[];
+  skipped_reason?: string;
 }
 
 export interface StageRetryEvent {

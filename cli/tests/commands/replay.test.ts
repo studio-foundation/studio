@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { findJsonlFile, mapJsonlLineToEvent } from '../../src/commands/replay.js';
+import { findJsonlFile, mapJsonlLineToEvent, parseJsonlForResume, resolveStageFromPipeline } from '../../src/commands/replay.js';
+import type { PipelineDefinition } from '@studio/contracts';
 
 const TMP = resolve('/tmp', '.studio-replay-test');
 const RUNS_DIR = resolve(TMP, '.studio/runs');
@@ -144,6 +145,79 @@ describe('mapJsonlLineToEvent', () => {
     const line = { event: 'unknown_thing', data: 123 };
     const result = mapJsonlLineToEvent(line);
     expect(result).toBeNull();
+  });
+});
+
+describe('parseJsonlForResume', () => {
+  it('extracts input and stage outputs from JSONL', () => {
+    const lines = [
+      JSON.stringify({ event: 'pipeline_start', pipeline: 'my-pipe', run_id: 'abc12345', input: { x: 1 } }),
+      JSON.stringify({ event: 'stage_complete', stage: 'stage-a', run_id: 'abc12345', status: 'success', attempts: 1, duration_ms: 100, output: { result: 'a-result' }, tool_calls: [] }),
+      JSON.stringify({ event: 'stage_complete', stage: 'stage-b', run_id: 'abc12345', status: 'success', attempts: 1, duration_ms: 200, output: { result: 'b-result' }, tool_calls: [{ id: '1', name: 'repo_manager-read_file', arguments: { path: 'foo.ts' } }] }),
+    ].join('\n');
+
+    const result = parseJsonlForResume(lines);
+
+    expect(result.pipelineInput).toEqual({ x: 1 });
+    expect(result.stageOutputs.get('stage-a')).toEqual({ result: 'a-result' });
+    expect(result.stageOutputs.get('stage-b')).toEqual({ result: 'b-result' });
+    expect(result.stageToolResults.get('stage-b')).toHaveLength(1);
+    expect(result.stageToolResults.get('stage-b')![0]!.name).toBe('repo_manager-read_file');
+  });
+
+  it('returns empty maps if no stage_complete events', () => {
+    const lines = JSON.stringify({ event: 'pipeline_start', pipeline: 'x', run_id: 'abc', input: {} });
+    const result = parseJsonlForResume(lines);
+    expect(result.stageOutputs.size).toBe(0);
+    expect(result.stageToolResults.size).toBe(0);
+  });
+
+  it('skips stages with no output', () => {
+    const lines = JSON.stringify({ event: 'stage_complete', stage: 'stage-a', run_id: 'abc', status: 'success', attempts: 1, duration_ms: 100 });
+    const result = parseJsonlForResume(lines);
+    expect(result.stageOutputs.has('stage-a')).toBe(false);
+  });
+});
+
+describe('resolveStageFromPipeline', () => {
+  const pipeline: PipelineDefinition = {
+    name: 'test',
+    description: 'test',
+    version: 1,
+    stages: [
+      { name: 'stage-a', executor: 'script', script: 'x.py', runtime: 'shell' },
+      {
+        group: 'my-group',
+        max_iterations: 3,
+        stages: [
+          { name: 'stage-b', executor: 'script', script: 'x.py', runtime: 'shell' },
+          { name: 'stage-c', executor: 'script', script: 'x.py', runtime: 'shell' },
+        ],
+      },
+    ],
+  };
+
+  it('resolves a stage name by exact match', () => {
+    expect(resolveStageFromPipeline('stage-b', pipeline)).toBe('stage-b');
+  });
+
+  it('resolves a stage by 0-based leaf index', () => {
+    // leaf order: stage-a(0), stage-b(1), stage-c(2)
+    expect(resolveStageFromPipeline('0', pipeline)).toBe('stage-a');
+    expect(resolveStageFromPipeline('1', pipeline)).toBe('stage-b');
+    expect(resolveStageFromPipeline('2', pipeline)).toBe('stage-c');
+  });
+
+  it('throws if name not found', () => {
+    expect(() => resolveStageFromPipeline('nonexistent', pipeline)).toThrow(/not found/i);
+  });
+
+  it('throws if index out of bounds', () => {
+    expect(() => resolveStageFromPipeline('5', pipeline)).toThrow(/out of bounds/i);
+  });
+
+  it('index 0 returns the first stage name', () => {
+    expect(resolveStageFromPipeline('0', pipeline)).toBe('stage-a');
   });
 });
 

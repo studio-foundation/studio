@@ -2,11 +2,12 @@
 
 import 'dotenv/config';
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { runCommand } from './commands/run.js';
 import { statusCommand } from './commands/status.js';
 import { listCommand } from './commands/list.js';
 import { logsCommand } from './commands/logs.js';
-import { replayCommand } from './commands/replay.js';
+import { replayCommand, restartCommand } from './commands/replay.js';
 import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
@@ -59,9 +60,21 @@ program
 
 program
   .command('replay <run-id>')
-  .description('Replay a past pipeline run from JSONL logs (same rendering as --live)')
+  .description('Replay a past pipeline run from JSONL logs, or re-execute from a specific stage')
   .option('--verbose', 'Show complete outputs and tool call results')
-  .action(replayCommand);
+  .option('--restart', 'Re-execute pipeline from a specific stage (requires --stage)')
+  .option('--stage <index|name>', 'Stage index (0-based) or name to restart from (use with --restart)')
+  .option('--provider <name>', 'Override LLM provider (e.g. mock) — applies to resumed stages only')
+  .action((runId: string, options: { verbose?: boolean; restart?: boolean; stage?: string; provider?: string }) => {
+    if (options.restart) {
+      if (!options.stage) {
+        console.error(chalk.red('Error: --restart requires --stage <index|name>'));
+        process.exit(1);
+      }
+      return restartCommand(runId, { stage: options.stage, verbose: options.verbose, provider: options.provider });
+    }
+    return replayCommand(runId, options);
+  });
 
 program
   .command('list <resource>')
