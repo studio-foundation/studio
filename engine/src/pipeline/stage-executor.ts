@@ -9,6 +9,7 @@ import type {
   TaskRun,
   AgentRun,
   OutputContract,
+  ResolvedAgentConfig,
 } from '@studio/contracts';
 import {
   ralph,
@@ -71,6 +72,8 @@ export interface StageExecutorConfig {
   configsDir: string;
   pluginSkills?: Record<string, string[]>;
   providerOverride?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
 }
 
 export class StageExecutor {
@@ -136,8 +139,17 @@ export class StageExecutor {
     let agentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
     if (stageDef.agent) {
       agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
+      // Apply defaults from config.yaml when agent YAML omits provider/model
+      if (!agentConfig.provider) agentConfig.provider = this.config.defaultProvider;
+      if (!agentConfig.model) agentConfig.model = this.config.defaultModel;
       if (this.config.providerOverride) {
         agentConfig.provider = this.config.providerOverride;
+      }
+      if (!agentConfig.provider) {
+        throw new Error(`Agent '${stageDef.agent}' has no provider and no default is configured. Run: studio config set provider <name>`);
+      }
+      if (!agentConfig.model) {
+        throw new Error(`Agent '${stageDef.agent}' has no model and no default is configured. Run: studio config set defaults.model <model>`);
       }
       // Inject plugin skills into system_prompt for agents that declare plugins
       if (agentConfig.plugins?.length && this.config.pluginSkills) {
@@ -336,7 +348,7 @@ export class StageExecutor {
 
         const result = stageDef.agent
           ? await runAgent({
-              agent: agentConfig!,
+              agent: agentConfig as ResolvedAgentConfig,
               task: taskInput,
               context: agentContext,
               executionContext: runnerExecContext,

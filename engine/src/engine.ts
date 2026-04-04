@@ -49,6 +49,8 @@ export interface EngineConfig {
   pluginSkills?: Record<string, string[]>;
   spawner?: RunSpawner;  // if set, studio-run tool is available to agents
   maxDepth?: number;     // max nesting depth for spawned runs, default 3
+  defaultProvider?: string;  // fallback when agent YAML omits provider
+  defaultModel?: string;     // fallback when agent YAML omits model
 }
 
 export interface RunInput {
@@ -145,6 +147,8 @@ export class PipelineEngine {
       configsDir: config.configsDir,
       pluginSkills: config.pluginSkills,
       providerOverride: config.providerOverride,
+      defaultProvider: config.defaultProvider,
+      defaultModel: config.defaultModel,
     });
     this.groupOrchestrator = new GroupOrchestrator({
       events,

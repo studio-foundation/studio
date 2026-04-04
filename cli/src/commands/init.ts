@@ -6,7 +6,7 @@ import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
 import { input, select, password, confirm, checkbox } from '@inquirer/prompts';
-import { findStudioDir } from '../studio-dir.js';
+
 import { applyPlaceholders } from '../utils/placeholders.js';
 import { listTemplates, type TemplateMetadata } from './templates.js';
 import { validateApiKeyLive } from '../provider-validator.js';
@@ -92,11 +92,13 @@ export async function createStudioStructure(
   templateName?: string,
   withTools = true
 ): Promise<void> {
-  // Check if already initialized
-  const existing = await findStudioDir(cwd);
-  if (existing) {
+  // Only check cwd — don't walk up.  A parent .studio/ (e.g. ~/.studio)
+  // should NOT prevent initializing a new project in a subdirectory.
+  const localStudio = resolve(cwd, '.studio');
+  const alreadyHere = await access(localStudio).then(() => true).catch(() => false);
+  if (alreadyHere) {
     throw new Error(
-      `Studio is already initialized at ${existing}\n` +
+      `Studio is already initialized at ${localStudio}\n` +
         `If you want to reinitialize, delete the .studio/ directory first.`
     );
   }
@@ -106,7 +108,8 @@ export async function createStudioStructure(
   let installedTemplateDir: string | undefined;
   if (templateName && templateName !== 'blank') {
     // Install template from registry to .studio/projects/<name>/
-    await installPackage(templateName, { studioDir });
+    // interactive: false — we're under a spinner, prompts would hang
+    await installPackage(templateName, { studioDir, interactive: false });
     installedTemplateDir = resolve(studioDir, 'projects', templateName);
     // Verify the install actually placed files (guards against mock/network failures)
     const installed = await access(installedTemplateDir).then(() => true).catch(() => false);
@@ -173,7 +176,10 @@ const DEFAULT_MODELS: Record<string, string> = {
 };
 
 export function detectOllamaInstalled(): boolean {
-  return spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0;
+  // Native binary
+  if (spawnSync('ollama', ['--version'], { stdio: 'ignore' }).status === 0) return true;
+  // Running as a Docker container (common setup: `docker exec ollama ollama`)
+  return spawnSync('docker', ['exec', 'ollama', 'ollama', '--version'], { stdio: 'ignore' }).status === 0;
 }
 
 const RAM_16GB = 16 * 1024 ** 3;
@@ -484,12 +490,12 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
   try {
     const cwd = process.cwd();
 
-    // ── Exists detection ──────────────────────────────────────────────
-    const existing = await findStudioDir(cwd);
+    // ── Exists detection (cwd only — parent .studio/ doesn't block init) ──
+    const localStudio = resolve(cwd, '.studio');
+    const existing = await access(localStudio).then(() => localStudio).catch(() => null);
 
     if (existing && !options.force) {
-      const location = existing === resolve(cwd, '.studio') ? 'this directory' : existing;
-      console.error(chalk.red(`  ✗ Studio is already initialized at ${location}`));
+      console.error(chalk.red(`  ✗ Studio is already initialized in this directory`));
       console.log('');
       console.log('To reconfigure:');
       console.log(`  ${chalk.cyan('studio config add-provider')}     # Add/update LLM provider`);

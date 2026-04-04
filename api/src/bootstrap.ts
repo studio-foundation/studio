@@ -198,6 +198,8 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     pluginSkills,
     spawner,
     maxDepth: 3,
+    defaultProvider: config.defaults?.provider,
+    defaultModel: config.defaults?.model,
   };
 
   const bus = new RunEventBus();

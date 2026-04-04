@@ -25,6 +25,8 @@ interface InstallOptions {
   force?: boolean;
   cwd?: string;
   requiredBy?: string;
+  /** Skip interactive prompts (auto-accept). Use when called under a spinner. */
+  interactive?: boolean;
   _depth?: number;
   _metaCache?: Map<string, PackageMetadata>;
 }
@@ -85,7 +87,7 @@ async function doInstallPackage(
     sha256 = result.sha256;
 
     const content = await readFile(result.destPath, 'utf8');
-    if (SHELL_EXEC_PATTERN.test(content)) {
+    if (SHELL_EXEC_PATTERN.test(content) && options.interactive !== false) {
       const { confirm } = await import('@inquirer/prompts');
       const proceed = await confirm({
         message: chalk.yellow(`⚠ This package executes shell commands. Review ${result.destPath} before use. Install anyway?`),
@@ -142,7 +144,7 @@ async function doInstallPackage(
     for (const dep of graph.required) {
       await doInstallPackage(
         dep.name,
-        { studioDir, requiredBy: name, _depth: depth + 1 },
+        { studioDir, requiredBy: name, interactive: options.interactive, _depth: depth + 1 },
         client,
         lockfile,
         index,
@@ -152,17 +154,20 @@ async function doInstallPackage(
     }
 
     if (depth === 0 && graph.recommended.length > 0) {
-      const names = graph.recommended.map(d => d.name).join(', ');
-      const { confirm } = await import('@inquirer/prompts');
-      const install = await confirm({
-        message: `Install recommended packages? [${names}]`,
-        default: true,
-      });
+      let install = options.interactive !== false;
+      if (options.interactive !== false) {
+        const names = graph.recommended.map(d => d.name).join(', ');
+        const { confirm } = await import('@inquirer/prompts');
+        install = await confirm({
+          message: `Install recommended packages? [${names}]`,
+          default: true,
+        });
+      }
       if (install) {
         for (const dep of graph.recommended) {
           await doInstallPackage(
             dep.name,
-            { studioDir, _depth: depth + 1 },
+            { studioDir, interactive: options.interactive, _depth: depth + 1 },
             client,
             lockfile,
             index,

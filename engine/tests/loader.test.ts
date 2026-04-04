@@ -267,12 +267,16 @@ system_prompt: You are a test agent.
     expect(() => parseAgentYaml('provider: x\nmodel: y')).toThrow("missing required field 'name'");
   });
 
-  it('throws when provider is missing', () => {
-    expect(() => parseAgentYaml('name: x\nmodel: y')).toThrow("missing required field 'provider'");
+  it('allows missing provider (defaults applied at runtime)', () => {
+    const agent = parseAgentYaml('name: x\nmodel: y');
+    expect(agent.name).toBe('x');
+    expect(agent.provider).toBeUndefined();
   });
 
-  it('throws when model is missing', () => {
-    expect(() => parseAgentYaml('name: x\nprovider: y')).toThrow("missing required field 'model'");
+  it('allows missing model (defaults applied at runtime)', () => {
+    const agent = parseAgentYaml('name: x\nprovider: y');
+    expect(agent.name).toBe('x');
+    expect(agent.model).toBeUndefined();
   });
 });
 

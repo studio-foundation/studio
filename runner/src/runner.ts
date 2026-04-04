@@ -2,7 +2,7 @@
  * Main agent runner function - executes agent with LLM + tools
  */
 
-import type { AgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio/contracts';
+import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio/contracts';
 import { buildPrompt, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
@@ -11,7 +11,7 @@ import { isAgentLoopProvider } from './providers/provider.js';
 import type { AnonymizationMiddleware } from './middleware/anonymization.js';
 
 export interface RunAgentConfig {
-  agent: AgentConfig;
+  agent: ResolvedAgentConfig;
   task: TaskInput;
   context: AgentContext;
   executionContext?: ExecutionContext;

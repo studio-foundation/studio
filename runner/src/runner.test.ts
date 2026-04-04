@@ -3,7 +3,7 @@ import { runAgent } from './runner.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
-import type { AgentConfig, LLMRequest, LLMResponse } from '@studio/contracts';
+import type { ResolvedAgentConfig, LLMRequest, LLMResponse } from '@studio/contracts';
 import type { Provider } from './providers/provider.js';
 
 /**
@@ -62,7 +62,7 @@ function makeConfig(toolCallName: string, toolCallArgs: Record<string, unknown>)
   const providerRegistry = new ProviderRegistry();
   providerRegistry.register(mockProvider);
 
-  const agent: AgentConfig = {
+  const agent: ResolvedAgentConfig = {
     name: 'test-agent',
     provider: 'mock',
     model: 'mock',
@@ -102,7 +102,7 @@ describe('runner — max tool iterations', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(loopingProvider);
 
-    const agent: AgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
 
     const result = await runAgent({
       agent,
@@ -132,7 +132,7 @@ describe('runner — max tool iterations', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(new LoopingProvider());
 
-    const agent: AgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
 
     const result = await runAgent({
       agent,
@@ -216,7 +216,7 @@ describe('runner — onPreToolUse callback', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(standardProvider);
 
-    const agent: AgentConfig = {
+    const agent: ResolvedAgentConfig = {
       name: 'test-agent',
       provider: 'standard-mock',
       model: 'mock',
@@ -312,7 +312,7 @@ describe('runner — onPostToolUse callback', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(standardProvider);
 
-    const agent: AgentConfig = {
+    const agent: ResolvedAgentConfig = {
       name: 'test-agent',
       provider: 'standard-mock',
       model: 'mock',

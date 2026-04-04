@@ -450,6 +450,8 @@ export async function restartCommand(
       toolRegistry,
       pluginSkills,
       db: runStore ?? undefined,
+      defaultProvider: config.defaults?.provider,
+      defaultModel: config.defaults?.model,
       ...(options.provider ? { providerOverride: options.provider } : {}),
     };
 

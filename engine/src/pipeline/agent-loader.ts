@@ -33,13 +33,7 @@ export function parseAgentYaml(yamlContent: string, sourcePath?: string): AgentC
     throw new Error(`Agent config missing required field 'name'${context}`);
   }
 
-  if (!parsed.provider || typeof parsed.provider !== 'string') {
-    throw new Error(`Agent config missing required field 'provider'${context}`);
-  }
-
-  if (!parsed.model || typeof parsed.model !== 'string') {
-    throw new Error(`Agent config missing required field 'model'${context}`);
-  }
+  // provider and model are optional — defaults are applied at execution time
 
   return parsed as unknown as AgentConfig;
 }
