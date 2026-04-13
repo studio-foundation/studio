@@ -2,6 +2,7 @@
   "name": "@studio/runner",
   "version": "0.3.0",
   "description": "Multi-provider LLM agent runner with tool execution",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -29,8 +30,8 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.10.5",
+    "@types/node": "^25.2.3",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.0.18"
   }
 }

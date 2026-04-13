@@ -741,4 +741,4 @@ Submit a PR to `Studio/templates/` with your template + documentation.
 **See also:**
 - **[CLAUDE.md](CLAUDE.md)** — Core Studio documentation
 - **[README.md](README.md)** — Public-facing overview
-- **[BUSINESS_PLAN.md](BUSINESS_PLAN.md)** — Studio's business model and philosophy
+- **[PHILOSOPHY.md](PHILOSOPHY.md)** — Studio's philosophy and design principles
