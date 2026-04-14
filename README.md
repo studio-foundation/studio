@@ -48,8 +48,10 @@ Validation is binary. Pass or fail. Not vibes.
 ## Quick start
 
 ```bash
-# Install
-npm install -g @studio/cli
+# Install from source (not yet on npm)
+git clone https://github.com/studio-foundation/studio.git
+cd studio && pnpm install && pnpm build
+npm link -w cli
 
 # Create a new project from a template
 studio init --template software --name my-builder
