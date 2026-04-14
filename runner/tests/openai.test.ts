@@ -16,9 +16,9 @@ async function* makeStream(chunks: object[]) {
 const mockCreate = vi.fn();
 
 vi.mock('openai', () => ({
-  default: vi.fn(() => ({
-    chat: { completions: { create: mockCreate } },
-  })),
+  default: vi.fn(function () {
+    return { chat: { completions: { create: mockCreate } } };
+  }),
 }));
 
 import { OpenAIProvider } from '../src/providers/openai.js';
