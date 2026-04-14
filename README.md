@@ -1,4 +1,4 @@
-k# Studio
+# Studio
 
 **Agentic pipeline runtime with structural validation.**
 
@@ -120,7 +120,7 @@ Seven packages, one monorepo. Each fits in a single context window. Each is test
 **Build from source:**
 
 ```bash
-git clone https://github.com/arianeguay/studio
+git clone https://github.com/studio-foundation/studio
 cd studio
 pnpm install
 pnpm build
@@ -140,6 +140,15 @@ pnpm build
 
 ---
 
+## Projects powered by Studio
+
+| Project | What it does | Template |
+|---------|-------------|----------|
+| [Wiki Creator](https://github.com/studio-foundation/wiki-creator) | Extracts entities, relationships, and generates wiki pages from EPUB books using NLP + LLM pipelines | `analysis` |
+| [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) | AI meal planner — researches cuisines, develops recipes with nutritional profiles, generates grocery lists | `software` |
+
+---
+
 ## Status
 
 **Studio is in alpha.** The core works — RALPH loop, pipeline engine, groups, hooks, tools, multi-provider, CLI, API — but expect rough edges, breaking changes, and missing pieces. That's normal. The architecture is stable; the surface is still moving.
@@ -153,7 +162,7 @@ pnpm build
 - Error messages are sometimes cryptic. Improving progressively.
 - Documentation may lag behind implementation.
 
-If you hit something broken, that's expected at this stage. [Open an issue.](https://github.com/arianeguay/studio/issues)
+If you hit something broken, that's expected at this stage. [Open an issue.](https://github.com/studio-foundation/studio/issues)
 
 ---
 
