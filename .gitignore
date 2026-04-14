@@ -3,6 +3,7 @@ node_modules/
 dist/
 *.log
 .env
+.env.*
 .DS_Store
 
 # Studio (local, not versioned)
@@ -19,6 +20,7 @@ dist/
 
 # Claude
 .claude/settings.local.json
+CLAUDE.local.md
 
 # Worktrees
 .worktrees/
