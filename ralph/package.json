@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
+  "files": ["dist"],
   "keywords": [
     "studio",
     "ralph",

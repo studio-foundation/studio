@@ -29,6 +29,7 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "files": ["dist"],
   "keywords": [
     "studio",
     "api"

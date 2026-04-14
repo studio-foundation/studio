@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
+  "files": ["dist"],
   "keywords": [
     "llm",
     "agent",
