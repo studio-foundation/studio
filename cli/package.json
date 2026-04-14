@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "files": ["dist"],
+  "files": ["dist", "templates"],
   "keywords": [
     "studio",
     "cli"
