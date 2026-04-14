@@ -20,9 +20,9 @@ const mockCreate = vi.fn().mockResolvedValue({
 const mockStreamFn = vi.fn();
 
 vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn(() => ({
-    messages: { create: mockCreate, stream: mockStreamFn },
-  })),
+  default: vi.fn(function () {
+    return { messages: { create: mockCreate, stream: mockStreamFn } };
+  }),
 }));
 
 import { AnthropicProvider } from '../src/providers/anthropic.js';
