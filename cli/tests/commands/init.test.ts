@@ -132,11 +132,12 @@ describe('createStudioStructure', () => {
     expect(await exists(resolve(TMP, '.studio', 'registry.lock.json'))).toBe(true);
   });
 
-  it('adds .studio/config.yaml, .studio/runs/, and *.keymap.json to .gitignore', async () => {
+  it('adds node_modules/, .studio/config.yaml, .studio/runs/, and *.keymap.json to .gitignore', async () => {
     const { createStudioStructure } = await import('../../src/commands/init.js');
     await createStudioStructure(TMP);
 
     const gitignore = await readFile(resolve(TMP, '.gitignore'), 'utf-8');
+    expect(gitignore).toContain('node_modules/');
     expect(gitignore).toContain('.studio/config.yaml');
     expect(gitignore).toContain('.studio/runs/');
     expect(gitignore).toContain('*.keymap.json');
