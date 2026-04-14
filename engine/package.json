@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/engine",
-  "version": "0.3.0-beta.1",
+  "version": "0.3.0-beta.5",
   "description": "Pipeline orchestration engine for Studio v7",
   "type": "module",
   "main": "./dist/index.js",
