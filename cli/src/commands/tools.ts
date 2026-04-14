@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import chalk from 'chalk';
 import { checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
-import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio/runner';
+import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio-foundation/runner';
 
 export function getToolsDir(studioDir: string): string {
   return resolve(studioDir, 'tools');
@@ -95,7 +95,7 @@ export async function toolsCommand(
         }
 
         // Show installed plugins (from .studio/plugins/)
-        const { loadPlugins: loadPluginManifests } = await import('@studio/runner');
+        const { loadPlugins: loadPluginManifests } = await import('@studio-foundation/runner');
         const pluginsDir = resolve(studioDir, 'plugins');
         const manifests = await loadPluginManifests(pluginsDir);
         if (manifests.length > 0) {

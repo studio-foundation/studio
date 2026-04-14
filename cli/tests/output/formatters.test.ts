@@ -12,7 +12,7 @@ import {
   formatStageLine,
   countWriteFiles,
 } from '../../src/output/formatters.js';
-import type { ToolCallSummary } from '@studio/engine';
+import type { ToolCallSummary } from '@studio-foundation/engine';
 
 describe('humanReadableStageName', () => {
   it('maps brief-analysis to Analyzing brief', () => {

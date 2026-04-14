@@ -2,7 +2,7 @@
  * Provider interface - aligned with @studio/contracts
  */
 
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 
 export interface Provider {
   readonly name: string;

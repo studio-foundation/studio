@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import Fastify from 'fastify';
 import { IntegrationRuntime } from '../src/integration-runtime.js';
 import { IntegrationStore } from '../src/integration-store.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 function makeLinearIntegration(): IntegrationPluginDef {
   return {

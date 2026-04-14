@@ -59,7 +59,7 @@ describe('createProjectDir with { withTools: false }', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|FAIL|Cannot"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|FAIL|Cannot"
 ```
 
 Expected: tests fail because `createProjectDir` doesn't accept a fourth argument yet.
@@ -120,7 +120,7 @@ Replace with:
 ### Step 4: Run the tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|✓|✗|FAIL|PASS" | head -20
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|✓|✗|FAIL|PASS" | head -20
 ```
 
 Expected: all 3 new tests pass. Existing `createProjectDir` tests also pass.
@@ -200,7 +200,7 @@ describe('directInit with noTools: true', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|noTools|FAIL"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|noTools|FAIL"
 ```
 
 Expected: tests fail — `createStudioStructure` and `directInit` don't accept the new params yet.
@@ -270,7 +270,7 @@ Replace with:
 ### Step 5: Run the tests
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|noTools|✓|✗|FAIL|PASS" | head -30
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "withTools|noTools|✓|✗|FAIL|PASS" | head -30
 ```
 
 Expected: all 4 new tests pass. All existing tests also pass.

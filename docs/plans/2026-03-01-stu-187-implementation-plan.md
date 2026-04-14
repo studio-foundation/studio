@@ -57,7 +57,7 @@ describe('loadInvariantsFile', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio/.worktrees/stu-187
-pnpm --filter @studio/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
 ```
 
 Expected: FAIL — `Cannot find module './invariants-loader.js'`
@@ -84,7 +84,7 @@ export async function loadInvariantsFile(projectDir: string): Promise<string | u
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
 ```
 
 Expected: PASS — 2 tests passing
@@ -123,7 +123,7 @@ export interface PipelineContext {
 **Step 6: Run all engine tests to verify no breakage**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all passing (the interface change is additive, optional field)
@@ -177,7 +177,7 @@ pipelineContext.invariantsContent = await loadInvariantsFile(projectPaths.projec
 **Step 3: Build to verify no TypeScript errors**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 
 Expected: exits 0, no errors
@@ -224,7 +224,7 @@ if (pipelineContext.invariantsContent) {
 **Step 2: Build to verify no TypeScript errors**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 
 Expected: exits 0
@@ -299,7 +299,7 @@ describe('invariants integration: system_prompt injection', () => {
 **Step 2: Run tests**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
 ```
 
 Expected: PASS — all tests passing

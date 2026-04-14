@@ -1,5 +1,5 @@
 {
-  "name": "@studio/runner",
+  "name": "@studio-foundation/runner",
   "version": "0.3.0-beta.1",
   "description": "Multi-provider LLM agent runner with tool execution",
   "main": "dist/index.js",
@@ -22,8 +22,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "@studio/anonymizer": "workspace:*",
-    "@studio/contracts": "workspace:*",
+    "@studio-foundation/anonymizer": "workspace:*",
+    "@studio-foundation/contracts": "workspace:*",
     "js-yaml": "^4.1.0",
     "openai": "^4.77.0"
   },

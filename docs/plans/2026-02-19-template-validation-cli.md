@@ -247,7 +247,7 @@ stages:
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | tail -30
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | tail -30
 ```
 
 Expected: FAIL — `validateTemplateDir` not found / module not found.
@@ -458,7 +458,7 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
 **Step 4: Run the tests to confirm they pass**
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|✓|✗|validateTemplateDir)" | head -40
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|✓|✗|validateTemplateDir)" | head -40
 ```
 
 Expected: All `validateTemplateDir` tests PASS.
@@ -568,7 +568,7 @@ program
 **Step 3: Run all CLI tests to confirm nothing broke**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests pass.

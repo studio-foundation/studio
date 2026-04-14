@@ -55,7 +55,7 @@ with:
 ### Step 1.2 — Run test to verify it fails
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "5 built-in|software-full|✓|✗|FAIL|PASS"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "5 built-in|software-full|✓|✗|FAIL|PASS"
 ```
 
 Expected: `✗ returns all 5 built-in templates` — fails because `software-full` doesn't exist yet.
@@ -95,7 +95,7 @@ mkdir -p cli/templates/projects/software-full/project/{pipelines,agents,contract
 ### Step 2.3 — Run test to verify it passes
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "5 built-in|software-full|each template|sorted|✓|✗|FAIL|PASS"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "5 built-in|software-full|each template|sorted|✓|✗|FAIL|PASS"
 ```
 
 Expected: all 3 template tests pass (the `'each template has name, version, description'` test and `'sorted alphabetically'` test also pass — `software-full` sorts after `software` which is correct).

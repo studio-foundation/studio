@@ -13,11 +13,11 @@ Approach 1: `MockProvider as AgentLoopProvider` + per-project `mock.yaml` config
 
 ## Package Changes
 
-### `@studio/contracts` — `LLMRequest`
+### `@studio-foundation/contracts` — `LLMRequest`
 
 Add optional field `stage_name?: string`. Fully backward-compatible — all existing providers ignore it.
 
-### `@studio/runner` — 2 changes
+### `@studio-foundation/runner` — 2 changes
 
 **`runner.ts`:** Pass `task.contract_name` as `stage_name` in the inline `LLMRequest` object (where `model`, `messages`, `tools` are assembled).
 
@@ -31,11 +31,11 @@ Add optional field `stage_name?: string`. Fully backward-compatible — all exis
   4. Return `{ content: JSON.stringify(output), tool_calls, finish_reason: 'stop', usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }`.
 - `call()`: satisfies the `Provider` interface, returns output without tool calls.
 
-### `@studio/engine` — `providerOverride`
+### `@studio-foundation/engine` — `providerOverride`
 
 Add `providerOverride?: string` to `PipelineEngineConfig`. In `executeStage()`, substitute `agentConfig.provider` with `providerOverride` when set. One line change.
 
-### `@studio/cli` — `--provider` flag
+### `@studio-foundation/cli` — `--provider` flag
 
 Add `--provider <name>` to `RunOptions` and the `run` command definition.
 

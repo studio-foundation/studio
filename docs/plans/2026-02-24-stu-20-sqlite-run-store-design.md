@@ -22,8 +22,8 @@ Rationale:
 ```ts
 import { join } from 'node:path';
 import type { StudioConfig } from './config.js';
-import type { RunStore } from '@studio/engine';
-import { SQLiteRunStore } from '@studio/engine';
+import type { RunStore } from '@studio-foundation/engine';
+import { SQLiteRunStore } from '@studio-foundation/engine';
 
 export function createRunStore(config: StudioConfig): RunStore {
   const studioDir = config.resolvedStudioDir ?? join(process.cwd(), '.studio');

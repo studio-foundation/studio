@@ -2,8 +2,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { ProgressDisplay } from '../output/progress.js';
-import type { PipelineDefinition, ToolCall } from '@studio/contracts';
-import { isStageGroup } from '@studio/contracts';
+import type { PipelineDefinition, ToolCall } from '@studio-foundation/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 
 // ── JSONL file discovery ─────────────────────────────────────────────────────
 
@@ -330,8 +330,8 @@ export async function restartCommand(
 
     // Load config + dependencies (mirror run.ts pattern exactly)
     const { loadConfig } = await import('../config.js');
-    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner, resolveRepoPath } = await import('@studio/engine');
-    const { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } = await import('@studio/runner');
+    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner, resolveRepoPath } = await import('@studio-foundation/engine');
+    const { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } = await import('@studio-foundation/runner');
     const { createRunStore } = await import('../run-store-factory.js');
     const { createRunLogger } = await import('../run-logger.js');
     const { mergeEvents } = await import('./run.js');
@@ -394,7 +394,7 @@ export async function restartCommand(
         stages: Record<string, { output: Record<string, unknown>; tool_calls: Array<{ name: string; arguments: Record<string, unknown> }> }>;
       };
       const stagesMap = new Map(Object.entries(mockConfig.stages));
-      const { MockProvider } = await import('@studio/runner');
+      const { MockProvider } = await import('@studio-foundation/runner');
       const mockProvider = new MockProvider(stagesMap);
       providerRegistry.register(mockProvider);
     } else if (options.provider && !providerRegistry.has(options.provider)) {

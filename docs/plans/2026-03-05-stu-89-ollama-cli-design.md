@@ -111,4 +111,4 @@ Always print: how to stop native (`Ctrl+C` or process kill) and Docker (`docker 
 
 ## No New Dependencies
 
-Uses `os` (built-in), `child_process` (built-in), `fetch` (Node 18+), `chalk`, `ora` — all already in `@studio/cli`.
+Uses `os` (built-in), `child_process` (built-in), `fetch` (Node 18+), `chalk`, `ora` — all already in `@studio-foundation/cli`.

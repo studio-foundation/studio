@@ -31,7 +31,7 @@ CLI handlers update terminal immediately
 
 ### Dependency constraint
 
-Runner cannot import from engine (forbidden inverse dependency). Solution: define the two new event types and `RunnerCallbacks` in `@studio/contracts` (the leaf package everyone can import). `EngineEvents` in `engine` adds the two new callbacks using those types.
+Runner cannot import from engine (forbidden inverse dependency). Solution: define the two new event types and `RunnerCallbacks` in `@studio-foundation/contracts` (the leaf package everyone can import). `EngineEvents` in `engine` adds the two new callbacks using those types.
 
 ## Files Changed
 
@@ -47,7 +47,7 @@ Runner cannot import from engine (forbidden inverse dependency). Solution: defin
 
 ## Detailed Design
 
-### 1. New types in `@studio/contracts`
+### 1. New types in `@studio-foundation/contracts`
 
 ```typescript
 export interface ToolCallStartEvent {
@@ -73,7 +73,7 @@ export interface RunnerCallbacks {
 ### 2. `engine/src/events.ts` — extend EngineEvents
 
 ```typescript
-import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio-foundation/contracts';
 
 export interface EngineEvents {
   // ...existing...
@@ -98,7 +98,7 @@ const result = await runAgent({
 
 Add to `RunAgentConfig`:
 ```typescript
-import type { RunnerCallbacks } from '@studio/contracts';
+import type { RunnerCallbacks } from '@studio-foundation/contracts';
 
 export interface RunAgentConfig {
   // ...existing...

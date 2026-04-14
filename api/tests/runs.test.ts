@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
-import type { RunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
+import type { RunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';

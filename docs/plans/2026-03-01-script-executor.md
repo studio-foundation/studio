@@ -6,7 +6,7 @@
 
 **Architecture:** `executor`, `script`, and `runtime` fields are added to `StageDefinition`. The engine makes agent loading conditional on `stageDef.agent` being present. A new `runScript()` function in the runner handles subprocess execution (stdin JSON → stdout JSON). The engine calls `runScript()` or `runAgent()` based on whether an agent config was loaded — the runner owns the knowledge of what each executor does.
 
-**Tech Stack:** Node.js `child_process.spawn`, TypeScript, vitest, existing @studio/contracts + @studio/runner + @studio/engine packages.
+**Tech Stack:** Node.js `child_process.spawn`, TypeScript, vitest, existing @studio-foundation/contracts + @studio-foundation/runner + @studio-foundation/engine packages.
 
 ---
 
@@ -51,7 +51,7 @@ export interface StageDefinition {
 
 **Step 3: Build to verify no type errors**
 
-Run: `pnpm --filter @studio/contracts build`
+Run: `pnpm --filter @studio-foundation/contracts build`
 Expected: success, no errors
 
 **Step 4: Commit**
@@ -86,12 +86,12 @@ to:
 
 **Step 2: Build to verify**
 
-Run: `pnpm --filter @studio/runner build`
+Run: `pnpm --filter @studio-foundation/runner build`
 Expected: success. The field is only assigned (never read as required) outside the runner — so no downstream type errors.
 
 **Step 3: Run runner tests**
 
-Run: `pnpm --filter @studio/runner test`
+Run: `pnpm --filter @studio-foundation/runner test`
 Expected: all pass
 
 **Step 4: Commit**
@@ -298,7 +298,7 @@ describe('runScript', () => {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `pnpm --filter @studio/runner test runner/src/__tests__/script-executor.test.ts`
+Run: `pnpm --filter @studio-foundation/runner test runner/src/__tests__/script-executor.test.ts`
 Expected: FAIL — `runScript` not found
 
 **Step 3: Implement `runner/src/script-executor.ts`**
@@ -411,7 +411,7 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @studio/runner test runner/src/__tests__/script-executor.test.ts`
+Run: `pnpm --filter @studio-foundation/runner test runner/src/__tests__/script-executor.test.ts`
 Expected: all 9 tests pass
 
 **Step 5: Commit**
@@ -440,7 +440,7 @@ export type { ScriptExecutorConfig } from './script-executor.js';
 
 **Step 2: Build**
 
-Run: `pnpm --filter @studio/runner build`
+Run: `pnpm --filter @studio-foundation/runner build`
 Expected: success
 
 **Step 3: Commit**
@@ -473,18 +473,18 @@ Create `engine/src/__tests__/engine.script-stage.test.ts`:
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolve } from 'node:path';
 import { PipelineEngine } from '../engine.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 // Mock runScript from runner to avoid real subprocess spawning
-vi.mock('@studio/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@studio/runner')>();
+vi.mock('@studio-foundation/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@studio-foundation/runner')>();
   return {
     ...actual,
     runScript: vi.fn(),
   };
 });
 
-import { runScript } from '@studio/runner';
+import { runScript } from '@studio-foundation/runner';
 
 const FIXTURES_DIR = resolve(__dirname, '__fixtures__/script-stage');
 
@@ -611,12 +611,12 @@ describe('engine — script stage execution', () => {
 
 **Step 3: Run tests to verify they fail**
 
-Run: `pnpm --filter @studio/engine test engine/src/__tests__/engine.script-stage.test.ts`
+Run: `pnpm --filter @studio-foundation/engine test engine/src/__tests__/engine.script-stage.test.ts`
 Expected: FAIL — compilation errors or engine doesn't handle script stages yet
 
 **Step 4: Update `engine/src/engine.ts` — make agent loading conditional**
 
-**4a. Add `runScript` import** (add to the existing `@studio/runner` import block around line 36-44):
+**4a. Add `runScript` import** (add to the existing `@studio-foundation/runner` import block around line 36-44):
 
 ```typescript
 import {
@@ -624,7 +624,7 @@ import {
   runScript,          // ADD THIS
   type AgentRunResult,
   ...
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 ```
 
 **4b. Make agent loading conditional** (around line 449). Replace:
@@ -718,12 +718,12 @@ const agentRun: AgentRun = {
 
 **Step 5: Build the engine**
 
-Run: `pnpm --filter @studio/engine build`
+Run: `pnpm --filter @studio-foundation/engine build`
 Expected: success, no TypeScript errors
 
 **Step 6: Run the new tests**
 
-Run: `pnpm --filter @studio/engine test engine/src/__tests__/engine.script-stage.test.ts`
+Run: `pnpm --filter @studio-foundation/engine test engine/src/__tests__/engine.script-stage.test.ts`
 Expected: all 3 tests pass
 
 **Step 7: Run the full test suite**

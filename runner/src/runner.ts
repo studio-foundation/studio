@@ -2,7 +2,7 @@
  * Main agent runner function - executes agent with LLM + tools
  */
 
-import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio/contracts';
+import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio-foundation/contracts';
 import { buildPrompt, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';

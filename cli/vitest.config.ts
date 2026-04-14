@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs';
 // imports from other packages (e.g. @studio/api) continue to resolve correctly.
 const runnerDist = resolve(import.meta.dirname, '../runner/dist/index.js');
 const runnerAlias = existsSync(runnerDist) ? {} : {
-  '@studio/runner': resolve(import.meta.dirname, 'tests/__stubs__/studio-runner.ts'),
+  '@studio-foundation/runner': resolve(import.meta.dirname, 'tests/__stubs__/studio-runner.ts'),
 };
 
 export default defineConfig({

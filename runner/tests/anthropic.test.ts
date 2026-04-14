@@ -26,7 +26,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }));
 
 import { AnthropicProvider } from '../src/providers/anthropic.js';
-import type { LLMRequest } from '@studio/contracts';
+import type { LLMRequest } from '@studio-foundation/contracts';
 
 const baseRequest: LLMRequest = {
   model: 'claude-haiku-4-5',

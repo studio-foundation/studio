@@ -17,8 +17,8 @@ describe.skip('feature-builder E2E', () => {
   it('should add FAQ section to About page', async () => {
     const { PipelineEngine } = await import('../../src/engine.js');
     const { InMemoryRunStore } = await import('../../src/state/run-store.js');
-    const { ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools } = await import('@studio/runner');
-    const { createDefaultRegistry } = await import('@studio/runner');
+    const { ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools } = await import('@studio-foundation/runner');
+    const { createDefaultRegistry } = await import('@studio-foundation/runner');
 
     // Setup tools
     const toolRegistry = new ToolRegistry();

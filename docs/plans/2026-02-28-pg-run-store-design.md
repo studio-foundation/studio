@@ -14,9 +14,9 @@ Le kernel Studio utilise `RunStore` comme interface d'abstraction pour la persis
 
 ## Décisions de design
 
-### 1. PgRunStore vit dans `@studio/engine`
+### 1. PgRunStore vit dans `@studio-foundation/engine`
 
-Côte à côte avec `SQLiteRunStore` et `InMemoryRunStore` dans `engine/src/state/run-store.ts`. Pas de nouveau package. `pg` s'ajoute comme dépendance directe de `@studio/engine`, comme `better-sqlite3`.
+Côte à côte avec `SQLiteRunStore` et `InMemoryRunStore` dans `engine/src/state/run-store.ts`. Pas de nouveau package. `pg` s'ajoute comme dépendance directe de `@studio-foundation/engine`, comme `better-sqlite3`.
 
 **Pourquoi pas un package séparé ?** Over-engineering pour une seule classe. `better-sqlite3` est déjà une dep directe — `pg` suit le même pattern.
 
@@ -96,9 +96,9 @@ Pattern de sérialisation identique à SQLite : le champ `result` stocke le `Pip
 
 | Package | Changement |
 |---------|-----------|
-| `@studio/engine` | + `PgRunStore`, + dep `pg` + `@types/pg` |
-| `@studio/cli` | Lit `db.type` depuis config, instancie le bon store |
-| `@studio/api` | Idem CLI |
+| `@studio-foundation/engine` | + `PgRunStore`, + dep `pg` + `@types/pg` |
+| `@studio-foundation/cli` | Lit `db.type` depuis config, instancie le bon store |
+| `@studio-foundation/api` | Idem CLI |
 
 ---
 

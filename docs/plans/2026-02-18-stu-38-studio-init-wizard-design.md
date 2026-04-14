@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-18
 **Issue:** [STU-38](https://linear.app/studioag/issue/STU-38)
-**Package:** `@studio/cli`
+**Package:** `@studio-foundation/cli`
 
 ---
 

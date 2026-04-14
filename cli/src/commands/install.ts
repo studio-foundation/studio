@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 
 const KNOWN_EXTENSIONS: Record<string, string> = {
-  api: '@studio/api',
+  api: '@studio-foundation/api',
 };
 
 export async function installExtensionCommand(extension: string): Promise<void> {

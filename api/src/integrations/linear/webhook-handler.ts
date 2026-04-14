@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyReply } from 'fastify';
 import type { WebhookHandler, WebhookHandlerContext } from '../types.js';
-import { loadPipelineByName } from '@studio/engine';
+import { loadPipelineByName } from '@studio-foundation/engine';
 import { resolveRepoPath } from '../../utils/repo-resolver.js';
 
 interface LinearIssuePayload {

@@ -6,7 +6,7 @@
 
 **Architecture:** Extend `runner/src/providers/provider.ts` with an optional `AgentLoopProvider` interface whose `runAgentLoop()` handles the full tool-calling loop natively (needed because the Responses API uses typed `function_call`/`function_call_output` items, not plain text messages). The runner detects this capability and delegates; existing providers (openai, anthropic) are unaffected.
 
-**Tech Stack:** OpenAI Node SDK v4.77+ (`client.responses.create`), TypeScript, existing `@studio/contracts` types.
+**Tech Stack:** OpenAI Node SDK v4.77+ (`client.responses.create`), TypeScript, existing `@studio-foundation/contracts` types.
 
 ---
 
@@ -27,10 +27,10 @@ Replace the full content of `runner/src/providers/provider.ts` with:
 
 ```typescript
 /**
- * Provider interface - aligned with @studio/contracts
+ * Provider interface - aligned with @studio-foundation/contracts
  */
 
-import type { LLMRequest, LLMResponse, ToolDefinition } from '@studio/contracts';
+import type { LLMRequest, LLMResponse, ToolDefinition } from '@studio-foundation/contracts';
 
 export interface Provider {
   readonly name: string;
@@ -104,7 +104,7 @@ git commit -m "feat(runner): add AgentLoopProvider interface for full-loop provi
  * items that cannot be expressed as plain text messages.
  */
 
-import type { LLMRequest, LLMResponse, Message } from '@studio/contracts';
+import type { LLMRequest, LLMResponse, Message } from '@studio-foundation/contracts';
 import type { Provider, AgentLoopProvider, AgentLoopResult } from './provider.js';
 import OpenAI from 'openai';
 import type {

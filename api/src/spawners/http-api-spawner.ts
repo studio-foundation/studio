@@ -1,4 +1,4 @@
-import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio/contracts';
+import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 
 export class HttpApiSpawner implements RunSpawner {
   constructor(private apiUrl: string, private apiKey?: string) {}

@@ -69,7 +69,7 @@ export * from './spawner.js';
 **Step 4: Build contracts to verify**
 
 ```bash
-pnpm --filter @studio/contracts build
+pnpm --filter @studio-foundation/contracts build
 ```
 Expected: success, no TypeScript errors.
 
@@ -124,13 +124,13 @@ export interface EngineConfig {
 
 Add the import at the top of `engine/src/engine.ts`:
 ```typescript
-import type { RunSpawner } from '@studio/contracts';
+import type { RunSpawner } from '@studio-foundation/contracts';
 ```
 
 **Step 3: Build engine to verify**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 Expected: success.
 
@@ -172,7 +172,7 @@ it('persists and retrieves parent_run_id', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose run-store
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose run-store
 ```
 Expected: FAIL or PASS (the field may already round-trip since it's stored as JSON). If it already passes, the test is still valuable — move on.
 
@@ -193,7 +193,7 @@ try {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose run-store
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose run-store
 ```
 Expected: PASS.
 
@@ -246,7 +246,7 @@ describe('clone', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose tool-registry
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose tool-registry
 ```
 Expected: FAIL with "clone is not a function".
 
@@ -266,7 +266,7 @@ clone(): ToolRegistry {
 **Step 4: Run to verify it passes**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose tool-registry
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose tool-registry
 ```
 Expected: PASS.
 
@@ -293,7 +293,7 @@ Create `runner/tests/studio-run.test.ts`:
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 import { createStudioRunTool } from '../src/tools/builtin/studio-run.js';
-import type { RunSpawner } from '@studio/contracts';
+import type { RunSpawner } from '@studio-foundation/contracts';
 
 function makeSpawner(overrides?: Partial<RunSpawner>): RunSpawner {
   return {
@@ -387,14 +387,14 @@ describe('createStudioRunTool', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose studio-run
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose studio-run
 ```
 Expected: FAIL with "Cannot find module".
 
 **Step 3: Create `runner/src/tools/builtin/studio-run.ts`**
 
 ```typescript
-import type { RunSpawner } from '@studio/contracts';
+import type { RunSpawner } from '@studio-foundation/contracts';
 import type { Tool } from '../tool-registry.js';
 
 interface StudioRunContext {
@@ -469,7 +469,7 @@ export function createStudioRunTool(ctx: StudioRunContext): Tool[] {
 **Step 4: Run to verify tests pass**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose studio-run
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose studio-run
 ```
 Expected: 5 passing.
 
@@ -483,7 +483,7 @@ export { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from './tools/builtin/
 **Step 6: Build runner**
 
 ```bash
-pnpm --filter @studio/runner build
+pnpm --filter @studio-foundation/runner build
 ```
 Expected: success.
 
@@ -510,7 +510,7 @@ Create `engine/tests/direct-engine-spawner.test.ts`:
 import { describe, it, expect, vi } from 'vitest';
 import { DirectEngineSpawner } from '../src/spawners/direct-engine-spawner.js';
 import type { EngineConfig } from '../src/engine.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 function makeSuccessRun(overrides?: Partial<PipelineRun>): PipelineRun {
   return {
@@ -623,14 +623,14 @@ describe('DirectEngineSpawner', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose direct-engine-spawner
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose direct-engine-spawner
 ```
 Expected: FAIL with "Cannot find module".
 
 **Step 3: Create `engine/src/spawners/direct-engine-spawner.ts`**
 
 ```typescript
-import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio/contracts';
+import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 
 export class DirectEngineSpawner implements RunSpawner {
@@ -661,14 +661,14 @@ export class DirectEngineSpawner implements RunSpawner {
 **Step 4: Run to verify tests pass**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose direct-engine-spawner
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose direct-engine-spawner
 ```
 Expected: 4 passing.
 
 **Step 5: Build engine**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 Expected: success.
 
@@ -689,7 +689,7 @@ git commit -m "feat(engine): DirectEngineSpawner — spawn child runs in-process
 **Step 1: Add imports at top of `engine/src/engine.ts`**
 
 ```typescript
-import { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from '@studio/runner';
+import { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from '@studio-foundation/runner';
 ```
 
 **Step 2: In `engine.run()`, after creating `pipelineRun` (around line 188), add per-run registry**
@@ -761,14 +761,14 @@ const pipelineRun: PipelineRun = {
 **Step 5: Build engine**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 Expected: success. Fix any TypeScript errors around the toolRegistry parameter threading.
 
 **Step 6: Run engine tests**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 Expected: all existing tests still pass.
 
@@ -815,7 +815,7 @@ it('passes X-Studio-Depth and X-Studio-Parent-Run-Id headers to launcher', async
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/api test -- --reporter=verbose runs
+pnpm --filter @studio-foundation/api test -- --reporter=verbose runs
 ```
 Expected: FAIL — launcher not called with depth/parentRunId.
 
@@ -875,7 +875,7 @@ await launcher.launch({
 **Step 5: Run to verify test passes**
 
 ```bash
-pnpm --filter @studio/api test -- --reporter=verbose runs
+pnpm --filter @studio-foundation/api test -- --reporter=verbose runs
 ```
 Expected: new test passes. Existing tests still pass.
 
@@ -1029,14 +1029,14 @@ describe('HttpApiSpawner', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/api test -- --reporter=verbose http-api-spawner
+pnpm --filter @studio-foundation/api test -- --reporter=verbose http-api-spawner
 ```
 Expected: FAIL with "Cannot find module".
 
 **Step 3: Create `api/src/spawners/http-api-spawner.ts`**
 
 ```typescript
-import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio/contracts';
+import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 
 export class HttpApiSpawner implements RunSpawner {
   constructor(private apiUrl: string) {}
@@ -1127,14 +1127,14 @@ export class HttpApiSpawner implements RunSpawner {
 **Step 4: Run to verify tests pass**
 
 ```bash
-pnpm --filter @studio/api test -- --reporter=verbose http-api-spawner
+pnpm --filter @studio-foundation/api test -- --reporter=verbose http-api-spawner
 ```
 Expected: 3 passing.
 
 **Step 5: Build api**
 
 ```bash
-pnpm --filter @studio/api build
+pnpm --filter @studio-foundation/api build
 ```
 Expected: success.
 
@@ -1185,14 +1185,14 @@ Note: if `bootstrap.ts` doesn't have `options?.port`, use the default `3000`. Ch
 **Step 3: Build api**
 
 ```bash
-pnpm --filter @studio/api build
+pnpm --filter @studio-foundation/api build
 ```
 Expected: success. Fix any TypeScript errors.
 
 **Step 4: Run api tests**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 Expected: all existing tests still pass (5 failures are pre-existing, not new).
 
@@ -1213,7 +1213,7 @@ git commit -m "feat(api): wire HttpApiSpawner into engine config at bootstrap"
 **Step 1: Add import at top of `run.ts`**
 
 ```typescript
-import { DirectEngineSpawner } from '@studio/engine';
+import { DirectEngineSpawner } from '@studio-foundation/engine';
 ```
 
 Note: check if `DirectEngineSpawner` is exported from `engine/src/index.ts`. If not, add it:
@@ -1253,7 +1253,7 @@ const engine = new PipelineEngine(
 **Step 3: Build cli**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 ```
 Expected: success.
 

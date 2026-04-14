@@ -45,7 +45,7 @@ import ora from 'ora';
 
 // Now import the module under test
 import { ProgressDisplay } from '../src/output/progress.js';
-import type { EngineEvents } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
 
 function makeDisplay() {
   return new ProgressDisplay(false, 'live');
@@ -124,7 +124,7 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
 ### Step 2 — Run to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: tests fail (thinkingSpinner not created yet).
@@ -167,7 +167,7 @@ this.thinkingSpinner = null;
 ### Step 4 — Run to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: all CLI tests pass.
@@ -238,9 +238,9 @@ export interface StagedAgentTokenEvent extends AgentTokenEvent {
 }
 ```
 
-Add import at the top (update existing import from `@studio/contracts`):
+Add import at the top (update existing import from `@studio-foundation/contracts`):
 ```typescript
-import type { ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio/contracts';
+import type { ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
 ```
 
 Add to `EngineEvents`:
@@ -384,7 +384,7 @@ And the `InfiniteToolCallProvider` similarly.
 
 ```bash
 pnpm build 2>&1 | tail -10
-pnpm --filter @studio/runner test 2>&1 | tail -15
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -15
 ```
 
 Expected: build succeeds, all runner tests pass.
@@ -448,7 +448,7 @@ it('should propagate onAgentToken when provider emits tokens', async () => {
 ### Step 2 — Run to verify it fails
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | grep -E "FAIL|PASS|should propagate"
+pnpm --filter @studio-foundation/runner test 2>&1 | grep -E "FAIL|PASS|should propagate"
 ```
 
 Expected: the new test fails (runner doesn't pass onToken to provider yet).
@@ -488,7 +488,7 @@ const response = await provider.call({
 ### Step 4 — Run to verify it passes
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -15
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -15
 ```
 
 Expected: all runner tests pass including the new one.
@@ -543,7 +543,7 @@ describe('ProgressDisplay — token streaming (live mode)', () => {
 ### Step 2 — Run to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -15
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -15
 ```
 
 Expected: new token tests fail.
@@ -614,7 +614,7 @@ this.thinkingSpinner = null;
 ### Step 4 — Run to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -15
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -15
 ```
 
 Expected: all CLI tests pass.
@@ -674,7 +674,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }));
 
 import { AnthropicProvider } from '../src/providers/anthropic.js';
-import type { LLMRequest } from '@studio/contracts';
+import type { LLMRequest } from '@studio-foundation/contracts';
 
 const baseRequest: LLMRequest = {
   model: 'claude-haiku-4-5',
@@ -737,7 +737,7 @@ describe('AnthropicProvider', () => {
 ### Step 2 — Run to verify they fail
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | grep -E "AnthropicProvider|FAIL|PASS" | head -10
+pnpm --filter @studio-foundation/runner test 2>&1 | grep -E "AnthropicProvider|FAIL|PASS" | head -10
 ```
 
 Expected: Anthropic tests fail.
@@ -780,7 +780,7 @@ private parseResponse(response: Awaited<ReturnType<typeof this.client.messages.c
 ### Step 4 — Run to verify they pass
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -15
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -15
 ```
 
 Expected: all runner tests pass including Anthropic tests.
@@ -831,7 +831,7 @@ vi.mock('openai', () => ({
 }));
 
 import { OpenAIProvider } from '../src/providers/openai.js';
-import type { LLMRequest } from '@studio/contracts';
+import type { LLMRequest } from '@studio-foundation/contracts';
 
 const baseRequest: LLMRequest = {
   model: 'gpt-4o-mini',
@@ -879,7 +879,7 @@ describe('OpenAIProvider', () => {
 ### Step 2 — Run to verify they fail
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | grep -E "OpenAIProvider|FAIL" | head -10
+pnpm --filter @studio-foundation/runner test 2>&1 | grep -E "OpenAIProvider|FAIL" | head -10
 ```
 
 ### Step 3 — Implement streaming in `openai.ts`
@@ -961,7 +961,7 @@ private async callStreaming(request: LLMRequest, openaiMessages: ChatCompletionM
 ### Step 4 — Run to verify they pass
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -15
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -15
 ```
 
 ### Step 5 — Commit
@@ -1113,7 +1113,7 @@ it('emits a fake token when onToken is provided', async () => {
 ### Step 2 — Run to verify it fails
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | grep -E "mock-provider|FAIL" | head -5
+pnpm --filter @studio-foundation/runner test 2>&1 | grep -E "mock-provider|FAIL" | head -5
 ```
 
 ### Step 3 — Implement in `mock.ts`
@@ -1138,7 +1138,7 @@ async runAgentLoop(
 ### Step 4 — Run to verify they pass
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -15
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -15
 ```
 
 ### Step 5 — Build all and commit

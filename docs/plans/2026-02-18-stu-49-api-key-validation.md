@@ -276,7 +276,7 @@ describe('getAvailableModels', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | head -30
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | head -30
 ```
 
 Expected: FAIL — `models-cache.ts` does not exist yet.
@@ -418,7 +418,7 @@ export async function getAvailableModels(provider: string, apiKey: string): Prom
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|models-cache)"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|models-cache)"
 ```
 
 Expected: All `models-cache` tests PASS.
@@ -629,7 +629,7 @@ describe('validateApiKeyLive — unknown provider', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | head -20
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | head -20
 ```
 
 Expected: FAIL — `provider-validator.ts` does not exist yet.
@@ -752,7 +752,7 @@ async function validateLocalOllama(
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|provider-validator|models-cache)"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "(PASS|FAIL|provider-validator|models-cache)"
 ```
 
 Expected: All tests PASS.
@@ -958,7 +958,7 @@ Expected: No TypeScript errors.
 **Step 6: Run all CLI tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests pass.
@@ -1124,7 +1124,7 @@ Expected: No TypeScript errors.
 **Step 6: Run all CLI tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests pass.
@@ -1202,7 +1202,7 @@ Expected: No errors.
 **Step 3: Run all CLI tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests pass.

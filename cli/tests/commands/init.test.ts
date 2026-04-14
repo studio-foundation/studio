@@ -14,7 +14,7 @@ vi.mock('node:child_process', async (importOriginal) => {
 });
 
 // Mock @studio/runner since it may not be built in the worktree environment
-vi.mock('@studio/runner', () => ({
+vi.mock('@studio-foundation/runner', () => ({
   listAvailableToolTemplates: vi.fn().mockResolvedValue([]),
 }));
 

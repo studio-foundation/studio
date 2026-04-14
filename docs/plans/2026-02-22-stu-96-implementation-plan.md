@@ -67,7 +67,7 @@ Add to `engine/src/pipeline/hook-executor.test.ts`, inside the existing `describ
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/engine test -- --reporter=verbose 2>&1 | grep -A3 "output"
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose 2>&1 | grep -A3 "output"
 ```
 
 Expected: TypeScript compilation error — `renderHookCommand` doesn't accept 3 arguments yet.
@@ -104,7 +104,7 @@ export function renderHookCommand(
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose 2>&1 | grep -E "✓|✗|PASS|FAIL"
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose 2>&1 | grep -E "✓|✗|PASS|FAIL"
 ```
 
 Expected: all `renderHookCommand` tests pass.
@@ -143,7 +143,7 @@ Add to `engine/src/pipeline/hook-executor.test.ts`, inside `describe('runStageHo
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose 2>&1 | grep -A3 "runStageHook"
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose 2>&1 | grep -A3 "runStageHook"
 ```
 
 Expected: TypeScript error — `runStageHook` doesn't accept 3 arguments.
@@ -170,7 +170,7 @@ export async function runStageHook(
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose
 ```
 
 Expected: all `hook-executor` tests pass.
@@ -268,7 +268,7 @@ Then add the test:
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose 2>&1 | tail -20
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose 2>&1 | tail -20
 ```
 
 Expected: test fails — stage is `rejected` because `{{output.files_changed}}` is not yet resolved (literal string doesn't equal `file.ts`).
@@ -299,7 +299,7 @@ Extract the output context from the ralph result and pass it:
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine test -- --reporter=verbose
+pnpm --filter @studio-foundation/engine test -- --reporter=verbose
 ```
 
 Expected: all engine tests pass, including the new `on_stage_complete` template test.

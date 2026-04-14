@@ -151,7 +151,7 @@ export interface RunnerCallbacks {
 ```typescript
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { StageHookDef, ToolHookDef } from '@studio/contracts';
+import type { StageHookDef, ToolHookDef } from '@studio-foundation/contracts';
 
 const execAsync = promisify(exec);
 const HOOK_TIMEOUT_MS = 30_000;

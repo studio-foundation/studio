@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import chalk from 'chalk';
 import { findStudioDir } from '../studio-dir.js';
-import { UserStore } from '@studio/api/user-store';
+import { UserStore } from '@studio-foundation/api/user-store';
 
 async function getStore(): Promise<{ store: UserStore; close: () => void }> {
   const studioDir = await findStudioDir(process.cwd());

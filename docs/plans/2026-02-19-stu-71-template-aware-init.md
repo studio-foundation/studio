@@ -71,7 +71,7 @@ describe('applyPlaceholders', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test 2>&1 | grep -A5 'placeholders'
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'placeholders'
 ```
 
 Expected: fails with "Cannot find module" or similar.
@@ -97,7 +97,7 @@ export function applyPlaceholders(content: string, vars: Record<string, string>)
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test 2>&1 | grep -A5 'placeholders'
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'placeholders'
 ```
 
 Expected: all 6 tests pass.
@@ -427,7 +427,7 @@ describe('generateAppFiles', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -A3 'generateAppFiles'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'generateAppFiles'
 ```
 
 Expected: fails with "generateAppFiles is not a function" or export not found.
@@ -527,7 +527,7 @@ async function copyDirWithPlaceholders(
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -E '(generateAppFiles|PASS|FAIL|✓|✗)'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(generateAppFiles|PASS|FAIL|✓|✗)'
 ```
 
 Expected: all `generateAppFiles` tests pass, existing tests still pass.
@@ -581,7 +581,7 @@ describe('initGitRepo', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -A3 'initGitRepo'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'initGitRepo'
 ```
 
 Expected: fails with export not found.
@@ -619,7 +619,7 @@ export async function initGitRepo(cwd: string): Promise<boolean> {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -E '(initGitRepo|PASS|FAIL|✓|✗)'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(initGitRepo|PASS|FAIL|✓|✗)'
 ```
 
 Expected: all `initGitRepo` tests pass.
@@ -721,7 +721,7 @@ describe('generateFullApp', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -A3 'generateFullApp'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'generateFullApp'
 ```
 
 **Step 3: Implement `generateFullApp` in `cli/src/commands/init.ts`**
@@ -797,7 +797,7 @@ The "throws when template fails validation" test passes a `badTemplate` director
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test
+pnpm build && pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests pass, including existing tests for `createStudioStructure`, `directInit`, etc.

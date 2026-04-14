@@ -3,11 +3,11 @@ import { createHmac } from 'node:crypto';
 import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import { WebhookStore } from '../src/webhook-store.js';
 import { IntegrationStore } from '../src/integration-store.js';
 import { IntegrationRuntime } from '../src/integration-runtime.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 const WEBHOOK_SECRET = 'test-whsec-abc123';
 

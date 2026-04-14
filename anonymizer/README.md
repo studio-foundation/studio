@@ -1,4 +1,4 @@
-# @studio/anonymizer
+# @studio-foundation/anonymizer
 
 PII detection and anonymization library. Replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
 
@@ -13,8 +13,8 @@ user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() �
 ## Key exports
 
 ```typescript
-import { anonymize, deanonymize, Tokenizer } from '@studio/anonymizer';
-import type { PIICategory, PIIDetectionResult, AnonymizerOptions } from '@studio/anonymizer';
+import { anonymize, deanonymize, Tokenizer } from '@studio-foundation/anonymizer';
+import type { PIICategory, PIIDetectionResult, AnonymizerOptions } from '@studio-foundation/anonymizer';
 
 // Anonymize a string
 const { text, keymap } = anonymize('Hi Marie, call me at 555-867-5309');

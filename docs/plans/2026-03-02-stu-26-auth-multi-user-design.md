@@ -14,7 +14,7 @@ Remplacer le système d'API key globale unique par un système multi-user avec :
 
 ## Architecture
 
-### Approche choisie : `UserStore` dans `@studio/api`
+### Approche choisie : `UserStore` dans `@studio-foundation/api`
 
 Pattern identique à `WebhookStore` et `IntegrationStore`. L'engine reste domain-agnostic. Deux classes : `UserStore` (SQLite) et `PgUserStore` (PostgreSQL), même DB que le run store.
 
@@ -178,10 +178,10 @@ Lit la config depuis `findStudioDir()`, instancie `UserStore` directement (pas v
 
 | Package | Changement |
 |---------|-----------|
-| `@studio/api` | UserStore, PgUserStore, routes/users, auth hook, rate limit, bootstrap |
-| `@studio/contracts` | Type `PipelineRun` : ajouter `user_id?: string` |
-| `@studio/engine` | `RunStore.listPipelineRuns` : ajouter filtre `userId` optionnel |
-| `@studio/cli` | Commande `studio users` |
+| `@studio-foundation/api` | UserStore, PgUserStore, routes/users, auth hook, rate limit, bootstrap |
+| `@studio-foundation/contracts` | Type `PipelineRun` : ajouter `user_id?: string` |
+| `@studio-foundation/engine` | `RunStore.listPipelineRuns` : ajouter filtre `userId` optionnel |
+| `@studio-foundation/cli` | Commande `studio users` |
 
 ## Backward Compat
 

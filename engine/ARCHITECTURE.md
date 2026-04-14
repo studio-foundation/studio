@@ -1,4 +1,4 @@
-# @studio/engine
+# @studio-foundation/engine
 
 Orchestrateur de pipelines. Le cerveau de Studio.
 
@@ -13,7 +13,7 @@ Charge une pipeline YAML → exécute les stages en séquence (ou en groups avec
 - La DB est configurable : `SQLiteRunStore` | `PgRunStore` | `InMemoryRunStore` (union `AnyRunStore`)
 - Le engine ne construit pas de prompts — c'est runner
 - Le engine ne sait pas ce qu'est `repo_manager-write_file` — c'est runner
-- Dépend de `@studio/contracts`, `@studio/ralph`, `@studio/runner`, `@studio/anonymizer`
+- Dépend de `@studio-foundation/contracts`, `@studio-foundation/ralph`, `@studio-foundation/runner`, `@studio-foundation/anonymizer`
 
 ## Fichiers clés
 
@@ -54,4 +54,4 @@ pending → running → success
 
 ## Dépendances
 
-`@studio/contracts`, `@studio/ralph`, `@studio/runner`, `@studio/anonymizer`
+`@studio-foundation/contracts`, `@studio-foundation/ralph`, `@studio-foundation/runner`, `@studio-foundation/anonymizer`

@@ -8,7 +8,7 @@ import {
   clearGroupFeedback,
   type GroupFeedback,
 } from '../src/pipeline/context-propagation.js';
-import type { StageDefinition, ToolCall } from '@studio/contracts';
+import type { StageDefinition, ToolCall } from '@studio-foundation/contracts';
 
 function makeStage(overrides: Partial<StageDefinition> = {}): StageDefinition {
   return {

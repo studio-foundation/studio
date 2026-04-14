@@ -6,7 +6,7 @@ Once a run is launched, there is no way to stop it via the API. If a pipeline lo
 
 ## Solution
 
-Add `POST /api/runs/:id/cancel` to `@studio/api`. The route sends an abort signal to the in-process engine and returns immediately — consistent with the fire-and-forget pattern already used by `POST /runs`.
+Add `POST /api/runs/:id/cancel` to `@studio-foundation/api`. The route sends an abort signal to the in-process engine and returns immediately — consistent with the fire-and-forget pattern already used by `POST /runs`.
 
 ## Approach chosen: Pure route addition
 

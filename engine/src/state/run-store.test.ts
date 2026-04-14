@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SQLiteRunStore, PgRunStore } from './run-store.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 function makeRun(overrides?: Partial<PipelineRun>): PipelineRun {
   return {

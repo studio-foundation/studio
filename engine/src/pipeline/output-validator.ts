@@ -1,11 +1,11 @@
-import type { OutputContract, ToolCall } from '@studio/contracts';
+import type { OutputContract, ToolCall } from '@studio-foundation/contracts';
 import {
   validateSchema,
   validateToolCalls,
   validateRequiredTools,
   validateCountedTools,
   validateToolGroups,
-} from '@studio/ralph';
+} from '@studio-foundation/ralph';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 
 export interface OutputValidationResult {

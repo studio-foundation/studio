@@ -7,7 +7,7 @@
  * items that cannot be expressed as plain text messages.
  */
 
-import type { LLMRequest, LLMResponse, Message } from '@studio/contracts';
+import type { LLMRequest, LLMResponse, Message } from '@studio-foundation/contracts';
 import type { AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './provider.js';
 import OpenAI from 'openai';
 import type {

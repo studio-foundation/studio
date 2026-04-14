@@ -7,7 +7,7 @@ import {
   BUILTIN_TOOL_NAMES,
   listAvailableToolTemplates,
   getBundledToolTemplate,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 
 function toolPath(configsDir: string, name: string): string {
   return join(configsDir, 'tools', `${name}.tool.yaml`);

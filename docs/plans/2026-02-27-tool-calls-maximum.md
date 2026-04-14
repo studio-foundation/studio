@@ -4,7 +4,7 @@
 
 **Goal:** Add `maximum` to `ToolCallRequirements` so contracts can declare an upper bound on successful tool calls, causing validation to fail with a loop-detection message when exceeded.
 
-**Architecture:** `maximum` is added to the `ToolCallRequirements` interface in `@studio/contracts` (leaf package, no deps). The check lives in `validateToolCalls()` in `@studio/ralph`, alongside the existing `minimum` check, operating on the same `successfulCount`. Injection into RALPH retry context is free — the existing `allFailures` accumulator in `loop.ts` already forwards validation errors to the next attempt.
+**Architecture:** `maximum` is added to the `ToolCallRequirements` interface in `@studio-foundation/contracts` (leaf package, no deps). The check lives in `validateToolCalls()` in `@studio-foundation/ralph`, alongside the existing `minimum` check, operating on the same `successfulCount`. Injection into RALPH retry context is free — the existing `allFailures` accumulator in `loop.ts` already forwards validation errors to the next attempt.
 
 **Tech Stack:** TypeScript, Vitest, pnpm workspaces
 
@@ -44,7 +44,7 @@ export interface ToolCallRequirements {
 
 Run from worktree root:
 ```bash
-pnpm --filter @studio/contracts build
+pnpm --filter @studio-foundation/contracts build
 ```
 Expected: no errors, `contracts/dist/` updated.
 
@@ -134,7 +134,7 @@ In [ralph/tests/validator.test.ts](ralph/tests/validator.test.ts), inside the ex
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 Expected: new tests fail with errors like "maximum is not a property" or check failures.
 
@@ -215,7 +215,7 @@ export function validateToolCalls(toolCalls: ToolCall[], requirements?: ToolCall
 **Step 2: Run all ralph tests**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 Expected: all 84 + 8 new = 92 tests pass, 0 failures.
 

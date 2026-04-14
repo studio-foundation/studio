@@ -31,7 +31,7 @@ interface RunSpawner {
 }
 ```
 
-Vit dans `@studio/contracts`. Les deux implémentations en dépendent.
+Vit dans `@studio-foundation/contracts`. Les deux implémentations en dépendent.
 
 ### Builtin tool (runner)
 

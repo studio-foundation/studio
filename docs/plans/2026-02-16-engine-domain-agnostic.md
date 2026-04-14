@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Remove all domain-specific knowledge (software dev, QA, code generation) from `@studio/engine` so it can orchestrate any pipeline without code changes.
+**Goal:** Remove all domain-specific knowledge (software dev, QA, code generation) from `@studio-foundation/engine` so it can orchestrate any pipeline without code changes.
 
 **Architecture:** 6 targeted changes across `contracts/src/` and `engine/src/`. No structural changes — same files, same APIs, same state machine. Replace hardcoded domain logic with generic equivalents and configurable contract fields.
 

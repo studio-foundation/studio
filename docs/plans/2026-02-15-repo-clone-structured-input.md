@@ -199,8 +199,8 @@ In `engine/src/pipeline/context-propagation.ts`:
 
 ```typescript
 import * as yaml from 'js-yaml';
-import type { StageDefinition } from '@studio/contracts';
-import type { AgentContext } from '@studio/runner';
+import type { StageDefinition } from '@studio-foundation/contracts';
+import type { AgentContext } from '@studio-foundation/runner';
 
 export type PipelineInput = string | Record<string, unknown>;
 
@@ -396,7 +396,7 @@ In `cli/src/commands/run.ts`, add after imports:
 import { execSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { loadPipelineByName } from '@studio/engine';
+import { loadPipelineByName } from '@studio-foundation/engine';
 ```
 
 Add the clone function before `runCommand`:

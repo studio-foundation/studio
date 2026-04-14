@@ -2,11 +2,11 @@
 
 ## Contexte
 
-Phase 2 de `@studio/api`. Permet aux clients de suivre un run en temps réel via Server-Sent Events. Prérequis : STU-22 (scaffolding API) est terminé sur la branche `feat/stu-22-api`.
+Phase 2 de `@studio-foundation/api`. Permet aux clients de suivre un run en temps réel via Server-Sent Events. Prérequis : STU-22 (scaffolding API) est terminé sur la branche `feat/stu-22-api`.
 
 ## Décisions clés
 
-- **Approche A : per-run engine instances + RunEventBus.** Le `InProcessLauncher` crée une nouvelle instance `PipelineEngine` par `launch()` (pas par serveur). Zéro changement dans `@studio/engine`.
+- **Approche A : per-run engine instances + RunEventBus.** Le `InProcessLauncher` crée une nouvelle instance `PipelineEngine` par `launch()` (pas par serveur). Zéro changement dans `@studio-foundation/engine`.
 - **Replay + live.** Le SSE endpoint rejoue d'abord le JSONL historique, puis stream les events live. Un client qui se connecte en cours de run reçoit le tableau complet.
 - **JSONL étendu.** Le logger écrit tous les events structurels (`stage_complete`, `stage_retry`, `group_feedback`, `pipeline_complete`, `pipeline_cancelled`). Les events verbeux (`onAgentToken`, `onAgentThinking`) sont exclus.
 - **Filtrage côté route.** Le query param `?events=` est filtré dans la route SSE, pas dans le bus. Le bus émet tout.

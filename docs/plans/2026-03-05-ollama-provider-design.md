@@ -1,4 +1,4 @@
-# Design: Ollama Provider Adapter in @studio/runner
+# Design: Ollama Provider Adapter in @studio-foundation/runner
 
 **Ticket:** STU-87
 **Date:** 2026-03-05
@@ -71,7 +71,7 @@ No live integration test — requires local Ollama instance.
 
 ## What Does Not Change
 
-- `@studio/engine` — domain-agnostic, agnostic of provider name
-- `@studio/ralph` — takes a generic executor, no provider knowledge
-- `@studio/contracts` — zero dependencies, zero changes
+- `@studio-foundation/engine` — domain-agnostic, agnostic of provider name
+- `@studio-foundation/ralph` — takes a generic executor, no provider knowledge
+- `@studio-foundation/contracts` — zero dependencies, zero changes
 - Runner's multi-turn tool call loop — same path regardless of provider

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { InputSchema } from '@studio/contracts';
+import type { InputSchema } from '@studio-foundation/contracts';
 import { collectStructuredInput } from '../../src/utils/input-wizard.js';
 
 // Mock @inquirer/prompts at module level

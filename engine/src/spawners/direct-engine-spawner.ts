@@ -1,4 +1,4 @@
-import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio/contracts';
+import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 
 export class DirectEngineSpawner implements RunSpawner {

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add `PgRunStore` to `@studio/engine` — une implémentation PostgreSQL d'`AsyncRunStore` qui utilise raw SQL (`pg`), crée sa propre table `studio_pipeline_runs`, et s'active via `db.type: postgres` dans `.studio/config.yaml`.
+**Goal:** Add `PgRunStore` to `@studio-foundation/engine` — une implémentation PostgreSQL d'`AsyncRunStore` qui utilise raw SQL (`pg`), crée sa propre table `studio_pipeline_runs`, et s'active via `db.type: postgres` dans `.studio/config.yaml`.
 
 **Architecture:** `PgRunStore` vit dans `engine/src/state/run-store.ts` aux côtés de `SQLiteRunStore` et `InMemoryRunStore`. Elle utilise `pg` (Pool) directement, sans Prisma, et auto-migre son schéma au démarrage. `createRunStore` dans le CLI devient async et retourne `AnyRunStore` selon `config.db.type`.
 
@@ -44,7 +44,7 @@ Expected: tous les tests passent, zéro failure.
 
 ---
 
-### Task 2: Ajouter `pg` comme dépendance de `@studio/engine`
+### Task 2: Ajouter `pg` comme dépendance de `@studio-foundation/engine`
 
 **Files:**
 - Modify: `engine/package.json`
@@ -174,7 +174,7 @@ function makeSampleRun(
     status,
     started_at: startedAt,
     stages: [],
-  } as import('@studio/contracts').PipelineRun;
+  } as import('@studio-foundation/contracts').PipelineRun;
 }
 ```
 
@@ -358,7 +358,7 @@ git commit -m "feat(engine): implement PgRunStore with raw pg and auto-init sche
 
 ---
 
-### Task 5: Exporter `PgRunStore` depuis `@studio/engine`
+### Task 5: Exporter `PgRunStore` depuis `@studio-foundation/engine`
 
 **Files:**
 - Modify: `engine/src/index.ts`
@@ -393,7 +393,7 @@ export type { RunStore, AsyncRunStore, AnyRunStore } from '../state/run-store.js
 **Step 3: Build engine pour vérifier**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 Expected: build réussit, zéro erreur TypeScript.
 
@@ -427,7 +427,7 @@ export interface StudioConfig {
 **Step 2: Vérifier que ça compile**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 ```
 Expected: zéro erreur.
 
@@ -455,8 +455,8 @@ git commit -m "feat(cli): add db config to StudioConfig"
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { StudioConfig } from './config.js';
-import { SQLiteRunStore, InMemoryRunStore, PgRunStore } from '@studio/engine';
-import type { AnyRunStore } from '@studio/engine';
+import { SQLiteRunStore, InMemoryRunStore, PgRunStore } from '@studio-foundation/engine';
+import type { AnyRunStore } from '@studio-foundation/engine';
 
 export async function createRunStore(config: StudioConfig): Promise<AnyRunStore> {
   const dbType = config.db?.type ?? 'sqlite';
@@ -508,7 +508,7 @@ await store.close?.();
 **Step 4: Build CLI**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 ```
 Expected: zéro erreur TypeScript.
 
@@ -521,7 +521,7 @@ git commit -m "feat(cli): createRunStore async, support postgres and inmemory vi
 
 ---
 
-### Task 8: Mettre à jour `@studio/api` bootstrap
+### Task 8: Mettre à jour `@studio-foundation/api` bootstrap
 
 **Files:**
 - Modify: `api/src/bootstrap.ts`
@@ -538,7 +538,7 @@ const store = new SQLiteRunStore(dbPath);
 Remplacer par un appel à une factory identique à celle du CLI :
 
 ```typescript
-import { SQLiteRunStore, InMemoryRunStore, PgRunStore, type AnyRunStore } from '@studio/engine';
+import { SQLiteRunStore, InMemoryRunStore, PgRunStore, type AnyRunStore } from '@studio-foundation/engine';
 
 // Dans la fonction bootstrap, remplacer la création du store :
 const apiConfig = config as StudioApiConfig & { db?: { type?: string; url?: string } };
@@ -572,7 +572,7 @@ Si ces appels ne sont pas awaités mais que `store` peut être async, les wrappe
 **Step 3: Build API**
 
 ```bash
-pnpm --filter @studio/api build
+pnpm --filter @studio-foundation/api build
 ```
 Expected: zéro erreur TypeScript.
 
@@ -636,7 +636,7 @@ gh pr create \
   --body "$(cat <<'EOF'
 ## Quoi
 
-Ajoute `PgRunStore` à `@studio/engine` — une implémentation `AsyncRunStore` qui utilise PostgreSQL via raw SQL (pas Prisma).
+Ajoute `PgRunStore` à `@studio-foundation/engine` — une implémentation `AsyncRunStore` qui utilise PostgreSQL via raw SQL (pas Prisma).
 
 ## Pourquoi
 
@@ -644,9 +644,9 @@ Les apps déployées avec une base PostgreSQL (ex: Little Chef) peuvent maintena
 
 ## Packages touchés
 
-- `@studio/engine` — `PgRunStore` + dep `pg`
-- `@studio/cli` — `createRunStore` async, lit `config.db.type`
-- `@studio/api` — bootstrap supporte `db.type: postgres`
+- `@studio-foundation/engine` — `PgRunStore` + dep `pg`
+- `@studio-foundation/cli` — `createRunStore` async, lit `config.db.type`
+- `@studio-foundation/api` — bootstrap supporte `db.type: postgres`
 
 ## Config utilisateur
 

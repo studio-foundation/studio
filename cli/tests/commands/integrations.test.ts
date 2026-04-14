@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm, readFile, access, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import { installIntegration, getIntegrationStatus, removeIntegration, runIntegrationTest } from '../../src/commands/integrations.js';
 import type { IntegrationTestResult } from '../../src/commands/integrations.js';
 
@@ -21,7 +21,7 @@ afterEach(async () => {
 
 describe('installIntegration — bundled source', () => {
   it('installs a known bundled integration by @studio/integration-<name>', async () => {
-    await installIntegration('@studio/integration-linear', integrationsDir);
+    await installIntegration('@studio-foundation/integration-linear', integrationsDir);
     const destPath = join(integrationsDir, 'linear.integration.yaml');
     await expect(access(destPath)).resolves.toBeUndefined();
     const content = await readFile(destPath, 'utf-8');
@@ -30,14 +30,14 @@ describe('installIntegration — bundled source', () => {
 
   it('throws if integration name is unknown', async () => {
     await expect(
-      installIntegration('@studio/integration-doesnotexist', integrationsDir)
+      installIntegration('@studio-foundation/integration-doesnotexist', integrationsDir)
     ).rejects.toThrow("Unknown integration 'doesnotexist'");
   });
 
   it('throws if already installed', async () => {
-    await installIntegration('@studio/integration-linear', integrationsDir);
+    await installIntegration('@studio-foundation/integration-linear', integrationsDir);
     await expect(
-      installIntegration('@studio/integration-linear', integrationsDir)
+      installIntegration('@studio-foundation/integration-linear', integrationsDir)
     ).rejects.toThrow("'linear' already installed");
   });
 });
@@ -87,7 +87,7 @@ describe('getIntegrationStatus', () => {
 
 describe('removeIntegration', () => {
   it('removes an installed integration file', async () => {
-    await installIntegration('@studio/integration-linear', integrationsDir);
+    await installIntegration('@studio-foundation/integration-linear', integrationsDir);
     const destPath = join(integrationsDir, 'linear.integration.yaml');
     await expect(access(destPath)).resolves.toBeUndefined();
 

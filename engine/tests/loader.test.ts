@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { parsePipelineYaml, loadPipeline, loadPipelineByName } from '../src/pipeline/loader.js';
 import { parseAgentYaml } from '../src/pipeline/agent-loader.js';
 import { parseContractYaml } from '../src/pipeline/contract-loader.js';
-import { isStageGroup } from '@studio/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 
 const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
 const PIPELINES_DIR = join(FIXTURES_DIR, 'software', 'pipelines');

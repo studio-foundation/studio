@@ -1,4 +1,4 @@
-# @studio/runner
+# @studio-foundation/runner
 
 Multi-provider LLM agent runner with tool plugin execution, streaming support, and PII anonymization.
 
@@ -15,7 +15,7 @@ engine → runner.runAgent(config) → AgentRunResult
 ## Key exports
 
 ```typescript
-import { runAgent, createDefaultRegistry, ToolRegistry, AnonymizationMiddleware } from '@studio/runner';
+import { runAgent, createDefaultRegistry, ToolRegistry, AnonymizationMiddleware } from '@studio-foundation/runner';
 
 const registry = createDefaultRegistry({
   anthropic: { apiKey: process.env.ANTHROPIC_API_KEY },
@@ -87,7 +87,7 @@ const keymap = middleware.getKeymap(); // Reconstruct original values
 runner supports loading Claude Code plugins and YAML tool plugins:
 
 ```typescript
-import { loadPlugin } from '@studio/runner';
+import { loadPlugin } from '@studio-foundation/runner';
 
 // Load a Claude Code plugin (.mcp.json + skills/ + agents/)
 const plugin = await loadPlugin('/path/to/plugin');

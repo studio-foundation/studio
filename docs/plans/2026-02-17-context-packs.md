@@ -6,7 +6,7 @@
 
 **Architecture:** Engine resolves pack names → YAML files → reads workspace files → produces `ResolvedContextPack[]` → stored in `AgentContext.context_packs` → runner formats each as a distinct `##` section in the LLM prompt. Contracts holds shared types; engine handles loading; runner handles formatting.
 
-**Tech Stack:** TypeScript, js-yaml (already in engine), Node.js fs/promises (already in runner), `@studio/contracts` (shared types).
+**Tech Stack:** TypeScript, js-yaml (already in engine), Node.js fs/promises (already in runner), `@studio-foundation/contracts` (shared types).
 
 **Execution order:** contracts → runner → engine (+ configs). Each is a separate git repo with its own branch and PR.
 
@@ -102,7 +102,7 @@ Ajoute les types pour le système de context packs (STU-13) :
 STU-13 — Shared types used by both engine (loading) and runner (formatting).
 
 ## Packages touchés
-- `@studio/contracts`
+- `@studio-foundation/contracts`
 
 ## Comment tester
 Build passe. `ContextPackDefinition` et `ResolvedContextPack` sont exportés. `StageDefinition.context` accepte `packs?: string[]`.
@@ -228,7 +228,7 @@ In `runner/src/prompt-builder.ts`:
 
 Add import at top (after line 5):
 ```typescript
-import type { ResolvedContextPack } from '@studio/contracts';
+import type { ResolvedContextPack } from '@studio-foundation/contracts';
 ```
 
 Replace the `AgentContext` interface (lines 21-24):
@@ -326,7 +326,7 @@ gh pr create --title "feat(runner): context_packs in AgentContext + prompt forma
 STU-13 — Rich context packs. Le runner reçoit les packs déjà résolus de l'engine et les formate dans le prompt.
 
 ## Packages touchés
-- `@studio/runner`
+- `@studio-foundation/runner`
 
 ## Comment tester
 `npm test` dans runner passe. Un stage avec `context_packs` voit ses packs dans le prompt avant `## Task`.
@@ -493,7 +493,7 @@ Create `engine/src/pipeline/context-pack-loader.ts`:
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import type { ContextPackDefinition, ResolvedContextPack } from '@studio/contracts';
+import type { ContextPackDefinition, ResolvedContextPack } from '@studio-foundation/contracts';
 
 export async function loadContextPacks(
   packNames: string[],
@@ -708,7 +708,7 @@ gh pr create --title "feat(engine): context pack loading for STU-13" --body "$(c
 STU-13 — Rich context packs. Les agents peuvent maintenant recevoir des conventions, standards, et docs de projet directement dans leur prompt via `packs: [...]` dans le pipeline YAML.
 
 ## Packages touchés
-- `@studio/engine`
+- `@studio-foundation/engine`
 - `engine/configs/software/`
 
 ## Comment tester

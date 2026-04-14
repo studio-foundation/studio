@@ -131,7 +131,7 @@ describe('formatTokens', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: FAIL — `formatTokens` is not exported
 
 **Step 3: Write minimal implementation**
@@ -157,7 +157,7 @@ export function formatTokens(count: number): string {
 
 **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -213,7 +213,7 @@ describe('formatStageLine', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: FAIL — `formatStageLine` is not exported
 
 **Step 3: Write minimal implementation**
@@ -238,7 +238,7 @@ export function formatStageLine(prefix: string, name: string, suffix: string): s
 
 **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -289,7 +289,7 @@ describe('countWriteFiles', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: FAIL
 
 **Step 3: Write minimal implementation**
@@ -308,7 +308,7 @@ Note: `toolAction()` is already defined as a private function in formatters.ts. 
 
 **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @studio/cli test -- --run tests/output/formatters.test.ts`
+Run: `pnpm --filter @studio-foundation/cli test -- --run tests/output/formatters.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -686,7 +686,7 @@ Decision: Keep `formatResult` and its tests — it's still useful for `studio st
 
 **Step 3: Run all CLI tests**
 
-Run: `pnpm --filter @studio/cli test`
+Run: `pnpm --filter @studio-foundation/cli test`
 Expected: PASS
 
 **Step 4: Run full build**
@@ -712,7 +712,7 @@ Expected: PASS for all packages (contracts, ralph, runner, engine, cli)
 
 **Step 2: Run a mock pipeline to verify output**
 
-Run: `pnpm --filter @studio/cli build && node cli/dist/index.js run feature-builder --provider mock`
+Run: `pnpm --filter @studio-foundation/cli build && node cli/dist/index.js run feature-builder --provider mock`
 (Assuming a mock.yaml exists in a test .studio/ directory)
 
 Visually verify the output matches the target UX from the issue.

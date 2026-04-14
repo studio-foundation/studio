@@ -1,4 +1,4 @@
-# @studio/api
+# @studio-foundation/api
 
 Serveur HTTP REST pour Studio. Même engine que le CLI, interface machine-to-machine.
 
@@ -10,7 +10,7 @@ Résultat : Linear webhook → pipeline run → SSE streaming → webhook dispat
 
 ## Règles
 
-- Le API est aussi un **composition root** — même pattern que CLI, dépend de `@studio/engine` et `@studio/runner`
+- Le API est aussi un **composition root** — même pattern que CLI, dépend de `@studio-foundation/engine` et `@studio-foundation/runner`
 - Toute route Fastify **DOIT** avoir un schema Swagger complet (tags, summary, params, response). Sans ça, la route n'apparaît pas dans Swagger UI.
 - Le engine est appelé via `InProcessLauncher` — pas de HTTP round-trip interne sauf pour `HttpApiSpawner`
 - Swagger UI désactivé en production (`NODE_ENV=production`)
@@ -49,4 +49,4 @@ findStudioDir(cwd)
 
 ## Dépendances
 
-`@studio/engine`, `@studio/runner`, `@studio/contracts`
+`@studio-foundation/engine`, `@studio-foundation/runner`, `@studio-foundation/contracts`

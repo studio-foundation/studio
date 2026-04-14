@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePipelineYaml } from './loader.js';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition } from '@studio-foundation/contracts';
 
 const MINIMAL_STAGE = `
   - name: analyze

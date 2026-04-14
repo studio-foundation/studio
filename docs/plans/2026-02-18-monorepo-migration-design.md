@@ -62,7 +62,7 @@ packages:
   "name": "studio-workspace",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @studio/contracts build && pnpm --filter @studio/ralph build && pnpm --filter @studio/runner build && pnpm --filter @studio/engine build && pnpm --filter @studio/cli build",
+    "build": "pnpm --filter @studio-foundation/contracts build && pnpm --filter @studio-foundation/ralph build && pnpm --filter @studio-foundation/runner build && pnpm --filter @studio-foundation/engine build && pnpm --filter @studio-foundation/cli build",
     "clean": "pnpm -r run clean"
   }
 }
@@ -72,10 +72,10 @@ packages:
 
 | Package | Dépendance → avant | → après |
 |---------|-------------------|---------|
-| ralph | `@studio/contracts: "file:../contracts"` | `"workspace:*"` |
-| runner | `@studio/contracts: "file:../contracts"` | `"workspace:*"` |
-| engine | `@studio/contracts`, `@studio/ralph`, `@studio/runner` | `"workspace:*"` |
-| cli | `@studio/contracts`, `@studio/engine`, `@studio/ralph`, `@studio/runner` | `"workspace:*"` |
+| ralph | `@studio-foundation/contracts: "file:../contracts"` | `"workspace:*"` |
+| runner | `@studio-foundation/contracts: "file:../contracts"` | `"workspace:*"` |
+| engine | `@studio-foundation/contracts`, `@studio-foundation/ralph`, `@studio-foundation/runner` | `"workspace:*"` |
+| cli | `@studio-foundation/contracts`, `@studio-foundation/engine`, `@studio-foundation/ralph`, `@studio-foundation/runner` | `"workspace:*"` |
 
 **Supprimer** tous les `node_modules/` individuels et `package-lock.json`.
 
@@ -101,7 +101,7 @@ code-builder/
 │           └── inputs/
 ├── src/                       ← code cible (vide pour l'instant)
 ├── .gitignore                 ← ignorer .studio/runs/, .studio/config.yaml
-└── package.json               ← dépend de @studio/cli
+└── package.json               ← dépend de @studio-foundation/cli
 ```
 
 **Migration :**

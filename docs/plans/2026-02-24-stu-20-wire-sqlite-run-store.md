@@ -38,7 +38,7 @@ export interface RunStore {
 **Step 2: Typecheck engine**
 
 ```bash
-pnpm --filter @studio/engine typecheck
+pnpm --filter @studio-foundation/engine typecheck
 ```
 
 Expected: no errors.
@@ -46,7 +46,7 @@ Expected: no errors.
 **Step 3: Build engine**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 
 Expected: exits 0.
@@ -76,7 +76,7 @@ Create `cli/src/run-store-factory.test.ts`:
 import { describe, it, expect, afterEach } from 'vitest';
 import { rm } from 'node:fs/promises';
 import { createRunStore } from './run-store-factory.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 const tmpDir = `/tmp/.studio-factory-test-${Date.now()}`;
 
@@ -129,7 +129,7 @@ describe('createRunStore', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: FAIL — `run-store-factory.ts` does not exist yet.
@@ -141,8 +141,8 @@ Create `cli/src/run-store-factory.ts`:
 ```typescript
 import { join } from 'node:path';
 import type { StudioConfig } from './config.js';
-import { SQLiteRunStore } from '@studio/engine';
-import type { RunStore } from '@studio/engine';
+import { SQLiteRunStore } from '@studio-foundation/engine';
+import type { RunStore } from '@studio-foundation/engine';
 
 /**
  * Create the production RunStore from config.
@@ -159,7 +159,7 @@ export function createRunStore(config: StudioConfig): RunStore {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS.
@@ -221,12 +221,12 @@ try {
 }
 ```
 
-Also remove the unused `SQLiteRunStore` import from `@studio/engine` if it becomes unused (check the import at the top of `status.ts`).
+Also remove the unused `SQLiteRunStore` import from `@studio-foundation/engine` if it becomes unused (check the import at the top of `status.ts`).
 
 **Step 2: Typecheck**
 
 ```bash
-pnpm --filter @studio/cli typecheck
+pnpm --filter @studio-foundation/cli typecheck
 ```
 
 Expected: no errors.
@@ -253,7 +253,7 @@ At the top of `cli/src/commands/run.ts`, add:
 
 ```typescript
 import { createRunStore } from '../run-store-factory.js';
-import type { RunStore } from '@studio/engine';
+import type { RunStore } from '@studio-foundation/engine';
 ```
 
 **Step 2: Create the store (fail-silent) before the engine**
@@ -320,7 +320,7 @@ Note: `result` is declared with `let result;` before the try block and assigned 
 **Step 5: Typecheck**
 
 ```bash
-pnpm --filter @studio/cli typecheck
+pnpm --filter @studio-foundation/cli typecheck
 ```
 
 Expected: no errors.

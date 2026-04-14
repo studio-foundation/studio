@@ -3,7 +3,7 @@ import { runAgent } from './runner.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
-import type { ResolvedAgentConfig, LLMRequest, LLMResponse } from '@studio/contracts';
+import type { ResolvedAgentConfig, LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { Provider } from './providers/provider.js';
 
 /**

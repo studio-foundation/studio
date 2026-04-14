@@ -2,7 +2,7 @@
 // InProcessLauncher creates a new PipelineEngine per run for event isolation.
 // Future: BullMQLauncher, etc.
 
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 import type {
   EngineConfig,
   EngineEvents,
@@ -20,9 +20,9 @@ import type {
   PipelineCancelledEvent,
   StagedToolCallStartEvent,
   StagedToolCallCompleteEvent,
-} from '@studio/engine';
-import { PipelineEngine } from '@studio/engine';
-import { loadProjectTools } from '@studio/runner';
+} from '@studio-foundation/engine';
+import { PipelineEngine } from '@studio-foundation/engine';
+import { loadProjectTools } from '@studio-foundation/runner';
 import { join } from 'node:path';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';

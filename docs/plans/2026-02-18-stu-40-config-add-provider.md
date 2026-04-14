@@ -107,7 +107,7 @@ describe('validateApiKeyForProvider', () => {
 ### Step 2: Run to verify tests fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL — `PROVIDERS` and `validateApiKeyForProvider` not exported yet.
@@ -142,7 +142,7 @@ export function validateApiKeyForProvider(provider: string, key: string): true |
 ### Step 4: Run tests to verify they pass
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All new tests PASS, existing tests still PASS.
@@ -259,7 +259,7 @@ describe('addProviderConfig', () => {
 ### Step 2: Run to verify tests fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL — `addProviderConfig` not exported yet.
@@ -297,7 +297,7 @@ export async function addProviderConfig(
 ### Step 4: Run tests to verify they pass
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests PASS.
@@ -344,7 +344,7 @@ describe('isProviderConfigured', () => {
 ### Step 2: Run to verify test fails
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL.
@@ -362,7 +362,7 @@ export async function isProviderConfigured(configFile: string, provider: string)
 ### Step 4: Run tests
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: PASS.
@@ -556,7 +556,7 @@ program
 ### Step 6: Run all CLI tests
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -30
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -30
 ```
 
 Expected: All tests PASS (existing + new).

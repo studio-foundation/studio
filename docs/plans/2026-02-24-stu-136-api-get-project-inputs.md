@@ -76,7 +76,7 @@ describe('GET /api/projects/:id/inputs', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: 3 new tests fail with 404 (route not registered yet).
@@ -142,7 +142,7 @@ In `api/src/routes/projects.ts`, add the following block immediately after the c
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass including the 3 new ones.
@@ -181,12 +181,12 @@ gh pr create \
 
 ## Packages touched
 
-- `@studio/api` — new route in `routes/projects.ts`
+- `@studio-foundation/api` — new route in `routes/projects.ts`
 
 ## How to test
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Closes STU-136

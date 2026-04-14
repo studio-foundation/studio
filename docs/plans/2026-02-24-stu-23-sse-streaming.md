@@ -4,7 +4,7 @@
 
 **Goal:** Add `GET /api/runs/:id/stream` SSE endpoint that replays historical events then streams live events for in-progress runs.
 
-**Architecture:** Per-run `PipelineEngine` instances with a `RunEventBus` (in-memory pub/sub) for SSE routing. No engine changes — all new code lives in `@studio/api`. JSONL logger extended to write all structural events for replay.
+**Architecture:** Per-run `PipelineEngine` instances with a `RunEventBus` (in-memory pub/sub) for SSE routing. No engine changes — all new code lives in `@studio-foundation/api`. JSONL logger extended to write all structural events for replay.
 
 **Tech Stack:** Fastify v5, Node.js raw HTTP streams (`reply.raw`), TypeScript, Vitest.
 
@@ -25,7 +25,7 @@ git checkout -b feat/stu-23-sse
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all existing launcher + server tests pass.
@@ -101,7 +101,7 @@ describe('RunEventBus', () => {
 ### Step 2: Run — verify FAIL
 
 ```bash
-pnpm --filter @studio/api test event-bus
+pnpm --filter @studio-foundation/api test event-bus
 ```
 
 Expected: `Cannot find module '../src/event-bus.js'`
@@ -160,7 +160,7 @@ export class RunEventBus {
 ### Step 4: Run — verify PASS
 
 ```bash
-pnpm --filter @studio/api test event-bus
+pnpm --filter @studio-foundation/api test event-bus
 ```
 
 Expected: 5 tests pass.
@@ -192,8 +192,8 @@ import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InProcessLauncher } from '../src/launcher.js';
 import { RunEventBus } from '../src/event-bus.js';
-import { InMemoryRunStore } from '@studio/engine';
-import type { EngineConfig, EngineEvents } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
+import type { EngineConfig, EngineEvents } from '@studio-foundation/engine';
 
 const TMP_RUNS_DIR = resolve('/tmp', `studio-launcher-test-${Date.now()}`);
 
@@ -320,7 +320,7 @@ describe('InProcessLauncher', () => {
 ### Step 2: Run — verify FAIL
 
 ```bash
-pnpm --filter @studio/api test launcher
+pnpm --filter @studio-foundation/api test launcher
 ```
 
 Expected: TypeScript errors about constructor mismatch.
@@ -345,8 +345,8 @@ import type {
   GroupCompleteEvent,
   PipelineCompleteEvent,
   PipelineCancelledEvent,
-} from '@studio/engine';
-import { PipelineEngine } from '@studio/engine';
+} from '@studio-foundation/engine';
+import { PipelineEngine } from '@studio-foundation/engine';
 import { createApiLogger } from './logger.js';
 import type { RunEventBus, BusListener, SseEventType } from './event-bus.js';
 
@@ -443,7 +443,7 @@ export class InProcessLauncher implements RunLauncher {
 ### Step 4: Run — verify PASS
 
 ```bash
-pnpm --filter @studio/api test launcher
+pnpm --filter @studio-foundation/api test launcher
 ```
 
 Expected: all launcher tests pass.
@@ -500,14 +500,14 @@ const bus = new RunEventBus();
 const launcher = new InProcessLauncher(engineConfig, store, runsDir, bus);
 ```
 
-**Add `EngineConfig` to the import from `@studio/engine`:**
+**Add `EngineConfig` to the import from `@studio-foundation/engine`:**
 ```typescript
 import {
   PipelineEngine,    // ← remove this
   EngineConfig,      // ← keep this
   SQLiteRunStore,
   type RunStore,
-} from '@studio/engine';
+} from '@studio-foundation/engine';
 ```
 
 Actually remove `PipelineEngine` from the import since bootstrap no longer instantiates it directly.
@@ -515,7 +515,7 @@ Actually remove `PipelineEngine` from the import since bootstrap no longer insta
 ### Step 2: Typecheck
 
 ```bash
-pnpm --filter @studio/api typecheck
+pnpm --filter @studio-foundation/api typecheck
 ```
 
 Expected: no errors.
@@ -545,7 +545,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import { RunEventBus } from '../src/event-bus.js';
 import type { RunLauncher } from '../src/launcher.js';
 
@@ -672,7 +672,7 @@ describe('GET /api/runs/:id/stream', () => {
 ### Step 2: Run — verify FAIL
 
 ```bash
-pnpm --filter @studio/api test sse
+pnpm --filter @studio-foundation/api test sse
 ```
 
 Expected: `404 for unknown run` passes (route doesn't exist yet → Fastify returns 404). Other tests fail because there's no SSE route. That's fine — all three may fail.
@@ -770,7 +770,7 @@ fastify.get<{
 ### Step 4: Run — verify PASS
 
 ```bash
-pnpm --filter @studio/api test sse
+pnpm --filter @studio-foundation/api test sse
 ```
 
 Expected: all 3 SSE tests pass.
@@ -789,7 +789,7 @@ git commit -m "feat(api): add GET /api/runs/:id/stream SSE endpoint"
 ### Step 1: Run all API tests
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass (event-bus, launcher, sse, existing server tests).

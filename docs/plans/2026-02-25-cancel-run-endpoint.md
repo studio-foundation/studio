@@ -4,7 +4,7 @@
 
 **Goal:** Add `POST /api/runs/:id/cancel` that sends an abort signal to a running pipeline and returns immediately.
 
-**Architecture:** Pure route addition in `@studio/api`. All cancellation infrastructure (abort signal, `cancelled` status, `pipeline_cancelled` SSE event) already exists in the engine and launcher — we just need the HTTP endpoint. TDD: write failing tests first, then implement.
+**Architecture:** Pure route addition in `@studio-foundation/api`. All cancellation infrastructure (abort signal, `cancelled` status, `pipeline_cancelled` SSE event) already exists in the engine and launcher — we just need the HTTP endpoint. TDD: write failing tests first, then implement.
 
 **Tech Stack:** Fastify (route), Vitest (tests), InMemoryRunStore + mock launcher (test fixtures)
 
@@ -20,9 +20,9 @@
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -102,7 +102,7 @@ describe('POST /api/runs/:id/cancel', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
-pnpm --filter @studio/api test -- --reporter=verbose 2>&1 | grep -A3 "cancel"
+pnpm --filter @studio-foundation/api test -- --reporter=verbose 2>&1 | grep -A3 "cancel"
 ```
 
 Expected: 4 test failures with `404` (route doesn't exist yet → Fastify returns 404 for unknown routes).
@@ -180,7 +180,7 @@ Note: `store` is already declared at the top of `runsRoutes` as `const { store, 
 
 ```bash
 cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
-pnpm --filter @studio/api test -- --reporter=verbose 2>&1 | grep -E "cancel|✓|×"
+pnpm --filter @studio-foundation/api test -- --reporter=verbose 2>&1 | grep -E "cancel|✓|×"
 ```
 
 Expected: all 4 cancel tests pass.
@@ -188,7 +188,7 @@ Expected: all 4 cancel tests pass.
 **Step 4: Run full API test suite to confirm no regressions**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | tail -5
+pnpm --filter @studio-foundation/api test 2>&1 | tail -5
 ```
 
 Expected: same pass/fail count as before (5 pre-existing failures unrelated to this PR, 150+ passing).
@@ -233,7 +233,7 @@ All cancel infrastructure already existed (AbortController in launcher, cancelle
 
 ## Packages touched
 
-- `@studio/api` — new route + schema fix
+- `@studio-foundation/api` — new route + schema fix
 
 ## How to test
 

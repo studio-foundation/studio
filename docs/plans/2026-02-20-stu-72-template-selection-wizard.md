@@ -19,7 +19,7 @@
 - `DEFAULT_MODELS` (lines ~147–150) maps provider → default model string.
 - Tests live in `cli/tests/commands/init.test.ts`.
 - Non-interactive tests use `/tmp/.studio-init-test` as base dir (see MEMORY.md).
-- Running tests: `pnpm --filter @studio/cli test` (runs vitest in run mode).
+- Running tests: `pnpm --filter @studio-foundation/cli test` (runs vitest in run mode).
 - Full build: `pnpm build` at monorepo root.
 
 ---
@@ -77,7 +77,7 @@ describe('validateProjectName', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test 2>&1 | grep -A5 'validateProjectName'
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'validateProjectName'
 ```
 
 Expected: fails with "validateProjectName is not a function" or "not exported".
@@ -104,7 +104,7 @@ export function validateProjectName(name: string): true | string {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm build && pnpm --filter @studio/cli test 2>&1 | grep -E '(validateProjectName|PASS|FAIL)'
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(validateProjectName|PASS|FAIL)'
 ```
 
 Expected: all `validateProjectName` tests pass, all existing tests still pass.
@@ -415,7 +415,7 @@ Expected: exits 0, no TypeScript errors.
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test 2>&1
+pnpm --filter @studio-foundation/cli test 2>&1
 ```
 
 Expected: all tests pass. The wizard change doesn't affect any existing unit tests (they test `createStudioStructure`, `directInit`, `generateFullApp`, etc. — none of which involve interactive prompts).

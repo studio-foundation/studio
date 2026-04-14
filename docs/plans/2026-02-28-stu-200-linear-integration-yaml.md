@@ -6,7 +6,7 @@
 
 **Architecture:** YAML = declarative contract (which handlers to use). TypeScript = implementation (webhook filtering, GraphQL calls). `IntegrationRuntime` loads installed `.integration.yaml` files, registers routes dynamically for each integration with a `webhook.handler`, and subscribes event bus handlers for each with an `on_failure.handler`. `launcher.ts` emits `meta` as part of `pipeline_complete` bus events — no integration-specific code in launcher.
 
-**Tech Stack:** TypeScript, Fastify, `better-sqlite3`, Vitest, `@studio/contracts`, `@studio/runner`, `@studio/engine`
+**Tech Stack:** TypeScript, Fastify, `better-sqlite3`, Vitest, `@studio-foundation/contracts`, `@studio-foundation/runner`, `@studio-foundation/engine`
 
 ---
 
@@ -55,7 +55,7 @@ export interface IntegrationPluginDef {
 **Step 2: Rebuild contracts**
 
 ```bash
-cd /path/to/worktree && pnpm --filter @studio/contracts build
+cd /path/to/worktree && pnpm --filter @studio-foundation/contracts build
 ```
 Expected: `contracts/dist/` updated, no TypeScript errors.
 
@@ -116,7 +116,7 @@ test:
 **Step 2: Rebuild runner**
 
 ```bash
-pnpm --filter @studio/runner build
+pnpm --filter @studio-foundation/runner build
 ```
 Expected: no errors.
 
@@ -212,7 +212,7 @@ describe('IntegrationStore', () => {
 **Step 2: Run tests to see them fail**
 
 ```bash
-pnpm --filter @studio/api test tests/integration-store.test.ts
+pnpm --filter @studio-foundation/api test tests/integration-store.test.ts
 ```
 Expected: FAIL — `IntegrationStore` not found.
 
@@ -346,7 +346,7 @@ export class IntegrationStore {
 **Step 4: Run tests, expect pass**
 
 ```bash
-pnpm --filter @studio/api test tests/integration-store.test.ts
+pnpm --filter @studio-foundation/api test tests/integration-store.test.ts
 ```
 Expected: 5 tests passing.
 
@@ -369,8 +369,8 @@ git commit -m "feat(api): add generic IntegrationStore replacing LinearStore"
 ```typescript
 // api/src/integrations/types.ts
 import type { FastifyReply } from 'fastify';
-import type { IntegrationPluginDef } from '@studio/contracts';
-import type { GroupFeedbackEvent } from '@studio/engine';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
+import type { GroupFeedbackEvent } from '@studio-foundation/engine';
 import type { IntegrationStore } from '../integration-store.js';
 import type { RunLauncher } from '../launcher.js';
 import type { ApiConfig } from '../server.js';
@@ -506,7 +506,7 @@ describe('LinearFailureHandler.handleFailure', () => {
 **Step 2: Run to see it fail**
 
 ```bash
-pnpm --filter @studio/api test tests/integrations/linear/failure-handler.test.ts
+pnpm --filter @studio-foundation/api test tests/integrations/linear/failure-handler.test.ts
 ```
 Expected: FAIL — `LinearFailureHandler` not found.
 
@@ -613,7 +613,7 @@ export class LinearFailureHandler implements FailureHandler {
 **Step 4: Run tests, expect pass**
 
 ```bash
-pnpm --filter @studio/api test tests/integrations/linear/failure-handler.test.ts
+pnpm --filter @studio-foundation/api test tests/integrations/linear/failure-handler.test.ts
 ```
 Expected: all tests passing.
 
@@ -644,7 +644,7 @@ import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { LinearWebhookHandler } from '../../../src/integrations/linear/webhook-handler.js';
 import { IntegrationStore } from '../../../src/integration-store.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 const WEBHOOK_SECRET = 'test-secret-abc';
 
@@ -755,7 +755,7 @@ describe('LinearWebhookHandler', () => {
 **Step 2: Run to see it fail**
 
 ```bash
-pnpm --filter @studio/api test tests/integrations/linear/webhook-handler.test.ts
+pnpm --filter @studio-foundation/api test tests/integrations/linear/webhook-handler.test.ts
 ```
 Expected: FAIL — `LinearWebhookHandler` not found.
 
@@ -769,7 +769,7 @@ import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyReply } from 'fastify';
 import type { WebhookHandler, WebhookHandlerContext } from '../types.js';
-import { loadPipelineByName } from '@studio/engine';
+import { loadPipelineByName } from '@studio-foundation/engine';
 import { resolveRepoPath } from '../../utils/repo-resolver.js';
 
 interface LinearIssuePayload {
@@ -897,7 +897,7 @@ export class LinearWebhookHandler implements WebhookHandler {
 **Step 4: Run tests, expect pass**
 
 ```bash
-pnpm --filter @studio/api test tests/integrations/linear/webhook-handler.test.ts
+pnpm --filter @studio-foundation/api test tests/integrations/linear/webhook-handler.test.ts
 ```
 Expected: all tests passing.
 
@@ -957,7 +957,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import Fastify from 'fastify';
 import { IntegrationRuntime } from '../src/integration-runtime.js';
 import { IntegrationStore } from '../src/integration-store.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 function makeLinearIntegration(): IntegrationPluginDef {
   return {
@@ -1066,7 +1066,7 @@ describe('IntegrationRuntime.setupEventBus', () => {
 **Step 2: Run to see fail**
 
 ```bash
-pnpm --filter @studio/api test tests/integration-runtime.test.ts
+pnpm --filter @studio-foundation/api test tests/integration-runtime.test.ts
 ```
 Expected: FAIL — `IntegrationRuntime` not found.
 
@@ -1075,14 +1075,14 @@ Expected: FAIL — `IntegrationRuntime` not found.
 ```typescript
 // api/src/integration-runtime.ts
 import type { FastifyInstance } from 'fastify';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import type { IntegrationStore, IntegrationTriggerRecord } from './integration-store.js';
 import type { RunLauncher } from './launcher.js';
 import type { RunEventBus } from './event-bus.js';
 import type { ApiConfig } from './server.js';
 import { WEBHOOK_HANDLERS, FAILURE_HANDLERS } from './integrations/registry.js';
 import type { FailureHandlerContext } from './integrations/types.js';
-import type { GroupFeedbackEvent } from '@studio/engine';
+import type { GroupFeedbackEvent } from '@studio-foundation/engine';
 import { randomUUID } from 'node:crypto';
 
 export interface IntegrationRuntimeDeps {
@@ -1220,7 +1220,7 @@ export class IntegrationRuntime {
 **Step 4: Run tests, expect pass**
 
 ```bash
-pnpm --filter @studio/api test tests/integration-runtime.test.ts
+pnpm --filter @studio-foundation/api test tests/integration-runtime.test.ts
 ```
 Expected: all tests passing.
 
@@ -1270,8 +1270,8 @@ The `lastGroupFeedback` tracking stays (it's generic pipeline state). The `notif
 **Step 2: Build and run all api tests**
 
 ```bash
-pnpm --filter @studio/api build
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api build
+pnpm --filter @studio-foundation/api test
 ```
 Expected: build passes, tests that don't depend on the full server wiring still pass.
 
@@ -1338,7 +1338,7 @@ deps.integrationRuntime.registerRoutes(fastify, '/api');
 **Step 2: Build**
 
 ```bash
-pnpm --filter @studio/api build
+pnpm --filter @studio-foundation/api build
 ```
 Expected: build errors in `bootstrap.ts` only (it still references LinearStore). Fix those in Task 11.
 
@@ -1374,7 +1374,7 @@ Update `BootstrapResult` — replace `linearStore` with `integrationStore` and `
 ```typescript
 import { IntegrationStore } from './integration-store.js';
 import { IntegrationRuntime } from './integration-runtime.js';
-import { loadProjectIntegrations } from '@studio/runner';
+import { loadProjectIntegrations } from '@studio-foundation/runner';
 
 export interface BootstrapResult {
   // ...
@@ -1472,11 +1472,11 @@ import { createHmac } from 'node:crypto';
 import { resolve } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import { WebhookStore } from '../src/webhook-store.js';
 import { IntegrationStore } from '../src/integration-store.js';
 import { IntegrationRuntime } from '../src/integration-runtime.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 const WEBHOOK_SECRET = 'test-whsec-abc123';
 
@@ -1542,7 +1542,7 @@ Keep all existing test cases unchanged — only `makeServer` changes. The test a
 **Step 2: Run tests**
 
 ```bash
-pnpm --filter @studio/api test tests/linear-webhook.test.ts
+pnpm --filter @studio-foundation/api test tests/linear-webhook.test.ts
 ```
 Expected: all tests passing with the same assertions.
 

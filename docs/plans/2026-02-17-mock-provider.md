@@ -6,7 +6,7 @@
 
 **Architecture:** `MockProvider implements AgentLoopProvider` in runner. It reads `request.stage_name` (new optional field in `LLMRequest`) to look up predefined outputs from a YAML config. The engine accepts a `providerOverride` to force all stages through mock. Real tool calls are executed (real filesystem writes), tokens = 0.
 
-**Tech Stack:** TypeScript, Vitest, js-yaml (already used in CLI), existing provider interfaces in `@studio/contracts` and `@studio/runner`.
+**Tech Stack:** TypeScript, Vitest, js-yaml (already used in CLI), existing provider interfaces in `@studio-foundation/contracts` and `@studio-foundation/runner`.
 
 ---
 
@@ -236,7 +236,7 @@ Create `runner/src/providers/mock.ts`:
 
 ```typescript
 import { randomUUID } from 'node:crypto';
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './provider.js';
 
 export interface MockStageConfig {
@@ -476,7 +476,7 @@ if (options.provider === 'mock') {
 
   const mockConfig = yaml.load(mockRaw) as { stages: Record<string, { output: Record<string, unknown>; tool_calls: Array<{ name: string; arguments: Record<string, unknown> }> }> };
   const stagesMap = new Map(Object.entries(mockConfig.stages));
-  const { MockProvider } = await import('@studio/runner');
+  const { MockProvider } = await import('@studio-foundation/runner');
   const mockProvider = new MockProvider(stagesMap);
   providerRegistry.register(mockProvider);
 }

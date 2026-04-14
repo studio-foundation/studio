@@ -6,7 +6,7 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import type { AnyRunStore } from '@studio/engine';
+import type { AnyRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
 import type { IntegrationStore } from './integration-store.js';

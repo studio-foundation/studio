@@ -53,7 +53,7 @@ describe('listAvailableTools', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test 2>&1 | grep -A3 "listAvailableTools"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 "listAvailableTools"
 ```
 
 Expected: FAIL — `listAvailableTools is not a function` or similar.
@@ -89,7 +89,7 @@ export async function listAvailableTools(): Promise<{ name: string; description:
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A5 "listAvailableTools"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 "listAvailableTools"
 ```
 
 Expected: all 3 tests PASS.
@@ -170,7 +170,7 @@ describe('toolsAddDirect', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A3 "toolsAddDirect"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 "toolsAddDirect"
 ```
 
 Expected: FAIL — `toolsAddDirect is not a function`.
@@ -225,7 +225,7 @@ export async function toolsAddDirect(
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A5 "toolsAddDirect"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 "toolsAddDirect"
 ```
 
 Expected: all 5 tests PASS.
@@ -336,7 +336,7 @@ Expected: builds without errors.
 **Step 3: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS (including existing ones).
@@ -455,7 +455,7 @@ Expected: no TypeScript errors.
 **Step 4: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS.
@@ -484,7 +484,7 @@ After Tasks 3 and 4 are in place, the old inline install logic (the original `'a
 **Step 2: Full test run**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS.
@@ -548,7 +548,7 @@ Previously `studio tools add` required a single tool name and exited with an err
 
 ## Packages touched
 
-- `@studio/cli`
+- `@studio-foundation/cli`
 
 ## How to test
 

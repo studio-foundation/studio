@@ -1,5 +1,5 @@
 // Resolve stages (sequential for v7)
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition } from '@studio-foundation/contracts';
 
 export function resolveStages(stages: StageDefinition[]): StageDefinition[] {
   // For v7: just return stages in order (sequential execution)

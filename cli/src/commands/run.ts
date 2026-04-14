@@ -2,10 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import type { EngineEvents } from '@studio/engine';
-import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio/engine';
-import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio/runner';
-import { resolveRepoPath } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
+import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
+import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
+import { resolveRepoPath } from '@studio-foundation/engine';
 import { loadConfig } from '../config.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
@@ -13,7 +13,7 @@ import { FileChangeCollector, formatFileChanges } from '../output/file-changes.j
 import { formatResult } from '../output/formatter.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 import { createRunStore } from '../run-store-factory.js';
-import type { AnyRunStore } from '@studio/engine';
+import type { AnyRunStore } from '@studio-foundation/engine';
 
 interface RunOptions {
   input?: string;
@@ -301,7 +301,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         }>;
       };
       const stagesMap = new Map(Object.entries(mockConfig.stages));
-      const { MockProvider } = await import('@studio/runner');
+      const { MockProvider } = await import('@studio-foundation/runner');
       const mockProvider = new MockProvider(stagesMap);
       providerRegistry.register(mockProvider);
     } else if (options.provider && !providerRegistry.has(options.provider)) {

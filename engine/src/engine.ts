@@ -9,15 +9,15 @@ import type {
   RunSpawner,
   StageRun,
   ToolCall,
-} from '@studio/contracts';
-import { isStageGroup } from '@studio/contracts';
+} from '@studio-foundation/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 import {
   type ToolRegistry,
   type ProviderRegistry,
   AnonymizationMiddleware,
   createStudioRunTool,
   STUDIO_RUN_PROMPT_SNIPPET,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 import { loadPipelineByName } from './pipeline/loader.js';
 import { executeStartupCommands } from './pipeline/startup-executor.js';
 import { loadInvariantsFile } from './pipeline/invariants-loader.js';

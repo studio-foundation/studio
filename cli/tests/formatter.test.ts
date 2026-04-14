@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 import { formatResult, formatJson, formatError, formatDuration } from '../src/output/formatter.js';
 
 let output: string[];

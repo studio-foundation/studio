@@ -7,8 +7,8 @@
 // This was the #1 bug in v6: stage status didn't match task status.
 // v7 fix: SIMPLE, DETERMINISTIC, NO MAGIC.
 
-import type { RalphResult } from '@studio/ralph';
-import type { StageStatus } from '@studio/contracts';
+import type { RalphResult } from '@studio-foundation/ralph';
+import type { StageStatus } from '@studio-foundation/contracts';
 
 /**
  * Derives stage status from ralph result.

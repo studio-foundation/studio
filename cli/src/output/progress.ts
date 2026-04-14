@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import type { EngineEvents } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
 import { formatDuration } from './formatter.js';
 import { summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult, formatTokens, formatStageLine, countWriteFiles } from './formatters.js';
 import { ParallelRenderer } from './parallel-progress.js';

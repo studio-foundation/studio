@@ -22,13 +22,13 @@
 
 ```
 Studio/
-├── contracts/     # @studio/contracts — types, interfaces (ZERO dépendances)
-├── anonymizer/    # @studio/anonymizer — détection et anonymisation PII
-├── ralph/         # @studio/ralph — retry loop + validation
-├── runner/        # @studio/runner — LLM providers, tool plugin runtime
-├── engine/        # @studio/engine — orchestration pipeline, state machine, persistence
-├── api/           # @studio/api — HTTP REST API (Fastify + Swagger UI)
-├── cli/           # @studio/cli — interface terminal (composition root)
+├── contracts/     # @studio-foundation/contracts — types, interfaces (ZERO dépendances)
+├── anonymizer/    # @studio-foundation/anonymizer — détection et anonymisation PII
+├── ralph/         # @studio-foundation/ralph — retry loop + validation
+├── runner/        # @studio-foundation/runner — LLM providers, tool plugin runtime
+├── engine/        # @studio-foundation/engine — orchestration pipeline, state machine, persistence
+├── api/           # @studio-foundation/api — HTTP REST API (Fastify + Swagger UI)
+├── cli/           # @studio-foundation/cli — interface terminal (composition root)
 ├── templates/     # Templates architecturaux (software, finance, analysis, data, conversation)
 ├── package.json   # Root workspace
 └── pnpm-workspace.yaml
@@ -40,31 +40,31 @@ Studio/
 
 | Package | Responsabilité | Dépend de |
 |---------|---------------|-----------|
-| `@studio/contracts` | Types & interfaces partagés | rien |
-| `@studio/anonymizer` | Détection PII + tokenisation | rien |
-| `@studio/ralph` | RALPH loop : execute → validate → retry | contracts |
-| `@studio/runner` | LLM calls, tool execution, streaming | contracts |
-| `@studio/engine` | Orchestration pipeline, hooks, groups, persistence | contracts, ralph, runner, anonymizer |
-| `@studio/api` | HTTP REST API, SSE, webhooks, intégrations | engine, runner, contracts |
-| `@studio/cli` | Interface terminal, composition root | engine, runner, api, contracts |
+| `@studio-foundation/contracts` | Types & interfaces partagés | rien |
+| `@studio-foundation/anonymizer` | Détection PII + tokenisation | rien |
+| `@studio-foundation/ralph` | RALPH loop : execute → validate → retry | contracts |
+| `@studio-foundation/runner` | LLM calls, tool execution, streaming | contracts |
+| `@studio-foundation/engine` | Orchestration pipeline, hooks, groups, persistence | contracts, ralph, runner, anonymizer |
+| `@studio-foundation/api` | HTTP REST API, SSE, webhooks, intégrations | engine, runner, contracts |
+| `@studio-foundation/cli` | Interface terminal, composition root | engine, runner, api, contracts |
 
 ---
 
 ## Graphe de dépendances
 
 ```
-@studio/contracts ←──────────────────────────────────────────┐
+@studio-foundation/contracts ←──────────────────────────────────────────┐
        ↑                                                      │
        │                                                      │
-@studio/anonymizer   @studio/ralph   @studio/runner           │
+@studio-foundation/anonymizer   @studio-foundation/ralph   @studio-foundation/runner           │
                           ↑               ↑                   │
                           └───────┬───────┘                   │
                                   │                           │
-                           @studio/engine ────────────────────┘
+                           @studio-foundation/engine ────────────────────┘
                                   ↑
-                           @studio/api
+                           @studio-foundation/api
                                   ↑
-                           @studio/cli
+                           @studio-foundation/cli
 ```
 
 Pas de dépendance circulaire. `contracts` est la feuille. `cli` est le sommet.

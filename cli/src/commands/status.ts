@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { PipelineRun, StageRun, TaskRun } from '@studio/contracts';
+import type { PipelineRun, StageRun, TaskRun } from '@studio-foundation/contracts';
 import { loadConfig } from '../config.js';
 import { createRunStore } from '../run-store-factory.js';
 import { formatResult } from '../output/formatter.js';

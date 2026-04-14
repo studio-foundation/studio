@@ -3,8 +3,8 @@ import { rmSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InProcessLauncher } from '../src/launcher.js';
 import { RunEventBus } from '../src/event-bus.js';
-import { InMemoryRunStore } from '@studio/engine';
-import type { EngineConfig, EngineEvents } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
+import type { EngineConfig, EngineEvents } from '@studio-foundation/engine';
 import { UserStore } from '../src/user-store.js';
 import type { PlansConfig } from '../src/plans.js';
 

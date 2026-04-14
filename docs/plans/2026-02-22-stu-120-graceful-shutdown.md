@@ -156,7 +156,7 @@ Replace the entire `ralph/src/loop.ts` with:
 
 ```typescript
 // RALPH loop - main function
-import type { ValidationResult } from '@studio/contracts';
+import type { ValidationResult } from '@studio-foundation/contracts';
 
 export interface ExecutionContext {
   attempt: number;

@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildPrompt } from '../src/prompt-builder.js';
-import type { AgentConfig } from '@studio/contracts';
+import type { AgentConfig } from '@studio-foundation/contracts';
 
 describe('PromptBuilder', () => {
   it('should build basic prompt', () => {

@@ -6,22 +6,22 @@ Studio is a domain-agnostic agentic pipeline orchestrator. It executes multi-sta
 
 ```
 Studio/
-├── contracts/    # @studio/contracts — shared types, interfaces (ZERO deps)
-├── anonymizer/   # @studio/anonymizer — PII anonymization before LLM calls
-├── ralph/        # @studio/ralph — retry loop + validation
-├── runner/       # @studio/runner — tool plugin runtime, LLM providers
-├── engine/       # @studio/engine — pipeline orchestration, state machine
-├── api/          # @studio/api — HTTP REST API (Fastify)
-├── cli/          # @studio/cli — terminal interface
+├── contracts/    # @studio-foundation/contracts — shared types, interfaces (ZERO deps)
+├── anonymizer/   # @studio-foundation/anonymizer — PII anonymization before LLM calls
+├── ralph/        # @studio-foundation/ralph — retry loop + validation
+├── runner/       # @studio-foundation/runner — tool plugin runtime, LLM providers
+├── engine/       # @studio-foundation/engine — pipeline orchestration, state machine
+├── api/          # @studio-foundation/api — HTTP REST API (Fastify)
+├── cli/          # @studio-foundation/cli — terminal interface
 └── templates/    # Architectural templates (see TEMPLATES.md)
 ```
 
 ```
-@studio/cli → @studio/api → @studio/engine
-                                 ├── @studio/ralph
-                                 ├── @studio/runner
-                                 └── @studio/anonymizer
-                             @studio/contracts (leaf — zero internal deps)
+@studio-foundation/cli → @studio-foundation/api → @studio-foundation/engine
+                                 ├── @studio-foundation/ralph
+                                 ├── @studio-foundation/runner
+                                 └── @studio-foundation/anonymizer
+                             @studio-foundation/contracts (leaf — zero internal deps)
 ```
 
 **Strict dependencies:** contracts is a leaf package. ralph, runner and anonymizer depend ONLY on contracts. engine depends on ralph + runner + anonymizer + contracts. cli and api depend on engine + contracts.

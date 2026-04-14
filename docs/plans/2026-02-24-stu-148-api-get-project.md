@@ -58,7 +58,7 @@ export interface BootstrapResult {
 **Step 3: Typecheck only (no logic yet)**
 
 ```bash
-cd /path/to/Studio && pnpm --filter @studio/api typecheck
+cd /path/to/Studio && pnpm --filter @studio-foundation/api typecheck
 ```
 
 Expected: errors about missing fields in the `return` statement of `bootstrap()`. That's expected — we haven't wired the values yet.
@@ -179,7 +179,7 @@ describe('GET /api/project', () => {
 **Step 2: Run tests — expect failure**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: TypeScript compile errors because `studioVersion` and `maskedConfig` aren't yet accepted by `buildServer`, OR runtime 404 because route doesn't exist.
@@ -243,7 +243,7 @@ return {
 **Step 4: Typecheck**
 
 ```bash
-pnpm --filter @studio/api typecheck
+pnpm --filter @studio-foundation/api typecheck
 ```
 
 Expected: no errors (all fields now present in return + interfaces match).
@@ -324,7 +324,7 @@ fastify.get('/project', async (_request, reply) => {
 **Step 4: Run tests**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass, including the new `GET /api/project` describe block.
@@ -363,7 +363,7 @@ const server = buildServer(result);
 Since `BootstrapResult` now matches `ServerDeps` (same fields), no change is needed if the spread is direct. Verify with:
 
 ```bash
-pnpm --filter @studio/api typecheck
+pnpm --filter @studio-foundation/api typecheck
 ```
 
 Expected: no errors.
@@ -371,7 +371,7 @@ Expected: no errors.
 **Step 2: Run full test suite one final time**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests green.

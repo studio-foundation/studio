@@ -4,9 +4,9 @@
 
 **Goal:** Add a `POST /api/contracts/:name/validate` endpoint that validates an arbitrary output against a saved contract without running a pipeline.
 
-**Architecture:** Add a `validateOutput` helper to `@studio/engine` that calls existing ralph validators + `postValidate`, export it from the engine barrel, then wire a new route handler in the API's existing contracts route file.
+**Architecture:** Add a `validateOutput` helper to `@studio-foundation/engine` that calls existing ralph validators + `postValidate`, export it from the engine barrel, then wire a new route handler in the API's existing contracts route file.
 
-**Tech Stack:** TypeScript, `@studio/ralph` (validators), `@studio/engine` (postValidate, loadContract), Fastify (route), Vitest (tests)
+**Tech Stack:** TypeScript, `@studio-foundation/ralph` (validators), `@studio-foundation/engine` (postValidate, loadContract), Fastify (route), Vitest (tests)
 
 ---
 
@@ -21,7 +21,7 @@
 // engine/src/pipeline/output-validator.test.ts
 import { describe, it, expect } from 'vitest';
 import { validateOutput } from './output-validator.js';
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 const schemaOnlyContract: OutputContract = {
   name: 'test-schema',
@@ -128,7 +128,7 @@ describe('validateOutput', () => {
 
 ```bash
 cd /path/to/worktree
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: `FAIL — cannot find module './output-validator.js'`
@@ -151,14 +151,14 @@ git commit -m "test(engine): failing tests for validateOutput helper"
 
 ```typescript
 // engine/src/pipeline/output-validator.ts
-import type { OutputContract, ToolCall } from '@studio/contracts';
+import type { OutputContract, ToolCall } from '@studio-foundation/contracts';
 import {
   validateSchema,
   validateToolCalls,
   validateRequiredTools,
   validateCountedTools,
   validateToolGroups,
-} from '@studio/ralph';
+} from '@studio-foundation/ralph';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 
 export interface OutputValidationResult {
@@ -196,7 +196,7 @@ export function validateOutput(
 **Step 2: Run tests**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests in `output-validator.test.ts` PASS
@@ -229,7 +229,7 @@ export type { PostValidationResult } from './pipeline/post-validator.js';
 **Step 2: Build the engine package**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 
 Expected: no TypeScript errors
@@ -386,7 +386,7 @@ describe('POST /api/contracts/:name/validate', () => {
 **Step 3: Run to confirm tests fail**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: new `POST /api/contracts/:name/validate` tests FAIL (route doesn't exist yet — likely 404s)
@@ -410,7 +410,7 @@ git commit -m "test(api): failing integration tests for POST /contracts/:name/va
 After the existing imports in `api/src/routes/contracts.ts`, add:
 
 ```typescript
-import { loadContract, validateOutput } from '@studio/engine';
+import { loadContract, validateOutput } from '@studio-foundation/engine';
 ```
 
 (`loadContract` here is `engine/src/pipeline/contract-loader.ts`'s version, already exported from engine.)
@@ -485,7 +485,7 @@ Add this after the `DELETE /api/contracts/:name` handler, before the closing `}`
     }
 
     const { output, tool_calls = [] } = request.body;
-    const result = validateOutput(contract, output, tool_calls as import('@studio/contracts').ToolCall[]);
+    const result = validateOutput(contract, output, tool_calls as import('@studio-foundation/contracts').ToolCall[]);
     return reply.send(result);
   });
 ```
@@ -493,7 +493,7 @@ Add this after the `DELETE /api/contracts/:name` handler, before the closing `}`
 **Step 3: Run the API tests**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests PASS including the new validate block

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runAgent } from '../src/runner.js';
 import type { Provider } from '../src/providers/provider.js';
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import { ProviderRegistry } from '../src/providers/registry.js';
 import { ToolRegistry } from '../src/tools/tool-registry.js';
 import { AnonymizationMiddleware } from '../src/middleware/anonymization.js';

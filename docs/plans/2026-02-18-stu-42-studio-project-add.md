@@ -122,7 +122,7 @@ describe('createProjectDir', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: 5 failures — `createProjectDir is not a function` (or module not found).
@@ -187,7 +187,7 @@ export async function createProjectDir(
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: 5 new tests PASS, all existing tests still PASS.
@@ -296,7 +296,7 @@ const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
 ### Step 4: Run tests to verify nothing broke
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all existing tests still PASS (no regressions). The `createStudioStructure` tests cover the delegated behavior.
@@ -395,7 +395,7 @@ describe('projectAddDirect', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: 9 failures — `validateProjectName is not a function`, `projectAddDirect is not a function`.
@@ -438,7 +438,7 @@ export async function projectAddDirect(
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: 9 new tests PASS, all prior tests still PASS.
@@ -727,12 +727,12 @@ gh pr create \
 
 ## Packages touched
 
-- `@studio/cli` — `project.ts` (new), `init.ts` (refactor), `index.ts`, `project.test.ts` (new)
+- `@studio-foundation/cli` — `project.ts` (new), `init.ts` (refactor), `index.ts`, `project.test.ts` (new)
 
 ## How to test
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 
 cd /tmp && mkdir test-42 && cd test-42
 studio init my-app --template software --provider anthropic --api-key sk-ant-xxx

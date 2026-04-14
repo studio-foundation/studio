@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createStudioRunTool } from '../src/tools/builtin/studio-run.js';
-import type { RunSpawner } from '@studio/contracts';
+import type { RunSpawner } from '@studio-foundation/contracts';
 
 function makeSpawner(overrides?: Partial<RunSpawner>): RunSpawner {
   return {

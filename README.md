@@ -102,17 +102,17 @@ See [PHILOSOPHY.md](./PHILOSOPHY.md) for the public-facing articulation.
 ## Architecture
 
 ```
-@studio/cli          → Terminal interface
+@studio-foundation/cli          → Terminal interface
     │
-@studio/api          → HTTP REST API (Fastify)
+@studio-foundation/api          → HTTP REST API (Fastify)
     │
-@studio/engine       → Pipeline orchestration, state machine
+@studio-foundation/engine       → Pipeline orchestration, state machine
     │
-    ├── @studio/ralph        → Execute, validate, retry
-    ├── @studio/runner       → LLM calls, tool plugin runtime
-    └── @studio/anonymizer   → PII anonymization middleware
+    ├── @studio-foundation/ralph        → Execute, validate, retry
+    ├── @studio-foundation/runner       → LLM calls, tool plugin runtime
+    └── @studio-foundation/anonymizer   → PII anonymization middleware
     │
-@studio/contracts    → Shared types (zero dependencies)
+@studio-foundation/contracts    → Shared types (zero dependencies)
 ```
 
 Seven packages, one monorepo. Each fits in a single context window. Each is testable in isolation.

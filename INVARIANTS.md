@@ -11,7 +11,7 @@ erreur d'architecture, pas une exception acceptable.
 
 ## INV-01 — `contracts` est un leaf package
 
-**Description :** `@studio/contracts` n'a aucune dépendance interne vers d'autres
+**Description :** `@studio-foundation/contracts` n'a aucune dépendance interne vers d'autres
 packages `@studio/*`. Zéro. Aucune exception.
 
 **Enforcé par :** [`contracts/package.json`](contracts/package.json) — la section
@@ -31,7 +31,7 @@ connaît pas les LLMs, les providers, ni les tools.
 
 **Enforcé par :** [`ralph/src/loop.ts`](ralph/src/loop.ts) — `RalphConfig<T>` est
 un type générique paramétré. [`ralph/package.json`](ralph/package.json) — dépend
-uniquement de `@studio/contracts`, pas de `@studio/runner`.
+uniquement de `@studio-foundation/contracts`, pas de `@studio-foundation/runner`.
 
 **Ce qui casse si violé :** `ralph` devient couplé à une implémentation concrète.
 Il ne peut plus être testé sans un vrai LLM. La séparation entre "boucle de retry"
@@ -178,19 +178,19 @@ dépendances. `pnpm` détecte les cycles à l'install. À vérifier via :
 ```bash
 cat contracts/package.json   # dependencies: {} (aucune dépendance interne)
 cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (externe uniquement)
-cat ralph/package.json       # dependencies: { "@studio/contracts": "workspace:*" }
-cat runner/package.json      # dependencies: { "@studio/contracts": "workspace:*", "@studio/anonymizer": "workspace:*" }
-cat engine/package.json      # dependencies: { "@studio/ralph": ..., "@studio/runner": ..., "@studio/contracts": ... }
-cat cli/package.json         # dependencies: { "@studio/engine": ..., "@studio/contracts": ..., "@studio/api": ..., "@studio/runner": ... }
+cat ralph/package.json       # dependencies: { "@studio-foundation/contracts": "workspace:*" }
+cat runner/package.json      # dependencies: { "@studio-foundation/contracts": "workspace:*", "@studio-foundation/anonymizer": "workspace:*" }
+cat engine/package.json      # dependencies: { "@studio-foundation/ralph": ..., "@studio-foundation/runner": ..., "@studio-foundation/contracts": ... }
+cat cli/package.json         # dependencies: { "@studio-foundation/engine": ..., "@studio-foundation/contracts": ..., "@studio-foundation/api": ..., "@studio-foundation/runner": ... }
 ```
 
-**Exception documentée — CLI → API :** `@studio/cli` dépend de `@studio/api`.
+**Exception documentée — CLI → API :** `@studio-foundation/cli` dépend de `@studio-foundation/api`.
 C'est intentionnel et non une violation du DAG. La commande `studio api start`
-importe `bootstrap` depuis `@studio/api` pour démarrer le serveur HTTP directement
+importe `bootstrap` depuis `@studio-foundation/api` pour démarrer le serveur HTTP directement
 depuis le CLI. Cette dépendance va dans le sens du flux (cli est la couche la plus
 haute) — `api` ne connaît pas `cli`. Le DAG reste acyclique.
 
-**Exception documentée — CLI → runner :** `@studio/cli` dépend de `@studio/runner`.
+**Exception documentée — CLI → runner :** `@studio-foundation/cli` dépend de `@studio-foundation/runner`.
 C'est intentionnel : le CLI est le **composition root** de l'application. Il
 instancie `ToolRegistry`, `ProviderRegistry`, et `MCPClient` (tous des types de
 `runner`) et les passe à `PipelineEngine` via `EngineConfig`. Le CLI gère aussi

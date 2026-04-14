@@ -44,9 +44,9 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 export async function apiStartCommand(options: ApiOptions): Promise<void> {
-  let apiModule: typeof import('@studio/api');
+  let apiModule: typeof import('@studio-foundation/api');
   try {
-    apiModule = await import('@studio/api');
+    apiModule = await import('@studio-foundation/api');
   } catch {
     console.error('API not installed. Run: studio install api');
     process.exit(1);

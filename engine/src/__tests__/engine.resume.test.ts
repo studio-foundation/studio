@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PipelineEngine } from '../engine.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
-vi.mock('@studio/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@studio/runner')>();
+vi.mock('@studio-foundation/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@studio-foundation/runner')>();
   return {
     ...actual,
     runScript: vi.fn(),
   };
 });
 
-import { runScript } from '@studio/runner';
+import { runScript } from '@studio-foundation/runner';
 
 function makeEngine() {
   return new PipelineEngine({

@@ -2,7 +2,7 @@
  * Prompt builder - constructs messages for LLM with retry escalation
  */
 
-import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio/contracts';
+import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio-foundation/contracts';
 import type { SkillContent } from './tools/skills/skill-loader.js';
 
 export interface ExecutionContext {

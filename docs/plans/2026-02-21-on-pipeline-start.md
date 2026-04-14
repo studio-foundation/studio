@@ -46,7 +46,7 @@ export interface PipelineDefinition {
 **Step 2: Build contracts**
 
 ```bash
-pnpm --filter @studio/contracts build
+pnpm --filter @studio-foundation/contracts build
 ```
 Expected: build succeeds with no errors.
 
@@ -143,7 +143,7 @@ ${MINIMAL_STAGE}
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/loader.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/loader.test.ts
 ```
 Expected: FAIL — `on_pipeline_start` is undefined (not parsed yet).
 
@@ -153,7 +153,7 @@ In `engine/src/pipeline/loader.ts`, update `parsePipelineYaml`. Replace the `ret
 
 ```typescript
   // Parse on_pipeline_start commands
-  let on_pipeline_start: import('@studio/contracts').StartupCommand[] | undefined;
+  let on_pipeline_start: import('@studio-foundation/contracts').StartupCommand[] | undefined;
   if (Array.isArray(parsed.on_pipeline_start)) {
     on_pipeline_start = [];
     for (const cmd of parsed.on_pipeline_start as any[]) {
@@ -180,7 +180,7 @@ In `engine/src/pipeline/loader.ts`, update `parsePipelineYaml`. Replace the `ret
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/loader.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/loader.test.ts
 ```
 Expected: all 4 tests PASS.
 
@@ -246,7 +246,7 @@ describe('executeStartupCommands', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/startup-executor.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/startup-executor.test.ts
 ```
 Expected: FAIL — module not found.
 
@@ -259,7 +259,7 @@ Create `engine/src/pipeline/startup-executor.ts`:
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { StartupCommand } from '@studio/contracts';
+import type { StartupCommand } from '@studio-foundation/contracts';
 
 const execAsync = promisify(exec);
 const COMMAND_TIMEOUT_MS = 10_000;
@@ -291,7 +291,7 @@ export async function executeStartupCommands(
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/startup-executor.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/startup-executor.test.ts
 ```
 Expected: all 4 tests PASS.
 
@@ -320,7 +320,7 @@ import {
   createInitialContext,
   getContextForStage,
 } from './context-propagation.js';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition } from '@studio-foundation/contracts';
 
 const makeStage = (include: string[]): StageDefinition => ({
   name: 'test-stage',
@@ -362,7 +362,7 @@ describe('getContextForStage — pipeline_start_context', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/context-propagation.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/context-propagation.test.ts
 ```
 Expected: FAIL — `startupContext` doesn't exist on `PipelineContext`.
 
@@ -396,7 +396,7 @@ export interface PipelineContext {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/context-propagation.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/context-propagation.test.ts
 ```
 Expected: all 3 tests PASS.
 
@@ -422,7 +422,7 @@ Create `runner/src/prompt-builder.test.ts`:
 ```typescript
 import { describe, it, expect } from 'vitest';
 import { buildPrompt } from './prompt-builder.js';
-import type { AgentConfig } from '@studio/contracts';
+import type { AgentConfig } from '@studio-foundation/contracts';
 
 const AGENT: AgentConfig = {
   name: 'test-agent',
@@ -478,7 +478,7 @@ describe('buildPrompt — startup_context', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner exec vitest run src/prompt-builder.test.ts
+pnpm --filter @studio-foundation/runner exec vitest run src/prompt-builder.test.ts
 ```
 Expected: FAIL — `startup_context` not in `AgentContext`, section not rendered.
 
@@ -514,7 +514,7 @@ In `buildPrompt()`, after the `additional_context` block (around line 136) and b
 **Step 5: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/runner exec vitest run src/prompt-builder.test.ts
+pnpm --filter @studio-foundation/runner exec vitest run src/prompt-builder.test.ts
 ```
 Expected: all 3 tests PASS.
 
@@ -564,14 +564,14 @@ Add:
 **Step 3: Build engine**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 Expected: build succeeds with no TypeScript errors.
 
 **Step 4: Run all engine tests**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 Expected: all tests PASS.
 

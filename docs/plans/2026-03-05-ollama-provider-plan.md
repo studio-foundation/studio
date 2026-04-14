@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add an `OllamaProvider` to `@studio/runner` so users can run Studio pipelines locally with Ollama, zero cloud API keys required.
+**Goal:** Add an `OllamaProvider` to `@studio-foundation/runner` so users can run Studio pipelines locally with Ollama, zero cloud API keys required.
 
 **Architecture:** Thin wrapper around the `openai` npm SDK (already a dependency) with `baseURL` pointed at Ollama's OpenAI-compatible `/v1` endpoint. Registered in `createDefaultRegistry` under key `'ollama'`. CLI and API bootstrap updated to read `providers.ollama.baseUrl` from `config.yaml` and pass it through.
 
@@ -153,7 +153,7 @@ describe('OllamaProvider', () => {
 
 ```bash
 cd .worktrees/stu-87-ollama
-pnpm --filter @studio/runner test 2>&1 | grep -A3 'ollama'
+pnpm --filter @studio-foundation/runner test 2>&1 | grep -A3 'ollama'
 ```
 
 Expected: `Cannot find module './ollama.js'`
@@ -166,7 +166,7 @@ Expected: `Cannot find module './ollama.js'`
  * Uses the openai npm SDK pointed at Ollama's /v1 endpoint.
  */
 
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionChunk } from 'openai/resources/chat/completions';
@@ -312,7 +312,7 @@ export class OllamaProvider implements Provider {
 **Step 4: Run the tests**
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -20
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -20
 ```
 
 Expected: All ollama tests pass.
@@ -386,7 +386,7 @@ Expected: No errors.
 **Step 4: Run all runner tests**
 
 ```bash
-pnpm --filter @studio/runner test 2>&1 | tail -5
+pnpm --filter @studio-foundation/runner test 2>&1 | tail -5
 ```
 
 Expected: All passing.
@@ -443,7 +443,7 @@ Expected: No errors.
 **Step 4: Run CLI tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -5
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -5
 ```
 
 Expected: All passing (no tests reference the new field yet).
@@ -531,7 +531,7 @@ Change to:
 **Step 6: Run CLI tests and fix any that reference `'local'`**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -E 'FAIL|local' | head -20
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -E 'FAIL|local' | head -20
 ```
 
 In `cli/tests/commands/config.test.ts`, find tests that assert `ids.toContain('local')` and update to `'ollama'`. Find tests that call `addProviderConfig(..., 'local', ...)` and update. Find tests that call `validateApiKeyLive('local', ...)` and update.
@@ -540,7 +540,7 @@ In `cli/tests/provider-validator.test.ts`, find tests that call `validateApiKeyL
 
 After fixing, re-run:
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -5
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -5
 ```
 
 Expected: All passing.

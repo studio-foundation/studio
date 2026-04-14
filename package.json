@@ -10,7 +10,7 @@
     "url": "https://github.com/studio-foundation/studio.git"
   },
   "scripts": {
-    "build": "pnpm --filter @studio/contracts build && pnpm --filter @studio/anonymizer build && pnpm --filter @studio/ralph build && pnpm --filter @studio/runner build && pnpm --filter @studio/engine build && pnpm --filter @studio/api build && pnpm --filter @studio/cli build",
+    "build": "pnpm --filter @studio-foundation/contracts build && pnpm --filter @studio-foundation/anonymizer build && pnpm --filter @studio-foundation/ralph build && pnpm --filter @studio-foundation/runner build && pnpm --filter @studio-foundation/engine build && pnpm --filter @studio-foundation/api build && pnpm --filter @studio-foundation/cli build",
     "clean": "pnpm -r run clean",
     "test": "pnpm -r run test"
   }

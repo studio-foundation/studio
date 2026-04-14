@@ -15,7 +15,7 @@
 - `.studio/runs/` already used by `run-logger.ts` ✓
 - `.studio/` dir exists at repo root ✓
 - `engine/configs/` was removed in STU-36 (the monorepo migration) — configs now live in user's repo ✓
-- All tests should be run with: `pnpm test` (root) or `pnpm --filter @studio/cli test`
+- All tests should be run with: `pnpm test` (root) or `pnpm --filter @studio-foundation/cli test`
 
 ## Key Decisions
 
@@ -75,7 +75,7 @@ describe('findStudioDir', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test studio-dir
+pnpm --filter @studio-foundation/cli test studio-dir
 ```
 Expected: FAIL — "Cannot find module '../src/studio-dir.js'"
 
@@ -116,7 +116,7 @@ export async function findStudioDir(startDir: string): Promise<string | null> {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/cli test studio-dir
+pnpm --filter @studio-foundation/cli test studio-dir
 ```
 Expected: PASS (3 tests)
 
@@ -190,7 +190,7 @@ it('loadConfig with explicit path ignores .studio/', async () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test config
+pnpm --filter @studio-foundation/cli test config
 ```
 Expected: FAIL — the new tests fail (function signature not updated yet)
 
@@ -295,7 +295,7 @@ export function resolveEnvVars(content: string): string {
 **Step 5: Run all config tests**
 
 ```bash
-pnpm --filter @studio/cli test config
+pnpm --filter @studio-foundation/cli test config
 ```
 Expected: PASS (all tests including the 3 new ones)
 
@@ -352,7 +352,7 @@ Same change in `cli/src/commands/list.ts`, line 21.
 **Step 2: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: PASS (all existing tests)
 
@@ -446,7 +446,7 @@ describe('maskSecrets', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test commands/config
+pnpm --filter @studio-foundation/cli test commands/config
 ```
 Expected: FAIL
 
@@ -620,7 +620,7 @@ program
 **Step 5: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test commands/config
+pnpm --filter @studio-foundation/cli test commands/config
 ```
 Expected: PASS
 
@@ -746,7 +746,7 @@ describe('getToolsDir', () => {
 **Step 3: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test commands/tools
+pnpm --filter @studio-foundation/cli test commands/tools
 ```
 Expected: FAIL
 
@@ -924,7 +924,7 @@ program
 **Step 6: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test commands/tools
+pnpm --filter @studio-foundation/cli test commands/tools
 ```
 Expected: PASS
 
@@ -1058,7 +1058,7 @@ describe('initCommand', () => {
 **Step 3: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test commands/init
+pnpm --filter @studio-foundation/cli test commands/init
 ```
 Expected: FAIL — `createStudioStructure` not exported
 
@@ -1149,7 +1149,7 @@ export async function initCommand(): Promise<void> {
 **Step 5: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test commands/init
+pnpm --filter @studio-foundation/cli test commands/init
 ```
 Expected: PASS
 
@@ -1204,7 +1204,7 @@ Implements STU-35: moves Studio config from `.studiorc.yaml` into `.studio/confi
 
 ## Packages touched
 
-- `@studio/cli` — all changes live here
+- `@studio-foundation/cli` — all changes live here
 
 ## Changes
 

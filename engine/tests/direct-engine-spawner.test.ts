@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DirectEngineSpawner } from '../src/spawners/direct-engine-spawner.js';
 import type { EngineConfig } from '../src/engine.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 function makeSuccessRun(overrides?: Partial<PipelineRun>): PipelineRun {
   return {

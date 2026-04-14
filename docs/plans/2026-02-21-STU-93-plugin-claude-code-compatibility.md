@@ -39,7 +39,7 @@ export interface AgentConfig {
 **Step 2: Build contracts to propagate the type change**
 
 ```bash
-pnpm --filter @studio/contracts build
+pnpm --filter @studio-foundation/contracts build
 ```
 
 Expected: clean build, no errors.
@@ -61,7 +61,7 @@ git commit -m "feat(contracts): add plugins field to AgentConfig"
 **Step 1: Add the dependency**
 
 ```bash
-pnpm add @modelcontextprotocol/sdk --filter @studio/runner
+pnpm add @modelcontextprotocol/sdk --filter @studio-foundation/runner
 ```
 
 Expected: `@modelcontextprotocol/sdk` appears in `runner/package.json` dependencies.
@@ -195,7 +195,7 @@ describe('loadPlugins', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/plugins/plugin-loader.test.ts 2>&1 | head -20
+pnpm --filter @studio-foundation/runner test runner/src/plugins/plugin-loader.test.ts 2>&1 | head -20
 ```
 
 Expected: FAIL — `plugin-loader.ts` not found.
@@ -286,7 +286,7 @@ async function loadSkillFiles(skillsDir: string): Promise<SkillContent[]> {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/plugins/plugin-loader.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/plugins/plugin-loader.test.ts
 ```
 
 Expected: all tests PASS.
@@ -346,7 +346,7 @@ describe('MCPClient', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/plugins/mcp-client.test.ts 2>&1 | head -20
+pnpm --filter @studio-foundation/runner test runner/src/plugins/mcp-client.test.ts 2>&1 | head -20
 ```
 
 Expected: FAIL — `mcp-client.ts` not found.
@@ -435,7 +435,7 @@ export class MCPClient {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/plugins/mcp-client.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/plugins/mcp-client.test.ts
 ```
 
 Expected: all tests PASS.
@@ -478,7 +478,7 @@ export type { PluginManifest, MCPServerDef, SkillContent } from './plugins/index
 **Step 3: Build runner to verify no TS errors**
 
 ```bash
-pnpm --filter @studio/runner build
+pnpm --filter @studio-foundation/runner build
 ```
 
 Expected: clean build.
@@ -537,7 +537,7 @@ model: claude-haiku-4-5-20251001
 **Step 2: Run test to verify it passes (parseAgentYaml already passes unknown fields through)**
 
 ```bash
-pnpm --filter @studio/engine test engine/src/pipeline/agent-loader.test.ts
+pnpm --filter @studio-foundation/engine test engine/src/pipeline/agent-loader.test.ts
 ```
 
 Expected: PASS — `parseAgentYaml` casts to `AgentConfig` which now includes `plugins?: string[]`.
@@ -604,7 +604,7 @@ if (agentConfig.plugins?.length && this.config.pluginSkills) {
 **Step 5: Build engine to verify no TS errors**
 
 ```bash
-pnpm --filter @studio/engine build
+pnpm --filter @studio-foundation/engine build
 ```
 
 Expected: clean build.
@@ -625,11 +625,11 @@ git commit -m "feat(engine): inject plugin skills into agent system_prompt via p
 
 **Step 1: Add imports at the top of run.ts**
 
-After the existing `@studio/runner` import (line 9), add:
+After the existing `@studio-foundation/runner` import (line 9), add:
 
 ```typescript
-import { loadPlugins, MCPClient } from '@studio/runner';
-import type { PluginManifest } from '@studio/runner';
+import { loadPlugins, MCPClient } from '@studio-foundation/runner';
+import type { PluginManifest } from '@studio-foundation/runner';
 ```
 
 **Step 2: Add plugin loading and MCP server startup after toolRegistry creation**
@@ -709,7 +709,7 @@ try {
 **Step 5: Build CLI to verify no TS errors**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 ```
 
 Expected: clean build.
@@ -754,7 +754,7 @@ case 'list': {
   }
 
   // Show installed plugins (from .studio/plugins/)
-  const { loadPlugins: loadPluginManifests } = await import('@studio/runner');
+  const { loadPlugins: loadPluginManifests } = await import('@studio-foundation/runner');
   const pluginsDir = resolve(studioDir, 'plugins');
   const manifests = await loadPluginManifests(pluginsDir);
   if (manifests.length > 0) {
@@ -784,7 +784,7 @@ import { resolve } from 'node:path';
 **Step 2: Build CLI to verify no TS errors**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 ```
 
 Expected: clean build.
@@ -882,10 +882,10 @@ Enables using official Anthropic plugins (code-review, feature-dev) in Studio pi
 
 ## Packages touched
 
-- `@studio/contracts` — `AgentConfig.plugins?: string[]`
-- `@studio/runner` — new `runner/src/plugins/` module (plugin-loader, mcp-client), `@modelcontextprotocol/sdk` dependency
-- `@studio/engine` — `EngineConfig.pluginSkills`, skill injection in `executeStage()`
-- `@studio/cli` — plugin loading + MCP lifecycle in `run.ts`, plugin display in `tools list`
+- `@studio-foundation/contracts` — `AgentConfig.plugins?: string[]`
+- `@studio-foundation/runner` — new `runner/src/plugins/` module (plugin-loader, mcp-client), `@modelcontextprotocol/sdk` dependency
+- `@studio-foundation/engine` — `EngineConfig.pluginSkills`, skill injection in `executeStage()`
+- `@studio-foundation/cli` — plugin loading + MCP lifecycle in `run.ts`, plugin display in `tools list`
 
 ## How to test
 

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './provider.js';
 
 export interface MockStageConfig {

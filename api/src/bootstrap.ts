@@ -11,7 +11,7 @@ import {
   InMemoryRunStore,
   PgRunStore,
   type AnyRunStore,
-} from '@studio/engine';
+} from '@studio-foundation/engine';
 import {
   createDefaultRegistry,
   ToolRegistry,
@@ -20,7 +20,7 @@ import {
   loadProjectIntegrations,
   MCPClient,
   type SkillContent,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 import { InProcessLauncher, type RunLauncher } from './launcher.js';
 import { RunEventBus } from './event-bus.js';
 import type { MaskedConfig } from './server.js';

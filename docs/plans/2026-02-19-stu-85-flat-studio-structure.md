@@ -116,7 +116,7 @@ Exact test to update — find the test that passes a dir without `project/` and 
 **Step 2: Run to verify failure**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A3 'validate'
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'validate'
 ```
 
 Expected: tests fail because the code still checks for `project/`.
@@ -200,7 +200,7 @@ const allYamlDirs: [string, string][] = [
 **Step 4: Build and run tests**
 
 ```bash
-pnpm build && pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E '(validate|✓|✗|PASS|FAIL)'
+pnpm build && pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E '(validate|✓|✗|PASS|FAIL)'
 ```
 
 Expected: all validate tests pass.
@@ -271,7 +271,7 @@ In `engine/tests/group-loop.test.ts`:
 **Step 2: Run to verify failure**
 
 ```bash
-pnpm --filter @studio/engine test 2>&1 | tail -20
+pnpm --filter @studio-foundation/engine test 2>&1 | tail -20
 ```
 
 Expected: tests fail with "Invalid pipeline identifier 'simple'" or similar.
@@ -358,7 +358,7 @@ Also remove `loadPipelineByName` if it's re-exported from index.ts for use in ru
 **Step 5: Build and run engine tests**
 
 ```bash
-pnpm build && pnpm --filter @studio/engine test 2>&1 | tail -20
+pnpm build && pnpm --filter @studio-foundation/engine test 2>&1 | tail -20
 ```
 
 Expected: all engine tests pass (simple, two-stage, group-loop, etc.).
@@ -418,7 +418,7 @@ For `project.test.ts`: The `createProjectDir` function is being removed/repurpos
 **Step 2: Run to verify failure**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -E '(init|project|FAIL|✗)'
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(init|project|FAIL|✗)'
 ```
 
 Expected: init tests fail because `.studio/projects/default/pipelines` doesn't exist.
@@ -631,7 +631,7 @@ Since `studio project add` is now unsupported, skip or remove `createProjectDir`
 **Step 8: Build and run tests**
 
 ```bash
-pnpm build && pnpm --filter @studio/cli test 2>&1 | tail -30
+pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | tail -30
 ```
 
 Expected: init tests pass, project tests pass (or skipped).
@@ -775,10 +775,10 @@ const events = mergeEvents(progress.getEvents(), runLogger, pipelineName, input)
 
 ```typescript
 // BEFORE:
-import { PipelineEngine, parseProjectPipeline, loadPipelineByName } from '@studio/engine';
+import { PipelineEngine, parseProjectPipeline, loadPipelineByName } from '@studio-foundation/engine';
 
 // AFTER:
-import { PipelineEngine, loadPipelineByName } from '@studio/engine';
+import { PipelineEngine, loadPipelineByName } from '@studio-foundation/engine';
 ```
 
 **2g. Update engine `run()` call:**

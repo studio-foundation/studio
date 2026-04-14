@@ -1,4 +1,4 @@
-# Design: Make @studio/engine Domain-Agnostic
+# Design: Make @studio-foundation/engine Domain-Agnostic
 
 ## Goal
 

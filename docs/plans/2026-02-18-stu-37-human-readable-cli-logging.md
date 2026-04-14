@@ -46,7 +46,7 @@ import {
   summarizeToolCalls,
   summarizeOutput,
 } from './formatters.js';
-import type { ToolCallSummary } from '@studio/engine';
+import type { ToolCallSummary } from '@studio-foundation/engine';
 
 describe('humanReadableStageName', () => {
   it('maps brief-analysis to Analyzing brief', () => {
@@ -169,7 +169,7 @@ describe('summarizeOutput', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: FAIL — module `./formatters.js` not found.
@@ -192,7 +192,7 @@ git commit -m "test(cli): add failing tests for humanReadableStageName, summariz
 
 ```typescript
 // cli/src/output/formatters.ts
-import type { ToolCallSummary } from '@studio/engine';
+import type { ToolCallSummary } from '@studio-foundation/engine';
 
 // ── Stage name mapping ────────────────────────────────────────────────────────
 
@@ -313,7 +313,7 @@ export function summarizeOutput(output: unknown): string | null {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests in `formatters.test.ts` PASS.
@@ -345,7 +345,7 @@ The new file keeps the same class API (`new ProgressDisplay(jsonMode, verbose)` 
 // cli/src/output/progress.ts
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import type { EngineEvents } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
 import { formatDuration } from './formatter.js';
 import { humanReadableStageName, summarizeToolCalls, summarizeOutput } from './formatters.js';
 
@@ -539,7 +539,7 @@ Expected: clean build, no TypeScript errors.
 **Step 3: Run the tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests pass.

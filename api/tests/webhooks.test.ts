@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import { WebhookStore } from '../src/webhook-store.js';
 import type { IntegrationRuntime } from '../src/integration-runtime.js';
 import type { IntegrationStore } from '../src/integration-store.js';

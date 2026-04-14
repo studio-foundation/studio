@@ -1,4 +1,4 @@
-# @studio/contracts
+# @studio-foundation/contracts
 
 Types et interfaces partagés par tous les packages Studio. ZERO dépendances. ZERO logique.
 

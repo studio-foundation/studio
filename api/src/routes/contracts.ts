@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import type { FastifyInstance } from 'fastify';
 import type { ServerDeps } from '../server.js';
-import { loadContract, validateOutput } from '@studio/engine';
-import type { ToolCall } from '@studio/contracts';
+import { loadContract, validateOutput } from '@studio-foundation/engine';
+import type { ToolCall } from '@studio-foundation/contracts';
 
 export async function contractsRoutes(
   fastify: FastifyInstance,

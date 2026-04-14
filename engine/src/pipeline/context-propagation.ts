@@ -2,8 +2,8 @@
 // Each stage gets the accumulated context from all previous stages
 
 import * as yaml from 'js-yaml';
-import type { StageDefinition, ToolCall } from '@studio/contracts';
-import type { AgentContext } from '@studio/runner';
+import type { StageDefinition, ToolCall } from '@studio-foundation/contracts';
+import type { AgentContext } from '@studio-foundation/runner';
 
 export type PipelineInput = string | Record<string, unknown>;
 
