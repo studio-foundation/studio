@@ -180,7 +180,7 @@ describe('runToolHook', () => {
 **Step 2: Run to verify they fail**
 
 ```bash
-pnpm --filter @studio/engine test -- hook-executor
+pnpm --filter @studio-foundation/engine test -- hook-executor
 ```
 
 Expected: FAIL — `runStageHook`, `renderHookCommand`, `runToolHook` not found.
@@ -195,7 +195,7 @@ Create `engine/src/pipeline/hook-executor.ts`:
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { StageHookDef, ToolHookDef } from '@studio/contracts';
+import type { StageHookDef, ToolHookDef } from '@studio-foundation/contracts';
 
 const execAsync = promisify(exec);
 const HOOK_TIMEOUT_MS = 30_000;
@@ -266,7 +266,7 @@ async function execHook(command: string, cwd: string): Promise<HookResult> {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine test -- hook-executor
+pnpm --filter @studio-foundation/engine test -- hook-executor
 ```
 
 Expected: all 7 tests PASS.
@@ -356,7 +356,7 @@ Add `StageDefinition` to the import from the loader.
 **Step 2: Run to verify they fail**
 
 ```bash
-pnpm --filter @studio/engine test -- loader
+pnpm --filter @studio-foundation/engine test -- loader
 ```
 
 Expected: FAIL — hooks is undefined.
@@ -408,7 +408,7 @@ function parseStageHooks(entry: any): StageHooks | undefined {
 }
 ```
 
-Also add `StageHooks` to the import from `@studio/contracts`.
+Also add `StageHooks` to the import from `@studio-foundation/contracts`.
 
 Then apply in the loop where stages are pushed. Change the simple stage push from:
 ```typescript
@@ -431,7 +431,7 @@ stages: entry.stages.map((s: any) => ({ ...s, hooks: parseStageHooks(s) })),
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine test -- loader
+pnpm --filter @studio-foundation/engine test -- loader
 ```
 
 Expected: all loader tests PASS (including new hooks tests).
@@ -467,7 +467,7 @@ import { runAgent } from './runner.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
-import type { AgentConfig } from '@studio/contracts';
+import type { AgentConfig } from '@studio-foundation/contracts';
 
 function makeConfig(toolCallName: string, toolCallArgs: Record<string, unknown>) {
   const toolRegistry = new ToolRegistry();
@@ -610,7 +610,7 @@ describe('runner — onPostToolUse callback', () => {
 **Step 2: Run to verify they fail**
 
 ```bash
-pnpm --filter @studio/runner test -- runner.test
+pnpm --filter @studio-foundation/runner test -- runner.test
 ```
 
 Expected: FAIL — `onPreToolUse` is not called, tool executes anyway.
@@ -769,7 +769,7 @@ const toolResultsMessage = executedToolCalls.map(tc => {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/runner test -- runner.test
+pnpm --filter @studio-foundation/runner test -- runner.test
 ```
 
 Expected: all 4 tests PASS.
@@ -802,7 +802,7 @@ At the top of `engine/src/engine.ts`, add:
 
 ```typescript
 import { runStageHook, runToolHook } from './pipeline/hook-executor.js';
-import type { StageHooks, ToolHookDef } from '@studio/contracts';
+import type { StageHooks, ToolHookDef } from '@studio-foundation/contracts';
 ```
 
 **Step 2: Add on_stage_start hook execution**

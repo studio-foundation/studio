@@ -9,7 +9,7 @@ There is no way to validate an arbitrary output against a saved contract via the
 **Approach A: new `validateOutput` engine helper + `POST /api/contracts/:name/validate` route.**
 
 Rejected alternatives:
-- Add `@studio/ralph` directly to api deps — violates the documented dep rule (api → engine + contracts), and api already has `@studio/runner` as an existing exception we shouldn't compound.
+- Add `@studio-foundation/ralph` directly to api deps — violates the documented dep rule (api → engine + contracts), and api already has `@studio-foundation/runner` as an existing exception we shouldn't compound.
 - Flat `POST /api/validate` with inline contract body — YAGNI, not needed by STU-146.
 
 ## Engine helper — `validateOutput`
@@ -17,12 +17,12 @@ Rejected alternatives:
 New file: `engine/src/pipeline/output-validator.ts`
 
 ```typescript
-import type { OutputContract, ToolCall } from '@studio/contracts';
-import type { ValidationResult } from '@studio/contracts';
+import type { OutputContract, ToolCall } from '@studio-foundation/contracts';
+import type { ValidationResult } from '@studio-foundation/contracts';
 import {
   validateSchema, validateToolCalls, validateRequiredTools,
   validateCountedTools, validateToolGroups,
-} from '@studio/ralph';
+} from '@studio-foundation/ralph';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 
 export interface OutputValidationResult {

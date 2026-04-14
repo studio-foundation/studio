@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { findJsonlFile, mapJsonlLineToEvent, parseJsonlForResume, resolveStageFromPipeline } from '../../src/commands/replay.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 const TMP = resolve('/tmp', '.studio-replay-test');
 const RUNS_DIR = resolve(TMP, '.studio/runs');

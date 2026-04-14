@@ -620,7 +620,7 @@ export { createPatchTools } from './tools/builtin/patch.js';
 At line 6, add `createPatchTools` to the import:
 
 ```typescript
-import { createDefaultRegistry, ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools, createPatchTools } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools, createPatchTools } from '@studio-foundation/runner';
 ```
 
 After line 124 (after the `createSearchTools` registration loop), add:
@@ -788,7 +788,7 @@ In `engine/src/engine.ts`, in the `buildValidator` method (around lines 685-696)
     }
 ```
 
-Also add `validateCountedTools` to the import from `@studio/ralph` at the top of engine.ts.
+Also add `validateCountedTools` to the import from `@studio-foundation/ralph` at the top of engine.ts.
 
 **Step 8: Build all three packages**
 

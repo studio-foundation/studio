@@ -126,7 +126,7 @@ Append these inside the describe block, after the existing 3 tests:
 **Step 4: Run the new tests to confirm they fail**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: 4 new tests fail. Existing 3 tests in the logs describe block still pass.
@@ -205,7 +205,7 @@ Find the existing handler (starts at the `// GET /api/runs/:id/logs` comment, ar
 **Step 2: Run all API tests**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: All tests pass, including the 4 new ones.

@@ -2,7 +2,7 @@
 // Shared local types for pipeline execution — used by engine, StageExecutor, GroupOrchestrator
 
 import { join } from 'node:path';
-import type { StageRun, StageStatus, ToolCall } from '@studio/contracts';
+import type { StageRun, StageStatus, ToolCall } from '@studio-foundation/contracts';
 import type { PostValidationResult } from './post-validator.js';
 import type { PipelineContext } from './context-propagation.js';
 

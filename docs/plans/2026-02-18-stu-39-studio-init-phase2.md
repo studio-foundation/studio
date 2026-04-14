@@ -113,7 +113,7 @@ describe('backupStudioDir', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Attendu : 4 failures (`backupStudioDir is not a function` ou similaire).
@@ -153,7 +153,7 @@ export async function backupStudioDir(cwd: string): Promise<string> {
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Attendu : 4 new tests PASS, tous les anciens tests toujours PASS.
@@ -236,7 +236,7 @@ describe('directInit', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Attendu : 5 failures (`directInit is not a function`).
@@ -268,7 +268,7 @@ export async function directInit(
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Attendu : 5 new tests PASS, tous les anciens toujours PASS.
@@ -533,7 +533,7 @@ Attendu : Build réussit sans erreurs TypeScript.
 ### Step 5: Run all tests
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Attendu : tous les tests passent (anciens + nouveaux).
@@ -649,7 +649,7 @@ gh pr create \
 
 ## Packages touchés
 
-- `@studio/cli` — `init.ts`, `index.ts`, `init.test.ts`
+- `@studio-foundation/cli` — `init.ts`, `index.ts`, `init.test.ts`
 
 ## Comment tester
 
@@ -669,7 +669,7 @@ studio init my-project --template software --provider anthropic --api-key sk-ant
 ## Tests
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

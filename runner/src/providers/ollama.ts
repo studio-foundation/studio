@@ -3,7 +3,7 @@
  * Uses the openai npm SDK pointed at Ollama's /v1 endpoint.
  */
 
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionChunk } from 'openai/resources/chat/completions';

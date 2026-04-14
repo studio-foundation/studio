@@ -1,4 +1,4 @@
-# @studio/contracts
+# @studio-foundation/contracts
 
 Shared TypeScript types and interfaces for the Studio monorepo. Zero dependencies, zero logic.
 

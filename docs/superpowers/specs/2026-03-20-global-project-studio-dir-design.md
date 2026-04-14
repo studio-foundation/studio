@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-20
 **Status:** Approved
-**Packages touched:** `@studio/cli` only
+**Packages touched:** `@studio-foundation/cli` only
 
 ## Problem
 

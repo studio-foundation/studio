@@ -95,7 +95,7 @@ describe('ProgressDisplay — timer utilities', () => {
 
 ```bash
 cd /path/to/.worktrees/stu-241-cli-feedback-timer
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: FAIL — `clearTimer is not a function` or similar.
@@ -135,7 +135,7 @@ private elapsedSeconds(): number {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: PASS (3 tests).
@@ -240,7 +240,7 @@ describe('ProgressDisplay — timer in non-live mode', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: FAIL — timer not started, `mockOraInstance.text` not updated.
@@ -302,7 +302,7 @@ interrupt(): void {
 **Step 5: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: PASS.
@@ -310,7 +310,7 @@ Expected: PASS.
 **Step 6: Run full test suite to check no regressions**
 
 ```bash
-pnpm --filter @studio/cli test -- --run 2>&1 | tail -10
+pnpm --filter @studio-foundation/cli test -- --run 2>&1 | tail -10
 ```
 
 Expected: all passing, 0 failures.
@@ -433,7 +433,7 @@ describe('ProgressDisplay — timer in live mode', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: FAIL.
@@ -653,7 +653,7 @@ This correctly shows `from 12s` (total elapsed from stage start) and keeps updat
 **Step 7: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/cli test -- --run tests/output/progress-timer.test.ts 2>&1 | tail -20
 ```
 
 Expected: all timer tests PASS.
@@ -661,7 +661,7 @@ Expected: all timer tests PASS.
 **Step 8: Run full test suite**
 
 ```bash
-pnpm --filter @studio/cli test -- --run 2>&1 | tail -10
+pnpm --filter @studio-foundation/cli test -- --run 2>&1 | tail -10
 ```
 
 Expected: all passing.
@@ -718,7 +718,7 @@ On pipelines with 40-90s stages, the spinner showed no feedback — users couldn
 
 ## Packages touched
 
-- `@studio/cli` only — no changes to engine, runner, contracts
+- `@studio-foundation/cli` only — no changes to engine, runner, contracts
 
 ## How to test
 

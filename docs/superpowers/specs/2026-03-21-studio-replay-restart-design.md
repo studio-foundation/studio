@@ -69,11 +69,11 @@ These appear in `studio status` output.
 
 ## Section 2 — Engine Layer
 
-**Files:** `engine/src/engine.ts`, `@studio/contracts` (RunOptions)
+**Files:** `engine/src/engine.ts`, `@studio-foundation/contracts` (RunOptions)
 
 ### New `RunInput` Fields
 
-The interface is `RunInput`, defined in `engine/src/engine.ts` (not in `@studio/contracts`). `ToolCall` is imported from `@studio/contracts` (exported via `contracts/src/agent.ts`).
+The interface is `RunInput`, defined in `engine/src/engine.ts` (not in `@studio-foundation/contracts`). `ToolCall` is imported from `@studio-foundation/contracts` (exported via `contracts/src/agent.ts`).
 
 ```typescript
 interface RunInput {

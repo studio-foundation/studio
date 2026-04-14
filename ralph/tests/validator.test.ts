@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateSchema, validateToolCalls, validateRequiredTools, validateCountedTools, validateToolGroups, compose } from '../src/validator.js';
-import type { OutputContract, ToolCall } from '@studio/contracts';
+import type { OutputContract, ToolCall } from '@studio-foundation/contracts';
 
 describe('validateSchema', () => {
   it('passes when all required fields present', () => {

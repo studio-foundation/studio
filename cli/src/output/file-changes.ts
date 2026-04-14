@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import chalk from 'chalk';
-import type { ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallCompleteEvent } from '@studio-foundation/contracts';
 
 export interface FileChange {
   path: string;

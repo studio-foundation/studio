@@ -1,4 +1,4 @@
-import { ToolCall } from '@studio/contracts';
+import { ToolCall } from '@studio-foundation/contracts';
 import { ToolRegistry } from './tool-registry.js';
 
 /**

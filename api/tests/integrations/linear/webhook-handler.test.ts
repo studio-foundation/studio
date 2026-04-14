@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { LinearWebhookHandler } from '../../../src/integrations/linear/webhook-handler.js';
 import { IntegrationStore } from '../../../src/integration-store.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 const WEBHOOK_SECRET = 'test-secret-abc';
 

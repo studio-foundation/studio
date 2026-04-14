@@ -50,7 +50,7 @@ export type { LoadedPlugin } from './tools/plugin-loader.js';
 
 // Anonymization middleware
 export { AnonymizationMiddleware } from './middleware/anonymization.js';
-export type { AnonymizerOptions } from '@studio/anonymizer';
+export type { AnonymizerOptions } from '@studio-foundation/anonymizer';
 
 // Plugin system (Claude Code plugin compatibility)
 export { loadPlugins, MCPClient, StudioOAuthProvider } from './plugins/index.js';

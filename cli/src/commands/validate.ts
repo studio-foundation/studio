@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import chalk from 'chalk';
 import yaml from 'js-yaml';
-import type { OutputContract } from '@studio/contracts';
-import { validateSchema } from '@studio/engine';
+import type { OutputContract } from '@studio-foundation/contracts';
+import { validateSchema } from '@studio-foundation/engine';
 
 export async function validateCommand(
   contractPath: string,

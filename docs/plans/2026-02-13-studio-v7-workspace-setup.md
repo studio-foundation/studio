@@ -76,16 +76,16 @@ cat > README.md << 'EOF'
 Studio v7 follows a multi-repo structure with clear dependency chains:
 
 ```
-                    @studio/contracts
+                    @studio-foundation/contracts
                     /       |        \
                    /        |         \
-          @studio/ralph  @studio/runner  |
+          @studio-foundation/ralph  @studio-foundation/runner  |
                    \        /            |
                     \      /             |
-                  @studio/engine         |
+                  @studio-foundation/engine         |
                         |               /
                         |              /
-                    @studio/cli ------
+                    @studio-foundation/cli ------
 ```
 
 ## Repositories
@@ -268,7 +268,7 @@ EOF
 ```bash
 cat > package.json << 'EOF'
 {
-  "name": "@studio/contracts",
+  "name": "@studio-foundation/contracts",
   "version": "0.1.0",
   "description": "Shared TypeScript types and interfaces for Studio v7",
   "type": "module",
@@ -340,7 +340,7 @@ EOF
 
 ```bash
 cat > ARCHITECTURE.md << 'EOF'
-# @studio/contracts
+# @studio-foundation/contracts
 
 Types et interfaces partagés par tous les packages Studio. ZERO logique.
 
@@ -395,7 +395,7 @@ EOF
 
 ```bash
 cat > src/index.ts << 'EOF'
-// Export barrel for @studio/contracts
+// Export barrel for @studio-foundation/contracts
 // All types are re-exported from their source files
 
 export * from './pipeline.js';
@@ -686,7 +686,7 @@ EOF
 
 ```bash
 cat > tests/types.test.ts << 'EOF'
-// Type-level tests for @studio/contracts
+// Type-level tests for @studio-foundation/contracts
 // These tests verify that types compile correctly
 
 import type {
@@ -784,7 +784,7 @@ git add .
 **Step 2: Commit**
 
 ```bash
-git commit -m "feat: initialize @studio/contracts with type definitions
+git commit -m "feat: initialize @studio-foundation/contracts with type definitions
 
 - Add all TypeScript interface definitions
 - Add export barrel (index.ts)
@@ -865,7 +865,7 @@ EOF
 ```bash
 cat > package.json << 'EOF'
 {
-  "name": "@studio/ralph",
+  "name": "@studio-foundation/ralph",
   "version": "0.1.0",
   "description": "RALPH loop engine - Recursive Automated Loop for Persistent Handling",
   "type": "module",
@@ -887,7 +887,7 @@ cat > package.json << 'EOF'
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@studio/contracts": "file:../contracts"
+    "@studio-foundation/contracts": "file:../contracts"
   },
   "devDependencies": {
     "typescript": "^5.3.0"
@@ -940,7 +940,7 @@ EOF
 
 ```bash
 cat > ARCHITECTURE.md << 'EOF'
-# @studio/ralph
+# @studio-foundation/ralph
 
 RALPH loop engine — retry intelligent avec validation.
 "Recursive Automated Loop for Persistent Handling" (Ralph Wiggum approved)
@@ -956,7 +956,7 @@ C'est tout. C'est générique. Ça marche pour n'importe quoi, pas juste des LLM
 - La validation est composable (compose(...validators))
 - Les stratégies de retry sont pluggables
 - JAMAIS de dépendance sur runner ou engine — ralph est agnostique
-- Dépend UNIQUEMENT de @studio/contracts
+- Dépend UNIQUEMENT de @studio-foundation/contracts
 
 ## Fichiers clés
 
@@ -969,13 +969,13 @@ C'est tout. C'est générique. Ça marche pour n'importe quoi, pas juste des LLM
 ## Anti-patterns
 
 - NE PAS mettre de logique LLM ici
-- NE PAS importer @studio/runner
+- NE PAS importer @studio-foundation/runner
 - NE PAS hardcoder des règles de validation — tout vient des contracts YAML
 
 ## Usage
 
 ```typescript
-import { ralph } from '@studio/ralph';
+import { ralph } from '@studio-foundation/ralph';
 
 const result = await ralph({
   executor: () => doSomething(),
@@ -1005,7 +1005,7 @@ EOF
 
 ```bash
 cat > src/index.ts << 'EOF'
-// Export barrel for @studio/ralph
+// Export barrel for @studio-foundation/ralph
 
 export * from './loop.js';
 export * from './validator.js';
@@ -1020,7 +1020,7 @@ EOF
 ```bash
 cat > src/loop.ts << 'EOF'
 // RALPH loop - main function
-import type { ValidationResult } from '@studio/contracts';
+import type { ValidationResult } from '@studio-foundation/contracts';
 
 export interface RalphConfig<T> {
   executor: () => Promise<T>;
@@ -1050,7 +1050,7 @@ EOF
 ```bash
 cat > src/validator.ts << 'EOF'
 // Validation engine
-import type { ValidationResult, OutputContract } from '@studio/contracts';
+import type { ValidationResult, OutputContract } from '@studio-foundation/contracts';
 
 export type Validator<T> = (result: T) => Promise<ValidationResult>;
 
@@ -1078,7 +1078,7 @@ EOF
 ```bash
 cat > src/contracts.ts << 'EOF'
 // Load and parse output contracts from YAML
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 export async function loadContract(path: string): Promise<OutputContract> {
   // TODO: Implementation will go here
@@ -1268,7 +1268,7 @@ npm install
 **Step 2: Verify contracts dependency**
 
 ```bash
-ls -la node_modules/@studio/contracts
+ls -la node_modules/@studio-foundation/contracts
 ```
 
 **Expected:** Should be symlink to ../contracts.
@@ -1285,7 +1285,7 @@ npm run build
 
 ```bash
 git add .
-git commit -m "feat: initialize @studio/ralph with RALPH loop structure
+git commit -m "feat: initialize @studio-foundation/ralph with RALPH loop structure
 
 - Add ralph() function signature and types
 - Add validator engine with composition support
@@ -1294,7 +1294,7 @@ git commit -m "feat: initialize @studio/ralph with RALPH loop structure
 - Add contract loader (YAML parsing placeholder)
 - Add example contracts (code-generation, analysis)
 - Add test placeholders
-- Depends on @studio/contracts via file:
+- Depends on @studio-foundation/contracts via file:
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```
@@ -1356,7 +1356,7 @@ EOF
 ```bash
 cat > package.json << 'EOF'
 {
-  "name": "@studio/runner",
+  "name": "@studio-foundation/runner",
   "version": "0.1.0",
   "description": "Multi-provider LLM agent runner with tool execution",
   "type": "module",
@@ -1378,7 +1378,7 @@ cat > package.json << 'EOF'
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@studio/contracts": "file:../contracts"
+    "@studio-foundation/contracts": "file:../contracts"
   },
   "devDependencies": {
     "typescript": "^5.3.0"
@@ -1434,7 +1434,7 @@ EOF
 
 ```bash
 cat > ARCHITECTURE.md << 'EOF'
-# @studio/runner
+# @studio-foundation/runner
 
 Agent runner multi-provider. Parle aux LLMs, exécute les tools.
 
@@ -1450,7 +1450,7 @@ retourne un AgentRun complet avec les vrais tool_calls trackés.
 - CHAQUE tool call réel est tracké dans AgentRun.tool_calls
 - Le runner ne valide PAS — c'est le job de ralph
 - Le runner ne retry PAS — c'est le job de ralph
-- Dépend UNIQUEMENT de @studio/contracts
+- Dépend UNIQUEMENT de @studio-foundation/contracts
 
 ## Fichiers clés
 
@@ -1473,7 +1473,7 @@ EOF
 
 ```bash
 cat > src/index.ts << 'EOF'
-// Export barrel for @studio/runner
+// Export barrel for @studio-foundation/runner
 
 export * from './runner.js';
 export * from './prompt-builder.js';
@@ -1490,7 +1490,7 @@ EOF
 ```bash
 cat > src/runner.ts << 'EOF'
 // Main runner function
-import type { AgentConfig, AgentRun } from '@studio/contracts';
+import type { AgentConfig, AgentRun } from '@studio-foundation/contracts';
 
 export interface RunAgentContext {
   input: string;
@@ -1519,7 +1519,7 @@ EOF
 ```bash
 cat > src/prompt-builder.ts << 'EOF'
 // Assemble prompts from config and context
-import type { AgentConfig, Message } from '@studio/contracts';
+import type { AgentConfig, Message } from '@studio-foundation/contracts';
 import type { RunAgentContext } from './runner.js';
 
 export function buildPrompt(
@@ -1564,9 +1564,9 @@ EOF
 ```bash
 cat > src/providers/provider.ts << 'EOF'
 // Abstract provider interface
-import type { LLMProvider } from '@studio/contracts';
+import type { LLMProvider } from '@studio-foundation/contracts';
 
-export type { LLMProvider } from '@studio/contracts';
+export type { LLMProvider } from '@studio-foundation/contracts';
 
 // Providers must implement the LLMProvider interface from contracts
 EOF
@@ -1577,7 +1577,7 @@ EOF
 ```bash
 cat > src/providers/openai.ts << 'EOF'
 // OpenAI provider implementation
-import type { LLMProvider, LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMProvider, LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 
 export class OpenAIProvider implements LLMProvider {
   name = 'openai';
@@ -1596,7 +1596,7 @@ EOF
 ```bash
 cat > src/providers/anthropic.ts << 'EOF'
 // Anthropic (Claude) provider implementation
-import type { LLMProvider, LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMProvider, LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 
 export class AnthropicProvider implements LLMProvider {
   name = 'anthropic';
@@ -1615,7 +1615,7 @@ EOF
 ```bash
 cat > src/providers/registry.ts << 'EOF'
 // Provider registry
-import type { LLMProvider } from '@studio/contracts';
+import type { LLMProvider } from '@studio-foundation/contracts';
 import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
 
@@ -1657,7 +1657,7 @@ EOF
 ```bash
 cat > src/tools/tool-executor.ts << 'EOF'
 // Execute tool calls
-import type { ToolCall } from '@studio/contracts';
+import type { ToolCall } from '@studio-foundation/contracts';
 
 export interface ToolResult {
   success: boolean;
@@ -1935,7 +1935,7 @@ EOF
 
 ```bash
 npm install
-ls -la node_modules/@studio/contracts
+ls -la node_modules/@studio-foundation/contracts
 ```
 
 **Expected:** contracts dependency linked.
@@ -1952,7 +1952,7 @@ npm run build
 
 ```bash
 git add .
-git commit -m "feat: initialize @studio/runner with multi-provider structure
+git commit -m "feat: initialize @studio-foundation/runner with multi-provider structure
 
 - Add runAgent() main function
 - Add multi-provider support (OpenAI, Anthropic)
@@ -1962,7 +1962,7 @@ git commit -m "feat: initialize @studio/runner with multi-provider structure
 - Add context packing
 - Add agent profile configs (generic, code-generator, analyst)
 - Add test placeholders
-- Depends on @studio/contracts
+- Depends on @studio-foundation/contracts
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
@@ -2022,7 +2022,7 @@ EOF
 ```bash
 cat > package.json << 'EOF'
 {
-  "name": "@studio/engine",
+  "name": "@studio-foundation/engine",
   "version": "0.1.0",
   "description": "Pipeline orchestration engine for Studio v7",
   "type": "module",
@@ -2044,9 +2044,9 @@ cat > package.json << 'EOF'
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@studio/contracts": "file:../contracts",
-    "@studio/ralph": "file:../ralph",
-    "@studio/runner": "file:../runner",
+    "@studio-foundation/contracts": "file:../contracts",
+    "@studio-foundation/ralph": "file:../ralph",
+    "@studio-foundation/runner": "file:../runner",
     "prisma": "^5.0.0",
     "@prisma/client": "^5.0.0"
   },
@@ -2102,7 +2102,7 @@ EOF
 
 ```bash
 cat > ARCHITECTURE.md << 'EOF'
-# @studio/engine
+# @studio-foundation/engine
 
 Orchestrateur de pipelines. Le cerveau de Studio.
 
@@ -2136,7 +2136,7 @@ Si ce test passe pas de façon fiable, rien d'autre compte.
 
 ## Dépendances
 
-@studio/contracts, @studio/ralph, @studio/runner
+@studio-foundation/contracts, @studio-foundation/ralph, @studio-foundation/runner
 EOF
 ```
 
@@ -2144,7 +2144,7 @@ EOF
 
 ```bash
 cat > src/index.ts << 'EOF'
-// Export barrel for @studio/engine
+// Export barrel for @studio-foundation/engine
 
 export * from './engine.js';
 export * from './events.js';
@@ -2156,7 +2156,7 @@ EOF
 
 cat > src/engine.ts << 'EOF'
 // Main pipeline engine
-import type { PipelineDefinition, PipelineRun } from '@studio/contracts';
+import type { PipelineDefinition, PipelineRun } from '@studio-foundation/contracts';
 
 export class PipelineEngine {
   async loadPipeline(path: string): Promise<PipelineDefinition> {
@@ -2216,7 +2216,7 @@ EOF
 ```bash
 cat > src/state/state-machine.ts << 'EOF'
 // Stage lifecycle state machine
-import type { StageStatus } from '@studio/contracts';
+import type { StageStatus } from '@studio-foundation/contracts';
 
 export type StateTransition = {
   from: StageStatus;
@@ -2239,7 +2239,7 @@ EOF
 cat > src/state/status-derivation.ts << 'EOF'
 // Derive stage status from task statuses
 // THIS IS THE CRITICAL FUNCTION
-import type { StageStatus, TaskStatus } from '@studio/contracts';
+import type { StageStatus, TaskStatus } from '@studio-foundation/contracts';
 
 export function deriveStageStatusFromTasks(taskStatuses: TaskStatus[]): StageStatus {
   if (taskStatuses.length === 0) {
@@ -2273,7 +2273,7 @@ EOF
 
 cat > src/state/run-store.ts << 'EOF'
 // Persistence layer for runs (SQLite via Prisma)
-import type { PipelineRun, StageRun, TaskRun } from '@studio/contracts';
+import type { PipelineRun, StageRun, TaskRun } from '@studio-foundation/contracts';
 
 export class RunStore {
   async savePipelineRun(run: PipelineRun): Promise<void> {
@@ -2308,7 +2308,7 @@ EOF
 ```bash
 cat > src/pipeline/loader.ts << 'EOF'
 // Load pipeline from YAML
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   // TODO: Implementation - read YAML, parse, validate
@@ -2323,7 +2323,7 @@ EOF
 
 cat > src/pipeline/stage-resolver.ts << 'EOF'
 // Resolve stages (sequential for v7)
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition } from '@studio-foundation/contracts';
 
 export function resolveStages(stages: StageDefinition[]): StageDefinition[] {
   // For v7: just return stages in order (sequential execution)
@@ -2506,7 +2506,7 @@ npm run build
 
 ```bash
 git add .
-git commit -m "feat: initialize @studio/engine with orchestration structure
+git commit -m "feat: initialize @studio-foundation/engine with orchestration structure
 
 - Add PipelineEngine class
 - Add state machine for stage lifecycle
@@ -2518,7 +2518,7 @@ git commit -m "feat: initialize @studio/engine with orchestration structure
 - Add example feature-builder pipeline
 - Add Prisma schema placeholder
 - Add test placeholders including critical E2E test
-- Depends on @studio/contracts, @studio/ralph, @studio/runner
+- Depends on @studio-foundation/contracts, @studio-foundation/ralph, @studio-foundation/runner
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
@@ -2574,7 +2574,7 @@ EOF
 ```bash
 cat > package.json << 'EOF'
 {
-  "name": "@studio/cli",
+  "name": "@studio-foundation/cli",
   "version": "0.1.0",
   "description": "Command-line interface for Studio v7",
   "type": "module",
@@ -2593,8 +2593,8 @@ cat > package.json << 'EOF'
   "author": "Ariane Guay",
   "license": "ISC",
   "dependencies": {
-    "@studio/contracts": "file:../contracts",
-    "@studio/engine": "file:../engine"
+    "@studio-foundation/contracts": "file:../contracts",
+    "@studio-foundation/engine": "file:../engine"
   },
   "devDependencies": {
     "typescript": "^5.3.0"
@@ -2647,7 +2647,7 @@ EOF
 
 ```bash
 cat > ARCHITECTURE.md << 'EOF'
-# @studio/cli
+# @studio-foundation/cli
 
 Interface terminal pour Studio. Thin wrapper sur engine.
 
@@ -2656,7 +2656,7 @@ Interface terminal pour Studio. Thin wrapper sur engine.
 - ZERO logique métier — tout est dans engine
 - Pretty output pour humains, JSON pour machines (--json flag)
 - Commandes simples et évidentes
-- Dépend de @studio/contracts et @studio/engine (PAS de ralph/runner direct)
+- Dépend de @studio-foundation/contracts et @studio-foundation/engine (PAS de ralph/runner direct)
 
 ## Fichiers clés
 
@@ -2791,7 +2791,7 @@ EOF
 ```bash
 cat > src/output/formatter.ts << 'EOF'
 // Pretty print for terminal
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 export function formatPipelineRun(run: PipelineRun): string {
   // TODO: Pretty format with colors
@@ -2913,7 +2913,7 @@ npm run build
 
 ```bash
 git add .
-git commit -m "feat: initialize @studio/cli with command structure
+git commit -m "feat: initialize @studio-foundation/cli with command structure
 
 - Add CLI entry point with shebang
 - Add command files (run, validate, list, status, init)
@@ -2922,7 +2922,7 @@ git commit -m "feat: initialize @studio/cli with command structure
 - Add template files (.studiorc.yaml, hello-world pipeline)
 - Add test placeholders
 - Add bin config for 'studio' command
-- Depends on @studio/contracts, @studio/engine
+- Depends on @studio-foundation/contracts, @studio-foundation/engine
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
@@ -2961,14 +2961,14 @@ cd cli && npm run build && cd ..
 
 ```bash
 # Check cli depends on engine
-cat cli/package.json | grep "@studio/engine"
+cat cli/package.json | grep "@studio-foundation/engine"
 
 # Check engine depends on contracts, ralph, runner
 cat engine/package.json | grep "@studio"
 
 # Check ralph and runner depend on contracts
-cat ralph/package.json | grep "@studio/contracts"
-cat runner/package.json | grep "@studio/contracts"
+cat ralph/package.json | grep "@studio-foundation/contracts"
+cat runner/package.json | grep "@studio-foundation/contracts"
 
 # Check contracts has no dependencies
 cat contracts/package.json | grep "\"dependencies\""
@@ -3043,12 +3043,12 @@ After completing all tasks, verify:
 
 After setup completion:
 
-1. **Start Phase 1:** Implement @studio/contracts fully
+1. **Start Phase 1:** Implement @studio-foundation/contracts fully
    - Replace placeholder types with complete definitions
    - Add comprehensive type-level tests
    - Validate against architecture doc
 
-2. **Then Phase 2:** Implement @studio/ralph
+2. **Then Phase 2:** Implement @studio-foundation/ralph
    - Build the RALPH loop
    - Add validation engine
    - Write unit tests

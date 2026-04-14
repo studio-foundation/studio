@@ -413,7 +413,7 @@ import type {
   PipelineStartEvent,
   PipelineCompleteEvent,
 } from './events.js';
-import type { ToolCall, StageKind } from '@studio/contracts';
+import type { ToolCall, StageKind } from '@studio-foundation/contracts';
 
 function summarizeOutput(output: unknown, stageKind: StageKind): string {
   if (!output || typeof output !== 'object') return 'no structured output';
@@ -711,7 +711,7 @@ Replace `cli/src/output/progress.ts` with:
 
 ```typescript
 import chalk from 'chalk';
-import type { EngineEvents } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
 import { formatDuration } from './formatter.js';
 
 export class ProgressDisplay {

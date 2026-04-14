@@ -3,8 +3,8 @@ import { resolve, join, dirname } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as yaml from 'js-yaml';
-import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio/runner';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio-foundation/runner';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import { loadConfig, resolveEnvVars } from '../config.js';
 import { setConfigValue } from './config.js';
 
@@ -60,8 +60,8 @@ export async function installIntegration(source: string, integrationsDir: string
   let name: string;
   let content: string;
 
-  if (source.startsWith('@studio/integration-')) {
-    name = source.replace('@studio/integration-', '');
+  if (source.startsWith('@studio-foundation/integration-')) {
+    name = source.replace('@studio-foundation/integration-', '');
     const bundled = await getBundledIntegrationTemplate(name);
     if (!bundled) {
       const available = await listAvailableIntegrationTemplates();

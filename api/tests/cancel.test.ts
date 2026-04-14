@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 import type { IntegrationRuntime } from '../src/integration-runtime.js';
 import type { IntegrationStore } from '../src/integration-store.js';
 

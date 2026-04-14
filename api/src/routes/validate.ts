@@ -9,7 +9,7 @@ import {
   createSearchTools,
   createPatchTools,
   createGitTools,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 
 // Derived at module load from the actual factory functions — single source of truth.
 // Using '.' as a dummy repoPath: only `execute` uses the path, `name` is hardcoded.

@@ -1,4 +1,4 @@
-# @studio/ralph
+# @studio-foundation/ralph
 
 RALPH loop engine — retry intelligent avec validation.
 "Recursive Automated Loop for Persistent Handling"
@@ -14,8 +14,8 @@ C'est tout. C'est générique. Ça marche pour n'importe quoi, pas juste des LLM
 - Le `executor` est `() => Promise<T>` — ralph ne sait pas que c'est un LLM derrière
 - La validation est composable via `compose(...validators)`
 - Les stratégies de retry sont pluggables (`exponentialBackoff`, `fixedDelay`, `noDelay`)
-- JAMAIS de dépendance sur `@studio/runner` ou `@studio/engine` — ralph est agnostique
-- Dépend UNIQUEMENT de `@studio/contracts`
+- JAMAIS de dépendance sur `@studio-foundation/runner` ou `@studio-foundation/engine` — ralph est agnostique
+- Dépend UNIQUEMENT de `@studio-foundation/contracts`
 
 ## Résultat
 
@@ -37,5 +37,5 @@ type RalphResult<T> =
 ## Anti-patterns
 
 - NE PAS mettre de logique LLM ici
-- NE PAS importer `@studio/runner`
+- NE PAS importer `@studio-foundation/runner`
 - NE PAS hardcoder des règles de validation — tout vient des contracts YAML

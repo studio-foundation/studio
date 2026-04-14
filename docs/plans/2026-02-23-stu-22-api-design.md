@@ -1,13 +1,13 @@
-# Design — STU-22 : @studio/api (Fastify REST Phase 1)
+# Design — STU-22 : @studio-foundation/api (Fastify REST Phase 1)
 
 ## Contexte
 
-Création du package `@studio/api` avec Fastify. Endpoints REST de base pour lancer et consulter des runs. Le CLI et l'API sont deux interfaces indépendantes sur le même engine — pas de dépendance de `api` vers `cli`.
+Création du package `@studio-foundation/api` avec Fastify. Endpoints REST de base pour lancer et consulter des runs. Le CLI et l'API sont deux interfaces indépendantes sur le même engine — pas de dépendance de `api` vers `cli`.
 
 ## Décisions clés
 
 - **Single project** : l'API sert UN seul `.studio/` (celui du répertoire de travail). `GET /api/projects` retourne un seul projet.
-- **Startup** : commande `studio api start` dans `@studio/cli`, mais `@studio/api` a son propre entrypoint standalone pour PM2/systemd.
+- **Startup** : commande `studio api start` dans `@studio-foundation/cli`, mais `@studio-foundation/api` a son propre entrypoint standalone pour PM2/systemd.
 - **Logs** : chemin du fichier JSONL stocké dans `RunStore` via nouvelles méthodes `saveLogPath` / `getLogPath`.
 - **Store** : tout le code reçoit `RunStore` (interface), jamais `SQLiteRunStore` directement — bootstrap uniquement.
 
@@ -15,7 +15,7 @@ Création du package `@studio/api` avec Fastify. Endpoints REST de base pour lan
 
 ```
 api/
-├── package.json          # @studio/api
+├── package.json          # @studio-foundation/api
 ├── tsconfig.json
 └── src/
     ├── index.ts          # Entrypoint standalone (PM2/systemd)
@@ -28,14 +28,14 @@ api/
         └── projects.ts   # GET /api/projects, GET /api/projects/:id/pipelines
 ```
 
-Dépendances de `@studio/api` :
-- `@studio/engine`, `@studio/contracts`, `@studio/runner`
+Dépendances de `@studio-foundation/api` :
+- `@studio-foundation/engine`, `@studio-foundation/contracts`, `@studio-foundation/runner`
 - `fastify`, `@fastify/cors`
 - `js-yaml`
 
 `pnpm-workspace.yaml` : ajouter `"api"`.
 
-`@studio/cli` ajoute `@studio/api` comme dépendance pour `studio api start`.
+`@studio-foundation/cli` ajoute `@studio-foundation/api` comme dépendance pour `studio api start`.
 
 ## Extension RunStore
 
@@ -48,7 +48,7 @@ getLogPath(runId: string): string | null;
 
 - `InMemoryRunStore` : `Map<string, string>` en mémoire
 - `SQLiteRunStore` : colonne `log_path TEXT` ajoutée via `ALTER TABLE IF NOT EXISTS` dans `initSchema()`
-- `PipelineRun` dans `@studio/contracts` ne change pas
+- `PipelineRun` dans `@studio-foundation/contracts` ne change pas
 
 ## InProcessLauncher
 

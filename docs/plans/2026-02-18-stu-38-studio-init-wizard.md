@@ -19,7 +19,7 @@
 
 ```bash
 cd /path/to/Studio
-pnpm add @inquirer/prompts --filter @studio/cli
+pnpm add @inquirer/prompts --filter @studio-foundation/cli
 ```
 
 Expected: package added to `cli/package.json` under `dependencies`, `pnpm-lock.yaml` updated.
@@ -87,7 +87,7 @@ describe('validateApiKeyFormat', () => {
 ### Step 2: Run to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: FAIL with `validateApiKeyFormat is not a function` or similar.
@@ -118,7 +118,7 @@ export function validateApiKeyFormat(provider: string, key: string): true | stri
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS including the new `validateApiKeyFormat` suite.
@@ -203,7 +203,7 @@ Add `import * as yaml from 'js-yaml';` at the top of the test file (after the ex
 ### Step 2: Run to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: FAIL with `writeProviderToConfig is not a function`.
@@ -264,7 +264,7 @@ import * as yaml from 'js-yaml';
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS.
@@ -433,7 +433,7 @@ Expected: no TypeScript errors.
 ### Step 4: Run existing tests
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all tests PASS (existing `createStudioStructure` tests are unaffected).
@@ -537,7 +537,7 @@ gh pr create \
 - Ctrl+C exits cleanly with "Aborted." message
 
 ## Packages touched
-- `@studio/cli` only
+- `@studio-foundation/cli` only
 
 ## How to test
 1. `pnpm build`

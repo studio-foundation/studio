@@ -2,7 +2,7 @@
 // Handles group-level orchestration: parallel and sequential iteration with feedback loops.
 
 import { randomUUID } from 'node:crypto';
-import type { StageGroup, StageRun, StageStatus } from '@studio/contracts';
+import type { StageGroup, StageRun, StageStatus } from '@studio-foundation/contracts';
 import {
   addStageOutput,
   addStageToolResults,
@@ -10,7 +10,7 @@ import {
   type PipelineContext,
 } from './context-propagation.js';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
-import type { ToolRegistry, AnonymizationMiddleware } from '@studio/runner';
+import type { ToolRegistry, AnonymizationMiddleware } from '@studio-foundation/runner';
 import type { StageExecutor } from './stage-executor.js';
 import type { GroupResult, ProjectPaths, StageResult } from './types.js';
 

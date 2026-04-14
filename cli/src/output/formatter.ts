@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 export function formatResult(run: PipelineRun): void {
   console.log('');

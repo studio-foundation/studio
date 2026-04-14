@@ -2,15 +2,15 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Remove the static `@studio/api` dependency from `@studio/cli` and replace it with dynamic loading + `studio install api` / `studio api stop|status` commands.
+**Goal:** Remove the static `@studio-foundation/api` dependency from `@studio-foundation/cli` and replace it with dynamic loading + `studio install api` / `studio api stop|status` commands.
 
-**Architecture:** Move `resolveRepoPath` to `@studio/engine` (no server deps), demote `@studio/api` to devDependency in the CLI, load it dynamically at runtime when `studio api start` is invoked. Write a PID file so `stop`/`status` work from a second terminal.
+**Architecture:** Move `resolveRepoPath` to `@studio-foundation/engine` (no server deps), demote `@studio-foundation/api` to devDependency in the CLI, load it dynamically at runtime when `studio api start` is invoked. Write a PID file so `stop`/`status` work from a second terminal.
 
 **Tech Stack:** TypeScript, Vitest, Node.js builtins (`child_process`, `fs/promises`, `os`), Commander
 
 ---
 
-### Task 1: Move `resolveRepoPath` to `@studio/engine`
+### Task 1: Move `resolveRepoPath` to `@studio-foundation/engine`
 
 **Files:**
 - Create: `engine/tests/repo-resolver.test.ts`
@@ -238,9 +238,9 @@ git commit -m "feat(engine): add resolveRepoPath and cloneRepo utilities (STU-16
 Replace the entire content of `api/src/utils/repo-resolver.ts` with:
 
 ```typescript
-// Re-exported from @studio/engine — implementation lives there
-export { resolveRepoPath, cloneRepo } from '@studio/engine';
-export type { RepoResolveOptions } from '@studio/engine';
+// Re-exported from @studio-foundation/engine — implementation lives there
+export { resolveRepoPath, cloneRepo } from '@studio-foundation/engine';
+export type { RepoResolveOptions } from '@studio-foundation/engine';
 ```
 
 **Step 2: Run API tests to verify no regressions**
@@ -255,7 +255,7 @@ Expected: all API tests pass (the `api/tests/utils/repo-resolver.test.ts` still 
 ```bash
 cd .worktrees/stu-169
 git add api/src/utils/repo-resolver.ts
-git commit -m "refactor(api): re-export resolveRepoPath from @studio/engine (STU-169)"
+git commit -m "refactor(api): re-export resolveRepoPath from @studio-foundation/engine (STU-169)"
 ```
 
 ---
@@ -271,10 +271,10 @@ In `cli/src/commands/run.ts`, change line 8:
 
 ```typescript
 // Before:
-import { resolveRepoPath } from '@studio/api';
+import { resolveRepoPath } from '@studio-foundation/api';
 
 // After:
-import { resolveRepoPath } from '@studio/engine';
+import { resolveRepoPath } from '@studio-foundation/engine';
 ```
 
 **Step 2: Run CLI tests**
@@ -289,27 +289,27 @@ Expected: all CLI tests pass
 ```bash
 cd .worktrees/stu-169
 git add cli/src/commands/run.ts
-git commit -m "refactor(cli): import resolveRepoPath from @studio/engine (STU-169)"
+git commit -m "refactor(cli): import resolveRepoPath from @studio-foundation/engine (STU-169)"
 ```
 
 ---
 
-### Task 4: Move `@studio/api` to devDependency in CLI
+### Task 4: Move `@studio-foundation/api` to devDependency in CLI
 
 **Files:**
 - Modify: `cli/package.json`
 
 **Step 1: Update `cli/package.json`**
 
-Move `"@studio/api": "workspace:*"` from `dependencies` to `devDependencies`:
+Move `"@studio-foundation/api": "workspace:*"` from `dependencies` to `devDependencies`:
 
 ```json
 {
   "dependencies": {
     "@inquirer/prompts": "^8.2.1",
-    "@studio/contracts": "workspace:*",
-    "@studio/engine": "workspace:*",
-    "@studio/runner": "workspace:*",
+    "@studio-foundation/contracts": "workspace:*",
+    "@studio-foundation/engine": "workspace:*",
+    "@studio-foundation/runner": "workspace:*",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
@@ -317,7 +317,7 @@ Move `"@studio/api": "workspace:*"` from `dependencies` to `devDependencies`:
     "ora": "^9.3.0"
   },
   "devDependencies": {
-    "@studio/api": "workspace:*",
+    "@studio-foundation/api": "workspace:*",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.3",
     "typescript": "^5.3.0",
@@ -333,7 +333,7 @@ cd .worktrees/stu-169
 pnpm install
 pnpm build
 ```
-Expected: build succeeds — TypeScript still resolves `@studio/api` types because it's in devDependencies
+Expected: build succeeds — TypeScript still resolves `@studio-foundation/api` types because it's in devDependencies
 
 **Step 3: Run CLI tests**
 
@@ -347,7 +347,7 @@ Expected: all CLI tests pass
 ```bash
 cd .worktrees/stu-169
 git add cli/package.json pnpm-lock.yaml
-git commit -m "build(cli): move @studio/api to devDependencies (STU-169)"
+git commit -m "build(cli): move @studio-foundation/api to devDependencies (STU-169)"
 ```
 
 ---
@@ -530,9 +530,9 @@ export function isProcessAlive(pid: number): boolean {
 }
 
 export async function apiStartCommand(options: ApiOptions): Promise<void> {
-  let apiModule: typeof import('@studio/api');
+  let apiModule: typeof import('@studio-foundation/api');
   try {
-    apiModule = await import('@studio/api');
+    apiModule = await import('@studio-foundation/api');
   } catch {
     console.error('API not installed. Run: studio install api');
     process.exit(1);
@@ -739,14 +739,14 @@ beforeEach(() => {
 });
 
 describe('installExtensionCommand', () => {
-  it('runs npm install -g @studio/api when extension is "api"', async () => {
+  it('runs npm install -g @studio-foundation/api when extension is "api"', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
 
     await installExtensionCommand('api');
 
-    expect(mockExecSync).toHaveBeenCalledWith('npm install -g @studio/api', { stdio: 'inherit' });
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('@studio/api installed'));
+    expect(mockExecSync).toHaveBeenCalledWith('npm install -g @studio-foundation/api', { stdio: 'inherit' });
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('@studio-foundation/api installed'));
     consoleSpy.mockRestore();
     exitSpy.mockRestore();
   });
@@ -791,7 +791,7 @@ import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 
 const KNOWN_EXTENSIONS: Record<string, string> = {
-  api: '@studio/api',
+  api: '@studio-foundation/api',
 };
 
 export async function installExtensionCommand(extension: string): Promise<void> {
@@ -869,20 +869,20 @@ cd .worktrees/stu-169 && pnpm test
 ```
 Expected: all tests pass across contracts, ralph, runner, engine, api, cli
 
-**Step 3: Verify `@studio/api` is not in CLI runtime dependencies**
+**Step 3: Verify `@studio-foundation/api` is not in CLI runtime dependencies**
 
 ```bash
 node -e "
 const pkg = JSON.parse(require('fs').readFileSync('.worktrees/stu-169/cli/package.json','utf8'));
-const hasDep = '@studio/api' in (pkg.dependencies ?? {});
-console.log('@studio/api in dependencies:', hasDep);
-console.log('@studio/api in devDependencies:', '@studio/api' in (pkg.devDependencies ?? {}));
+const hasDep = '@studio-foundation/api' in (pkg.dependencies ?? {});
+console.log('@studio-foundation/api in dependencies:', hasDep);
+console.log('@studio-foundation/api in devDependencies:', '@studio-foundation/api' in (pkg.devDependencies ?? {}));
 "
 ```
 Expected:
 ```
-@studio/api in dependencies: false
-@studio/api in devDependencies: true
+@studio-foundation/api in dependencies: false
+@studio-foundation/api in devDependencies: true
 ```
 
 **Step 4: Commit if any last changes**

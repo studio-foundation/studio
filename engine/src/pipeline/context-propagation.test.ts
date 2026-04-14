@@ -6,8 +6,8 @@ import {
   buildContextKeys,
   buildContextContent,
 } from './context-propagation.js';
-import type { StageDefinition, ToolCall } from '@studio/contracts';
-import type { AgentContext } from '@studio/runner';
+import type { StageDefinition, ToolCall } from '@studio-foundation/contracts';
+import type { AgentContext } from '@studio-foundation/runner';
 
 const makeStage = (include: string[]): StageDefinition => ({
   name: 'test-stage',

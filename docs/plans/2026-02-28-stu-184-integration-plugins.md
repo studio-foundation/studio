@@ -4,13 +4,13 @@
 
 **Goal:** Implement a plugin-based integration system via `.integration.yaml` files, mirroring the existing `.tool.yaml` pattern, with full CLI management commands.
 
-**Architecture:** Three packages are touched in dependency order — `@studio/contracts` (types), `@studio/runner` (bundled YAML templates + loader), `@studio/cli` (commands). No changes to `@studio/engine` or `@studio/api`. The hardcoded `linear-notifier.ts` / `webhook-dispatcher.ts` are left untouched (separate ticket).
+**Architecture:** Three packages are touched in dependency order — `@studio-foundation/contracts` (types), `@studio-foundation/runner` (bundled YAML templates + loader), `@studio-foundation/cli` (commands). No changes to `@studio-foundation/engine` or `@studio-foundation/api`. The hardcoded `linear-notifier.ts` / `webhook-dispatcher.ts` are left untouched (separate ticket).
 
 **Tech Stack:** TypeScript, js-yaml, vitest, @inquirer/prompts, chalk, ora, Node.js fs/promises
 
 ---
 
-## Task 1: `@studio/contracts` — `IntegrationPluginDef` types
+## Task 1: `@studio-foundation/contracts` — `IntegrationPluginDef` types
 
 **Files:**
 - Create: `contracts/src/integration-plugin.ts`
@@ -68,7 +68,7 @@ export * from './integration-plugin.js';
 **Step 3: Build and verify**
 
 ```bash
-pnpm --filter @studio/contracts build
+pnpm --filter @studio-foundation/contracts build
 ```
 Expected: build succeeds with no errors.
 
@@ -81,7 +81,7 @@ git commit -m "feat(contracts): add IntegrationPluginDef and runtime interface t
 
 ---
 
-## Task 2: `@studio/runner` — Bundled integration YAML templates
+## Task 2: `@studio-foundation/runner` — Bundled integration YAML templates
 
 **Files:**
 - Create: `runner/templates/integrations/linear.integration.yaml`
@@ -177,7 +177,7 @@ git commit -m "feat(runner): add bundled integration plugin templates (linear, s
 
 ---
 
-## Task 3: `@studio/runner` — Integration loader
+## Task 3: `@studio-foundation/runner` — Integration loader
 
 **Files:**
 - Create: `runner/src/integrations/integration-loader.ts`
@@ -281,7 +281,7 @@ test:
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 Expected: FAIL — module `./integration-loader.js` not found.
 
@@ -293,7 +293,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import yaml from 'js-yaml';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 const BUNDLED_INTEGRATION_TEMPLATES_DIR = resolve(
   __dirname,
@@ -349,7 +349,7 @@ export async function loadProjectIntegrations(integrationsDir: string): Promise<
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 Expected: all integration-loader tests PASS.
 
@@ -362,13 +362,13 @@ export {
   listAvailableIntegrationTemplates,
   loadProjectIntegrations,
 } from './integrations/integration-loader.js';
-export type { IntegrationPluginDef } from '@studio/contracts';
+export type { IntegrationPluginDef } from '@studio-foundation/contracts';
 ```
 
 **Step 6: Build**
 
 ```bash
-pnpm --filter @studio/runner build
+pnpm --filter @studio-foundation/runner build
 ```
 Expected: build succeeds.
 
@@ -381,7 +381,7 @@ git commit -m "feat(runner): add integration plugin loader with bundled template
 
 ---
 
-## Task 4: `@studio/cli` — `StudioConfig.integrations` + command skeleton
+## Task 4: `@studio-foundation/cli` — `StudioConfig.integrations` + command skeleton
 
 **Files:**
 - Modify: `cli/src/config.ts`
@@ -456,7 +456,7 @@ program
 **Step 4: Build and verify**
 
 ```bash
-pnpm --filter @studio/cli build && node cli/dist/index.js integrations list
+pnpm --filter @studio-foundation/cli build && node cli/dist/index.js integrations list
 ```
 Expected: `Error: Not implemented yet: list` (confirms routing works).
 
@@ -469,7 +469,7 @@ git commit -m "feat(cli): scaffold integrations command + add StudioConfig.integ
 
 ---
 
-## Task 5: `@studio/cli` — `integrations install`
+## Task 5: `@studio-foundation/cli` — `integrations install`
 
 **Files:**
 - Modify: `cli/src/commands/integrations.ts`
@@ -544,7 +544,7 @@ describe('installIntegration — local path', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: FAIL — `installIntegration` not exported from `./integrations.js`.
 
@@ -561,8 +561,8 @@ import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
 import { findStudioDir } from '../studio-dir.js';
-import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio/runner';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio-foundation/runner';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 export function getIntegrationsDir(studioDir: string): string {
   return resolve(studioDir, 'integrations');
@@ -652,7 +652,7 @@ case 'install': {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: install tests PASS.
 
@@ -665,7 +665,7 @@ git commit -m "feat(cli): implement integrations install command"
 
 ---
 
-## Task 6: `@studio/cli` — `integrations list`
+## Task 6: `@studio-foundation/cli` — `integrations list`
 
 **Files:**
 - Modify: `cli/src/commands/integrations.ts`
@@ -712,7 +712,7 @@ describe('getIntegrationStatus', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: FAIL — `getIntegrationStatus` not exported.
 
@@ -792,7 +792,7 @@ function formatExtras(plugin: IntegrationPluginDef, config: Record<string, unkno
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: all tests PASS.
 
@@ -805,7 +805,7 @@ git commit -m "feat(cli): implement integrations list command"
 
 ---
 
-## Task 7: `@studio/cli` — `integrations remove` + `set`
+## Task 7: `@studio-foundation/cli` — `integrations remove` + `set`
 
 **Files:**
 - Modify: `cli/src/commands/integrations.ts`
@@ -839,7 +839,7 @@ describe('remove', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: FAIL — `removeIntegration` not exported.
 
@@ -944,7 +944,7 @@ async function saveConfig(configFile: string, config: Record<string, unknown>): 
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: all tests PASS.
 
@@ -957,7 +957,7 @@ git commit -m "feat(cli): implement integrations remove and set commands"
 
 ---
 
-## Task 8: `@studio/cli` — `integrations test`
+## Task 8: `@studio-foundation/cli` — `integrations test`
 
 **Files:**
 - Modify: `cli/src/commands/integrations.ts`
@@ -969,7 +969,7 @@ Add to `integrations.test.ts`:
 
 ```typescript
 import { runIntegrationTest } from './integrations.js';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 
 describe('runIntegrationTest', () => {
   it('resolves ${VAR} placeholders in endpoint and auth before making the request', async () => {
@@ -1030,7 +1030,7 @@ describe('runIntegrationTest', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: FAIL — `runIntegrationTest` not exported.
 
@@ -1149,7 +1149,7 @@ case 'test': {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 Expected: all tests PASS.
 

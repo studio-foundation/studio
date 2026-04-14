@@ -4,8 +4,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { deriveStageStatus } from '../../../src/state/status-derivation.js';
-import type { RalphResult } from '@studio/ralph';
-import type { StageStatus } from '@studio/contracts';
+import type { RalphResult } from '@studio-foundation/ralph';
+import type { StageStatus } from '@studio-foundation/contracts';
 
 describe('deriveStageStatus', () => {
   it('ralph success → stage success', () => {

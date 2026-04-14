@@ -1,4 +1,4 @@
-# @studio/engine
+# @studio-foundation/engine
 
 Pipeline orchestration, state machine, persistence, hooks, and skills injection.
 
@@ -15,7 +15,7 @@ cli → engine.run(pipeline, input) → PipelineRun
 ## Key exports
 
 ```typescript
-import { PipelineEngine } from '@studio/engine';
+import { PipelineEngine } from '@studio-foundation/engine';
 
 const engine = new PipelineEngine({
   configsDir: '.studio',          // Root of .studio/ directory

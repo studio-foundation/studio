@@ -1,5 +1,5 @@
 import { input } from '@inquirer/prompts';
-import type { InputSchema } from '@studio/contracts';
+import type { InputSchema } from '@studio-foundation/contracts';
 
 export function validateInputSchema(raw: unknown): InputSchema {
   const schema = raw as Record<string, unknown>;

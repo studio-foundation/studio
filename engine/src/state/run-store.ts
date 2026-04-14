@@ -2,7 +2,7 @@
 // Three implementations: InMemoryRunStore (tests), SQLiteRunStore (local), PgRunStore (postgres)
 
 import { createRequire } from 'node:module';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 export interface RunStore {
   savePipelineRun(run: PipelineRun): void;

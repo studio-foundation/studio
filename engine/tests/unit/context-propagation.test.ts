@@ -3,7 +3,7 @@ import {
   getContextForStage,
   createInitialContext,
 } from '../../src/pipeline/context-propagation.js';
-import type { StageDefinition } from '@studio/contracts';
+import type { StageDefinition } from '@studio-foundation/contracts';
 
 const makeStage = (name: string, includes: string[]): StageDefinition => ({
   name,

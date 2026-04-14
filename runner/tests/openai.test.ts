@@ -22,7 +22,7 @@ vi.mock('openai', () => ({
 }));
 
 import { OpenAIProvider } from '../src/providers/openai.js';
-import type { LLMRequest } from '@studio/contracts';
+import type { LLMRequest } from '@studio-foundation/contracts';
 
 const baseRequest: LLMRequest = {
   model: 'gpt-4o-mini',

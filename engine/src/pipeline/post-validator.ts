@@ -6,7 +6,7 @@
 //
 // Configuré dans le contract YAML via la section "post_validation".
 
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 export interface PostValidationResult {
   accepted: boolean;

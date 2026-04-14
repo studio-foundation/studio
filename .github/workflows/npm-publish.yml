@@ -35,12 +35,12 @@ jobs:
 
       - name: Publish packages (dependency order)
         run: |
-          pnpm --filter @studio/contracts publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/anonymizer publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/ralph publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/runner publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/engine publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/api publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio/cli publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/contracts publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/anonymizer publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/ralph publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/runner publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/engine publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/api publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/cli publish --access public --no-git-checks --tag beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

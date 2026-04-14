@@ -174,7 +174,7 @@ describe('validateInputSchema', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: Tests fail with `Cannot find module '../../src/utils/input-wizard.js'`.
@@ -191,7 +191,7 @@ Expected: Tests fail with `Cannot find module '../../src/utils/input-wizard.js'`
 ```typescript
 // cli/src/utils/input-wizard.ts
 import { input } from '@inquirer/prompts';
-import type { InputSchema, InputField } from '@studio/contracts';
+import type { InputSchema, InputField } from '@studio-foundation/contracts';
 
 export function validateInputSchema(raw: unknown): InputSchema {
   const schema = raw as Record<string, unknown>;
@@ -232,7 +232,7 @@ export async function collectStructuredInput(
 **Step 2: Run the `validateInputSchema` tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: All `validateInputSchema` tests pass. The `collectStructuredInput` tests (Task 4) will fail — that's fine.
@@ -327,13 +327,13 @@ describe('collectStructuredInput', () => {
 
 Note: You'll need to add `InputSchema` to the imports at the top of the test file:
 ```typescript
-import type { InputSchema } from '@studio/contracts';
+import type { InputSchema } from '@studio-foundation/contracts';
 ```
 
 **Step 2: Run to confirm failure**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: `collectStructuredInput` tests fail with "not implemented".
@@ -397,7 +397,7 @@ export async function collectStructuredInput(
 **Step 2: Run all wizard tests**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: All `validateInputSchema` and `collectStructuredInput` tests pass.
@@ -423,7 +423,7 @@ This is the largest change. We restructure the input-resolution logic and load t
 After the existing imports, add:
 
 ```typescript
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
 ```
 
@@ -528,7 +528,7 @@ The remainder of `runCommand` (provider registry setup, tool loading, progress d
 pnpm build
 ```
 
-Expected: Build succeeds. If there's a TypeScript error about `PipelineDefinition` already being imported transitively, remove the explicit import added in Step 1 (the type is re-exported from `@studio/engine`).
+Expected: Build succeeds. If there's a TypeScript error about `PipelineDefinition` already being imported transitively, remove the explicit import added in Step 1 (the type is re-exported from `@studio-foundation/engine`).
 
 **Step 4: Smoke-test manually**
 
@@ -639,8 +639,8 @@ Expected: All tests pass. The new `input-wizard.test.ts` tests should all be gre
 **Step 2: Run typecheck**
 
 ```bash
-pnpm --filter @studio/cli typecheck
-pnpm --filter @studio/contracts typecheck
+pnpm --filter @studio-foundation/cli typecheck
+pnpm --filter @studio-foundation/contracts typecheck
 ```
 
 Expected: No type errors.

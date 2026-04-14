@@ -98,7 +98,7 @@ describe('validateToolCalls', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: TypeScript/type errors or test failures referencing the number-vs-array mismatch.
@@ -136,7 +136,7 @@ export function validateToolCalls(toolCalls: ToolCall[], requirements?: ToolCall
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: All `validateToolCalls` tests pass.
@@ -200,7 +200,7 @@ Append these cases inside the `describe('validateRequiredTools', ...)` block in 
 **Step 2: Run tests to verify new ones fail**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: The three new ANTI-THÉÂTRE tests fail.
@@ -234,7 +234,7 @@ export function validateRequiredTools(toolCalls: ToolCall[], requirements?: Tool
 **Step 4: Run tests to verify they all pass**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: All `validateRequiredTools` tests pass.
@@ -303,7 +303,7 @@ Append these cases inside `describe('validateCountedTools', ...)` before the clo
 **Step 2: Run tests to verify new ones fail**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: The three new ANTI-THÉÂTRE tests fail.
@@ -338,7 +338,7 @@ export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolC
 **Step 4: Run tests to verify they all pass**
 
 ```bash
-pnpm --filter @studio/ralph test
+pnpm --filter @studio-foundation/ralph test
 ```
 
 Expected: All `validateCountedTools` tests pass.

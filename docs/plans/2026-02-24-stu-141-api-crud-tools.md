@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add REST endpoints to `@studio/api` for managing tool plugins — list, read, create/update, delete, and install from the bundled registry.
+**Goal:** Add REST endpoints to `@studio-foundation/api` for managing tool plugins — list, read, create/update, delete, and install from the bundled registry.
 
 **Architecture:** Move the bundled tool templates from `cli/templates/tools/` to `runner/templates/tools/` so both CLI and API can access them without violating the dependency graph (CLI→runner is already allowed). The API tools route distinguishes builtins (present in runner's templates) from custom tools (`.tool.yaml` files in `.studio/tools/`). `DELETE` returns 403 for builtins. `POST /api/tools/install` copies a template from runner's registry to `.studio/tools/`.
 
-**Tech Stack:** TypeScript, Fastify, js-yaml, Node fs/promises, vitest, @studio/runner, @studio/engine (InMemoryRunStore for tests)
+**Tech Stack:** TypeScript, Fastify, js-yaml, Node fs/promises, vitest, @studio-foundation/runner, @studio-foundation/engine (InMemoryRunStore for tests)
 
 ---
 
@@ -130,7 +130,7 @@ export type { LoadedPlugin } from './tools/plugin-loader.js';
 **Step 3: Run runner tests to verify nothing broke**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 # Expected: all pass
 ```
 
@@ -157,7 +157,7 @@ Replace the local `TOOL_TEMPLATES_DIR`, `listAvailableTools()`, and the `readFil
 
 ```typescript
 // Add at the top:
-import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio/runner';
+import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio-foundation/runner';
 ```
 
 Replace `listAvailableTools()` call sites with `listAvailableToolTemplates()`.
@@ -186,7 +186,7 @@ rmdir cli/templates/tools cli/templates 2>/dev/null || true
 **Step 3: Build CLI**
 
 ```bash
-pnpm --filter @studio/cli build
+pnpm --filter @studio-foundation/cli build
 # Expected: 0 errors
 ```
 
@@ -211,7 +211,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 
 const TMP = resolve('/tmp', `.studio-api-tools-test-${Date.now()}`);
 const TOOLS_DIR = resolve(TMP, 'tools');
@@ -301,7 +301,7 @@ describe('GET /api/tools', () => {
 **Step 2: Run to confirm failure**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 # Expected: FAIL — toolsRoutes not registered yet
 ```
 
@@ -482,7 +482,7 @@ describe('POST /api/tools/install', () => {
 **Step 2: Run all tests to confirm all fail**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "(FAIL|PASS|tools)"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "(FAIL|PASS|tools)"
 # Expected: all tools tests FAIL — route not registered
 ```
 
@@ -503,7 +503,7 @@ import {
   BUILTIN_TOOL_NAMES,
   listAvailableToolTemplates,
   getBundledToolTemplate,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 
 function toolPath(configsDir: string, name: string): string {
   return join(configsDir, 'tools', `${name}.tool.yaml`);
@@ -731,7 +731,7 @@ void fastify.register(toolsRoutes, { prefix: '/api', deps });
 ### Task 11: Run the tests
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 # Expected: all tools tests PASS
 ```
 
@@ -778,7 +778,7 @@ After all tasks:
 
 ## Notes for implementer
 
-- **`BUILTIN_TOOL_NAMES`** comes from runner (`@studio/runner`). It's a `Set<string>` with values like `'repo-manager'`, `'shell'`, `'search'`, `'git'`.
+- **`BUILTIN_TOOL_NAMES`** comes from runner (`@studio-foundation/runner`). It's a `Set<string>` with values like `'repo-manager'`, `'shell'`, `'search'`, `'git'`.
 - **`listAvailableToolTemplates()`** reads from `runner/templates/tools/` at runtime — this works because the templates live at the package root (not compiled), accessible via `import.meta.url`.
 - **DELETE 403 logic**: A builtin can be "overridden" by placing a custom file in `.studio/tools/`. In that case, DELETE is allowed (it removes the override, not the builtin). So the 403 only fires when there's no custom file to delete.
 - **POST /api/tools/install 409**: If `.studio/tools/<name>.tool.yaml` already exists, return 409. Even if it's an override of a builtin.

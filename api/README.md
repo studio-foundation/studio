@@ -1,4 +1,4 @@
-# @studio/api
+# @studio-foundation/api
 
 HTTP REST API for Studio. Same engine as the CLI, machine-to-machine interface. Like GitHub is to `git`.
 
@@ -23,7 +23,7 @@ studio api start
 STUDIO_CWD=/path/to/project node node_modules/.bin/studio-api
 
 # Programmatic
-import { createApi } from '@studio/api';
+import { createApi } from '@studio-foundation/api';
 const { server, cleanup } = await createApi({ cwd: '/path/to/project' });
 await server.listen({ port: 3700 });
 ```

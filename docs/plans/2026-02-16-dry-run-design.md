@@ -65,8 +65,8 @@ Dry run: feature-builder
 
 ### Packages modifiés
 
-- **@studio/engine** — `PipelineEngine.dryRun()`, types `DryRunResult`/`DryRunCheck`, helpers dans `dry-run-helpers.ts`
-- **@studio/cli** — `--dry-run` option, `displayDryRunResult()` dans `dry-run-display.ts`
+- **@studio-foundation/engine** — `PipelineEngine.dryRun()`, types `DryRunResult`/`DryRunCheck`, helpers dans `dry-run-helpers.ts`
+- **@studio-foundation/cli** — `--dry-run` option, `displayDryRunResult()` dans `dry-run-display.ts`
 
 ### Fichiers créés
 

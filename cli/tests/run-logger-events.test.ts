@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { EngineEvents } from '@studio/engine';
+import type { EngineEvents } from '@studio-foundation/engine';
 
 interface LogEntry {
   ts: string;

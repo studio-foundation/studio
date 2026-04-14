@@ -1,4 +1,4 @@
-# @studio/runner
+# @studio-foundation/runner
 
 Agent runner multi-provider. Parle aux LLMs, exécute les tools, streame les tokens.
 
@@ -14,7 +14,7 @@ Agent runner multi-provider. Parle aux LLMs, exécute les tools, streame les tok
 - Le runner ne retry PAS — c'est le job de ralph
 - Les prompts sont assemblés ici (`prompt-builder.ts`) — le engine ne touche jamais aux prompts
 - Les tools sont enregistrés ici (`ToolRegistry`) — le engine ne sait pas ce qu'est `repo_manager-write_file`
-- Dépend UNIQUEMENT de `@studio/contracts`
+- Dépend UNIQUEMENT de `@studio-foundation/contracts`
 
 ## Fichiers clés
 
@@ -35,14 +35,14 @@ Agent runner multi-provider. Parle aux LLMs, exécute les tools, streame les tok
 - `tools/builtin/patch.ts` — `patch-apply_patch`
 - `tools/builtin/studio-run.ts` — `studio_run` (spawn sous-pipeline, requiert `RunSpawner`)
 - `tools/skills/skill-loader.ts` — charge les `.skill.md` files
-- `middleware/anonymization.ts` — `AnonymizationMiddleware` (wraps `@studio/anonymizer`)
+- `middleware/anonymization.ts` — `AnonymizationMiddleware` (wraps `@studio-foundation/anonymizer`)
 - `plugins/plugin-loader.ts` — charge les plugins Claude Code (`.mcp.json` + `skills/`)
 - `plugins/mcp-client.ts` — `MCPClient` (connexion aux serveurs MCP)
 - `integrations/integration-loader.ts` — charge les `.integration.yaml`
 
 ## Hooks callbacks
 
-`RunnerCallbacks` (dans `@studio/contracts`) wire les hooks du engine vers le runner :
+`RunnerCallbacks` (dans `@studio-foundation/contracts`) wire les hooks du engine vers le runner :
 
 - `onPreToolUse` — peut bloquer un tool call (`{ blocked: true }`)
 - `onPostToolUse` — peut injecter du feedback (`{ append_message: '...' }`)

@@ -29,8 +29,8 @@ Create `engine/tests/unit/state/status-derivation.test.ts`:
 
 import { describe, it, expect } from 'vitest';
 import { deriveStageStatus } from '../../../src/state/status-derivation.js';
-import type { RalphResult } from '@studio/ralph';
-import type { StageStatus } from '@studio/contracts';
+import type { RalphResult } from '@studio-foundation/ralph';
+import type { StageStatus } from '@studio-foundation/contracts';
 
 describe('deriveStageStatus', () => {
   it('ralph success → stage success', () => {
@@ -116,7 +116,7 @@ describe('deriveStageStatus', () => {
 **Step 2: Run only this file to verify all 7 tests pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run tests/unit/state/status-derivation.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run tests/unit/state/status-derivation.test.ts
 ```
 
 Expected: 7 tests pass.
@@ -130,7 +130,7 @@ rm engine/tests/status-derivation.test.ts
 **Step 4: Run the full engine test suite**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: All tests pass (same count as before minus the 7 now-deleted flat tests, plus the 7 new unit tests — net same total).
@@ -532,7 +532,7 @@ describe('Group feedback loop', () => {
 **Step 2: Run only this file to verify all 7 tests pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run tests/unit/group-loop.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run tests/unit/group-loop.test.ts
 ```
 
 Expected: 7 tests pass.
@@ -546,7 +546,7 @@ rm engine/tests/group-loop.test.ts
 **Step 4: Run the full suite**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: All tests pass.
@@ -1106,7 +1106,7 @@ describe('PipelineEngine', () => {
 **Step 2: Run only this file to verify all 16 tests pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run tests/unit/engine.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run tests/unit/engine.test.ts
 ```
 
 Expected: 16 tests pass (15 existing + 1 new).
@@ -1120,7 +1120,7 @@ rm engine/tests/engine.test.ts
 **Step 4: Run the full suite**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: All tests pass. Test count increases by 1 (the new `on_pipeline_start` test).
@@ -1139,7 +1139,7 @@ git commit -m "test(engine): move engine tests to tests/unit/ + add on_pipeline_
 **Step 1: Run the complete engine test suite one final time**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected output:

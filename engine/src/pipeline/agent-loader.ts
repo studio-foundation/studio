@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { AgentConfig } from '@studio/contracts';
+import type { AgentConfig } from '@studio-foundation/contracts';
 
 export async function loadAgentProfile(
   name: string,

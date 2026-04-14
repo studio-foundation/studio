@@ -1,7 +1,7 @@
 // Load and parse output contracts from YAML
 import { readFile } from 'node:fs/promises';
 import yaml from 'js-yaml';
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 export async function loadContract(path: string): Promise<OutputContract> {
   const content = await readFile(path, 'utf-8');

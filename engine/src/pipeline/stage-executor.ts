@@ -10,7 +10,7 @@ import type {
   AgentRun,
   OutputContract,
   ResolvedAgentConfig,
-} from '@studio/contracts';
+} from '@studio-foundation/contracts';
 import {
   ralph,
   validateSchema,
@@ -25,7 +25,7 @@ import {
   type ExecutionContext as RalphExecutionContext,
   type Validator,
   type ToolCallRequirements,
-} from '@studio/ralph';
+} from '@studio-foundation/ralph';
 import {
   runAgent,
   runScript,
@@ -34,7 +34,7 @@ import {
   type ProviderRegistry,
   type TaskInput,
   AnonymizationMiddleware,
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 import { loadAgentProfile } from './agent-loader.js';
 import { loadContract } from './contract-loader.js';
 import { loadSkillFiles } from './skill-loader.js';

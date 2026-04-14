@@ -1,7 +1,7 @@
 // Validation engine
-import type { ValidationResult, OutputContract, ToolCall, ToolCallRequirements } from '@studio/contracts';
+import type { ValidationResult, OutputContract, ToolCall, ToolCallRequirements } from '@studio-foundation/contracts';
 
-export type { ToolCallRequirements } from '@studio/contracts';
+export type { ToolCallRequirements } from '@studio-foundation/contracts';
 
 export type Validator<T> = (result: T) => ValidationResult | Promise<ValidationResult>;
 

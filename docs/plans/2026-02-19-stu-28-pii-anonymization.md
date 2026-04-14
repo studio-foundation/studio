@@ -4,13 +4,13 @@
 
 **Goal:** Add a transparent PII anonymization middleware that replaces sensitive data with sequential tokens before sending to the LLM, then restores real values from a local keymap — invisible to the engine, ralph, and agents.
 
-**Architecture:** New `@studio/anonymizer` package (6th in monorepo) wraps `@redactpii/node` with a sequential tokenizer layer. `AnonymizationMiddleware` in runner injects at 4 points in `runAgent()`. One middleware instance per run (created in engine) ensures cross-stage token consistency.
+**Architecture:** New `@studio-foundation/anonymizer` package (6th in monorepo) wraps `@redactpii/node` with a sequential tokenizer layer. `AnonymizationMiddleware` in runner injects at 4 points in `runAgent()`. One middleware instance per run (created in engine) ensures cross-stage token consistency.
 
 **Tech Stack:** TypeScript, `@redactpii/node` (zero deps, regex-based), pnpm workspaces, vitest
 
 ---
 
-### Task 1: Create `@studio/anonymizer` package scaffold
+### Task 1: Create `@studio-foundation/anonymizer` package scaffold
 
 **Files:**
 - Create: `anonymizer/package.json`
@@ -22,7 +22,7 @@
 
 ```json
 {
-  "name": "@studio/anonymizer",
+  "name": "@studio-foundation/anonymizer",
   "version": "0.1.0",
   "description": "PII detection and anonymization with consistent token mapping",
   "main": "dist/index.js",
@@ -141,7 +141,7 @@ Expected: `@redactpii/node` installed in anonymizer's node_modules.
 
 ```bash
 git add anonymizer/package.json anonymizer/tsconfig.json anonymizer/src/types.ts pnpm-workspace.yaml pnpm-lock.yaml
-git commit -m "feat(anonymizer): scaffold @studio/anonymizer package"
+git commit -m "feat(anonymizer): scaffold @studio-foundation/anonymizer package"
 ```
 
 ---
@@ -652,13 +652,13 @@ A stateful class that anonymizes text going in and deanonymizes text coming out,
 **Files:**
 - Create: `runner/src/middleware/anonymization.ts`
 - Create: `runner/tests/anonymization-middleware.test.ts`
-- Modify: `runner/package.json` (add `@studio/anonymizer` dep)
+- Modify: `runner/package.json` (add `@studio-foundation/anonymizer` dep)
 
-**Step 1: Add `@studio/anonymizer` dependency to runner**
+**Step 1: Add `@studio-foundation/anonymizer` dependency to runner**
 
 In `runner/package.json`, add to `dependencies`:
 ```json
-"@studio/anonymizer": "workspace:*"
+"@studio-foundation/anonymizer": "workspace:*"
 ```
 
 Then run:
@@ -727,7 +727,7 @@ describe('AnonymizationMiddleware', () => {
 **Step 3: Run test to verify it fails**
 
 ```bash
-pnpm test --filter @studio/runner 2>&1 | grep -E "FAIL|Cannot"
+pnpm test --filter @studio-foundation/runner 2>&1 | grep -E "FAIL|Cannot"
 ```
 
 Expected: FAIL — module not found.
@@ -737,8 +737,8 @@ Expected: FAIL — module not found.
 Create directory and file:
 
 ```typescript
-import { anonymize, deanonymize, type AnonymizerOptions } from '@studio/anonymizer';
-import { Tokenizer } from '@studio/anonymizer/src/tokenizer.js';
+import { anonymize, deanonymize, type AnonymizerOptions } from '@studio-foundation/anonymizer';
+import { Tokenizer } from '@studio-foundation/anonymizer/src/tokenizer.js';
 
 // We share one Tokenizer instance across calls to maintain cross-call consistency.
 // However, since we can't import the internal Tokenizer directly from the package,
@@ -778,7 +778,7 @@ export class AnonymizationMiddleware {
 }
 ```
 
-**Note on consistency:** Since `anonymize()` from `@studio/anonymizer` creates a fresh `Tokenizer` per call, a value like `mc@acme.com` will always be `EMAIL_1` within a single call, but a second call might also assign `EMAIL_1` to a different email if it appears first. To fix this, we need the public `anonymize()` function to accept an existing keymap to seed from.
+**Note on consistency:** Since `anonymize()` from `@studio-foundation/anonymizer` creates a fresh `Tokenizer` per call, a value like `mc@acme.com` will always be `EMAIL_1` within a single call, but a second call might also assign `EMAIL_1` to a different email if it appears first. To fix this, we need the public `anonymize()` function to accept an existing keymap to seed from.
 
 **Revised approach — update `anonymizer/src/index.ts` to accept seed keymap:**
 
@@ -835,7 +835,7 @@ export function anonymize(text: string, options?: AnonymizerOptions): PIIDetecti
 **Update `runner/src/middleware/anonymization.ts`** with corrected implementation:
 
 ```typescript
-import { anonymize, deanonymize, type AnonymizerOptions } from '@studio/anonymizer';
+import { anonymize, deanonymize, type AnonymizerOptions } from '@studio-foundation/anonymizer';
 
 export class AnonymizationMiddleware {
   private keymap: Record<string, string> = {};
@@ -865,7 +865,7 @@ export class AnonymizationMiddleware {
 **Step 5: Re-run anonymizer tests to verify they still pass after types.ts change**
 
 ```bash
-pnpm test --filter @studio/anonymizer
+pnpm test --filter @studio-foundation/anonymizer
 ```
 
 Expected: PASS.
@@ -873,7 +873,7 @@ Expected: PASS.
 **Step 6: Run runner middleware tests**
 
 ```bash
-pnpm test --filter @studio/runner 2>&1 | grep -E "PASS|FAIL|anonymization"
+pnpm test --filter @studio-foundation/runner 2>&1 | grep -E "PASS|FAIL|anonymization"
 ```
 
 Expected: anonymization-middleware tests PASS.
@@ -904,7 +904,7 @@ Create `runner/tests/runner-anonymization.test.ts`:
 import { describe, it, expect } from 'vitest';
 import { runAgent } from '../src/runner.js';
 import type { Provider } from '../src/providers/provider.js';
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import { ProviderRegistry } from '../src/providers/registry.js';
 import { ToolRegistry } from '../src/tools/tool-registry.js';
 import { AnonymizationMiddleware } from '../src/middleware/anonymization.js';
@@ -999,7 +999,7 @@ describe('runAgent with anonymization', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm test --filter @studio/runner runner-anonymization 2>&1 | head -20
+pnpm test --filter @studio-foundation/runner runner-anonymization 2>&1 | head -20
 ```
 
 Expected: FAIL — `anonymizationMiddleware` not in `RunAgentConfig`.
@@ -1073,13 +1073,13 @@ const output = parseAgentOutput(finalContent);
 Add to `runner/src/index.ts`:
 ```typescript
 export { AnonymizationMiddleware } from './middleware/anonymization.js';
-export type { AnonymizerOptions } from '@studio/anonymizer';
+export type { AnonymizerOptions } from '@studio-foundation/anonymizer';
 ```
 
 **Step 5: Run tests**
 
 ```bash
-pnpm test --filter @studio/runner
+pnpm test --filter @studio-foundation/runner
 ```
 
 Expected: All runner tests PASS including new anonymization tests.
@@ -1119,7 +1119,7 @@ export interface AgentConfig {
 **Step 2: Build contracts**
 
 ```bash
-pnpm build --filter @studio/contracts
+pnpm build --filter @studio-foundation/contracts
 ```
 
 Expected: No TypeScript errors.
@@ -1142,9 +1142,9 @@ The engine creates one `AnonymizationMiddleware` per run. It activates the middl
 - Modify: `engine/src/index.ts`
 - Create: `engine/tests/anonymization.test.ts`
 
-**Step 1: Add `@studio/runner`'s AnonymizationMiddleware import to engine**
+**Step 1: Add `@studio-foundation/runner`'s AnonymizationMiddleware import to engine**
 
-Engine already imports from `@studio/runner`. Add to its import:
+Engine already imports from `@studio-foundation/runner`. Add to its import:
 ```typescript
 import {
   runAgent,
@@ -1153,7 +1153,7 @@ import {
   type ProviderRegistry,
   type TaskInput,
   AnonymizationMiddleware,  // add this
-} from '@studio/runner';
+} from '@studio-foundation/runner';
 ```
 
 **Step 2: Write failing test**
@@ -1163,7 +1163,7 @@ Create `engine/tests/anonymization.test.ts`:
 ```typescript
 import { describe, it, expect } from 'vitest';
 import { PipelineEngine } from '../src/engine.js';
-import { ToolRegistry, ProviderRegistry, MockProvider } from '@studio/runner';
+import { ToolRegistry, ProviderRegistry, MockProvider } from '@studio-foundation/runner';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -1186,7 +1186,7 @@ describe('PipelineEngine anonymization', () => {
 });
 ```
 
-> **Note:** A full engine-level anonymization test requires a mock pipeline fixture. The most important tests are already covered in `@studio/runner` (Task 6). The engine test validates keymap persistence — that is verified by running `studio run ... --anonymize` manually.
+> **Note:** A full engine-level anonymization test requires a mock pipeline fixture. The most important tests are already covered in `@studio-foundation/runner` (Task 6). The engine test validates keymap persistence — that is verified by running `studio run ... --anonymize` manually.
 
 **Step 3: Modify `engine/src/engine.ts`**
 
@@ -1324,7 +1324,7 @@ Add it after the existing `--verbose` option (around line 33).
 **Step 4: Build CLI**
 
 ```bash
-pnpm build --filter @studio/cli
+pnpm build --filter @studio-foundation/cli
 ```
 
 Expected: No TypeScript errors.
@@ -1396,7 +1396,7 @@ After implementation, verify manually:
 
 | AC | Task |
 |----|------|
-| Package @studio/anonymizer created | Task 1 |
+| Package @studio-foundation/anonymizer created | Task 1 |
 | `anonymize(text)` returns anonymized text + keymap | Task 4 |
 | `deanonymize(text, keymap)` restores values | Task 4 |
 | Same PII → same token | Task 2 (Tokenizer) + Task 4 |

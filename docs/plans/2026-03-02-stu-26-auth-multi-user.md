@@ -4,7 +4,7 @@
 
 **Goal:** Replace the single global API key with per-user API keys, quotas per plan (runs/day, max_concurrent), and in-memory rate limiting — backward-compatible with the existing single-key setup.
 
-**Architecture:** `UserStore` (SQLite) and `PgUserStore` (PG) in `@studio/api`, following the exact same pattern as `WebhookStore` and `IntegrationStore`. Auth hook updated to support multi-user mode (user lookup) + legacy mode (single key fallback). Quota enforcement added to `InProcessLauncher` as optional deps.
+**Architecture:** `UserStore` (SQLite) and `PgUserStore` (PG) in `@studio-foundation/api`, following the exact same pattern as `WebhookStore` and `IntegrationStore`. Auth hook updated to support multi-user mode (user lookup) + legacy mode (single key fallback). Quota enforcement added to `InProcessLauncher` as optional deps.
 
 **Tech Stack:** `better-sqlite3` (already installed), `pg` (already installed), `@fastify/rate-limit` (new), Fastify 5, Vitest, Commander.js
 
@@ -1144,7 +1144,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
 import type { IntegrationRuntime } from '../src/integration-runtime.js';
 import type { IntegrationStore } from '../src/integration-store.js';
@@ -1484,10 +1484,10 @@ import { mkdirSync } from 'node:fs';
 import chalk from 'chalk';
 import { loadConfig } from '../config.js';
 import { findStudioDir } from '../studio-dir.js';
-import { UserStore } from '@studio/api/user-store';
+import { UserStore } from '@studio-foundation/api/user-store';
 
 // Note: import UserStore directly from the api package.
-// This requires @studio/api to export user-store from its exports map.
+// This requires @studio-foundation/api to export user-store from its exports map.
 // See "update exports" step below.
 
 async function getStore(): Promise<{ store: UserStore; close: () => void }> {
@@ -1614,7 +1614,7 @@ export async function usersCommand(
 }
 ```
 
-### Step 2: Update `@studio/api` exports map to expose `user-store`
+### Step 2: Update `@studio-foundation/api` exports map to expose `user-store`
 
 In `api/package.json`, add to `exports`:
 ```json
@@ -1712,7 +1712,7 @@ Expected: all packages PASS
 ```bash
 git commit -m "feat(api,cli): STU-26 auth multi-user — per-user API keys, quotas, rate limiting
 
-- UserStore (SQLite) + PgUserStore (PostgreSQL) in @studio/api
+- UserStore (SQLite) + PgUserStore (PostgreSQL) in @studio-foundation/api
 - Per-user API keys replacing global api.key (backward compatible)
 - Quota enforcement: runs_per_day and max_concurrent per plan
 - Rate limiting via @fastify/rate-limit keyed on user.id

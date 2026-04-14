@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { runAgent } from '../src/runner.js';
 import type { Provider } from '../src/providers/provider.js';
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import { ProviderRegistry } from '../src/providers/registry.js';
 import { ToolRegistry } from '../src/tools/tool-registry.js';
 
@@ -342,8 +342,8 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
-    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+    const startEvents: import('@studio-foundation/contracts').ToolCallStartEvent[] = [];
+    const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -396,7 +396,7 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+    const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -443,8 +443,8 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(agentLoopProvider);
 
-    const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
-    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+    const startEvents: import('@studio-foundation/contracts').ToolCallStartEvent[] = [];
+    const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
@@ -496,8 +496,8 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
-    const progressEvents: import('@studio/contracts').AgentProgressEvent[] = [];
+    const thinkingEvents: import('@studio-foundation/contracts').AgentThinkingEvent[] = [];
+    const progressEvents: import('@studio-foundation/contracts').AgentProgressEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -559,8 +559,8 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
-    const progressEvents: import('@studio/contracts').AgentProgressEvent[] = [];
+    const thinkingEvents: import('@studio-foundation/contracts').AgentThinkingEvent[] = [];
+    const progressEvents: import('@studio-foundation/contracts').AgentProgressEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -608,7 +608,7 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const thinkingEvents: import('@studio/contracts').AgentThinkingEvent[] = [];
+    const thinkingEvents: import('@studio-foundation/contracts').AgentThinkingEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },

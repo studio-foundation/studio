@@ -38,13 +38,13 @@ importers:
       '@fastify/swagger-ui':
         specifier: ^5.2.5
         version: 5.2.5
-      '@studio/contracts':
+      '@studio-foundation/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@studio/engine':
+      '@studio-foundation/engine':
         specifier: workspace:*
         version: link:../engine
-      '@studio/runner':
+      '@studio-foundation/runner':
         specifier: workspace:*
         version: link:../runner
       better-sqlite3:
@@ -84,16 +84,16 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.2.1
         version: 8.2.1(@types/node@25.2.3)
-      '@studio/api':
+      '@studio-foundation/api':
         specifier: workspace:*
         version: link:../api
-      '@studio/contracts':
+      '@studio-foundation/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@studio/engine':
+      '@studio-foundation/engine':
         specifier: workspace:*
         version: link:../engine
-      '@studio/runner':
+      '@studio-foundation/runner':
         specifier: workspace:*
         version: link:../runner
       chalk:
@@ -136,13 +136,13 @@ importers:
 
   engine:
     dependencies:
-      '@studio/contracts':
+      '@studio-foundation/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@studio/ralph':
+      '@studio-foundation/ralph':
         specifier: workspace:*
         version: link:../ralph
-      '@studio/runner':
+      '@studio-foundation/runner':
         specifier: workspace:*
         version: link:../runner
       better-sqlite3:
@@ -176,7 +176,7 @@ importers:
 
   ralph:
     dependencies:
-      '@studio/contracts':
+      '@studio-foundation/contracts':
         specifier: workspace:*
         version: link:../contracts
       js-yaml:
@@ -207,10 +207,10 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.26.0(zod@3.25.76)
-      '@studio/anonymizer':
+      '@studio-foundation/anonymizer':
         specifier: workspace:*
         version: link:../anonymizer
-      '@studio/contracts':
+      '@studio-foundation/contracts':
         specifier: workspace:*
         version: link:../contracts
       js-yaml:

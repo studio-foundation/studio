@@ -26,9 +26,9 @@ Un système de plugins extensible, cohérent avec l'architecture `.tool.yaml` ex
 
 | Package | Changements |
 |---------|-------------|
-| `@studio/contracts` | Nouveau fichier `integration-plugin.ts` — types `IntegrationPluginDef` + `IntegrationRuntimeHandler` |
-| `@studio/runner` | `runner/templates/integrations/` — bundled YAML plugins. Exports : `getBundledIntegrationTemplate()`, `listAvailableIntegrationTemplates()` |
-| `@studio/cli` | `cli/src/commands/integrations.ts` — subcommands. `cli/src/config.ts` — champ `integrations`. `cli/src/index.ts` — enregistrement |
+| `@studio-foundation/contracts` | Nouveau fichier `integration-plugin.ts` — types `IntegrationPluginDef` + `IntegrationRuntimeHandler` |
+| `@studio-foundation/runner` | `runner/templates/integrations/` — bundled YAML plugins. Exports : `getBundledIntegrationTemplate()`, `listAvailableIntegrationTemplates()` |
+| `@studio-foundation/cli` | `cli/src/commands/integrations.ts` — subcommands. `cli/src/config.ts` — champ `integrations`. `cli/src/index.ts` — enregistrement |
 
 ### Parallèle avec le système tools
 
@@ -44,7 +44,7 @@ Un système de plugins extensible, cohérent avec l'architecture `.tool.yaml` ex
 
 ## Format `.integration.yaml`
 
-Défini dans `@studio/contracts/src/integration-plugin.ts`.
+Défini dans `@studio-foundation/contracts/src/integration-plugin.ts`.
 
 ```yaml
 name: linear
@@ -79,7 +79,7 @@ test:
 
 ## Types TypeScript
 
-### `@studio/contracts/src/integration-plugin.ts`
+### `@studio-foundation/contracts/src/integration-plugin.ts`
 
 ```typescript
 export interface IntegrationPluginDef {
@@ -128,7 +128,7 @@ Trois fichiers dans `runner/templates/integrations/` :
 - `slack.integration.yaml` — Slack notifications
 - `webhook.integration.yaml` — Generic HTTP webhooks
 
-Exports depuis `@studio/runner/src/tools/plugin-loader.ts` (ou fichier dédié) :
+Exports depuis `@studio-foundation/runner/src/tools/plugin-loader.ts` (ou fichier dédié) :
 
 ```typescript
 getBundledIntegrationTemplate(name: string): Promise<string | null>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateOutput } from './output-validator.js';
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 const schemaOnlyContract: OutputContract = {
   name: 'test-schema',

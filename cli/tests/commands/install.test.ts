@@ -14,14 +14,14 @@ beforeEach(() => {
 });
 
 describe('installExtensionCommand', () => {
-  it('runs npm install -g @studio/api when extension is "api"', async () => {
+  it('runs npm install -g @studio-foundation/api when extension is "api"', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
 
     await installExtensionCommand('api');
 
-    expect(mockExecSync).toHaveBeenCalledWith('npm install -g @studio/api', { stdio: 'inherit' });
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('@studio/api installed'));
+    expect(mockExecSync).toHaveBeenCalledWith('npm install -g @studio-foundation/api', { stdio: 'inherit' });
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('@studio-foundation/api installed'));
     consoleSpy.mockRestore();
     exitSpy.mockRestore();
   });

@@ -2,7 +2,7 @@
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { StartupCommand } from '@studio/contracts';
+import type { StartupCommand } from '@studio-foundation/contracts';
 
 const execAsync = promisify(exec);
 const COMMAND_TIMEOUT_MS = 10_000;

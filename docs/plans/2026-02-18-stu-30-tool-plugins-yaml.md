@@ -189,7 +189,7 @@ describe('executeShellCommand', () => {
 **Step 2: Run tests to verify failure**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -A2 "yaml-executor"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -A2 "yaml-executor"
 ```
 
 Expected: `Cannot find module '../src/tools/yaml-executor.js'`
@@ -200,7 +200,7 @@ Expected: `Cannot find module '../src/tools/yaml-executor.js'`
 // runner/src/tools/yaml-executor.ts
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { ParseOutputFormat } from '@studio/contracts';
+import type { ParseOutputFormat } from '@studio-foundation/contracts';
 
 const execFileAsync = promisify(execFile);
 
@@ -294,7 +294,7 @@ export async function executeShellCommand(
 **Step 4: Run tests to verify pass**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "yaml-executor|✓|✗|FAIL|PASS"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "yaml-executor|✓|✗|FAIL|PASS"
 ```
 
 Expected: all yaml-executor tests pass.
@@ -421,7 +421,7 @@ describe('loadProjectTools', () => {
 **Step 3: Run tests to verify failure**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "plugin-loader|FAIL|Cannot find"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "plugin-loader|FAIL|Cannot find"
 ```
 
 Expected: `Cannot find module '../src/tools/plugin-loader.js'`
@@ -434,7 +434,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import yaml from 'js-yaml';
-import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
+import type { ToolPluginDef, ToolCommandDef } from '@studio-foundation/contracts';
 import type { Tool } from './tool-registry.js';
 import { renderTemplate, executeShellCommand } from './yaml-executor.js';
 import { createRepoManagerTools } from './builtin/repo-manager.js';
@@ -549,7 +549,7 @@ export async function loadProjectTools(
 **Step 5: Run tests to verify pass**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "plugin-loader|✓|✗"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "plugin-loader|✓|✗"
 ```
 
 Expected: all plugin-loader tests pass.
@@ -648,7 +648,7 @@ describe('ToolRegistry.filter preserves snippet metadata', () => {
 **Step 3: Run tests to verify failure**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "registerPlugin|getActiveSnippets|FAIL"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "registerPlugin|getActiveSnippets|FAIL"
 ```
 
 Expected: `registry.registerPlugin is not a function`
@@ -659,7 +659,7 @@ Replace the full content of `runner/src/tools/tool-registry.ts`:
 
 ```typescript
 // runner/src/tools/tool-registry.ts
-import { ToolDefinition } from '@studio/contracts';
+import { ToolDefinition } from '@studio-foundation/contracts';
 
 /** Normalize tool name: dots → hyphens so both conventions work */
 export function normalizeToolName(name: string): string {
@@ -773,7 +773,7 @@ export class ToolRegistry {
 **Step 5: Run tests to verify pass**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "registerPlugin|getActiveSnippets|filter|✓|✗"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "registerPlugin|getActiveSnippets|filter|✓|✗"
 ```
 
 Expected: all new tests pass, existing tests still pass.
@@ -838,7 +838,7 @@ describe('buildPrompt with promptSnippets', () => {
 **Step 2: Run tests to verify failure**
 
 ```bash
-pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | grep -E "promptSnippets|FAIL"
+pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | grep -E "promptSnippets|FAIL"
 ```
 
 Expected: TypeScript error — `promptSnippets` not in `PromptBuildConfig`.
@@ -885,7 +885,7 @@ const messages = buildPrompt({
 **Step 5: Build + run tests**
 
 ```bash
-pnpm build && pnpm --filter @studio/runner test -- --reporter=verbose 2>&1 | tail -20
+pnpm build && pnpm --filter @studio-foundation/runner test -- --reporter=verbose 2>&1 | tail -20
 ```
 
 Expected: all tests pass, no build errors.
@@ -1149,11 +1149,11 @@ Add `loadProjectTools`.
 
 The import line goes from:
 ```typescript
-import { createDefaultRegistry, ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools, createPatchTools, createGitTools } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, createRepoManagerTools, createShellTools, createSearchTools, createPatchTools, createGitTools } from '@studio-foundation/runner';
 ```
 to:
 ```typescript
-import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, loadProjectTools } from '@studio-foundation/runner';
 ```
 
 **Step 3: Replace the hardcoded tool registration block**

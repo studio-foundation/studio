@@ -22,7 +22,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 
 const TMP = resolve('/tmp', `.studio-skills-test-${Date.now()}`);
 const SKILLS_DIR = resolve(TMP, 'skills');
@@ -164,7 +164,7 @@ describe('DELETE /api/skills/:name', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio/.worktrees/stu-142-api-crud-skills
-pnpm --filter @studio/api test 2>&1 | grep -E "FAIL|skills|passed|failed"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "FAIL|skills|passed|failed"
 ```
 
 Expected: tests fail because `/api/skills` route doesn't exist (404 responses).
@@ -286,7 +286,7 @@ export async function skillsRoutes(
 **Step 2: Run tests — they should still fail** (route not registered yet)
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "skills|passed|failed"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "skills|passed|failed"
 ```
 
 ---
@@ -311,7 +311,7 @@ void fastify.register(skillsRoutes, { prefix: '/api', deps });
 **Step 2: Run tests — all should pass**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | tail -8
+pnpm --filter @studio-foundation/api test 2>&1 | tail -8
 ```
 
 Expected:

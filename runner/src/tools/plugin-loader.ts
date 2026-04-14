@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import yaml from 'js-yaml';
-import type { ToolPluginDef, ToolCommandDef } from '@studio/contracts';
+import type { ToolPluginDef, ToolCommandDef } from '@studio-foundation/contracts';
 import type { Tool } from './tool-registry.js';
 import { renderTemplate, executeShellCommand } from './yaml-executor.js';
 import { createRepoManagerTools } from './builtin/repo-manager.js';

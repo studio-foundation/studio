@@ -92,7 +92,7 @@ describe('FileChangeCollector', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — module not found
 
 **Step 3: Write minimal implementation**
@@ -100,7 +100,7 @@ Expected: FAIL — module not found
 In `cli/src/output/file-changes.ts`:
 
 ```typescript
-import type { ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallCompleteEvent } from '@studio-foundation/contracts';
 
 export class FileChangeCollector {
   private paths = new Set<string>();
@@ -123,7 +123,7 @@ export class FileChangeCollector {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS (4 tests)
 
 **Step 5: Commit**
@@ -223,7 +223,7 @@ describe('FileChangeCollector.computeSummary', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — `computeSummary` is not a function
 
 **Step 3: Write minimal implementation**
@@ -233,7 +233,7 @@ Add to `cli/src/output/file-changes.ts`:
 ```typescript
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
-import type { ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallCompleteEvent } from '@studio-foundation/contracts';
 
 export interface FileChange {
   path: string;
@@ -313,7 +313,7 @@ export class FileChangeCollector {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS (all tests)
 
 **Step 5: Commit**
@@ -380,7 +380,7 @@ describe('formatFileChanges', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — `formatFileChanges` is not exported
 
 **Step 3: Write minimal implementation**
@@ -412,7 +412,7 @@ export function formatFileChanges(changes: FileChange[]): string {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -500,7 +500,7 @@ Expected: SUCCESS — no type errors
 
 **Step 5: Run all CLI tests**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test`
+Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test`
 Expected: PASS
 
 **Step 6: Commit**

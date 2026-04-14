@@ -262,7 +262,7 @@ git commit -m "chore: add pnpm-workspace.yaml"
   "private": true,
   "description": "Studio v7 — Agentic pipeline orchestrator (monorepo)",
   "scripts": {
-    "build": "pnpm --filter @studio/contracts build && pnpm --filter @studio/ralph build && pnpm --filter @studio/runner build && pnpm --filter @studio/engine build && pnpm --filter @studio/cli build",
+    "build": "pnpm --filter @studio-foundation/contracts build && pnpm --filter @studio-foundation/ralph build && pnpm --filter @studio-foundation/runner build && pnpm --filter @studio-foundation/engine build && pnpm --filter @studio-foundation/cli build",
     "clean": "pnpm -r run clean",
     "test": "pnpm -r run test"
   }
@@ -291,54 +291,54 @@ git commit -m "chore: update root package.json for pnpm workspaces"
 
 Remplacer :
 ```json
-"@studio/contracts": "file:../contracts"
+"@studio-foundation/contracts": "file:../contracts"
 ```
 Par :
 ```json
-"@studio/contracts": "workspace:*"
+"@studio-foundation/contracts": "workspace:*"
 ```
 
 **Step 2: Mettre à jour `runner/package.json`**
 
 Remplacer :
 ```json
-"@studio/contracts": "file:../contracts"
+"@studio-foundation/contracts": "file:../contracts"
 ```
 Par :
 ```json
-"@studio/contracts": "workspace:*"
+"@studio-foundation/contracts": "workspace:*"
 ```
 
 **Step 3: Mettre à jour `engine/package.json`**
 
 Remplacer :
 ```json
-"@studio/contracts": "file:../contracts",
-"@studio/ralph": "file:../ralph",
-"@studio/runner": "file:../runner"
+"@studio-foundation/contracts": "file:../contracts",
+"@studio-foundation/ralph": "file:../ralph",
+"@studio-foundation/runner": "file:../runner"
 ```
 Par :
 ```json
-"@studio/contracts": "workspace:*",
-"@studio/ralph": "workspace:*",
-"@studio/runner": "workspace:*"
+"@studio-foundation/contracts": "workspace:*",
+"@studio-foundation/ralph": "workspace:*",
+"@studio-foundation/runner": "workspace:*"
 ```
 
 **Step 4: Mettre à jour `cli/package.json`**
 
 Remplacer :
 ```json
-"@studio/contracts": "file:../contracts",
-"@studio/engine": "file:../engine",
-"@studio/ralph": "file:../ralph",
-"@studio/runner": "file:../runner"
+"@studio-foundation/contracts": "file:../contracts",
+"@studio-foundation/engine": "file:../engine",
+"@studio-foundation/ralph": "file:../ralph",
+"@studio-foundation/runner": "file:../runner"
 ```
 Par :
 ```json
-"@studio/contracts": "workspace:*",
-"@studio/engine": "workspace:*",
-"@studio/ralph": "workspace:*",
-"@studio/runner": "workspace:*"
+"@studio-foundation/contracts": "workspace:*",
+"@studio-foundation/engine": "workspace:*",
+"@studio-foundation/ralph": "workspace:*",
+"@studio-foundation/runner": "workspace:*"
 ```
 
 **Step 5: Commit**
@@ -445,12 +445,12 @@ node_modules/
   "private": true,
   "description": "Studio code-builder project — premier client de Studio",
   "dependencies": {
-    "@studio/cli": "workspace:*"
+    "@studio-foundation/cli": "workspace:*"
   }
 }
 ```
 
-Note : Pour l'instant, `@studio/cli` sera référencé via un lien local (ou npm global via `npm install -g`). On peut ajuster selon comment Studio est installé.
+Note : Pour l'instant, `@studio-foundation/cli` sera référencé via un lien local (ou npm global via `npm install -g`). On peut ajuster selon comment Studio est installé.
 
 **Step 4: Premier commit**
 

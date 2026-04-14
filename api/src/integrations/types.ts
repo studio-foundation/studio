@@ -1,7 +1,7 @@
 // api/src/integrations/types.ts
 import type { FastifyReply } from 'fastify';
-import type { IntegrationPluginDef } from '@studio/contracts';
-import type { GroupFeedbackEvent } from '@studio/engine';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
+import type { GroupFeedbackEvent } from '@studio-foundation/engine';
 import type { IntegrationStore } from '../integration-store.js';
 import type { RunLauncher } from '../launcher.js';
 import type { ApiConfig } from '../server.js';

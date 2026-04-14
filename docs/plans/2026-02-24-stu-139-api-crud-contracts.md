@@ -22,7 +22,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
-import { InMemoryRunStore } from '@studio/engine';
+import { InMemoryRunStore } from '@studio-foundation/engine';
 
 const TMP = resolve('/tmp', `.studio-contracts-test-${Date.now()}`);
 const CONTRACTS_DIR = resolve(TMP, 'contracts');
@@ -115,7 +115,7 @@ describe('GET /api/contracts/:name', () => {
 
 ```bash
 cd /path/to/Studio
-pnpm --filter @studio/api test 2>&1 | grep -A3 "contracts"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -A3 "contracts"
 ```
 
 Expected: `Cannot find module '../src/routes/contracts'` or similar route-not-found errors.
@@ -207,7 +207,7 @@ void fastify.register(contractsRoutes, { prefix: '/api', deps });
 **Step 3: Run GET tests**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "✓|✗|PASS|FAIL"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "✓|✗|PASS|FAIL"
 ```
 
 Expected: all GET tests pass.
@@ -282,7 +282,7 @@ describe('PUT /api/contracts/:name', () => {
 **Step 2: Run to verify they fail**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "PUT|✗|404"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "PUT|✗|404"
 ```
 
 Expected: 404 responses (route doesn't exist yet).
@@ -331,7 +331,7 @@ Expected: 404 responses (route doesn't exist yet).
 **Step 2: Run PUT tests**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "✓|✗|PASS|FAIL"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "✓|✗|PASS|FAIL"
 ```
 
 Expected: all PUT tests pass.
@@ -381,7 +381,7 @@ describe('DELETE /api/contracts/:name', () => {
 **Step 2: Run to verify they fail**
 
 ```bash
-pnpm --filter @studio/api test 2>&1 | grep -E "DELETE|✗"
+pnpm --filter @studio-foundation/api test 2>&1 | grep -E "DELETE|✗"
 ```
 
 Expected: 404 responses (route doesn't exist yet).
@@ -419,7 +419,7 @@ Expected: 404 responses (route doesn't exist yet).
 **Step 2: Run full test suite**
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass (GET list, GET by name, PUT create, PUT update, PUT 400s, DELETE 204, DELETE 404).

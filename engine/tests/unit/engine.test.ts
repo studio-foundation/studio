@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { PipelineEngine, type EngineConfig, type RunInput } from '../../src/engine.js';
 import { InMemoryRunStore } from '../../src/state/run-store.js';
 import type { EngineEvents } from '../../src/events.js';
-import { ToolRegistry } from '@studio/runner';
+import { ToolRegistry } from '@studio-foundation/runner';
 
 // Provider mock that hangs forever unless the abort signal fires.
 // Using a never-resolving inner promise means the abort is the ONLY way

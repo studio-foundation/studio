@@ -2,7 +2,7 @@
  * Anthropic provider implementation with full tool calling support
  */
 
-import type { LLMRequest, LLMResponse } from '@studio/contracts';
+import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {

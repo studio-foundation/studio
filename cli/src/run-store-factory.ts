@@ -1,8 +1,8 @@
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { StudioConfig } from './config.js';
-import { SQLiteRunStore, InMemoryRunStore, PgRunStore } from '@studio/engine';
-import type { AnyRunStore } from '@studio/engine';
+import { SQLiteRunStore, InMemoryRunStore, PgRunStore } from '@studio-foundation/engine';
+import type { AnyRunStore } from '@studio-foundation/engine';
 
 /**
  * Create the production RunStore from config.

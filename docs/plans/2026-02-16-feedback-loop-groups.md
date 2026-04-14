@@ -6,7 +6,7 @@
 
 **Architecture:** A `StageGroup` entry in the pipeline stages array wraps 2+ stages into a feedback loop. The last stage is the gate — if its post-validator returns `rejected`, the group restarts from the first stage with QA feedback injected into context. Group stage outputs are cleared between iterations; pre-group outputs persist.
 
-**Tech Stack:** TypeScript, Vitest, js-yaml, @studio/contracts, @studio/engine
+**Tech Stack:** TypeScript, Vitest, js-yaml, @studio-foundation/contracts, @studio-foundation/engine
 
 ---
 
@@ -61,7 +61,7 @@ git commit -m "feat(contracts): add StageGroup, PipelineEntry, isStageGroup type
 Add to `engine/tests/loader.test.ts` inside the `parsePipelineYaml` describe block:
 
 ```typescript
-import { isStageGroup } from '@studio/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 
 it('parses a pipeline with a group entry', () => {
   const yamlContent = `
@@ -160,8 +160,8 @@ Expected: 4 new tests FAIL (parsePipelineYaml doesn't understand groups yet; gro
 In `engine/src/pipeline/loader.ts`, update the imports:
 
 ```typescript
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition } from '@studio/contracts';
-import { isStageGroup } from '@studio/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition } from '@studio-foundation/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 ```
 
 Replace the validation loop (lines 47-51) and the return cast (line 53) in `parsePipelineYaml`:
@@ -898,8 +898,8 @@ import type {
   PipelineEntry,
   StageGroup,
   // ... existing imports ...
-} from '@studio/contracts';
-import { isStageGroup } from '@studio/contracts';
+} from '@studio-foundation/contracts';
+import { isStageGroup } from '@studio-foundation/contracts';
 import {
   createInitialContext,
   addStageOutput,

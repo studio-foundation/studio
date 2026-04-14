@@ -1,5 +1,5 @@
 {
-  "name": "@studio/cli",
+  "name": "@studio-foundation/cli",
   "version": "0.3.0-beta.1",
   "description": "Command-line interface for Studio v7",
   "type": "module",
@@ -24,10 +24,10 @@
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@inquirer/prompts": "^8.2.1",
-    "@studio/api": "workspace:*",
-    "@studio/contracts": "workspace:*",
-    "@studio/engine": "workspace:*",
-    "@studio/runner": "workspace:*",
+    "@studio-foundation/api": "workspace:*",
+    "@studio-foundation/contracts": "workspace:*",
+    "@studio-foundation/engine": "workspace:*",
+    "@studio-foundation/runner": "workspace:*",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",

@@ -6,7 +6,7 @@
 
 **Architecture:** Engine-native resume — new `RunInput` fields carry prior stage outputs; engine pre-populates `PipelineContext`, emits synthetic `skipped` `StageRun`s for bypassed stages, then executes normally from the target stage. CLI parses the JSONL log from the prior run and passes extracted data to the engine.
 
-**Tech Stack:** TypeScript, Vitest, Commander (CLI), existing `@studio/contracts`, `@studio/engine`, `@studio/cli`
+**Tech Stack:** TypeScript, Vitest, Commander (CLI), existing `@studio-foundation/contracts`, `@studio-foundation/engine`, `@studio-foundation/cli`
 
 ---
 
@@ -53,7 +53,7 @@ export interface StageCompleteEvent {
 
 Change `tool_calls` field type:
 ```typescript
-import type { ToolCall } from '@studio/contracts';
+import type { ToolCall } from '@studio-foundation/contracts';
 
 export interface StageCompleteEvent {
   stage_name: string;
@@ -172,17 +172,17 @@ Create `engine/src/__tests__/engine.resume.test.ts`:
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PipelineEngine } from '../engine.js';
-import type { PipelineDefinition, ToolCall } from '@studio/contracts';
+import type { PipelineDefinition, ToolCall } from '@studio-foundation/contracts';
 
-vi.mock('@studio/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@studio/runner')>();
+vi.mock('@studio-foundation/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@studio-foundation/runner')>();
   return {
     ...actual,
     runScript: vi.fn(),
   };
 });
 
-import { runScript } from '@studio/runner';
+import { runScript } from '@studio-foundation/runner';
 
 function makeEngine() {
   return new PipelineEngine({
@@ -293,7 +293,7 @@ describe('engine — resume from stage', () => {
 - [ ] **Step 2: Run test to confirm it fails**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/engine test 2>&1 | grep -A 5 "engine.resume"
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | grep -A 5 "engine.resume"
 ```
 
 Expected: FAIL — `RunInput` does not have `resumeFromStage`.
@@ -303,7 +303,7 @@ Expected: FAIL — `RunInput` does not have `resumeFromStage`.
 Find the `RunInput` interface (around line 52):
 
 ```typescript
-import type { ToolCall } from '@studio/contracts';
+import type { ToolCall } from '@studio-foundation/contracts';
 
 export interface RunInput {
   id?: string;
@@ -422,7 +422,7 @@ In the `else` branch of `if (isStageGroup(entry))`, before `stageCounter++` (aro
   const result = await this.stageExecutor.execute( ... ); // existing code
 ```
 
-Note: import `StageRun` from `@studio/contracts` at the top of `engine.ts` if not already imported.
+Note: import `StageRun` from `@studio-foundation/contracts` at the top of `engine.ts` if not already imported.
 
 - [ ] **Step 7: Add skip logic in the group branch**
 
@@ -546,7 +546,7 @@ You will need to examine the `runSequential` inner loop (around line 191) to fin
 - [ ] **Step 9: Run tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/engine test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | tail -20
 ```
 
 Expected: all engine tests pass including the new resume tests.
@@ -581,7 +581,7 @@ Add to `cli/tests/commands/replay.test.ts`:
 
 ```typescript
 import { parseJsonlForResume, resolveStageFromPipeline } from '../../src/commands/replay.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 describe('parseJsonlForResume', () => {
   it('extracts input and stage outputs from JSONL', () => {
@@ -661,7 +661,7 @@ describe('resolveStageFromPipeline', () => {
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -A 5 "parseJsonlForResume\|resolveStage"
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -A 5 "parseJsonlForResume\|resolveStage"
 ```
 
 Expected: FAIL — functions not exported.
@@ -671,7 +671,7 @@ Expected: FAIL — functions not exported.
 Add these exports after the existing `mapJsonlLineToEvent` function:
 
 ```typescript
-import type { PipelineDefinition, ToolCall } from '@studio/contracts';
+import type { PipelineDefinition, ToolCall } from '@studio-foundation/contracts';
 
 export interface ResumeContext {
   pipelineInput: string | Record<string, unknown>;
@@ -769,7 +769,7 @@ Add this function after `replayCommand`:
 ```typescript
 import { readFileSync } from 'node:fs';
 import chalk from 'chalk';
-import { PipelineEngine } from '@studio/engine';
+import { PipelineEngine } from '@studio-foundation/engine';
 import { loadConfig } from '../config.js';
 import { createRunStore } from '../run-store-factory.js';
 import { loadPipeline } from '../pipeline-loader.js'; // adjust path if needed
@@ -853,9 +853,9 @@ export async function restartCommand(
 }
 ```
 
-**Note:** `loadPipelineByName` needs to load and parse the YAML file for the given pipeline. Check how `cli/src/commands/run.ts` initializes the engine — mirror that setup exactly. The engine internally loads the pipeline from `configsDir`. You don't need to load it separately; instead, pass `pipeline: pipelineName` to `engine.run()` and the engine resolves it. But you *do* need the `PipelineDefinition` to call `resolveStageFromPipeline`. Use the engine's loader or load it directly with the existing `loadPipeline` utility from `@studio/engine`.
+**Note:** `loadPipelineByName` needs to load and parse the YAML file for the given pipeline. Check how `cli/src/commands/run.ts` initializes the engine — mirror that setup exactly. The engine internally loads the pipeline from `configsDir`. You don't need to load it separately; instead, pass `pipeline: pipelineName` to `engine.run()` and the engine resolves it. But you *do* need the `PipelineDefinition` to call `resolveStageFromPipeline`. Use the engine's loader or load it directly with the existing `loadPipeline` utility from `@studio-foundation/engine`.
 
-Check what's exported from `@studio/engine`:
+Check what's exported from `@studio-foundation/engine`:
 ```bash
 grep -n "export" /home/arianeguay/dev/src/Studio/engine/src/index.ts | head -20
 ```
@@ -865,7 +865,7 @@ If `loadPipeline` is exported, use it. Otherwise, import the pipeline loader dir
 - [ ] **Step 5: Run CLI tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/cli test 2>&1 | tail -20
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: `parseJsonlForResume` and `resolveStageFromPipeline` tests pass.
@@ -981,7 +981,7 @@ If `formatResult` already renders `status: 'skipped'` (it likely does since `'sk
 - [ ] **Step 3: Build and run CLI tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build && pnpm --filter @studio/cli test 2>&1 | tail -10
+cd /home/arianeguay/dev/src/Studio && pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
 ```
 
 - [ ] **Step 4: Commit**

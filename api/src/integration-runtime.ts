@@ -1,13 +1,13 @@
 // api/src/integration-runtime.ts
 import type { FastifyInstance } from 'fastify';
-import type { IntegrationPluginDef } from '@studio/contracts';
+import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import type { IntegrationStore } from './integration-store.js';
 import type { RunLauncher } from './launcher.js';
 import type { RunEventBus } from './event-bus.js';
 import type { ApiConfig } from './server.js';
 import { WEBHOOK_HANDLERS, FAILURE_HANDLERS } from './integrations/registry.js';
 import type { FailureHandlerContext } from './integrations/types.js';
-import type { GroupFeedbackEvent } from '@studio/engine';
+import type { GroupFeedbackEvent } from '@studio-foundation/engine';
 
 export interface IntegrationRuntimeDeps {
   integrations: IntegrationPluginDef[];

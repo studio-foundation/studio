@@ -44,11 +44,11 @@ studio-workspace/                  (current dir: /home/arianeguay/dev/src/Studio
 │   └── plans/
 │       └── 2026-02-13-studio-v7-workspace-setup-design.md  (this file)
 │
-├── contracts/                    (git repo, @studio/contracts)
-├── ralph/                        (git repo, @studio/ralph)
-├── runner/                       (git repo, @studio/runner)
-├── engine/                       (git repo, @studio/engine)
-└── cli/                          (git repo, @studio/cli)
+├── contracts/                    (git repo, @studio-foundation/contracts)
+├── ralph/                        (git repo, @studio-foundation/ralph)
+├── runner/                       (git repo, @studio-foundation/runner)
+├── engine/                       (git repo, @studio-foundation/engine)
+└── cli/                          (git repo, @studio-foundation/cli)
 ```
 
 ### Key Decisions
@@ -76,7 +76,7 @@ Used across all sub-repos with appropriate modifications:
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    // Example: "@studio/contracts": "file:../contracts"
+    // Example: "@studio-foundation/contracts": "file:../contracts"
   },
   "devDependencies": {
     "typescript": "^5.3.0"
@@ -156,7 +156,7 @@ dist/
 ```
 contracts/
 ├── .gitignore
-├── package.json          (@studio/contracts, no dependencies)
+├── package.json          (@studio-foundation/contracts, no dependencies)
 ├── tsconfig.json
 ├── ARCHITECTURE.md
 ├── src/
@@ -190,7 +190,7 @@ contracts/
 ```
 ralph/
 ├── .gitignore
-├── package.json          (depends on @studio/contracts)
+├── package.json          (depends on @studio-foundation/contracts)
 ├── tsconfig.json
 ├── ARCHITECTURE.md
 ├── src/
@@ -212,15 +212,15 @@ ralph/
 
 **Actions:**
 - Create directory structure
-- Add package.json with `"@studio/contracts": "file:../contracts"`
+- Add package.json with `"@studio-foundation/contracts": "file:../contracts"`
 - Create placeholder TypeScript files
 - Add example YAML contracts
 - Copy ARCHITECTURE.md template
 - Git init
 - npm install (will link contracts via file:)
-- Validate: builds and can import from @studio/contracts
+- Validate: builds and can import from @studio-foundation/contracts
 
-**Dependencies:** @studio/contracts
+**Dependencies:** @studio-foundation/contracts
 
 ### Step 4: studio-runner
 
@@ -228,7 +228,7 @@ ralph/
 ```
 runner/
 ├── .gitignore
-├── package.json          (depends on @studio/contracts)
+├── package.json          (depends on @studio-foundation/contracts)
 ├── tsconfig.json
 ├── ARCHITECTURE.md
 ├── src/
@@ -273,7 +273,7 @@ runner/
 - npm install
 - Validate: builds and imports contracts
 
-**Dependencies:** @studio/contracts
+**Dependencies:** @studio-foundation/contracts
 
 ### Step 5: studio-engine
 
@@ -323,7 +323,7 @@ engine/
 - npm install
 - Validate: builds and imports all dependencies
 
-**Dependencies:** @studio/contracts, @studio/ralph, @studio/runner, prisma
+**Dependencies:** @studio-foundation/contracts, @studio-foundation/ralph, @studio-foundation/runner, prisma
 
 ### Step 6: studio-cli
 
@@ -367,7 +367,7 @@ cli/
 - npm install
 - Validate: builds and imports engine
 
-**Dependencies:** @studio/contracts, @studio/engine
+**Dependencies:** @studio-foundation/contracts, @studio-foundation/engine
 
 ## Validation Strategy
 
@@ -495,12 +495,12 @@ These will be added during Phase 1+ implementation.
 
 After setup is complete:
 
-1. **Phase 1:** Implement @studio/contracts
+1. **Phase 1:** Implement @studio-foundation/contracts
    - Define all TypeScript interfaces
    - Add type-level tests
    - Validate with architecture doc
 
-2. **Phase 2:** Implement @studio/ralph
+2. **Phase 2:** Implement @studio-foundation/ralph
    - Build RALPH loop
    - Add validation engine
    - Write unit tests

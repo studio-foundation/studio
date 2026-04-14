@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-19
 **Issue:** [STU-48](https://linear.app/studioag/issue/STU-48/studio-init-tool-selection-step-during-wizard)
-**Package:** `@studio/cli`
+**Package:** `@studio-foundation/cli`
 
 ---
 

@@ -1,4 +1,4 @@
-# @studio/cli
+# @studio-foundation/cli
 
 The terminal interface for Studio. `studio run`, `studio init`, `studio config`, and more.
 

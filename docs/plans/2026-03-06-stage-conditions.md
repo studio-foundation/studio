@@ -4,7 +4,7 @@
 
 **Goal:** Add an optional `condition` field to stage definitions that skips stages when the condition evaluates to false, based on pipeline input or previous stage output.
 
-**Architecture:** The condition string is evaluated by a new pure `condition-evaluator.ts` module in `@studio/engine`. The check is an early return inside `StageExecutor.execute()`, before any agent loading or ralph loop. `GroupOrchestrator` handles the resulting `skipped` status without stopping the group.
+**Architecture:** The condition string is evaluated by a new pure `condition-evaluator.ts` module in `@studio-foundation/engine`. The check is an early return inside `StageExecutor.execute()`, before any agent loading or ralph loop. `GroupOrchestrator` handles the resulting `skipped` status without stopping the group.
 
 **Tech Stack:** TypeScript, Vitest, pnpm workspaces. No new dependencies.
 
@@ -192,7 +192,7 @@ describe('evaluateCondition — edge cases', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/condition-evaluator.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/condition-evaluator.test.ts
 ```
 
 Expected: fails with "Cannot find module './condition-evaluator.js'"
@@ -328,7 +328,7 @@ function compare(lhs: unknown, op: Operator, rhs: unknown): boolean {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/pipeline/condition-evaluator.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/pipeline/condition-evaluator.test.ts
 ```
 
 Expected: all tests pass.
@@ -355,18 +355,18 @@ Create `engine/src/__tests__/engine.conditions.test.ts`:
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 import { PipelineEngine } from '../engine.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 // Mock the runner so we can inspect which stages actually ran
-vi.mock('@studio/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@studio/runner')>();
+vi.mock('@studio-foundation/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@studio-foundation/runner')>();
   return {
     ...actual,
     runScript: vi.fn(),
   };
 });
 
-import { runScript } from '@studio/runner';
+import { runScript } from '@studio-foundation/runner';
 
 const FIXTURES_DIR = new URL('./__fixtures__/script-stage', import.meta.url).pathname;
 
@@ -539,7 +539,7 @@ describe('engine — stage conditions', () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions.test.ts
 ```
 
 Expected: tests fail — skipped stages show `success` (condition not yet evaluated).
@@ -583,7 +583,7 @@ if (stageDef.condition !== undefined) {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions.test.ts
 ```
 
 Expected: all 4 tests pass.
@@ -591,7 +591,7 @@ Expected: all 4 tests pass.
 **Step 5: Run the full engine test suite to verify no regressions**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests pass.
@@ -618,17 +618,17 @@ Create `engine/src/__tests__/engine.conditions-group.test.ts`:
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
 import { PipelineEngine } from '../engine.js';
-import type { PipelineDefinition } from '@studio/contracts';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 
-vi.mock('@studio/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@studio/runner')>();
+vi.mock('@studio-foundation/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@studio-foundation/runner')>();
   return {
     ...actual,
     runScript: vi.fn(),
   };
 });
 
-import { runScript } from '@studio/runner';
+import { runScript } from '@studio-foundation/runner';
 
 const FIXTURES_DIR = new URL('./__fixtures__/script-stage', import.meta.url).pathname;
 
@@ -750,7 +750,7 @@ describe('engine — conditions inside sequential groups', () => {
 **Step 2: Run to verify tests fail**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
 ```
 
 Expected: "all stages skipped → group skipped" test fails (group returns `success` instead of passing through as non-fatal).
@@ -804,7 +804,7 @@ if (groupSucceeded) {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
 ```
 
 Expected: all tests pass.
@@ -812,7 +812,7 @@ Expected: all tests pass.
 **Step 5: Run full engine suite**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests pass.
@@ -947,7 +947,7 @@ describe('engine — conditions inside parallel groups', () => {
 **Step 2: Run to verify the parallel test fails**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
 ```
 
 Expected: the new parallel all-skipped test fails.
@@ -967,7 +967,7 @@ if (allSkipped) groupStatus = 'skipped';
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
+pnpm --filter @studio-foundation/engine exec vitest run src/__tests__/engine.conditions-group.test.ts
 ```
 
 Expected: all tests pass.
@@ -975,7 +975,7 @@ Expected: all tests pass.
 **Step 5: Run full engine suite**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests pass.

@@ -56,7 +56,7 @@ it('running → cancelled is valid transition', () => {
 ### Step 2: Run to verify failure
 
 ```bash
-pnpm --filter @studio/engine test 2>&1 | grep -E "cancel|FAIL|✗"
+pnpm --filter @studio-foundation/engine test 2>&1 | grep -E "cancel|FAIL|✗"
 ```
 
 Expected: test fails with "Invalid state transition: running + cancel"
@@ -83,7 +83,7 @@ const VALID_TRANSITIONS: Record<string, StageLifecycleState> = {
 ### Step 4: Run to verify state-machine tests pass
 
 ```bash
-pnpm --filter @studio/engine test 2>&1 | grep -E "cancel|PASS|✓"
+pnpm --filter @studio-foundation/engine test 2>&1 | grep -E "cancel|PASS|✓"
 ```
 
 Expected: all 3 new tests pass
@@ -118,7 +118,7 @@ grep -n "stageRun.status = 'cancelled'" engine/src/engine.ts
 ### Step 6: Verify all engine tests still pass
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests pass (no regressions)
@@ -291,7 +291,7 @@ it('cancels cleanly when signal is aborted during a group stage', async () => {
 ### Step 5: Run the new tests
 
 ```bash
-pnpm --filter @studio/engine test engine/tests/unit/engine.test.ts 2>&1 | tail -30
+pnpm --filter @studio-foundation/engine test engine/tests/unit/engine.test.ts 2>&1 | tail -30
 ```
 
 Expected: all 3 new tests pass. If any fail, investigate with `DEBUG=studio:* pnpm test`.
@@ -299,7 +299,7 @@ Expected: all 3 new tests pass. If any fail, investigate with `DEBUG=studio:* pn
 ### Step 6: Run full engine test suite
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests pass.
@@ -403,7 +403,7 @@ Use the second simpler test (bus.close spy).
 ### Step 2: Run to verify failure
 
 ```bash
-pnpm --filter @studio/api test api/tests/launcher.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/api test api/tests/launcher.test.ts 2>&1 | tail -20
 ```
 
 Expected: test fails — `closeSpy` is called once by `onPipelineCancelled`, not by `onPipelineComplete`.
@@ -428,7 +428,7 @@ onPipelineCancelled: (e: PipelineCancelledEvent) => {
 ### Step 4: Run to verify fix
 
 ```bash
-pnpm --filter @studio/api test api/tests/launcher.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/api test api/tests/launcher.test.ts 2>&1 | tail -20
 ```
 
 Expected: new test passes, all existing launcher tests still pass.
@@ -436,7 +436,7 @@ Expected: new test passes, all existing launcher tests still pass.
 ### Step 5: Run full API test suite
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass.
@@ -500,7 +500,7 @@ describe('DELETE /api/runs/:id', () => {
 ### Step 2: Run to verify failure
 
 ```bash
-pnpm --filter @studio/api test api/tests/cancel.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/api test api/tests/cancel.test.ts 2>&1 | tail -20
 ```
 
 Expected: 3 new tests fail (404 — route not registered)
@@ -546,7 +546,7 @@ fastify.delete<{ Params: { id: string } }>('/runs/:id', {
 ### Step 4: Run to verify tests pass
 
 ```bash
-pnpm --filter @studio/api test api/tests/cancel.test.ts 2>&1 | tail -20
+pnpm --filter @studio-foundation/api test api/tests/cancel.test.ts 2>&1 | tail -20
 ```
 
 Expected: all 7 cancel tests pass (4 original + 3 new)
@@ -554,7 +554,7 @@ Expected: all 7 cancel tests pass (4 original + 3 new)
 ### Step 5: Run full API test suite
 
 ```bash
-pnpm --filter @studio/api test
+pnpm --filter @studio-foundation/api test
 ```
 
 Expected: all tests pass.
@@ -610,8 +610,8 @@ STU-25 specified graceful cancellation via `DELETE /runs/:id` and `Ctrl+C`. The 
 
 ## Packages touched
 
-- `@studio/api` — launcher.ts (SSE fix), routes/runs.ts (DELETE endpoint)
-- `@studio/engine` — state/state-machine.ts (cancel transition), engine.ts (use transition())
+- `@studio-foundation/api` — launcher.ts (SSE fix), routes/runs.ts (DELETE endpoint)
+- `@studio-foundation/engine` — state/state-machine.ts (cancel transition), engine.ts (use transition())
 
 ## How to test
 

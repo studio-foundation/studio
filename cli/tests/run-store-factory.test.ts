@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { rm } from 'node:fs/promises';
 import { createRunStore } from '../src/run-store-factory.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 const tmpDir = `/tmp/.studio-factory-test-${Date.now()}`;
 

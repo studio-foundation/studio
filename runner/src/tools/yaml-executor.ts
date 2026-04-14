@@ -1,7 +1,7 @@
 // runner/src/tools/yaml-executor.ts
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { ParseOutputFormat } from '@studio/contracts';
+import type { ParseOutputFormat } from '@studio-foundation/contracts';
 
 const execFileAsync = promisify(execFile);
 

@@ -1,4 +1,4 @@
-import type { RunSpawner } from '@studio/contracts';
+import type { RunSpawner } from '@studio-foundation/contracts';
 import type { Tool } from '../tool-registry.js';
 
 interface StudioRunContext {

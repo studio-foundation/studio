@@ -28,9 +28,9 @@ Tool results are also anonymized before being sent back to the LLM (within the r
 
 ## Architecture
 
-### New Package: `@studio/anonymizer`
+### New Package: `@studio-foundation/anonymizer`
 
-Sixth package in the monorepo. Depends only on `@studio/contracts`.
+Sixth package in the monorepo. Depends only on `@studio-foundation/contracts`.
 
 ```
 anonymizer/
@@ -40,7 +40,7 @@ anonymizer/
 │   ├── tokenizer.ts   # PIISpan[] → sequential tokens + keymap
 │   ├── keymap.ts      # Persist/load keymap to .studio/runs/anonymization/
 │   └── types.ts       # PIICategory, PIISpan, PIIDetectionResult, AnonymizerOptions
-├── package.json       # deps: @studio/contracts, @redactpii/node
+├── package.json       # deps: @studio-foundation/contracts, @redactpii/node
 └── tsconfig.json
 ```
 
@@ -169,20 +169,20 @@ The engine persists the keymap at the end of each run:
 ## Dependency Graph (unchanged architecture)
 
 ```
-@studio/cli
+@studio-foundation/cli
     │
-@studio/engine
+@studio-foundation/engine
     │
-    ├── @studio/ralph
+    ├── @studio-foundation/ralph
     │
-    └── @studio/runner
+    └── @studio-foundation/runner
          │
-         └── @studio/anonymizer
+         └── @studio-foundation/anonymizer
               │
-              └── @studio/contracts
+              └── @studio-foundation/contracts
 ```
 
-`@studio/anonymizer` is a leaf package (like contracts) from the engine's perspective — engine never imports it directly.
+`@studio-foundation/anonymizer` is a leaf package (like contracts) from the engine's perspective — engine never imports it directly.
 
 ## Edge Cases
 
@@ -204,7 +204,7 @@ The engine persists the keymap at the end of each run:
 
 ## Testing Strategy
 
-- `@studio/anonymizer` unit tests: `anonymize()`, `deanonymize()`, token consistency, edge cases
+- `@studio-foundation/anonymizer` unit tests: `anonymize()`, `deanonymize()`, token consistency, edge cases
 - Runner integration test: middleware activated/deactivated, tool results anonymized
 - Engine test: middleware shared across stages, keymap persisted after run
 - CLI test: `--anonymize` flag propagation

@@ -262,10 +262,10 @@ Add missing tools to the "Tools / Builtins actuels" table.
 **Architecture section** shows 5 packages, missing `api` and `anonymizer`:
 ```
 Current:
-@studio/cli → @studio/engine → @studio/ralph + @studio/runner → @studio/contracts
+@studio-foundation/cli → @studio-foundation/engine → @studio-foundation/ralph + @studio-foundation/runner → @studio-foundation/contracts
 
 Actual (7 packages):
-@studio/cli → @studio/api → @studio/engine → @studio/ralph + @studio/runner + @studio/anonymizer → @studio/contracts
+@studio-foundation/cli → @studio-foundation/api → @studio-foundation/engine → @studio-foundation/ralph + @studio-foundation/runner + @studio-foundation/anonymizer → @studio-foundation/contracts
 ```
 
 **`.studio/` structure in "What gets generated"** shows old `projects/` subdirectory (pre-migration):
@@ -291,7 +291,7 @@ Actual (7 packages):
 ```
 
 **Status section** — "What's functional" is incomplete:
-- Missing: `@studio/api` HTTP REST API (Fastify + Swagger UI)
+- Missing: `@studio-foundation/api` HTTP REST API (Fastify + Swagger UI)
 - Missing: Registry system (`studio registry install/remove/search/publish`)
 - Missing: Integration system (Linear webhook handler)
 - Missing: SSE streaming (`GET /api/runs/:id/stream`)
@@ -306,7 +306,7 @@ Show the corrected architecture diagram, fixed `.studio/` tree, updated Status "
 **Step 2: Edit README.md**
 
 Update:
-1. Architecture section — add `@studio/api` and `@studio/anonymizer`
+1. Architecture section — add `@studio-foundation/api` and `@studio-foundation/anonymizer`
 2. `.studio/` directory tree — fix to flat structure
 3. Status "What's functional" — add api, registry, integrations, SSE, sub-pipeline spawning
 4. CLI section — add missing commands

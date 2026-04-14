@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PipelineEngine } from './engine.js';
-import { createDefaultRegistry, ToolRegistry, MockProvider } from '@studio/runner';
+import { createDefaultRegistry, ToolRegistry, MockProvider } from '@studio-foundation/runner';
 import type { StageContextEvent } from './events.js';
 
 async function makeTestDirs(): Promise<{ configsDir: string }> {

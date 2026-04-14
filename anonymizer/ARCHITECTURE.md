@@ -1,4 +1,4 @@
-# @studio/anonymizer
+# @studio-foundation/anonymizer
 
 Bibliothèque de détection et anonymisation de PII. Remplace les données sensibles par des tokens avant envoi au LLM, avec keymap pour restaurer les valeurs originales.
 

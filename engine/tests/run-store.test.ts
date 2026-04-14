@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryRunStore } from '../src/state/run-store.js';
-import type { PipelineRun } from '@studio/contracts';
+import type { PipelineRun } from '@studio-foundation/contracts';
 
 function makePipelineRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {

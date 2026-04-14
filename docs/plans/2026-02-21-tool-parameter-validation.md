@@ -36,7 +36,7 @@ describe('ToolYamlError', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/errors.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/errors.test.ts
 ```
 
 Expected: FAIL — `Cannot find module './errors.js'`
@@ -56,7 +56,7 @@ export class ToolYamlError extends Error {
 **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/errors.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/errors.test.ts
 ```
 
 Expected: PASS
@@ -196,7 +196,7 @@ commands:
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/plugin-loader.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/plugin-loader.test.ts
 ```
 
 Expected: FAIL — tests fail because no validation exists yet
@@ -266,7 +266,7 @@ Replace the `else` branch with:
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/plugin-loader.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/plugin-loader.test.ts
 ```
 
 Expected: PASS (4 tests)
@@ -401,7 +401,7 @@ describe('ToolExecutor — argument validation', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/tool-executor.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/tool-executor.test.ts
 ```
 
 Expected: FAIL — missing required / unknown param tests don't get an error yet
@@ -456,7 +456,7 @@ if (validationError) {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/runner test runner/src/tools/tool-executor.test.ts
+pnpm --filter @studio-foundation/runner test runner/src/tools/tool-executor.test.ts
 ```
 
 Expected: PASS (5 tests)
@@ -464,7 +464,7 @@ Expected: PASS (5 tests)
 **Step 5: Run full runner test suite**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: all tests pass

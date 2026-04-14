@@ -6,7 +6,7 @@
 
 **Architecture:** New `cli/src/commands/ollama.ts` mirrors the `api.ts` pattern (single file, 4 subcommands). Hardware detection is extracted into a helper in `init.ts` and run silently before the provider select prompt. Ollama config writes `{}` (no apiKey) into `providers.ollama`.
 
-**Tech Stack:** Node.js built-ins (`os`, `child_process`), native `fetch` (Node 18+), `chalk`, `ora`, `@inquirer/prompts` — all already in `@studio/cli`. No new dependencies.
+**Tech Stack:** Node.js built-ins (`os`, `child_process`), native `fetch` (Node 18+), `chalk`, `ora`, `@inquirer/prompts` — all already in `@studio-foundation/cli`. No new dependencies.
 
 ---
 
@@ -42,7 +42,7 @@ describe('detectHardware', () => {
 
 ```bash
 cd /path/to/.worktrees/stu-89-ollama-cli
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: FAIL — `detectHardware is not a function`
@@ -83,7 +83,7 @@ export function detectHardware(): HardwareInfo {
 ### Step 4: Run test to verify it passes
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: PASS
@@ -133,7 +133,7 @@ describe('writeProviderToConfig', () => {
 ### Step 2: Run test to verify it fails
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: FAIL — `providers.ollama` has `{ apiKey: undefined }` instead of `{}`
@@ -175,7 +175,7 @@ To:
 ### Step 4: Run test to verify it passes
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: PASS (and all existing init tests still pass)
@@ -296,7 +296,7 @@ describe('ollamaStartCommand', () => {
 ### Step 2: Run test to verify it fails
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/ollama.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/ollama.test.ts
 ```
 
 Expected: FAIL — module not found
@@ -473,7 +473,7 @@ export async function ollamaCommand(action: string, modelArg: string | undefined
 ### Step 4: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/ollama.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/ollama.test.ts
 ```
 
 Expected: All ollama tests PASS
@@ -561,7 +561,7 @@ describe('ollamaPullCommand', () => {
 ### Step 2: Run tests to verify they pass
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/ollama.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/ollama.test.ts
 ```
 
 Expected: All tests PASS
@@ -699,7 +699,7 @@ describe('detectHardware with mocks', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: FAIL (mock not set up correctly until we wire the mocks properly)
@@ -813,7 +813,7 @@ if (provider === 'ollama') {
 ### Step 4: Run tests
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose tests/commands/init.test.ts
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose tests/commands/init.test.ts
 ```
 
 Expected: All tests PASS
@@ -894,7 +894,7 @@ STU-89 — zero-friction Ollama onboarding. STU-88 set Ollama as default provide
 
 ## Packages touched
 
-- `@studio/cli` — new `commands/ollama.ts`, modified `commands/init.ts`, `index.ts`
+- `@studio-foundation/cli` — new `commands/ollama.ts`, modified `commands/init.ts`, `index.ts`
 
 ## How to test
 

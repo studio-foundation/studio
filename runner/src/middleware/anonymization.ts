@@ -1,5 +1,5 @@
-import { anonymize, deanonymize } from '@studio/anonymizer';
-import type { AnonymizerOptions } from '@studio/anonymizer';
+import { anonymize, deanonymize } from '@studio-foundation/anonymizer';
+import type { AnonymizerOptions } from '@studio-foundation/anonymizer';
 
 /**
  * Stateful middleware that anonymizes text before sending to LLM

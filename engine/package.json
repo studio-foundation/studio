@@ -1,5 +1,5 @@
 {
-  "name": "@studio/engine",
+  "name": "@studio-foundation/engine",
   "version": "0.3.0-beta.1",
   "description": "Pipeline orchestration engine for Studio v7",
   "type": "module",
@@ -29,9 +29,9 @@
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "@studio/contracts": "workspace:*",
-    "@studio/ralph": "workspace:*",
-    "@studio/runner": "workspace:*",
+    "@studio-foundation/contracts": "workspace:*",
+    "@studio-foundation/ralph": "workspace:*",
+    "@studio-foundation/runner": "workspace:*",
     "better-sqlite3": "^9.0.0",
     "js-yaml": "^4.1.0",
     "pg": "^8.19.0"

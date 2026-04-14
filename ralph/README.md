@@ -1,4 +1,4 @@
-# @studio/ralph
+# @studio-foundation/ralph
 
 The retry engine. Execute → validate → retry with escalated feedback → repeat.
 
@@ -17,9 +17,9 @@ engine → ralph(executor, contract) → success | exhausted
 ## Key exports
 
 ```typescript
-import { ralph, RalphConfig, RalphResult } from '@studio/ralph';
-import { validateSchema, validateToolCalls, validateRequiredTools, compose } from '@studio/ralph';
-import { exponentialBackoff, fixedDelay, noDelay } from '@studio/ralph';
+import { ralph, RalphConfig, RalphResult } from '@studio-foundation/ralph';
+import { validateSchema, validateToolCalls, validateRequiredTools, compose } from '@studio-foundation/ralph';
+import { exponentialBackoff, fixedDelay, noDelay } from '@studio-foundation/ralph';
 
 const result = await ralph({
   executor: async (context) => runner.runAgent(context),

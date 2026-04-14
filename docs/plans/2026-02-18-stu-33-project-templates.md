@@ -379,7 +379,7 @@ describe('createStudioStructure with templates', () => {
 ### Step 2.2: Run tests to verify failure
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "copies template|blank template|throws with|error message|custom project"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "copies template|blank template|throws with|error message|custom project"
 ```
 
 Expected: `TypeError: createStudioStructure is not a function` (wrong — it exists) or all 5 new tests should fail because `createStudioStructure` doesn't accept a 3rd argument yet. You'll see the template-copy tests fail because the files don't exist in the project dir.
@@ -541,7 +541,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
 ### Step 2.4: Run tests to verify pass
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "copies template|blank template|throws with|error message|custom project|✓|✗|FAIL|PASS"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "copies template|blank template|throws with|error message|custom project|✓|✗|FAIL|PASS"
 ```
 
 Expected: all 5 new tests pass, all existing tests still pass.
@@ -604,7 +604,7 @@ describe('listTemplates', () => {
 ### Step 3.2: Run tests to verify failure
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "listTemplates|Cannot find|FAIL"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "listTemplates|Cannot find|FAIL"
 ```
 
 Expected: `Cannot find module '../../src/commands/templates.js'`
@@ -691,7 +691,7 @@ export async function templatesCommand(action: string, _args: string[]): Promise
 ### Step 3.4: Run tests to verify pass
 
 ```bash
-pnpm --filter @studio/cli test -- --reporter=verbose 2>&1 | grep -E "listTemplates|✓|✗|FAIL|PASS"
+pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -E "listTemplates|✓|✗|FAIL|PASS"
 ```
 
 Expected: all 3 new tests pass.

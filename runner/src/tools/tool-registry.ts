@@ -2,7 +2,7 @@
  * Tool registry - manages tool definitions and execution
  */
 
-import { ToolDefinition } from '@studio/contracts';
+import { ToolDefinition } from '@studio-foundation/contracts';
 
 /** Normalize tool name: dots → hyphens so both conventions work */
 export function normalizeToolName(name: string): string {

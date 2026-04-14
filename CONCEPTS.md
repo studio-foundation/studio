@@ -22,7 +22,7 @@ execute → validate → pass? → next stage
                    → exhausted? → stage failed
 ```
 
-RALPH is a standalone package (`@studio/ralph`). It takes a generic `executor: () => Promise<T>` and a `validator: (result: T) => ValidationResult`. It does not know that an LLM is behind the executor. It does not know what domain the validation covers. It loops until the contract is satisfied or the budget runs out.
+RALPH is a standalone package (`@studio-foundation/ralph`). It takes a generic `executor: () => Promise<T>` and a `validator: (result: T) => ValidationResult`. It does not know that an LLM is behind the executor. It does not know what domain the validation covers. It loops until the contract is satisfied or the budget runs out.
 
 **ralph does not know runner.** This is a hard boundary. ralph receives an executor function — it never imports runner, never constructs LLM calls, never touches tool logic.
 
@@ -298,13 +298,13 @@ Switch models without changing pipeline logic. The orchestration layer depends o
 ## Package boundaries
 
 ```
-@studio/contracts    → Types, interfaces. Zero dependencies. Leaf package.
-@studio/ralph        → Retry loop + validation. Depends only on contracts.
-@studio/runner       → Tool plugin runtime, LLM providers. Depends only on contracts.
-@studio/anonymizer   → PII middleware. Depends only on contracts.
-@studio/engine       → Pipeline orchestration. Depends on ralph + runner + anonymizer + contracts.
-@studio/api          → HTTP REST API. Depends on engine + contracts.
-@studio/cli          → Terminal interface. Depends on engine + contracts.
+@studio-foundation/contracts    → Types, interfaces. Zero dependencies. Leaf package.
+@studio-foundation/ralph        → Retry loop + validation. Depends only on contracts.
+@studio-foundation/runner       → Tool plugin runtime, LLM providers. Depends only on contracts.
+@studio-foundation/anonymizer   → PII middleware. Depends only on contracts.
+@studio-foundation/engine       → Pipeline orchestration. Depends on ralph + runner + anonymizer + contracts.
+@studio-foundation/api          → HTTP REST API. Depends on engine + contracts.
+@studio-foundation/cli          → Terminal interface. Depends on engine + contracts.
 ```
 
 **No inverse dependencies.** ralph does not know runner. runner does not know engine. If you find yourself importing "upward," it's an architecture error.

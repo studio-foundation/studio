@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ServerDeps } from '../server.js';
 import { resolveRepoPath } from '../utils/repo-resolver.js';
-import { loadPipelineByName } from '@studio/engine';
+import { loadPipelineByName } from '@studio-foundation/engine';
 
 async function replayJsonl(
   logPath: string,

@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand, StageHooks } from '@studio/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand, StageHooks } from '@studio-foundation/contracts';
 
 export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   let content: string;

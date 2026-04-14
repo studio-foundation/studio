@@ -4,7 +4,7 @@
 
 **Goal:** Make Ollama the ideological default in `studio init`, with hardware detection to adapt the wizard to the user's actual setup.
 
-**Architecture:** All changes are in `@studio/cli` only. Detection logic (`os.totalmem()` + `spawnSync('ollama', ['--version'])`) runs inline before the provider selection step in the wizard. `writeProviderToConfig` gets a signature update to handle Ollama's credential format (no apiKey). The config template switches default to ollama/llama3.3.
+**Architecture:** All changes are in `@studio-foundation/cli` only. Detection logic (`os.totalmem()` + `spawnSync('ollama', ['--version'])`) runs inline before the provider selection step in the wizard. `writeProviderToConfig` gets a signature update to handle Ollama's credential format (no apiKey). The config template switches default to ollama/llama3.3.
 
 **Tech Stack:** TypeScript, Node.js `os` + `child_process`, Inquirer (`@inquirer/prompts`), Vitest, js-yaml.
 
@@ -13,7 +13,7 @@
 ## Important: test file context
 
 The test file is `cli/tests/commands/init.test.ts`. It already:
-- Mocks `@studio/runner` (vi.mock at the top)
+- Mocks `@studio-foundation/runner` (vi.mock at the top)
 - Mocks `../../src/commands/registry/install.js`
 - Uses dynamic imports inside each `it()`: `const { fn } = await import('../../src/commands/init.js')`
 - Uses `/tmp/.studio-init-test-<unique>` as TMP dir (NEVER a subdir of the Studio repo — `findStudioDir` walks up and would find `.studio/` in the repo root)
@@ -122,7 +122,7 @@ describe('hasAdequateRam', () => {
 
 ```bash
 cd /home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default
-pnpm --filter @studio/cli test 2>&1 | grep -A 3 "detectOllamaInstalled\|hasAdequateRam"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A 3 "detectOllamaInstalled\|hasAdequateRam"
 ```
 
 Expected: FAIL — `detectOllamaInstalled is not a function` (not exported yet)
@@ -164,7 +164,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 **Step 5: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -E "detectOllamaInstalled|hasAdequateRam|PASS|FAIL"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -E "detectOllamaInstalled|hasAdequateRam|PASS|FAIL"
 ```
 
 Expected: all new tests PASS
@@ -219,7 +219,7 @@ it('writes ollama config with empty credentials and llama3.3 default model', asy
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A 5 "writes ollama config"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A 5 "writes ollama config"
 ```
 
 Expected: FAIL — wrong number of arguments or `apiKey` still written
@@ -322,7 +322,7 @@ await writeProviderToConfig(studioDir, 'anthropic', { apiKey: 'sk-ant-second' })
 **Step 6: Run tests to verify all pass**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -10
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
 ```
 
 Expected: all tests PASS (count should be higher by 1)
@@ -372,7 +372,7 @@ it('succeeds with provider ollama and no api key', async () => {
 **Step 2: Run to verify it fails**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | grep -A 3 "succeeds with provider ollama"
+pnpm --filter @studio-foundation/cli test 2>&1 | grep -A 3 "succeeds with provider ollama"
 ```
 
 Expected: FAIL (config not written because `provider !== 'later' && !apiKey` branch skips write)
@@ -423,7 +423,7 @@ if (options.provider !== 'later' && options.provider !== 'ollama' && options.api
 **Step 5: Run tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -10
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
 ```
 
 Expected: all tests PASS
@@ -661,7 +661,7 @@ Expected: no errors
 **Step 6: Run full tests**
 
 ```bash
-pnpm --filter @studio/cli test 2>&1 | tail -10
+pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
 ```
 
 Expected: all tests PASS (same count as before + new tests from Tasks 1-3)
@@ -791,7 +791,7 @@ Studio's positioning: runs locally, no account required. The wizard should refle
 
 ## Packages touched
 
-- `@studio/cli` — `init.ts`, `studio-config.yaml` template
+- `@studio-foundation/cli` — `init.ts`, `studio-config.yaml` template
 
 ## How to test
 

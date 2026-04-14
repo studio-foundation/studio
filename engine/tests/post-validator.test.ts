@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { postValidate } from '../src/pipeline/post-validator.js';
-import type { OutputContract } from '@studio/contracts';
+import type { OutputContract } from '@studio-foundation/contracts';
 
 describe('postValidate', () => {
   it('accepts when no post_validation config', () => {

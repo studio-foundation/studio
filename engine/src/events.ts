@@ -1,4 +1,4 @@
-import type { ToolCall, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio/contracts';
+import type { ToolCall, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
 
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)

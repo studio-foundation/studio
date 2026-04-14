@@ -1,5 +1,5 @@
 {
-  "name": "@studio/contracts",
+  "name": "@studio-foundation/contracts",
   "version": "0.3.0-beta.1",
   "description": "Shared TypeScript types and interfaces for Studio v7",
   "type": "module",

@@ -4,13 +4,13 @@
 
 **Goal:** Add `--live` flag to `studio run` that streams each tool call to the terminal in real time with a spinner, as the agent executes it.
 
-**Architecture:** Extend `EngineEvents` with `onToolCallStart`/`onToolCallComplete` callbacks. Define the shared event types and a `RunnerCallbacks` interface in `@studio/contracts` (the leaf package, importable by all layers). Thread callbacks from CLI → engine → `runAgent()` → tool executor. `ProgressDisplay` gains a `displayMode` replacing the `verbose` boolean, with a new `'live'` mode that renders per-tool spinners.
+**Architecture:** Extend `EngineEvents` with `onToolCallStart`/`onToolCallComplete` callbacks. Define the shared event types and a `RunnerCallbacks` interface in `@studio-foundation/contracts` (the leaf package, importable by all layers). Thread callbacks from CLI → engine → `runAgent()` → tool executor. `ProgressDisplay` gains a `displayMode` replacing the `verbose` boolean, with a new `'live'` mode that renders per-tool spinners.
 
 **Tech Stack:** TypeScript, vitest, ora (spinners), chalk (colors). pnpm workspaces monorepo — run `pnpm build` from repo root after touching multiple packages.
 
 ---
 
-### Task 1: Add event types to `@studio/contracts`
+### Task 1: Add event types to `@studio-foundation/contracts`
 
 **Files:**
 - Create: `contracts/src/runner-events.ts`
@@ -88,7 +88,7 @@ No test needed — pure type extension.
 At the top of the file, add the import:
 
 ```typescript
-import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio/contracts';
+import type { ToolCallStartEvent, ToolCallCompleteEvent } from '@studio-foundation/contracts';
 ```
 
 Add two new optional fields to the `EngineEvents` interface (after `onGroupComplete`):
@@ -166,8 +166,8 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
-    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+    const startEvents: import('@studio-foundation/contracts').ToolCallStartEvent[] = [];
+    const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -220,7 +220,7 @@ describe('runAgent — callbacks', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(mockProvider);
 
-    const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+    const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
       agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
@@ -267,7 +267,7 @@ describe('runAgent — callbacks', () => {
 **Step 2: Run the tests — confirm they fail**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: `calls onToolCallStart and onToolCallComplete` → FAIL with type error (no `callbacks` field yet).
@@ -277,7 +277,7 @@ Expected: `calls onToolCallStart and onToolCallComplete` → FAIL with type erro
 Add the import at the top:
 
 ```typescript
-import type { RunnerCallbacks } from '@studio/contracts';
+import type { RunnerCallbacks } from '@studio-foundation/contracts';
 ```
 
 Add `callbacks` to the interface:
@@ -331,7 +331,7 @@ for (const tc of response.tool_calls) {
 **Step 5: Run the tests — confirm they pass**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: all tests PASS.
@@ -384,8 +384,8 @@ it('calls callbacks in agent-loop provider path', async () => {
   const providerRegistry = new ProviderRegistry();
   providerRegistry.register(agentLoopProvider);
 
-  const startEvents: import('@studio/contracts').ToolCallStartEvent[] = [];
-  const completeEvents: import('@studio/contracts').ToolCallCompleteEvent[] = [];
+  const startEvents: import('@studio-foundation/contracts').ToolCallStartEvent[] = [];
+  const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
   await runAgent({
     agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
@@ -410,7 +410,7 @@ it('calls callbacks in agent-loop provider path', async () => {
 **Step 2: Run to confirm it fails**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: new test FAIL.
@@ -462,7 +462,7 @@ const loopResult = await provider.runAgentLoop(
 **Step 4: Run to confirm all pass**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: all PASS.
@@ -647,7 +647,7 @@ import {
 **Step 2: Run to confirm they fail**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: new tests FAIL with "getToolIcon is not a function" (or similar import error).
@@ -691,7 +691,7 @@ export function summarizeToolResult(result: unknown, error?: string): string {
 **Step 4: Run to confirm all pass**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all PASS.
@@ -844,7 +844,7 @@ onToolCallComplete: (event) => {
 **Step 5: Run tests to confirm no regressions**
 
 ```bash
-pnpm --filter @studio/cli test
+pnpm --filter @studio-foundation/cli test
 ```
 
 Expected: all existing tests PASS.

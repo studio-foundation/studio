@@ -21,7 +21,7 @@
 Add to `engine/tests/context-propagation.test.ts`, after the existing `addStageOutput` describe block:
 
 ```typescript
-import type { ToolCall } from '@studio/contracts';
+import type { ToolCall } from '@studio-foundation/contracts';
 
 describe('addStageToolResults', () => {
   it('stores tool calls by stage name', () => {
@@ -82,7 +82,7 @@ describe('getContextForStage — all_stage_tool_results', () => {
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio/engine test
+cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: FAIL — `addStageToolResults is not a function`, `ctx.stageToolResults is not a Map`
@@ -93,7 +93,7 @@ In `engine/src/pipeline/context-propagation.ts`:
 
 1. Add `ToolCall` import at the top:
 ```typescript
-import type { StageDefinition, ToolCall } from '@studio/contracts';
+import type { StageDefinition, ToolCall } from '@studio-foundation/contracts';
 ```
 
 2. Add `stageToolResults` to `PipelineContext`:
@@ -157,7 +157,7 @@ export function addStageToolResults(
 **Step 4: Run tests to confirm they pass**
 
 ```bash
-pnpm --filter @studio/engine test
+pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: all tests PASS
@@ -282,7 +282,7 @@ describe('buildPrompt — previous_tool_results', () => {
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: FAIL — `previous_tool_results` is not a recognized field, section not rendered
@@ -291,7 +291,7 @@ Expected: FAIL — `previous_tool_results` is not a recognized field, section no
 
 1. Add `ToolCall` import at the top of the file:
 ```typescript
-import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio/contracts';
+import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio-foundation/contracts';
 ```
 
 2. Add `previous_tool_results` to `AgentContext` interface:
@@ -343,7 +343,7 @@ function renderToolResults(previous_tool_results: Record<string, ToolCall[]>): s
 **Step 4: Run tests to confirm they pass**
 
 ```bash
-pnpm --filter @studio/runner test
+pnpm --filter @studio-foundation/runner test
 ```
 
 Expected: all tests PASS
