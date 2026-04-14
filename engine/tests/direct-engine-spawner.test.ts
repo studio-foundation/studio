@@ -25,16 +25,16 @@ function makeSuccessRun(overrides?: Partial<PipelineRun>): PipelineRun {
 
 // We mock PipelineEngine to avoid real execution
 vi.mock('../src/engine.js', () => ({
-  PipelineEngine: vi.fn().mockImplementation(() => ({
-    run: vi.fn(),
-  })),
+  PipelineEngine: vi.fn(function () {
+    return { run: vi.fn() };
+  }),
 }));
 
 describe('DirectEngineSpawner', () => {
   it('calls child engine.run() with correct args', async () => {
     const { PipelineEngine } = await import('../src/engine.js');
     const mockRun = vi.fn().mockResolvedValue(makeSuccessRun());
-    (PipelineEngine as any).mockImplementation(() => ({ run: mockRun }));
+    (PipelineEngine as any).mockImplementation(function () { return { run: mockRun }; });
 
     const spawner = new DirectEngineSpawner({} as EngineConfig);
     await spawner.spawnAndWait({
@@ -57,9 +57,9 @@ describe('DirectEngineSpawner', () => {
   it('returns run_id, status, and last stage output on success', async () => {
     const { PipelineEngine } = await import('../src/engine.js');
     const successRun = makeSuccessRun();
-    (PipelineEngine as any).mockImplementation(() => ({
+    (PipelineEngine as any).mockImplementation(function () { return {
       run: vi.fn().mockResolvedValue(successRun),
-    }));
+    }; });
 
     const spawner = new DirectEngineSpawner({} as EngineConfig);
     const result = await spawner.spawnAndWait({
@@ -77,9 +77,9 @@ describe('DirectEngineSpawner', () => {
   it('throws when child run fails', async () => {
     const { PipelineEngine } = await import('../src/engine.js');
     const failedRun = makeSuccessRun({ id: 'child-fail', status: 'failed', stages: [] });
-    (PipelineEngine as any).mockImplementation(() => ({
+    (PipelineEngine as any).mockImplementation(function () { return {
       run: vi.fn().mockResolvedValue(failedRun),
-    }));
+    }; });
 
     const spawner = new DirectEngineSpawner({} as EngineConfig);
     await expect(
@@ -90,9 +90,9 @@ describe('DirectEngineSpawner', () => {
   it('throws when child run is rejected', async () => {
     const { PipelineEngine } = await import('../src/engine.js');
     const rejectedRun = makeSuccessRun({ id: 'child-rej', status: 'rejected', stages: [] });
-    (PipelineEngine as any).mockImplementation(() => ({
+    (PipelineEngine as any).mockImplementation(function () { return {
       run: vi.fn().mockResolvedValue(rejectedRun),
-    }));
+    }; });
 
     const spawner = new DirectEngineSpawner({} as EngineConfig);
     await expect(

@@ -1,6 +1,6 @@
 {
   "name": "@studio/api",
-  "version": "0.3.0",
+  "version": "0.3.0-beta.1",
   "description": "HTTP API for Studio v7",
   "type": "module",
   "main": "./dist/api.js",
