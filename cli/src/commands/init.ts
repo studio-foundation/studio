@@ -430,6 +430,7 @@ interface InitOptions {
   template?: string;
   project?: string;
   provider?: string;
+  model?: string;
   apiKey?: string;
   force?: boolean;
   yes?: boolean;
@@ -525,23 +526,37 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log('');
     }
 
+    // ── Auto-detect provider when --yes is given without --provider ───
+    // Allows: studio init --template blank --yes  (picks ollama if available)
+    let resolvedProvider = options.provider;
+    if (!resolvedProvider && options.yes && options.template) {
+      if (detectOllamaInstalled()) {
+        resolvedProvider = 'ollama';
+      } else {
+        console.error(
+          'Error: --provider is required (or install Ollama for auto-detection with --yes)'
+        );
+        process.exit(1);
+      }
+    }
+
     // ── Direct mode (all flags provided) vs Wizard ────────────────────
-    const isDirectMode = !!(options.template && options.provider);
+    const isDirectMode = !!(options.template && resolvedProvider);
 
     if (isDirectMode) {
       // Validate required flags
-      if (options.provider !== 'later' && options.provider !== 'ollama' && !options.apiKey) {
+      if (resolvedProvider !== 'later' && resolvedProvider !== 'ollama' && !options.apiKey) {
         console.error('Error: --api-key is required when --provider is not "later" or "ollama"');
         process.exit(1);
       }
-      if (options.provider !== 'later' && options.provider !== 'ollama' && options.apiKey) {
-        const validation = validateApiKeyFormat(options.provider!, options.apiKey);
+      if (resolvedProvider !== 'later' && resolvedProvider !== 'ollama' && options.apiKey) {
+        const validation = validateApiKeyFormat(resolvedProvider!, options.apiKey);
         if (validation !== true) {
           console.error(`Error: ${validation}`);
           process.exit(1);
         }
         process.stdout.write('Validating API key...');
-        const result = await validateApiKeyLive(options.provider!, options.apiKey);
+        const result = await validateApiKeyLive(resolvedProvider!, options.apiKey);
         if (result.status === 'valid') {
           console.log(chalk.green(' ✓'));
         } else if (result.status === 'warning') {
@@ -561,10 +576,14 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
         ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, options.template!, {
           noTools: options.tools === false,
         }));
-        if (options.provider !== 'later') {
+        if (resolvedProvider !== 'later') {
           const studioDir = resolve(cwd, '.studio');
-          // For ollama: no apiKey needed — uses DEFAULT_MODELS['ollama'] ('llama3.3') as model fallback
-          await writeProviderToConfig(studioDir, options.provider!, { apiKey: options.apiKey || undefined });
+          await writeProviderToConfig(
+            studioDir,
+            resolvedProvider!,
+            { apiKey: options.apiKey || undefined },
+            options.model,
+          );
         }
         spinner.stop();
       } catch (err) {
@@ -590,7 +609,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       console.log(chalk.bold('Done! Next steps:'));
       console.log(`  ${chalk.cyan('npm install')}`);
       console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
-      if (options.provider === 'later') {
+      if (resolvedProvider === 'later') {
         console.log('');
         console.log('Set your provider first:');
         console.log(`  ${chalk.cyan('studio config set provider ollama')}              # local, no API key`);
