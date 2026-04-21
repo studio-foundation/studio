@@ -1,20 +1,25 @@
 # @studio-foundation/anonymizer
 
-PII detection and anonymization library. Replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **anonymizer**: a PII detection and anonymization library that replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
 
-## Role
+anonymizer sits at the bottom of the stack — a pure utility with zero `@studio-foundation/*` dependencies. It's usable standalone in any TypeScript project, and it's what powers `anonymize: true` in Studio agent configs.
 
-anonymizer sits at the bottom of the stack — a pure utility with zero `@studio/*` dependencies. The runner wraps it in `AnonymizationMiddleware` and injects it transparently into the agent execution loop.
+- Homepage: https://github.com/studio-foundation/studio
+- Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md)
+- Use via the CLI: [`@studio-foundation/cli`](https://www.npmjs.com/package/@studio-foundation/cli)
 
+## Install
+
+```bash
+npm install @studio-foundation/anonymizer
+# or
+pnpm add @studio-foundation/anonymizer
 ```
-user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() → original values
-```
 
-## Key exports
+## Quick start
 
 ```typescript
-import { anonymize, deanonymize, Tokenizer } from '@studio-foundation/anonymizer';
-import type { PIICategory, PIIDetectionResult, AnonymizerOptions } from '@studio-foundation/anonymizer';
+import { anonymize, deanonymize } from '@studio-foundation/anonymizer';
 
 // Anonymize a string
 const { text, keymap } = anonymize('Hi Marie, call me at 555-867-5309');
@@ -28,6 +33,10 @@ const original = deanonymize(text, keymap);
 // Cross-stage consistency — pass the keymap from a previous call
 const { text: text2, keymap: keymap2 } = anonymize(nextChunk, { seedKeymap: keymap });
 // PERSON_1 still maps to "Marie" across calls
+```
+
+```
+user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() → original values
 ```
 
 ## PII categories
@@ -81,10 +90,16 @@ The runner wraps this in `AnonymizationMiddleware` (in `runner/src/middleware/an
 2. Tool results are anonymized before being injected back into context
 3. The accumulated keymap is written to `.studio/runs/anonymization/<run-id>.keymap.json` for post-run inspection
 
-The middleware is wired by the engine and passed to `runAgent()` — user code doesn't call `anonymize()` directly.
+The middleware is wired by the engine and passed to `runAgent()` — user code doesn't call `anonymize()` directly when using the Studio CLI.
 
-## Rules
+## For contributors
 
-- **Zero `@studio/*` dependencies.** This package must stay a pure utility.
+Internal rules that govern this package:
+
+- **Zero `@studio-foundation/*` dependencies.** This package must stay a pure utility.
 - `anonymize()` is stateless — the `Tokenizer` is created fresh each call (or seeded via `seedKeymap`).
 - Person detection is always best-effort and non-fatal — failures are silently skipped.
+
+## License
+
+AGPL-3.0-only

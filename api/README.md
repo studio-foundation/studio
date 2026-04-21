@@ -1,19 +1,24 @@
 # @studio-foundation/api
 
-HTTP REST API for Studio. Same engine as the CLI, machine-to-machine interface. Like GitHub is to `git`.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **HTTP REST API**: the machine-to-machine interface over the same engine the CLI uses. Like GitHub is to `git`.
 
-## Role
+It wraps the engine in a Fastify server and handles fire-and-forget pipeline launches, real-time SSE streaming, webhook dispatch (Linear, Slack, CI/CD), and integration lifecycle. Use it to drive Studio from anything that can make an HTTP call.
 
-api wraps the engine in a Fastify server. It handles fire-and-forget pipeline launches, real-time SSE streaming, webhook dispatch, and integration lifecycle (Linear, etc.). The CLI (`studio api start`) is the primary way to run it, but it can also be imported programmatically.
+- Homepage: https://github.com/studio-foundation/studio
+- Full docs: [README](https://github.com/studio-foundation/studio#readme) · [API reference](https://github.com/studio-foundation/studio/blob/main/API.md)
+- Related: [`@studio-foundation/engine`](https://www.npmjs.com/package/@studio-foundation/engine) · [`@studio-foundation/cli`](https://www.npmjs.com/package/@studio-foundation/cli)
 
+## Install
+
+```bash
+npm install @studio-foundation/api
+# or
+pnpm add @studio-foundation/api
 ```
-Linear webhook → POST /api/runs → launcher → engine → pipeline run → webhook dispatch
-Slack bot      → POST /api/runs ↗
-CI/CD          → POST /api/runs ↗
-Dashboard      → GET  /api/runs/:id/stream (SSE)
-```
 
-## Starting the server
+The simplest way to start the server is via the CLI (`studio api start`), which is already wired up. Install this package directly if you want to embed the API in your own process.
+
+## Quick start
 
 ```bash
 # Via CLI (recommended)
@@ -21,11 +26,22 @@ studio api start
 
 # Standalone (PM2/systemd)
 STUDIO_CWD=/path/to/project node node_modules/.bin/studio-api
+```
 
-# Programmatic
+Programmatic:
+
+```typescript
 import { createApi } from '@studio-foundation/api';
+
 const { server, cleanup } = await createApi({ cwd: '/path/to/project' });
 await server.listen({ port: 3700 });
+```
+
+```
+Linear webhook → POST /api/runs → launcher → engine → pipeline run → webhook dispatch
+Slack bot      → POST /api/runs ↗
+CI/CD          → POST /api/runs ↗
+Dashboard      → GET  /api/runs/:id/stream (SSE)
 ```
 
 ## Configuration
@@ -141,9 +157,10 @@ The API manages integration lifecycle (webhook routing, failure handling). Integ
 
 The API uses `HttpApiSpawner` — a self-referential `RunSpawner` that calls back into the same API to spawn child runs. This is how `studio_run` tool calls work when the engine is running behind the API.
 
-## Bootstrap internals
+## For contributors
 
-`bootstrap(cwd)` is the composition root:
+Bootstrap internals — `bootstrap(cwd)` is the composition root:
+
 1. Finds `.studio/` by walking up from `cwd`
 2. Loads `config.yaml` (with `${ENV_VAR}` substitution)
 3. Creates `RunStore` based on `db.type` (`SQLiteRunStore` | `PgRunStore` | `InMemoryRunStore`)
@@ -153,9 +170,13 @@ The API uses `HttpApiSpawner` — a self-referential `RunSpawner` that calls bac
 7. Creates `WebhookStore`, `IntegrationStore`, `IntegrationRuntime`
 8. Returns `BootstrapResult` passed to `buildServer()`
 
-## Rules
+Internal rules that govern this package:
 
 - **api depends on engine + runner.** It is a composition root, same as cli.
 - **Routes must have complete Swagger schemas** — tags, summary, params, response codes. Without this, routes don't appear in Swagger UI.
 - **The engine is the same.** The API doesn't bypass or wrap the engine — it delegates to `InProcessLauncher`, which calls `PipelineEngine.run()` directly.
 - `studio api start` calls `bootstrap()` then `buildServer()`. The two steps are separate so programmatic users can customize between them.
+
+## License
+
+AGPL-3.0-only
