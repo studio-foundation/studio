@@ -40,7 +40,7 @@ No vendor lock-in. No preferred provider. The runtime is neutral infrastructure.
 
 ## Anti-capture
 
-Ideological drift rarely happens through open conflict. It happens through accumulation of "reasonable" decisions — a proprietary integration here, a vendor dependency there, a governance exception that becomes precedent.
+Ideological drift rarely happens through open conflict. It happens through accumulation of "reasonable" decisions: a proprietary integration here, a vendor dependency there, a governance exception that becomes precedent.
 
 Studio integrates mechanisms for deceleration, traceability, and veto. Any evolution that improves performance at the cost of increasing inequality is a regression, not progress.
 
@@ -48,7 +48,7 @@ Studio integrates mechanisms for deceleration, traceability, and veto. Any evolu
 
 ## Governance
 
-Decision-making power is held primarily by the people directly affected by the inequalities the project aims to reduce. Diversity is not symbolic — it is decisional.
+Decision-making power is held primarily by the people directly affected by the inequalities the project aims to reduce. Diversity is not symbolic, it is decisional.
 
 The full governance model and foundational principles are documented internally.
 
@@ -58,4 +58,4 @@ The full governance model and foundational principles are documented internally.
 
 Reduce the cost of building software and automating complex work to the point where a single person can create and operate products that generate real value. Not by coding everything themselves, but by orchestrating AI agents with structural guarantees of quality.
 
-The kernel is free. The agents are interchangeable. The framework belongs to no one.
+The kernel is free. The agents are interchangeable. The configs belong to whoever writes them.
