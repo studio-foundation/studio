@@ -9,5 +9,10 @@
     "claude-code-setup@claude-plugins-official": true,
     "superpowers@superpowers-dev": true,
     "linear@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Notion__notion-fetch"
+    ]
   }
 }
