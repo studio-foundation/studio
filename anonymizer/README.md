@@ -4,7 +4,7 @@ PII detection and anonymization library. Replaces sensitive data with consistent
 
 ## Role
 
-anonymizer sits at the bottom of the stack — a pure utility with zero `@studio/*` dependencies. The runner wraps it in `AnonymizationMiddleware` and injects it transparently into the agent execution loop.
+anonymizer sits at the bottom of the stack, a pure utility with zero `@studio/*` dependencies. The runner wraps it in `AnonymizationMiddleware` and injects it transparently into the agent execution loop.
 
 ```
 user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() → original values
@@ -34,7 +34,7 @@ const { text: text2, keymap: keymap2 } = anonymize(nextChunk, { seedKeymap: keym
 
 | Category | Token format | What it detects |
 |----------|-------------|-----------------|
-| `person` | `PERSON_N` | Names after salutations (Dear, Hi, Mr., Dr., etc.) — best effort |
+| `person` | `PERSON_N` | Names after salutations (Dear, Hi, Mr., Dr., etc.) (best effort) |
 | `email` | `EMAIL_N` | Email addresses |
 | `phone` | `PHONE_N` | US phone numbers (10 digits, various formats) |
 | `ssn` | `SSN_N` | Social security numbers (ddd-dd-dddd) |
@@ -45,9 +45,9 @@ const { text: text2, keymap: keymap2 } = anonymize(nextChunk, { seedKeymap: keym
 
 Two-phase detection on each call:
 
-1. **Regex (high precision)** — email, phone, SSN, credit card. Structural patterns anchored to avoid false positives (e.g. SSN regex uses strict hyphen format to avoid matching phone fragments).
+1. **Regex (high precision)**: email, phone, SSN, credit card. Structural patterns anchored to avoid false positives (e.g. SSN regex uses strict hyphen format to avoid matching phone fragments).
 
-2. **Person names (best effort)** — salutation-gated pattern (`Dear X`, `Hi X`, `Mr. X`, etc.). Only catches explicitly addressed names — not bare occurrences.
+2. **Person names (best effort)**: salutation-gated pattern (`Dear X`, `Hi X`, `Mr. X`, etc.). Only catches explicitly addressed names, not bare occurrences.
 
 Spans are non-overlapping. If two patterns match the same range, the first one wins and the position is marked occupied.
 
@@ -81,10 +81,10 @@ The runner wraps this in `AnonymizationMiddleware` (in `runner/src/middleware/an
 2. Tool results are anonymized before being injected back into context
 3. The accumulated keymap is written to `.studio/runs/anonymization/<run-id>.keymap.json` for post-run inspection
 
-The middleware is wired by the engine and passed to `runAgent()` — user code doesn't call `anonymize()` directly.
+The middleware is wired by the engine and passed to `runAgent()`, user code doesn't call `anonymize()` directly.
 
 ## Rules
 
 - **Zero `@studio/*` dependencies.** This package must stay a pure utility.
-- `anonymize()` is stateless — the `Tokenizer` is created fresh each call (or seeded via `seedKeymap`).
-- Person detection is always best-effort and non-fatal — failures are silently skipped.
+- `anonymize()` is stateless, the `Tokenizer` is created fresh each call (or seeded via `seedKeymap`).
+- Person detection is always best-effort and non-fatal, failures are silently skipped.
