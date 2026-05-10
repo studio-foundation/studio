@@ -1,221 +1,135 @@
 # INVARIANTS.md — Studio v7
 
-Contrats non-négociables sur le comportement du système. Ces invariants sont
-enforced par le code (types TypeScript, structure de packages, dépendances) — ce
-fichier les rend explicites pour les humains et les agents IA.
+Non-negotiable contracts on system behavior. These invariants are enforced by code (TypeScript types, package structure, dependency graph) — this file makes them explicit for humans and AI agents.
 
-**Règle d'or :** Si tu vois du code qui viole un de ces invariants, c'est une
-erreur d'architecture, pas une exception acceptable.
+**Ground rule:** If you find code that violates one of these invariants, it is an architecture error, not an acceptable exception.
 
 ---
 
-## INV-01 — `contracts` est un leaf package
+## INV-01 — `contracts` is a leaf package
 
-**Description :** `@studio-foundation/contracts` n'a aucune dépendance interne vers d'autres
-packages `@studio/*`. Zéro. Aucune exception.
+**Description:** `@studio-foundation/contracts` has zero internal dependencies on other `@studio/*` packages. Zero. No exceptions.
 
-**Enforcé par :** [`contracts/package.json`](contracts/package.json) — la section
-`dependencies` ne contient aucun `@studio/*`.
+**Enforced by:** [`contracts/package.json`](contracts/package.json) — the `dependencies` section contains no `@studio/*` entries.
 
-**Ce qui casse si violé :** Dépendance circulaire. `ralph`, `runner`, et `engine`
-importent tous `contracts` — si `contracts` importe l'un d'eux, le graphe de
-dépendances devient un cycle. Tout le système s'effondre à l'initialisation.
+**What breaks if violated:** Circular dependency. `ralph`, `runner`, and `engine` all import `contracts`. If `contracts` imports any of them, the dependency graph becomes a cycle and the entire system fails at initialization.
 
 ---
 
-## INV-02 — `ralph` ne connaît pas `runner`
+## INV-02 — `ralph` does not know `runner`
 
-**Description :** `ralph` prend un `executor: (context: ExecutionContext) =>
-Promise<T>` générique. Il ne sait pas que `T` sera un `AgentRunResult`. Il ne
-connaît pas les LLMs, les providers, ni les tools.
+**Description:** `ralph` takes a generic `executor: (context: ExecutionContext) => Promise<T>`. It does not know that `T` will be an `AgentRunResult`. It has no knowledge of LLMs, providers, or tools.
 
-**Enforcé par :** [`ralph/src/loop.ts`](ralph/src/loop.ts) — `RalphConfig<T>` est
-un type générique paramétré. [`ralph/package.json`](ralph/package.json) — dépend
-uniquement de `@studio-foundation/contracts`, pas de `@studio-foundation/runner`.
+**Enforced by:** [`ralph/src/loop.ts`](ralph/src/loop.ts) — `RalphConfig<T>` is a generic parameterized type. [`ralph/package.json`](ralph/package.json) — depends only on `@studio-foundation/contracts`, not on `@studio-foundation/runner`.
 
-**Ce qui casse si violé :** `ralph` devient couplé à une implémentation concrète.
-Il ne peut plus être testé sans un vrai LLM. La séparation entre "boucle de retry"
-et "exécution LLM" disparaît — le retry logic devient impossible à réutiliser pour
-d'autres executors.
+**What breaks if violated:** `ralph` becomes coupled to a concrete implementation. It can no longer be tested without a real LLM. The separation between "retry loop" and "LLM execution" disappears, and the retry logic becomes impossible to reuse for other executors.
 
 ---
 
-## INV-03 — `runner` n'exécute que, ni valide ni retry
+## INV-03 — `runner` only executes, never validates or retries
 
-**Description :** `runner.runAgent()` appelle le LLM, collecte le résultat, et
-retourne un `AgentRunResult`. Il ne valide pas le format de l'output. Il ne lance
-pas de retry. Il retourne immédiatement après l'appel LLM.
+**Description:** `runner.runAgent()` calls the LLM, collects the result, and returns an `AgentRunResult`. It does not validate output format. It does not trigger retries. It returns immediately after the LLM call.
 
-**Enforcé par :** [`runner/src/runner.ts`](runner/src/runner.ts) — aucune
-référence à `ValidationResult`, aucune boucle de retry. La validation et le retry
-sont exclusivement dans `ralph`.
+**Enforced by:** [`runner/src/runner.ts`](runner/src/runner.ts) — no references to `ValidationResult`, no retry loops. Validation and retry live exclusively in `ralph`.
 
-**Ce qui casse si violé :** Double validation (runner + ralph), comportements
-contradictoires, et impossibilité de distinguer "format invalide" de "LLM error".
-Le pipeline de responsabilités `execute → validate → retry` devient ambigu.
+**What breaks if violated:** Double validation (runner + ralph), contradictory behavior, and inability to distinguish "invalid format" from "LLM error". The responsibility pipeline `execute → validate → retry` becomes ambiguous.
 
 ---
 
-## INV-04 — `engine` est domain-agnostic
+## INV-04 — `engine` is domain-agnostic
 
-**Description :** Le engine ne contient aucune référence à des concepts métier :
-"code", "git", "QA", "feature", "bug". `StageKind` est défini comme `string` —
-une valeur libre. L'engine ne branche jamais sur la valeur de `stage.kind`.
+**Description:** The engine contains no references to domain concepts: "code", "git", "QA", "feature", "bug". `StageKind` is defined as `string`, a free value. The engine never branches on the value of `stage.kind`.
 
-**Enforcé par :** [`contracts/src/stage.ts`](contracts/src/stage.ts) — `kind:
-string`. [`engine/src/engine.ts`](engine/src/engine.ts) — `stage_kind` passé au
-runner comme métadonnée opaque, jamais utilisé dans la logique du engine.
+**Enforced by:** [`contracts/src/stage.ts`](contracts/src/stage.ts) — `kind: string`. [`engine/src/engine.ts`](engine/src/engine.ts) — `stage_kind` is passed to the runner as opaque metadata, never used in engine logic.
 
-**Ce qui casse si violé :** Le engine devient un framework pour un domaine
-spécifique. Les pipelines d'autres domaines (legal, médical, analytique) ne
-peuvent plus l'utiliser sans modifier le core. La YAML-first architecture
-s'effondre — le comportement est dans le code, pas dans les configs.
+**What breaks if violated:** The engine becomes a framework for a specific domain. Pipelines from other domains (legal, medical, analytics) can no longer use it without modifying the core. The YAML-first architecture collapses — behavior ends up in code instead of configs.
 
 ---
 
-## INV-05 — Les tools sont dans `runner`, pas dans `engine`
+## INV-05 — Tools live in `runner`, not in `engine`
 
-**Description :** Le registry de tools, le plugin loader, et l'exécuteur de tools
-résident dans `runner/src/tools/`. L'engine passe les configurations au runner,
-mais ne charge, n'instancie, et ne connaît aucun tool spécifique (ni
-`repo_manager-write_file`, ni `shell-run_command`).
+**Description:** The tool registry, plugin loader, and tool executor live in `runner/src/tools/`. The engine passes configurations to the runner but never loads, instantiates, or has knowledge of specific tools (`repo_manager-write_file`, `shell-run_command`, etc.).
 
-**Enforcé par :** [`runner/src/tools/`](runner/src/tools/) — contient
-`tool-registry.ts`, `tool-executor.ts`, `plugin-loader.ts`. L'engine n'a pas de
-dossier `tools/`.
+**Enforced by:** [`runner/src/tools/`](runner/src/tools/) — contains `tool-registry.ts`, `tool-executor.ts`, `plugin-loader.ts`. The engine has no `tools/` directory.
 
-**Ce qui casse si violé :** L'engine devient dépendant d'implémentations concrètes
-de tools. Ajouter un tool nécessite de modifier le engine. La séparation
-orchestration/exécution disparaît.
+**What breaks if violated:** The engine becomes dependent on concrete tool implementations. Adding a tool requires modifying the engine. The orchestration/execution separation disappears.
 
 ---
 
-## INV-06 — Les prompts sont dans `runner`, pas dans `engine`
+## INV-06 — Prompts live in `runner`, not in `engine`
 
-**Description :** `prompt-builder.ts` vit dans `runner/src/`. C'est lui qui
-assemble le system prompt, les contraintes du contract, les snippets des tool
-plugins, et le contexte de retry. L'engine ne construit aucun prompt.
+**Description:** `prompt-builder.ts` lives in `runner/src/`. It assembles the system prompt, contract constraints, tool plugin snippets, and retry context. The engine builds no prompts.
 
-**Enforcé par :** [`runner/src/prompt-builder.ts`](runner/src/prompt-builder.ts)
-— unique point d'assemblage des prompts. Aucun fichier `prompt-builder.ts` dans
-`engine/`.
+**Enforced by:** [`runner/src/prompt-builder.ts`](runner/src/prompt-builder.ts) — single point of prompt assembly. No `prompt-builder.ts` file exists in `engine/`.
 
-**Ce qui casse si violé :** La logique de prompt devient éparpillée entre engine
-et runner. Le context propagation, les tool snippets, et les instructions de retry
-ne sont plus cohérentes. Impossible de changer le format de prompt sans toucher
-plusieurs packages.
+**What breaks if violated:** Prompt logic becomes scattered between engine and runner. Context propagation, tool snippets, and retry instructions lose coherence. Changing the prompt format requires touching multiple packages.
 
 ---
 
-## INV-07 — La state machine est déterministe
+## INV-07 — The state machine is deterministic
 
-**Description :** `deriveStageStatus(ralphResult)` mappe directement et
-exhaustivement le résultat RALPH au status du stage. Pas de logique conditionnelle
-sur le contenu de l'output. `ralph 'success' → stage 'success'`, `ralph
-'exhausted' → stage 'failed'`, `ralph 'cancelled' → stage 'cancelled'`. Rien
-d'autre.
+**Description:** `deriveStageStatus(ralphResult)` maps RALPH results to stage status directly and exhaustively. No conditional logic on output content. `ralph 'success' → stage 'success'`, `ralph 'exhausted' → stage 'failed'`, `ralph 'cancelled' → stage 'cancelled'`. Nothing else.
 
-**Enforcé par :**
-[`engine/src/state/status-derivation.ts`](engine/src/state/status-derivation.ts)
-— mapping exhaustif + `throw` si état inconnu. `RalphResult` est une union
-discriminée avec 3 états : `success | exhausted | cancelled`.
+**Enforced by:** [`engine/src/state/status-derivation.ts`](engine/src/state/status-derivation.ts) — exhaustive mapping with a `throw` for unknown states. `RalphResult` is a discriminated union with 3 states: `success | exhausted | cancelled`.
 
-**Ce qui casse si violé :** C'était le bug #1 en v6 — le status du stage ne
-correspondait pas au résultat du task. En v7, cette fonction est le contrat unique
-entre ralph et engine. Si elle devient non-déterministe (branchement sur output
-content, états intermédiaires), le pipeline devient imprévisible.
+**What breaks if violated:** This was bug #1 in v6, where stage status did not match task result. In v7, this function is the single contract between ralph and engine. If it becomes non-deterministic (branching on output content, intermediate states), the pipeline becomes unpredictable.
 
 ---
 
-## INV-08 — La validation est binaire : pass ou fail
+## INV-08 — Validation is binary: pass or fail
 
-**Description :** `ValidationResult` a un champ `valid: boolean`. Un output est
-valide ou invalide, rien entre les deux. Les warnings existent mais ne changent
-pas le résultat — un output avec warnings mais `valid: true` est accepté.
+**Description:** `ValidationResult` has a `valid: boolean` field. An output is valid or it isn't. No partial credit. Warnings exist but do not change the result: an output with warnings but `valid: true` is accepted.
 
-**Enforcé par :** [`contracts/src/validation.ts`](contracts/src/validation.ts) —
-`ValidationResult.valid: boolean`. Tous les validateurs dans
-[`runner/src/`](runner/src/) retournent cette interface.
+**Enforced by:** [`contracts/src/validation.ts`](contracts/src/validation.ts) — `ValidationResult.valid: boolean`. All validators in [`runner/src/`](runner/src/) return this interface.
 
-**Ce qui casse si violé :** Si la validation devient un score ou un gradient, la
-logique de retry dans ralph cesse de fonctionner. Le seuil d'acceptation devient
-arbitraire et configurable — source de bugs et de comportements surprenants.
+**What breaks if violated:** If validation becomes a score or gradient, ralph's retry logic stops working. The acceptance threshold becomes arbitrary and configurable, a source of bugs and surprising behavior.
 
 ---
 
-## INV-09 — Un projet est 100% autonome dans son dossier
+## INV-09 — A project is fully self-contained in its directory
 
-**Description :** Tout ce qui concerne un projet (pipelines, agents, contracts,
-tools) vit dans `.studio/`. Aucun projet ne référence les
-configs d'un autre projet. Les loaders sont scopés par dossier projet.
+**Description:** Everything for a project (pipelines, agents, contracts, tools) lives in `.studio/`. No project references configs from another project. All loaders are scoped to the project directory.
 
-**Enforcé par :** [`engine/src/pipeline/types.ts`](engine/src/pipeline/types.ts) —
-`resolveProjectPaths(configsDir)` dérive tous les chemins depuis `configsDir`
-(= `.studio/` du projet courant) : `pipelines/`, `agents/`, `contracts/`.
-[`engine/src/engine.ts`](engine/src/engine.ts) — `configsDir` est passé au
-engine comme racine du projet ; tous les loaders sont scopés à ce dossier et
-ne sortent jamais de ce scope.
+**Enforced by:** [`engine/src/pipeline/types.ts`](engine/src/pipeline/types.ts) — `resolveProjectPaths(configsDir)` derives all paths from `configsDir` (the project's `.studio/`): `pipelines/`, `agents/`, `contracts/`. [`engine/src/engine.ts`](engine/src/engine.ts) — `configsDir` is passed to the engine as the project root; all loaders are scoped to that directory and never escape it.
 
-**Ce qui casse si violé :** Les projets s'entremêlent. Modifier les configs d'un
-projet peut affecter un autre. Le concept de projet comme unité isolée et
-déployable disparaît — impossible de partager un projet entre équipes sans
-partager l'ensemble des configs.
+**What breaks if violated:** Projects bleed into each other. Modifying one project's configs can affect another. The concept of a project as an isolated, deployable unit disappears, making it impossible to share a project between teams without sharing all configs.
 
 ---
 
-## INV-10 — Le graphe de dépendances est un DAG strict
+## INV-10 — The dependency graph is a strict DAG
 
-**Description :** Les dépendances entre packages forment un graphe acyclique
-dirigé (DAG). L'ordre est : `(contracts, anonymizer)` → `(ralph, runner)` →
-`engine` → `cli`. Aucune dépendance en sens inverse. `ralph` et `runner` sont
-frères — aucun ne connaît l'autre. `anonymizer` est un co-leaf avec `contracts` :
-il dépend uniquement de `@redactpii/node` (externe), pas d'un quelconque package
-`@studio/*`.
+**Description:** Dependencies between packages form a directed acyclic graph (DAG). The order is: `(contracts, anonymizer)` → `(ralph, runner)` → `engine` → `cli`. No reverse dependencies. `ralph` and `runner` are siblings, neither knows the other. `anonymizer` is a co-leaf with `contracts`: it depends only on `@redactpii/node` (external), not on any `@studio/*` package.
 
-**Enforcé par :** Les `package.json` de chaque package définissent les
-dépendances. `pnpm` détecte les cycles à l'install. À vérifier via :
+**Enforced by:** The `package.json` of each package defines dependencies. `pnpm` detects cycles on install. To verify:
 
 ```bash
-cat contracts/package.json   # dependencies: {} (aucune dépendance interne)
-cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (externe uniquement)
+cat contracts/package.json   # dependencies: {} (no internal deps)
+cat anonymizer/package.json  # dependencies: { "@redactpii/node": ... } (external only)
 cat ralph/package.json       # dependencies: { "@studio-foundation/contracts": "workspace:*" }
 cat runner/package.json      # dependencies: { "@studio-foundation/contracts": "workspace:*", "@studio-foundation/anonymizer": "workspace:*" }
 cat engine/package.json      # dependencies: { "@studio-foundation/ralph": ..., "@studio-foundation/runner": ..., "@studio-foundation/contracts": ... }
 cat cli/package.json         # dependencies: { "@studio-foundation/engine": ..., "@studio-foundation/contracts": ..., "@studio-foundation/api": ..., "@studio-foundation/runner": ... }
 ```
 
-**Exception documentée — CLI → API :** `@studio-foundation/cli` dépend de `@studio-foundation/api`.
-C'est intentionnel et non une violation du DAG. La commande `studio api start`
-importe `bootstrap` depuis `@studio-foundation/api` pour démarrer le serveur HTTP directement
-depuis le CLI. Cette dépendance va dans le sens du flux (cli est la couche la plus
-haute) — `api` ne connaît pas `cli`. Le DAG reste acyclique.
+**Documented exception — CLI → API:** `@studio-foundation/cli` depends on `@studio-foundation/api`. This is intentional and not a DAG violation. The `studio api start` command imports `bootstrap` from `@studio-foundation/api` to start the HTTP server directly from the CLI. This dependency follows the flow (cli is the highest layer): `api` does not know `cli`. The DAG remains acyclic.
 
-**Exception documentée — CLI → runner :** `@studio-foundation/cli` dépend de `@studio-foundation/runner`.
-C'est intentionnel : le CLI est le **composition root** de l'application. Il
-instancie `ToolRegistry`, `ProviderRegistry`, et `MCPClient` (tous des types de
-`runner`) et les passe à `PipelineEngine` via `EngineConfig`. Le CLI gère aussi
-les commandes `studio tools` qui utilisent les utilitaires de templates de runner.
-Cette dépendance va dans le sens du flux — `runner` ne connaît pas `cli`. Le DAG
-reste acyclique.
+**Documented exception — CLI → runner:** `@studio-foundation/cli` depends on `@studio-foundation/runner`. This is intentional: the CLI is the **composition root** of the application. It instantiates `ToolRegistry`, `ProviderRegistry`, and `MCPClient` (all types from `runner`) and passes them to `PipelineEngine` via `EngineConfig`. The CLI also handles `studio tools` commands that use runner's tool template utilities. This dependency follows the flow: `runner` does not know `cli`. The DAG remains acyclic.
 
-**Ce qui casse si violé :** Dépendance circulaire → crash à l'initialisation des
-modules. Ou couplage qui transforme un changement local en cascade de
-modifications. L'ensemble du monorepo devient une boule de dépendances
-implicites.
+**What breaks if violated:** Circular dependency → crash at module initialization. Or coupling that turns a local change into a cascade of modifications across the monorepo.
 
 ---
 
-## Référence rapide
+## Quick reference
 
-| ID | Invariant | Package(s) | Fichier clé |
-|----|-----------|------------|-------------|
+| ID | Invariant | Package(s) | Key file |
+|----|-----------|------------|----------|
 | INV-01 | `contracts` = leaf package | contracts | `contracts/package.json` |
-| INV-02 | `ralph` ne connaît pas `runner` | ralph | `ralph/src/loop.ts` |
-| INV-03 | `runner` exécute seulement | runner | `runner/src/runner.ts` |
-| INV-04 | `engine` domain-agnostic | engine, contracts | `engine/src/engine.ts` |
-| INV-05 | Tools dans `runner` | runner, engine | `runner/src/tools/` |
-| INV-06 | Prompts dans `runner` | runner, engine | `runner/src/prompt-builder.ts` |
-| INV-07 | State machine déterministe | engine, ralph | `engine/src/state/status-derivation.ts` |
-| INV-08 | Validation binaire | contracts, runner | `contracts/src/validation.ts` |
-| INV-09 | Projets autonomes | engine | `engine/src/engine.ts` |
-| INV-10 | DAG de dépendances strict | tous | `*/package.json` |
+| INV-02 | `ralph` does not know `runner` | ralph | `ralph/src/loop.ts` |
+| INV-03 | `runner` only executes | runner | `runner/src/runner.ts` |
+| INV-04 | `engine` is domain-agnostic | engine, contracts | `engine/src/engine.ts` |
+| INV-05 | Tools in `runner` | runner, engine | `runner/src/tools/` |
+| INV-06 | Prompts in `runner` | runner, engine | `runner/src/prompt-builder.ts` |
+| INV-07 | Deterministic state machine | engine, ralph | `engine/src/state/status-derivation.ts` |
+| INV-08 | Binary validation | contracts, runner | `contracts/src/validation.ts` |
+| INV-09 | Projects are self-contained | engine | `engine/src/engine.ts` |
+| INV-10 | Strict dependency DAG | all | `*/package.json` |
