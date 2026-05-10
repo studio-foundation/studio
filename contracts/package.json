@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/contracts",
-  "version": "0.3.0-beta.1",
+  "version": "0.3.0-beta.6",
   "description": "Shared TypeScript types and interfaces for Studio v7",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "files": ["dist"],
   "keywords": ["studio", "types", "contracts"],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",

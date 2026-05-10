@@ -1,17 +1,55 @@
 # @studio-foundation/contracts
 
-Shared TypeScript types and interfaces for the Studio monorepo. Zero dependencies, zero logic.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is **contracts**: the shared TypeScript types and interfaces that every other Studio package imports. Zero dependencies, zero logic.
 
-## Role
+`contracts` is the leaf of the dependency graph. It defines the language all Studio packages speak: `PipelineDefinition`, `StageRun`, `OutputContract`, `AgentConfig`, `LLMRequest`, and the rest. Install it if you're writing tooling that reads or produces Studio configs, or if you're embedding Studio packages into your own code and need the types.
 
-`contracts` is the leaf package, every other Studio package imports from it, nothing imports it back. It defines the language that all packages speak.
+- Homepage: https://github.com/studio-foundation/studio
+- Full docs: [README](https://github.com/studio-foundation/studio#readme) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
+- Use via the CLI: [`@studio-foundation/cli`](https://www.npmjs.com/package/@studio-foundation/cli)
+
+## Install
+
+```bash
+npm install @studio-foundation/contracts
+# or
+pnpm add @studio-foundation/contracts
+```
+
+## Usage
+
+```typescript
+import type {
+  PipelineDefinition,
+  StageDefinition,
+  OutputContract,
+  AgentConfig,
+  StageStatus,
+} from '@studio-foundation/contracts';
+
+import { isStageGroup } from '@studio-foundation/contracts'; // the only runtime export
+
+for (const stage of pipeline.stages) {
+  if (isStageGroup(stage)) {
+    // handle a group
+  } else {
+    // handle a plain stage
+  }
+}
+```
+
+## Dependency position
 
 ```
 contracts ← ralph
 contracts ← runner
+contracts ← anonymizer
 contracts ← engine
 contracts ← cli
+contracts ← api
 ```
+
+Nothing imports upward. If you find yourself adding a dep here, you're solving the wrong problem.
 
 ## What's in here
 
@@ -98,9 +136,15 @@ interface SpawnConfig {
 
 Used by the `studio_run` builtin tool to spawn sub-pipelines from within an agent run.
 
-## Rules
+## For contributors
 
-- **Zero dependencies**: no imports from other `@studio/*` packages, ever.
+Internal rules that govern this package:
+
+- **Zero dependencies**: no imports from other `@studio-foundation/*` packages, ever.
 - **Zero logic**: types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
 - If you need to add a type used by two packages, put it here.
 - If you're adding logic, you're in the wrong package.
+
+## License
+
+AGPL-3.0-only

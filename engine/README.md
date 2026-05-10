@@ -1,18 +1,24 @@
 # @studio-foundation/engine
 
-Pipeline orchestration, state machine, persistence, hooks, and skills injection.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **engine**: pipeline orchestration, state machine, persistence, lifecycle hooks, and skills injection.
 
-## Role
+It loads pipeline configs, sequences stages, delegates each stage to [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) + [`runner`](https://www.npmjs.com/package/@studio-foundation/runner), persists state, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills, but never about LLMs, files, or domain concepts.
 
-engine is the conductor. It loads pipeline configs, sequences stages, delegates execution to ralph+runner, tracks state in SQLite, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills, but never about LLMs, files, or domain concepts.
+- Homepage: https://github.com/studio-foundation/studio
+- Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
+- Use via the CLI: [`@studio-foundation/cli`](https://www.npmjs.com/package/@studio-foundation/cli)
 
+## Install
+
+```bash
+npm install @studio-foundation/engine
+# or
+pnpm add @studio-foundation/engine
 ```
-cli → engine.run(pipeline, input) → PipelineRun
-          ↓
-      [load pipeline] → [on_pipeline_start] → [for each stage: hooks + ralph(runner)] → [persist state] → [emit events]
-```
 
-## Key exports
+Most users don't consume `engine` directly, they use the [`studio`](https://www.npmjs.com/package/@studio-foundation/cli) CLI, which wraps it. Install this package if you're embedding Studio into your own runtime.
+
+## Quick start
 
 ```typescript
 import { PipelineEngine } from '@studio-foundation/engine';
@@ -33,6 +39,14 @@ const run = await engine.run({
   input: { brief: 'Add dark mode' },
   anonymize: true,  // Enable PII anonymization for this run
 });
+```
+
+## Architecture
+
+```
+cli → engine.run(pipeline, input) → PipelineRun
+          ↓
+      [load pipeline] → [on_pipeline_start] → [for each stage: hooks + ralph(runner)] → [persist state] → [emit events]
 ```
 
 ## State machine
@@ -110,9 +124,15 @@ engine.run({ pipeline, input, anonymize: true })
 
 Per-agent anonymization also supported via `anonymize: true` in agent YAML.
 
-## Rules
+## For contributors
+
+Internal rules that govern this package:
 
 - **engine is domain-agnostic.** No references to "code", "file", "git", "QA" in engine source. All domain knowledge is in YAML configs.
 - **engine doesn't execute tools.** It passes tool configs to runner. The runner decides what `repo_manager-write_file` means.
 - **engine doesn't build prompts.** That's runner's job.
 - Persistence: `PgRunStore` (PostgreSQL) for production, `InMemoryRunStore` for tests. Both implement `AnyRunStore`.
+
+## License
+
+AGPL-3.0-only

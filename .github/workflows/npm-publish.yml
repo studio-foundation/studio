@@ -36,14 +36,23 @@ jobs:
       - name: Configure npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish packages (dependency order)
         run: |
-          pnpm --filter @studio-foundation/contracts publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/anonymizer publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/ralph publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/runner publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/engine publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/api publish --access public --no-git-checks --tag beta
-          pnpm --filter @studio-foundation/cli publish --access public --no-git-checks --tag beta
+          pnpm --filter @studio-foundation/contracts publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/anonymizer publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/ralph publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/runner publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/engine publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/api publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
+          pnpm --filter @studio-foundation/cli publish --access public --no-git-checks --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,18 +1,24 @@
 # @studio-foundation/runner
 
-Multi-provider LLM agent runner with tool plugin execution, streaming support, and PII anonymization.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **runner**: a multi-provider LLM agent runner with tool plugin execution, streaming support, and PII anonymization.
 
-## Role
+It's the only package that knows about Anthropic, OpenAI, or what `repo_manager-write_file` does. Give it an agent config and a task, it builds the prompt, calls the LLM, executes tool calls, and returns the result. It doesn't validate, it doesn't retry — [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) handles that loop.
 
-runner handles everything that touches external services: LLM API calls and tool execution. It's the only package that knows about Anthropic, OpenAI, or what `repo_manager-write_file` does.
+- Homepage: https://github.com/studio-foundation/studio
+- Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
+- Use via the CLI: [`@studio-foundation/cli`](https://www.npmjs.com/package/@studio-foundation/cli)
 
+## Install
+
+```bash
+npm install @studio-foundation/runner
+# or
+pnpm add @studio-foundation/runner
 ```
-engine → runner.runAgent(config) → AgentRunResult
-                  ↓
-         [builds prompt] → [calls LLM] → [executes tool calls] → [returns result]
-```
 
-## Key exports
+Most users don't consume `runner` directly — they use the [`studio`](https://www.npmjs.com/package/@studio-foundation/cli) CLI, which wraps it. Install this package if you're embedding Studio into your own runtime.
+
+## Quick start
 
 ```typescript
 import { runAgent, createDefaultRegistry, ToolRegistry, AnonymizationMiddleware } from '@studio-foundation/runner';
@@ -38,6 +44,14 @@ const result = await runAgent({
     onPostToolUse: async (e) => ({}),                  // hook callback
   },
 });
+```
+
+## Architecture
+
+```
+engine → runner.runAgent(config) → AgentRunResult
+                  ↓
+         [builds prompt] → [calls LLM] → [executes tool calls] → [returns result]
 ```
 
 ## Providers
@@ -118,8 +132,14 @@ callbacks: {
 
 These callbacks are wired by the engine from the stage's `hooks` YAML configuration.
 
-## Rules
+## For contributors
+
+Internal rules that govern this package:
 
 - **runner doesn't validate, doesn't retry.** It executes one agent turn and returns `AgentRunResult`. ralph handles the loop.
 - **runner doesn't know engine.** No pipeline state, no events, no stage concepts.
 - Prompt assembly lives in `prompt-builder.ts`. Provider abstractions in `providers/`.
+
+## License
+
+AGPL-3.0-only
