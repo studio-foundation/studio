@@ -86,11 +86,11 @@ See [LICENSE](./LICENSE) for the full text.
 
 ## Philosophy
 
-Studio is an explicitly political project. The AGPL is not a default — it is a structural choice against capture.
+Studio is an explicitly political project. The AGPL is not a default, it is a structural choice against capture.
 
 The engine is a commons by design. Domain-agnostic so no single use case can claim ownership. Provider-agnostic so no single vendor can lock it in. Open source so the tool belongs to the people who use it.
 
-Governance keeps decision-making with the people most affected by the inequalities the project aims to reduce. Diversity is not symbolic — it is decisional.
+Governance keeps decision-making with the people most affected by the inequalities the project aims to reduce. Diversity is not symbolic, it is decisional.
 
 The full governance model and foundational principles are documented internally.
 
