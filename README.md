@@ -26,7 +26,7 @@ Studio takes a different position. Verify structurally. Retry automatically. Tru
 
 ## How it works
 
-Studio breaks work into **stages** with explicit **output contracts** — JSON schemas that define what a stage must produce. Each stage runs through a **RALPH loop**: execute, validate against the contract, retry with escalated feedback if validation fails. No stage advances until its output is structurally proven correct.
+Studio breaks work into **stages** with explicit **output contracts** — JSON schemas that define what a stage must produce. Each stage runs through a **RALPH loop**: execute, validate against the contract, retry with enriched feedback if it fails. No stage advances until its output passes.
 
 ```
 Pipeline (YAML)
@@ -35,13 +35,13 @@ Pipeline (YAML)
   └── Stage 3 → RALPH: execute → validate → pass? next : retry
 ```
 
-Validation is binary. Pass or fail. Not vibes.
+Validation is binary. Pass or fail.
 
-**Anti-theatre:** If a code generation stage claims to have written files but made zero tool calls, it fails — regardless of what it says in its output. Tool calls are tracked by the runner, not self-reported by the agent.
+**Anti-theatre:** If a stage claims to have written files but made zero tool calls, it fails, regardless of what it says in its output. Tool calls are tracked by the runner, not self-reported by the agent.
 
-**Domain-agnostic:** The engine has zero knowledge of what domain it operates in. It doesn't know what "code" or "transactions" or "entities" mean. All domain knowledge lives in YAML configs — pipelines, contracts, agents, tools. This is an architectural commitment, not a feature.
+**Domain-agnostic:** The engine has zero knowledge of what domain it operates in. It doesn't know what "code" or "transactions" or "entities" mean. All domain knowledge lives in YAML configs. This is an architectural commitment, not a feature.
 
-**Provider-agnostic:** Anthropic, OpenAI, Mock — swappable per agent without touching pipeline logic. The orchestration layer doesn't depend on who does the work. It depends on the work being done correctly.
+**Provider-agnostic:** Anthropic, OpenAI, Mock, swappable per agent without touching pipeline logic. The orchestration layer doesn't depend on who does the work. It depends on the work being done correctly.
 
 ---
 
