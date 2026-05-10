@@ -1,6 +1,8 @@
 # Studio
 
-Pipeline orchestrator for LLM workflows. Validates outputs structurally, retries automatically, advances only when a stage passes.
+**An LLM pipeline that fails loudly when an agent lies about what it did.**
+
+Validates outputs structurally, retries automatically, advances only when a stage passes.
 
 ```
 $ studio run software/feature-builder --input "Add a FAQ section to the About page"
