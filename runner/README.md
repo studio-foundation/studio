@@ -47,7 +47,7 @@ const result = await runAgent({
 | Anthropic | `AnthropicProvider` | Claude models, prompt caching (90% cost reduction on retries) |
 | OpenAI | `OpenAIProvider` | Chat completions API |
 | OpenAI Responses | `OpenAIResponsesProvider` | Responses API |
-| Mock | `MockProvider` | For tests — reads from `mock.yaml`, no API calls |
+| Mock | `MockProvider` | For tests: reads from `mock.yaml`, no API calls |
 
 Use `createDefaultRegistry()` to get all providers wired up. Use `--provider mock` in the CLI for testing without API keys.
 
