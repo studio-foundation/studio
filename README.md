@@ -20,9 +20,9 @@ Run it 10 times. You get 10 correct outputs. That's what the validation loop is 
 
 ## The problem
 
-AI agents are unreliable. They hallucinate results, skip steps they claim to have completed, and produce outputs that look correct but aren't. The industry's answer is either "trust the model" or "put a human on every step."
+AI agents hallucinate results, skip steps they claim to have completed, produce outputs that look correct but aren't. The usual answer is "trust the model" or put a human on every step.
 
-Studio takes a different position: **verify structurally, retry automatically, trust nothing.**
+Studio takes a different position. Verify structurally. Retry automatically. Trust the output contract, not the agent's self-report.
 
 ## How it works
 
