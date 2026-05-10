@@ -36,14 +36,20 @@ jobs:
       - name: Configure npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
-      - name: Determine npm dist-tag
+      - name: Determine version and dist-tag
         id: dist-tag
         run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
             echo "tag=beta" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Bump all package versions to match release tag
+        run: pnpm -r exec npm version ${{ steps.dist-tag.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Publish packages (dependency order)
         run: |

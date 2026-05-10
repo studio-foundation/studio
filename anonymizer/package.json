@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/anonymizer",
-  "version": "0.3.0-beta.6",
+  "version": "0.3.0-beta.10",
   "description": "PII detection and anonymization with consistent token mapping",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
