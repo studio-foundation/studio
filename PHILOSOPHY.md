@@ -26,13 +26,13 @@ This is not anti-commercial. Build whatever you want on top. Sell it. The licens
 
 The engine has zero knowledge of what domain it operates in. It doesn't know what "code" or "transactions" or "medical records" mean. All domain semantics come from YAML configs.
 
-This is not a feature — it is an architectural commitment that prevents any single use case from claiming ownership of the kernel. The engine belongs to everyone precisely because it serves no one domain specifically.
+This is not a feature, it is an architectural commitment that prevents any single use case from claiming ownership of the kernel. The engine belongs to everyone precisely because it serves no one domain specifically.
 
 ---
 
 ## Provider-agnostic by commitment
 
-Anthropic, OpenAI, or any other provider — swappable per agent, per stage, per pipeline. The orchestration layer depends on the work being done correctly, not on who does it.
+Anthropic, OpenAI, or any other provider, swappable per agent, per stage, per pipeline. The orchestration layer depends on the work being done correctly, not on who does it.
 
 No vendor lock-in. No preferred provider. The runtime is neutral infrastructure.
 
