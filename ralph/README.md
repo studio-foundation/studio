@@ -6,7 +6,7 @@ The retry engine. Execute → validate → retry with escalated feedback → rep
 
 ## Role
 
-ralph sits between the engine (orchestration) and runner (LLM execution). It knows nothing about LLMs — it takes a generic `executor` function and a contract, and loops until the output passes or max attempts is reached.
+ralph sits between the engine (orchestration) and runner (LLM execution). It knows nothing about LLMs, it takes a generic `executor` function and a contract, and loops until the output passes or max attempts is reached.
 
 ```
 engine → ralph(executor, contract) → success | exhausted
@@ -53,7 +53,7 @@ ralph exports composable validators that the engine uses to build per-stage vali
 | `validateSchema(output, contract)` | Check required fields are present |
 | `validateToolCalls(count, reqs)` | Check minimum tool call count |
 | `validateRequiredTools(calls, reqs)` | Check specific tools were called |
-| `validateCountedTools(calls, reqs)` | OR semantics — any of these count toward minimum |
+| `validateCountedTools(calls, reqs)` | OR semantics: any of these count toward minimum |
 | `compose(...validators)` | Combine multiple validators (all must pass) |
 
 ## Retry strategies
@@ -68,4 +68,4 @@ ralph exports composable validators that the engine uses to build per-stage vali
 
 - **ralph doesn't know runner.** The `executor` is `() => Promise<T>`. ralph doesn't care what's behind it.
 - **ralph doesn't know engine.** It takes config, it returns a result. No pipeline state, no events.
-- Validation logic is in exported validators — the engine composes them per stage.
+- Validation logic is in exported validators, the engine composes them per stage.
