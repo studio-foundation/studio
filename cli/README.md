@@ -71,7 +71,7 @@ studio validate <contract> <output.json>       # Validate output against contrac
 
 ## Config resolution
 
-cli looks for `.studio/config.yaml` by walking up the directory tree from the current working directory (via `findStudioDir()`). This is how running `studio run` from inside a user project finds its configuration — same mechanism as `git` finding `.git/`.
+cli looks for `.studio/config.yaml` by walking up the directory tree from the current working directory (via `findStudioDir()`). This is how running `studio run` from inside a user project finds its configuration, same mechanism as `git` finding `.git/`.
 
 Format of `.studio/config.yaml`:
 
@@ -87,7 +87,7 @@ defaults:
   model: claude-sonnet-4-20250514
 ```
 
-This file is gitignored — never commit API keys.
+This file is gitignored. Never commit API keys.
 
 ## `studio init` wizard flow
 
@@ -159,7 +159,7 @@ studio --version
 
 ## Rules
 
-- cli is the composition root — it imports from engine, runner (ToolRegistry, ProviderRegistry, MCPClient), and api (for `studio api start`). This is a documented exception to the package DAG (see INVARIANTS.md).
-- cli never contains business logic — it wires up dependencies and delegates.
-- All output rendering is in `output/` — keep display logic separate from command logic.
-- `findStudioDir()` walks up the directory tree — tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has `.studio/` at its root).
+- cli is the composition root, it imports from engine, runner (ToolRegistry, ProviderRegistry, MCPClient), and api (for `studio api start`). This is a documented exception to the package DAG (see INVARIANTS.md).
+- cli never contains business logic, it wires up dependencies and delegates.
+- All output rendering is in `output/`, keep display logic separate from command logic.
+- `findStudioDir()` walks up the directory tree, tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has `.studio/` at its root).
