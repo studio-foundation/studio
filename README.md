@@ -48,20 +48,21 @@ Validation is binary. Pass or fail.
 ## Quick start
 
 ```bash
-# Install
 npm install -g @studio-foundation/cli@beta
 
-# Create a new project from a template
+# Create a project directory and initialize from a template
+mkdir my-builder && cd my-builder
 studio init --template software --name my-builder
-cd my-builder
+```
 
-# Configure your LLM provider
+`studio init` generates the full project structure: `.studio/` with pipelines, contracts, agents, and tools, plus the app scaffold (`src/`, `package.json`) from the template. It also initializes git and updates `.gitignore`.
+
+```bash
+# Configure your provider
 studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
 
-# Install dependencies
+# Install dependencies and run
 npm install
-
-# Run a pipeline
 studio run software/feature-builder --input "Add dark mode support"
 ```
 
