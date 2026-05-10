@@ -16,7 +16,7 @@ Studio exists to make that harder to do.
 
 The AGPL-3.0 license is not a default. It is a deliberate mechanism against capture.
 
-The kernel is a commons. Anyone can use it, extend it, build commercial products on it. But if you modify Studio itself and run the modified version as a network service, you publish your changes. This prevents cloud providers from taking the engine, closing it, and selling it back.
+The kernel is a commons. Anyone can use it, extend it, build commercial products on it. If you modify Studio itself and run the modified version as a network service, you publish your changes. This prevents cloud providers from taking the engine, closing it, and selling it back.
 
 This is not anti-commercial. Build whatever you want on top. Sell it. The license protects the foundation, not the products built on it.
 
