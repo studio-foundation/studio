@@ -33,9 +33,6 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
       - name: Determine version and dist-tag
         id: dist-tag
         run: |
