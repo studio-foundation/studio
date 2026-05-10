@@ -26,7 +26,7 @@ Studio takes a different position. Verify structurally. Retry automatically. Tru
 
 ## How it works
 
-Studio breaks work into **stages** with explicit **output contracts** — JSON schemas that define what a stage must produce. Each stage runs through a **RALPH loop**: execute, validate against the contract, retry with enriched feedback if it fails. No stage advances until its output passes.
+Studio breaks work into **stages** with explicit **output contracts** (JSON schemas that define what a stage must produce). Each stage runs through a **RALPH loop**: execute, validate against the contract, retry with enriched feedback if it fails. No stage advances until its output passes.
 
 ```
 Pipeline (YAML)

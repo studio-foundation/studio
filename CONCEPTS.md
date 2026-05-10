@@ -62,7 +62,7 @@ Validation is binary. The output either satisfies every constraint or it doesn't
 
 The term for validation that catches agents faking work.
 
-Agents are optimized to produce plausible output. An agent asked to write code can produce a convincing summary of what it "did" without ever calling a write tool. Anti-theatre validation checks what actually happened — tool calls made, files written, commands executed, against what the contract requires.
+Agents are optimized to produce plausible output. An agent asked to write code can produce a convincing summary of what it "did" without ever calling a write tool. Anti-theatre validation checks what actually happened: tool calls made, files written, commands executed, against what the contract requires.
 
 This is not a heuristic. It is structural. The runner tracks every tool call. The contract specifies what must have occurred. The engine compares the two. Theatre is caught mechanically.
 
