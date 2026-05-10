@@ -10,10 +10,10 @@ How Studio works, from the inside out.
 
 The core execution primitive. Every stage in a pipeline runs through RALPH:
 
-1. **Execute** — the agent produces output
-2. **Validate** — the output is checked against the stage's contract
-3. **Pass?** — if yes, advance to the next stage
-4. **Retry** — if no, feed the validation errors back to the agent and re-execute with escalated feedback
+1. **Execute**: the agent produces output
+2. **Validate**: the output is checked against the stage's contract
+3. **Pass?**: if yes, advance to the next stage
+4. **Retry**: if no, feed the validation errors back to the agent and re-execute with escalated feedback
 5. **Repeat** until success or max attempts exhausted
 
 ```
@@ -24,7 +24,7 @@ execute → validate → pass? → next stage
 
 RALPH is a standalone package (`@studio-foundation/ralph`). It takes a generic `executor: () => Promise<T>` and a `validator: (result: T) => ValidationResult`. It does not know that an LLM is behind the executor. It does not know what domain the validation covers. It loops until the contract is satisfied or the budget runs out.
 
-**ralph does not know runner.** This is a hard boundary. ralph receives an executor function — it never imports runner, never constructs LLM calls, never touches tool logic.
+**ralph does not know runner.** This is a hard boundary. ralph receives an executor function, it never imports runner, never constructs LLM calls, never touches tool logic.
 
 ---
 
@@ -48,7 +48,7 @@ tool_calls:
 
 Validation is binary. The output either satisfies every constraint or it doesn't. There is no partial credit.
 
-**`tool_calls.minimum`** catches agents that claim to have done work without actually doing it. If the contract requires at least 1 tool call and the agent made 0, the stage fails — regardless of what the agent wrote in its output.
+**`tool_calls.minimum`** catches agents that claim to have done work without actually doing it. If the contract requires at least 1 tool call and the agent made 0, the stage fails, regardless of what the agent wrote in its output.
 
 **`tool_calls.maximum`** catches infinite loops. If an agent makes more tool calls than the cap, something is wrong.
 
@@ -62,7 +62,7 @@ Validation is binary. The output either satisfies every constraint or it doesn't
 
 The term for validation that catches agents faking work.
 
-Agents are optimized to produce plausible output. An agent asked to write code can produce a convincing summary of what it "did" without ever calling a write tool. Anti-theatre validation checks what actually happened — tool calls made, files written, commands executed — against what the contract requires.
+Agents are optimized to produce plausible output. An agent asked to write code can produce a convincing summary of what it "did" without ever calling a write tool. Anti-theatre validation checks what actually happened: tool calls made, files written, commands executed, against what the contract requires.
 
 This is not a heuristic. It is structural. The runner tracks every tool call. The contract specifies what must have occurred. The engine compares the two. Theatre is caught mechanically.
 
@@ -124,7 +124,7 @@ context:
     - repo_files               # Files from the workspace
 ```
 
-If `context` is not specified, the stage receives nothing. This is explicit by design — no implicit state leakage between stages.
+If `context` is not specified, the stage receives nothing. This is explicit by design, no implicit state leakage between stages.
 
 ---
 
@@ -156,9 +156,9 @@ Shell commands that run at deterministic points in the pipeline lifecycle:
 | `post_tool_use` | After a specific tool call | `{{tool.argName}}` |
 
 Each hook has an `on_failure` behavior:
-- **`warn`** (default) — log and continue
-- **`reject`** — stage becomes `rejected`, can trigger group retry
-- **`fail`** — stage becomes `failed`, pipeline stops
+- **`warn`** (default): log and continue
+- **`reject`**: stage becomes `rejected`, can trigger group retry
+- **`fail`**: stage becomes `failed`, pipeline stops
 
 ```yaml
 hooks:
@@ -177,7 +177,7 @@ Hooks are how you add static analysis, linting, or custom validation without wri
 
 ## Skills
 
-Markdown files (`.skill.md`) in `.studio/skills/` that describe procedural context — conventions, architectural patterns, step-by-step guides.
+Markdown files (`.skill.md`) in `.studio/skills/` that describe procedural context: conventions, architectural patterns, step-by-step guides.
 
 ```markdown
 # commit-conventions.skill.md
@@ -197,7 +197,7 @@ skills:
   - react-patterns
 ```
 
-The skill content is auto-injected into the agent's system prompt. No code involved — just markdown that becomes context.
+The skill content is auto-injected into the agent's system prompt. No code involved, just markdown that becomes context.
 
 ---
 
@@ -270,7 +270,7 @@ pending → running → success
 
 The engine does not know what domain it operates in. There are no references to "code", "file", "git", or "QA" anywhere in the engine package. All domain semantics come from YAML configs.
 
-This is an architectural commitment enforced as an invariant. If you find yourself writing `if (stage.kind === 'qa')` in the engine, you've made an error — that logic belongs in the contract.
+This is an architectural commitment enforced as an invariant. If you find yourself writing `if (stage.kind === 'qa')` in the engine, you've made an error, that logic belongs in the contract.
 
 ---
 

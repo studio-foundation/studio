@@ -4,7 +4,7 @@
 
 **RALPH** = Recursive Automated Loop for Persistent Handling.
 
-ralph sits between [`engine`](https://www.npmjs.com/package/@studio-foundation/engine) (orchestration) and [`runner`](https://www.npmjs.com/package/@studio-foundation/runner) (LLM execution). It knows nothing about LLMs — it takes a generic `executor` function and a validator, and loops. That's why it's reusable outside Studio: anywhere you need "run this thing, validate its output, retry if it fails with escalating feedback", ralph works.
+ralph sits between [`engine`](https://www.npmjs.com/package/@studio-foundation/engine) (orchestration) and [`runner`](https://www.npmjs.com/package/@studio-foundation/runner) (LLM execution). It knows nothing about LLMs, it takes a generic `executor` function and a validator, and loops. That's why it's reusable outside Studio: anywhere you need "run this thing, validate its output, retry if it fails with escalating feedback", ralph works.
 
 - Homepage: https://github.com/studio-foundation/studio
 - Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
@@ -63,7 +63,7 @@ ralph exports composable validators that the engine uses to build per-stage vali
 | `validateSchema(output, contract)` | Check required fields are present |
 | `validateToolCalls(count, reqs)` | Check minimum tool call count |
 | `validateRequiredTools(calls, reqs)` | Check specific tools were called |
-| `validateCountedTools(calls, reqs)` | OR semantics — any of these count toward minimum |
+| `validateCountedTools(calls, reqs)` | OR semantics: any of these count toward minimum |
 | `compose(...validators)` | Combine multiple validators (all must pass) |
 
 ## Retry strategies
@@ -80,7 +80,7 @@ Internal rules that govern this package:
 
 - **ralph doesn't know runner.** The `executor` is `() => Promise<T>`. ralph doesn't care what's behind it.
 - **ralph doesn't know engine.** It takes config, it returns a result. No pipeline state, no events.
-- Validation logic is in exported validators — the engine composes them per stage.
+- Validation logic is in exported validators, the engine composes them per stage.
 
 ## License
 

@@ -2,7 +2,7 @@
 
 **Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **engine**: pipeline orchestration, state machine, persistence, lifecycle hooks, and skills injection.
 
-It loads pipeline configs, sequences stages, delegates each stage to [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) + [`runner`](https://www.npmjs.com/package/@studio-foundation/runner), persists state, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills — but never about LLMs, files, or domain concepts.
+It loads pipeline configs, sequences stages, delegates each stage to [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) + [`runner`](https://www.npmjs.com/package/@studio-foundation/runner), persists state, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills, but never about LLMs, files, or domain concepts.
 
 - Homepage: https://github.com/studio-foundation/studio
 - Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
@@ -16,7 +16,7 @@ npm install @studio-foundation/engine
 pnpm add @studio-foundation/engine
 ```
 
-Most users don't consume `engine` directly — they use the [`studio`](https://www.npmjs.com/package/@studio-foundation/cli) CLI, which wraps it. Install this package if you're embedding Studio into your own runtime.
+Most users don't consume `engine` directly, they use the [`studio`](https://www.npmjs.com/package/@studio-foundation/cli) CLI, which wraps it. Install this package if you're embedding Studio into your own runtime.
 
 ## Quick start
 
@@ -72,9 +72,9 @@ The engine executes stage hooks at four deterministic points:
 | `post_tool_use` | After a tool call (matcher-gated) | `{{tool.argName}}` |
 
 Hook failure semantics via `on_failure`:
-- `warn` (default) — log and continue
-- `reject` — stage → `rejected` (can trigger group retry)
-- `fail` — stage → `failed` (stops pipeline)
+- `warn` (default): log and continue
+- `reject`: stage → `rejected` (can trigger group retry)
+- `fail`: stage → `failed` (stops pipeline)
 
 `pre_tool_use` hooks with any failure block the tool call. Hook commands run in `repoPath` (or `configsDir` as fallback). Implemented in `pipeline/hook-executor.ts`.
 

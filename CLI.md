@@ -118,7 +118,7 @@ defaults:
   model: claude-sonnet-4-20250514
 ```
 
-API keys can reference environment variables via `${VAR_NAME}`. This file is gitignored — never commit API keys.
+API keys can reference environment variables via `${VAR_NAME}`. This file is gitignored. Never commit API keys.
 
 ---
 

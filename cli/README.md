@@ -1,6 +1,6 @@
 # @studio-foundation/cli
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. Pipelines are defined in YAML, every stage output is validated against a contract, and failures are retried with escalated feedback — no stage advances until its output is structurally proven correct.
+**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. Pipelines are defined in YAML, every stage output is validated against a contract, and failures are retried with escalated feedback, no stage advances until its output is structurally proven correct.
 
 This package is the **CLI**: the `studio` binary. It reads your config, wires up providers and tools, delegates execution to the engine, and renders progress to your terminal.
 
@@ -11,11 +11,11 @@ This package is the **CLI**: the `studio` binary. It reads your config, wires up
 
 If you've ever wrapped the Anthropic or OpenAI API in a script and watched it claim success while silently skipping steps, Studio is for you. You get:
 
-- **Structural validation** — every stage output is checked against a JSON-schema contract. Binary pass/fail, no vibes.
-- **Automatic retry with feedback** — failures are re-run with the validation error injected into the prompt, up to `max_attempts`.
-- **Anti-theatre** — if an agent claims to have written a file but made zero tool calls, it fails. Tool calls are tracked by the runner, not self-reported.
-- **Observability out of the box** — stream every tool call, retry, and rejection in real time with `--live`.
-- **Deterministic config** — pipelines, contracts, agents and tools are YAML. The engine is domain-agnostic; the behavior lives in the files.
+- **Structural validation**: every stage output is checked against a JSON-schema contract. Binary pass/fail.
+- **Automatic retry with feedback**: failures are re-run with the validation error injected into the prompt, up to `max_attempts`.
+- **Anti-theatre**: if an agent claims to have written a file but made zero tool calls, it fails. Tool calls are tracked by the runner, not self-reported.
+- **Observability out of the box**: stream every tool call, retry, and rejection in real time with `--live`.
+- **Deterministic config**: pipelines, contracts, agents and tools are YAML. The engine is domain-agnostic; the behavior lives in the files.
 
 ## Install
 
@@ -45,7 +45,7 @@ studio status
 studio logs
 ```
 
-No API key yet? Try the mock provider — no network calls, no cost:
+No API key yet? Try the mock provider, no network calls, no cost:
 
 ```bash
 studio run feature-builder --input "..." --provider mock
@@ -170,7 +170,7 @@ studio validate <contract> <output.json>       # Validate output against a contr
 
 ## Config
 
-`studio` looks for `.studio/config.yaml` by walking up the directory tree from the current working directory — same mechanism as `git` finding `.git/`. Run `studio` from anywhere inside your project and it'll find the config.
+`studio` looks for `.studio/config.yaml` by walking up the directory tree from the current working directory, same mechanism as `git` finding `.git/`. Run `studio` from anywhere inside your project and it'll find the config.
 
 ```yaml
 # .studio/config.yaml
@@ -185,7 +185,7 @@ defaults:
   model: claude-sonnet-4-20250514
 ```
 
-This file is gitignored by the scaffold — never commit API keys.
+This file is gitignored by the scaffold. Never commit API keys.
 
 ## Architecture
 
@@ -193,7 +193,7 @@ This file is gitignored by the scaffold — never commit API keys.
 user → studio run feature-builder --input "..." → cli → engine → ralph / runner
 ```
 
-`cli` is the human-facing layer. It reads input, resolves `.studio/config.yaml`, wires up the provider and tool registries, delegates to `engine`, and renders progress to the terminal. It's part of a 7-package monorepo — see the [main README](https://github.com/studio-foundation/studio#readme) for the full picture.
+`cli` is the human-facing layer. It reads input, resolves `.studio/config.yaml`, wires up the provider and tool registries, delegates to `engine`, and renders progress to the terminal. It's part of a 7-package monorepo, see the [main README](https://github.com/studio-foundation/studio#readme) for the full picture.
 
 Sister packages:
 
@@ -221,10 +221,10 @@ studio --version
 
 Internal rules:
 
-- `cli` is the composition root — it imports from `engine`, `runner` (ToolRegistry, ProviderRegistry, MCPClient), and `api` (for `studio api start`). This is a documented exception to the package DAG (see [INVARIANTS.md](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)).
-- `cli` never contains business logic — it wires dependencies and delegates.
-- All output rendering is in `output/` — display logic stays separate from command logic.
-- `findStudioDir()` walks up the directory tree — tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has a `.studio/` at its root).
+- `cli` is the composition root, it imports from `engine`, `runner` (ToolRegistry, ProviderRegistry, MCPClient), and `api` (for `studio api start`). This is a documented exception to the package DAG (see [INVARIANTS.md](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)).
+- `cli` never contains business logic, it wires dependencies and delegates.
+- All output rendering is in `output/`, display logic stays separate from command logic.
+- `findStudioDir()` walks up the directory tree, tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has a `.studio/` at its root).
 
 ## License
 

@@ -1,4 +1,4 @@
-# TEMPLATES.md — Studio Templates System
+# TEMPLATES.md
 
 Templates are **architectural patterns** that generate complete application starters for different types of AI-powered work.
 
@@ -7,16 +7,16 @@ Templates are **architectural patterns** that generate complete application star
 | Template | Status | Notes |
 |----------|--------|-------|
 | `software` | ✅ Functional | Complete pipelines, tools, and DB schema. Run end-to-end. |
-| `finance` | 🚧 Starter | Structure and pipelines defined. Domain tools (bank-api, etc.) are stubs — wire to your own integrations. |
+| `finance` | 🚧 Starter | Structure and pipelines defined. Domain tools (bank-api, etc.) are stubs, wire to your own integrations. |
 | `analysis` | 🚧 Starter | Structure and pipelines defined. Domain tools (text-processor, etc.) are stubs. |
 | `data` | 🚧 Starter | Structure only. |
 | `conversation` | 🚧 Starter | Structure only. |
 
-> **Note:** Only the `software` template is production-ready. The others are architectural starters — they give you the structure and patterns, but expect to implement domain-specific tools yourself.
+> **Note:** Only the `software` template is production-ready. The others are architectural starters, they give you the structure and patterns, but expect to implement domain-specific tools yourself.
 
 ## Core Concept
 
-**Templates are NOT finished products.** They are rich, functional starting points that you customize into your own product.
+**Templates are not finished products.** They are rich, functional starting points that you customize into your own product.
 
 Think `create-react-app` or `create-next-app`, but for AI pipeline orchestration.
 
@@ -54,7 +54,7 @@ Then you customize: add your own pipelines, extend the schema, build your UI.
 
 ## Official Templates
 
-### `software` — Code generation and modification
+### `software`: Code generation and modification
 
 **Use cases:**
 - Code generators
@@ -65,9 +65,9 @@ Then you customize: add your own pipelines, extend the schema, build your UI.
 - API scaffolders
 
 **Included pipelines:**
-- `feature-builder` — Generate new features from descriptions
-- `bug-fixer` — Analyze and fix bugs
-- `refactor` — Restructure code while preserving behavior
+- `feature-builder`: Generate new features from descriptions
+- `bug-fixer`: Analyze and fix bugs
+- `refactor`: Restructure code while preserving behavior
 
 **Included tools:**
 - `repo_manager-read_file`
@@ -100,13 +100,13 @@ model Feature {
 ```
 
 **Example products:**
-- Code Builder — Full IDE integration for feature generation
-- Git Butler — Clean messy git history automatically
-- API Generator — Generate REST APIs from descriptions
+- Code Builder: Full IDE integration for feature generation
+- Git Butler: Clean messy git history automatically
+- API Generator: Generate REST APIs from descriptions
 
 ---
 
-### `finance` — Transaction analysis and budget management
+### `finance`: Transaction analysis and budget management
 
 **Use cases:**
 - Personal finance managers
@@ -117,9 +117,9 @@ model Feature {
 - Automated savings
 
 **Included pipelines:**
-- `transaction-analysis` — Categorize and analyze transactions
-- `budget-planning` — Generate budget recommendations
-- `account-splitting` — Auto-split income across accounts
+- `transaction-analysis`: Categorize and analyze transactions
+- `budget-planning`: Generate budget recommendations
+- `account-splitting`: Auto-split income across accounts
 
 **Included tools:**
 - `bank-api` (integration with Plaid or similar)
@@ -167,13 +167,13 @@ model Budget {
 ```
 
 **Example products:**
-- ADHD Finance — Specialized for neurodivergent money management
-- Freelance Invoicing — Auto-generate invoices from time tracking
-- Crypto Portfolio Manager — Track and rebalance crypto holdings
+- ADHD Finance: Specialized for neurodivergent money management
+- Freelance Invoicing: Auto-generate invoices from time tracking
+- Crypto Portfolio Manager: Track and rebalance crypto holdings
 
 ---
 
-### `analysis` — Content extraction and structuring
+### `analysis`: Content extraction and structuring
 
 **Use cases:**
 - Document analyzers
@@ -185,9 +185,9 @@ model Budget {
 - Medical report parsers
 
 **Included pipelines:**
-- `content-extraction` — Extract structured content from unstructured input
-- `entity-recognition` — Identify and classify entities
-- `structure-generation` — Generate hierarchical structures
+- `content-extraction`: Extract structured content from unstructured input
+- `entity-recognition`: Identify and classify entities
+- `structure-generation`: Generate hierarchical structures
 
 **Included tools:**
 - `text-processor` (parsing, tokenization, NLP)
@@ -229,16 +229,16 @@ model Relationship {
 ```
 
 **Example products:**
-- Wiki Creator — Convert books into structured wikis
-- Voice Training — Analyze voice recordings for feminization training
-- Legal Analyzer — Extract clauses and risks from contracts
-- Medical Parser — Structure medical reports for compliance
+- Wiki Creator: Convert books into structured wikis
+- Voice Training: Analyze voice recordings for feminization training
+- Legal Analyzer: Extract clauses and risks from contracts
+- Medical Parser: Structure medical reports for compliance
 
 **Note:** Very versatile template. The same pattern works for text, audio, video, or any content that needs analysis and structuring.
 
 ---
 
-### `data` — Validation, transformation, and compliance
+### `data`: Validation, transformation, and compliance
 
 **Use cases:**
 - Data validators
@@ -249,9 +249,9 @@ model Relationship {
 - CSV/Excel processors
 
 **Included pipelines:**
-- `schema-validation` — Validate data against schemas
-- `transformation` — Transform data between formats
-- `compliance-check` — Check regulatory compliance
+- `schema-validation`: Validate data against schemas
+- `transformation`: Transform data between formats
+- `compliance-check`: Check regulatory compliance
 
 **Included tools:**
 - `schema-validator`
@@ -293,14 +293,14 @@ model ComplianceCheck {
 ```
 
 **Example products:**
-- GrayOS Compliance Validator — Medical data HIPAA/GDPR validation
-- ETL Auditor — Validate data transformations in pipelines
-- CSV Cleaner — Clean and normalize messy CSV files
-- Schema Migrator — Migrate data between database schemas
+- GrayOS Compliance Validator: Medical data HIPAA/GDPR validation
+- ETL Auditor: Validate data transformations in pipelines
+- CSV Cleaner: Clean and normalize messy CSV files
+- Schema Migrator: Migrate data between database schemas
 
 ---
 
-### `conversation` — Dialogue management and memory
+### `conversation`: Dialogue management and memory
 
 **Use cases:**
 - Chatbots
@@ -310,10 +310,10 @@ model ComplianceCheck {
 - Customer support bots
 
 **Included pipelines:**
-- `dialogue-management` — Handle multi-turn conversations
-- `memory-storage` — Store and retrieve conversation context
-- `intent-classification` — Classify user intents
-- `response-generation` — Generate contextual responses
+- `dialogue-management`: Handle multi-turn conversations
+- `memory-storage`: Store and retrieve conversation context
+- `intent-classification`: Classify user intents
+- `response-generation`: Generate contextual responses
 
 **Included tools:**
 - `memory-store`
@@ -357,9 +357,9 @@ model Memory {
 ```
 
 **Example products:**
-- Therapy Chatbot — Emotional support with memory
-- Learning Assistant — Tutoring with progress tracking
-- Customer Support — Context-aware support bot
+- Therapy Chatbot: Emotional support with memory
+- Learning Assistant: Tutoring with progress tracking
+- Customer Support: Context-aware support bot
 
 ---
 
@@ -406,7 +406,7 @@ This section is the **formal contract** for template authors and for the validat
 
 | Path | Status | Notes |
 |------|--------|-------|
-| `template.yaml` | Required | Template metadata — see format below |
+| `template.yaml` | Required | Template metadata: see format below |
 | `README.md` | Required | User-facing documentation |
 | `.studio/projects/{{TEMPLATE_NAME}}/pipelines/` | Required | ≥2 `.pipeline.yaml` files |
 | `.studio/projects/{{TEMPLATE_NAME}}/contracts/` | Required | ≥1 `.contract.yaml` per pipeline |
@@ -414,7 +414,7 @@ This section is the **formal contract** for template authors and for the validat
 | `.studio/projects/{{TEMPLATE_NAME}}/tools/` | Optional | Builtins are allowed |
 | `.studio/projects/{{TEMPLATE_NAME}}/inputs/` | Required | ≥1 fixture input for smoke testing |
 | `prisma/schema.prisma` | Required | Database schema starter |
-| `src/index.ts` | Required | Entry point — `src/` must be non-empty |
+| `src/index.ts` | Required | Entry point (`src/` must be non-empty |
 | `package.json` | Required | Node package definition |
 | `tsconfig.json` | Optional | TypeScript config |
 
@@ -455,8 +455,8 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 
 **Where placeholders can appear:**
 - Any file's contents
-- Filenames — e.g., `{{PROJECT_NAME}}.config.ts`
-- Directory names — e.g., `.studio/projects/{{TEMPLATE_NAME}}/`
+- Filenames: e.g., `{{PROJECT_NAME}}.config.ts`
+- Directory names: e.g., `.studio/projects/{{TEMPLATE_NAME}}/`
 
 **Error behavior:**
 - Unresolved placeholder (config key not set) → generation fails, lists all missing placeholders
@@ -466,7 +466,7 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 
 `studio validate template <path>` runs two levels in sequence and stops at first failure.
 
-**Level 1 — Structural** (fast, no parsing):
+**Level 1: Structural** (fast, no parsing):
 - `template.yaml` exists
 - `README.md` exists
 - `.studio/projects/` contains exactly one subdirectory
@@ -477,7 +477,7 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 - `src/` directory exists and is non-empty
 - `inputs/` directory exists with at least one `.input.yaml` file
 
-**Level 2 — Semantic** (parse + cross-reference):
+**Level 2: Semantic** (parse + cross-reference):
 - All YAML files parse without errors
 - Every pipeline stage references a contract that exists in `contracts/`
 - Every pipeline stage references an agent that exists in `agents/`
@@ -500,27 +500,27 @@ Placeholders use `{{DOUBLE_BRACES}}` syntax and are replaced during `studio init
 
 A template must pass all three levels before it can be merged.
 
-**Stage 1 — Validate:**
+**Stage 1: Validate:**
 ```bash
 studio validate template ./templates/<name>
 ```
 Zero errors from structural + semantic validation.
 
-**Stage 2 — Generation test:**
+**Stage 2: Generation test:**
 ```bash
 studio init --template <name> --name test-project --output /tmp/studio-test
 studio validate template /tmp/studio-test
 ```
-Verifies placeholder replacement produces a valid project — no unresolved `{{...}}`, all filenames valid, structure intact.
+Verifies placeholder replacement produces a valid project, no unresolved `{{...}}`, all filenames valid, structure intact.
 
-**Stage 3 — Pipeline smoke test:**
+**Stage 3: Pipeline smoke test:**
 ```bash
 cd /tmp/studio-test
 studio run <template-name>/first-pipeline \
   --input-file .studio/projects/<name>/inputs/example-1.input.yaml \
   --dry-run
 ```
-At least one pipeline runs end-to-end against a fixture input. The `--dry-run` flag mocks all LLM calls — use it in CI to avoid API costs. Real API in manual testing.
+At least one pipeline runs end-to-end against a fixture input. The `--dry-run` flag mocks all LLM calls, use it in CI to avoid API costs. Real API in manual testing.
 
 > Every template **must** ship with at least one `inputs/*.input.yaml` fixture. This file doubles as documentation and as test data.
 
@@ -564,11 +564,11 @@ The app is **functional immediately**. You can run the included pipelines.
 
 ### Customization workflow
 
-1. **Test the defaults** — Run the included pipelines to understand the pattern
-2. **Extend pipelines** — Add your own stages or modify existing ones
-3. **Add tools** — Create `.tool.yaml` files for your specific needs
-4. **Extend schema** — Add tables/fields to `prisma/schema.prisma`
-5. **Build UI/CLI** — Add your application layer in `src/`
+1. **Test the defaults**: Run the included pipelines to understand the pattern
+2. **Extend pipelines**: Add your own stages or modify existing ones
+3. **Add tools**: Create `.tool.yaml` files for your specific needs
+4. **Extend schema**: Add tables/fields to `prisma/schema.prisma`
+5. **Build UI/CLI**: Add your application layer in `src/`
 
 ## Creating Custom Templates
 
@@ -601,7 +601,7 @@ This should:
 
 ### Publishing templates
 
-> ⚠️ **Not yet implemented** — template publishing to a community registry is on the roadmap. For now, share templates as git repos.
+> ⚠️ **Not yet implemented**: template publishing to a community registry is on the roadmap. For now, share templates as git repos.
 
 ## Template Versioning
 
@@ -615,7 +615,7 @@ version: 1.2.0
 
 When you generate an app from a template, the version is locked in `.studio/registry.lock.json`.
 
-> ⚠️ **`studio template update` not yet implemented** — version upgrades are on the roadmap. For now, manually copy updated pipeline/contract files from the template source.
+> ⚠️ **`studio template update` not yet implemented**: version upgrades are on the roadmap. For now, manually copy updated pipeline/contract files from the template source.
 
 ## Template Registry (Future)
 
@@ -692,7 +692,6 @@ studio init --template @john/legal-analysis --name my-tool
 
 **Result:** Voice feminization training app
 
-**Same template, completely different product.**
 
 ---
 
@@ -704,7 +703,7 @@ No. You can create `.studio/` manually and define everything yourself. Templates
 
 ### Can I modify template code after generation?
 
-**Yes, absolutely.** Once generated, the code is yours. Modify anything. The template is just a starting point.
+**Yes.** Once generated, the code is yours. Modify anything. The template is just a starting point.
 
 ### Can I combine multiple templates?
 
@@ -739,6 +738,6 @@ Submit a PR to `Studio/templates/` with your template + documentation.
 ---
 
 **See also:**
-- **[CLAUDE.md](CLAUDE.md)** — Core Studio documentation
-- **[README.md](README.md)** — Public-facing overview
-- **[PHILOSOPHY.md](PHILOSOPHY.md)** — Studio's philosophy and design principles
+- **[CLAUDE.md](CLAUDE.md)**: Core Studio documentation
+- **[README.md](README.md)**: Public-facing overview
+- **[PHILOSOPHY.md](PHILOSOPHY.md)**: Studio's philosophy and design principles

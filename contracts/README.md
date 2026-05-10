@@ -2,7 +2,7 @@
 
 **Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is **contracts**: the shared TypeScript types and interfaces that every other Studio package imports. Zero dependencies, zero logic.
 
-`contracts` is the leaf of the dependency graph. It defines the language all Studio packages speak — `PipelineDefinition`, `StageRun`, `OutputContract`, `AgentConfig`, `LLMRequest`, and the rest. Install it if you're writing tooling that reads or produces Studio configs, or if you're embedding Studio packages into your own code and need the types.
+`contracts` is the leaf of the dependency graph. It defines the language all Studio packages speak: `PipelineDefinition`, `StageRun`, `OutputContract`, `AgentConfig`, `LLMRequest`, and the rest. Install it if you're writing tooling that reads or produces Studio configs, or if you're embedding Studio packages into your own code and need the types.
 
 - Homepage: https://github.com/studio-foundation/studio
 - Full docs: [README](https://github.com/studio-foundation/studio#readme) · [INVARIANTS](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)
@@ -140,8 +140,8 @@ Used by the `studio_run` builtin tool to spawn sub-pipelines from within an agen
 
 Internal rules that govern this package:
 
-- **Zero dependencies** — no imports from other `@studio-foundation/*` packages, ever.
-- **Zero logic** — types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
+- **Zero dependencies**: no imports from other `@studio-foundation/*` packages, ever.
+- **Zero logic**: types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
 - If you need to add a type used by two packages, put it here.
 - If you're adding logic, you're in the wrong package.
 

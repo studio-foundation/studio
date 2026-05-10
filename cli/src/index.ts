@@ -95,10 +95,11 @@ program
   .description('Initialize a new Studio project in the current directory')
   .option('--template <name>', 'Project template to use (e.g. software)')
   .option('--project <name>', 'Project name (defaults to directory name or "default")')
-  .option('--provider <name>', 'LLM provider (anthropic, openai) — enables direct mode')
+  .option('--provider <name>', 'LLM provider (anthropic, openai, ollama) — enables direct mode')
+  .option('--model <name>', 'Default model (e.g. qwen2.5:14b for ollama, claude-sonnet-4-20250514 for anthropic)')
   .option('--api-key <key>', 'API key for the provider')
   .option('--force', 'Backup existing .studio/ and reinitialize')
-  .option('--yes', 'Skip confirmation prompts (for CI/CD)')
+  .option('--yes', 'Skip confirmation prompts (for CI/CD); auto-selects ollama if available')
   .option('--no-tools', 'Skip tool installation (direct mode only)')
   .action(initCommand);
 

@@ -2,7 +2,7 @@
 
 **Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **anonymizer**: a PII detection and anonymization library that replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
 
-anonymizer sits at the bottom of the stack — a pure utility with zero `@studio-foundation/*` dependencies. It's usable standalone in any TypeScript project, and it's what powers `anonymize: true` in Studio agent configs.
+anonymizer sits at the bottom of the stack, a pure utility with zero `@studio-foundation/*` dependencies. It's usable standalone in any TypeScript project, and it's what powers `anonymize: true` in Studio agent configs.
 
 - Homepage: https://github.com/studio-foundation/studio
 - Full docs: [README](https://github.com/studio-foundation/studio#readme) · [CONCEPTS](https://github.com/studio-foundation/studio/blob/main/CONCEPTS.md)
@@ -43,7 +43,7 @@ user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() �
 
 | Category | Token format | What it detects |
 |----------|-------------|-----------------|
-| `person` | `PERSON_N` | Names after salutations (Dear, Hi, Mr., Dr., etc.) — best effort |
+| `person` | `PERSON_N` | Names after salutations (Dear, Hi, Mr., Dr., etc.) (best effort) |
 | `email` | `EMAIL_N` | Email addresses |
 | `phone` | `PHONE_N` | US phone numbers (10 digits, various formats) |
 | `ssn` | `SSN_N` | Social security numbers (ddd-dd-dddd) |
@@ -54,9 +54,9 @@ user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() �
 
 Two-phase detection on each call:
 
-1. **Regex (high precision)** — email, phone, SSN, credit card. Structural patterns anchored to avoid false positives (e.g. SSN regex uses strict hyphen format to avoid matching phone fragments).
+1. **Regex (high precision)**: email, phone, SSN, credit card. Structural patterns anchored to avoid false positives (e.g. SSN regex uses strict hyphen format to avoid matching phone fragments).
 
-2. **Person names (best effort)** — salutation-gated pattern (`Dear X`, `Hi X`, `Mr. X`, etc.). Only catches explicitly addressed names — not bare occurrences.
+2. **Person names (best effort)**: salutation-gated pattern (`Dear X`, `Hi X`, `Mr. X`, etc.). Only catches explicitly addressed names, not bare occurrences.
 
 Spans are non-overlapping. If two patterns match the same range, the first one wins and the position is marked occupied.
 
@@ -90,15 +90,15 @@ The runner wraps this in `AnonymizationMiddleware` (in `runner/src/middleware/an
 2. Tool results are anonymized before being injected back into context
 3. The accumulated keymap is written to `.studio/runs/anonymization/<run-id>.keymap.json` for post-run inspection
 
-The middleware is wired by the engine and passed to `runAgent()` — user code doesn't call `anonymize()` directly when using the Studio CLI.
+The middleware is wired by the engine and passed to `runAgent()`, user code doesn't call `anonymize()` directly when using the Studio CLI.
 
 ## For contributors
 
 Internal rules that govern this package:
 
 - **Zero `@studio-foundation/*` dependencies.** This package must stay a pure utility.
-- `anonymize()` is stateless — the `Tokenizer` is created fresh each call (or seeded via `seedKeymap`).
-- Person detection is always best-effort and non-fatal — failures are silently skipped.
+- `anonymize()` is stateless, the `Tokenizer` is created fresh each call (or seeded via `seedKeymap`).
+- Person detection is always best-effort and non-fatal, failures are silently skipped.
 
 ## License
 
