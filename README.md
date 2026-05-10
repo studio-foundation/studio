@@ -1,6 +1,6 @@
 # Studio
 
-**Agentic pipeline runtime with structural validation.**
+Pipeline orchestrator for LLM workflows. Validates outputs structurally, retries automatically, advances only when a stage passes.
 
 ```
 $ studio run software/feature-builder --input "Add a FAQ section to the About page"
@@ -14,7 +14,7 @@ Pipeline completed in 4m32s
 Files changed: src/pages/About.tsx (+47 lines)
 ```
 
-Run this 10 times. It passes 10 times. That's the point.
+Run it 10 times. You get 10 correct outputs. That's what the validation loop is for.
 
 ---
 
