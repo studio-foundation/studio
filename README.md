@@ -132,7 +132,7 @@ pnpm build
 | Document | Content |
 |----------|---------|
 | [CONCEPTS.md](./CONCEPTS.md) | RALPH loop, output contracts, anti-theatre, groups, hooks, skills, architecture deep dive |
-| [TEMPLATES.md](./TEMPLATES.md) | The 5 architectural templates — software, finance, analysis, data, conversation |
+| [TEMPLATES.md](./TEMPLATES.md) | The 5 architectural templates: software, finance, analysis, data, conversation |
 | [CLI.md](./CLI.md) | All CLI commands, `.studio/` structure, config format |
 | [API.md](./API.md) | HTTP endpoints, SSE streaming, webhooks |
 | [PHILOSOPHY.md](./PHILOSOPHY.md) | Political anchoring, open source as structural choice, governance principles |
@@ -144,25 +144,28 @@ pnpm build
 | Project | What it does | Template |
 |---------|-------------|----------|
 | [Wiki Creator](https://github.com/studio-foundation/wiki-creator) | Extracts entities, relationships, and generates wiki pages from EPUB books using NLP + LLM pipelines | `analysis` |
-| [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) | AI meal planner — researches cuisines, develops recipes with nutritional profiles, generates grocery lists | `software` |
+| [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) | AI meal planner: researches cuisines, develops recipes with nutritional profiles, generates grocery lists | `software` |
+
+---
+
+## Design principles
+
+Studio prioritizes reliability over speed. Pipelines validate structurally at every stage, retry with bounded budgets, and refuse to claim work they didn't do. The cost is some overhead per run. The benefit is that production failures are rare and explicable.
 
 ---
 
 ## Status
 
-**Studio is in beta (v0.3.0-beta).** The core works — RALPH loop, pipeline engine, groups, hooks, tools, multi-provider, CLI, API — but expect rough edges, breaking changes, and missing pieces. The architecture is stable; the surface is still moving.
+**Studio is in beta (v0.3.0-beta).** The core works (RALPH loop, pipeline engine, groups, hooks, tools, multi-provider, CLI, API) but expect rough edges, breaking changes, and missing pieces. The architecture is stable; the surface is still moving.
 
-**Current priority:** Code Builder end-to-end — Linear webhook to pipeline run to commit + PR.
+**Current priority:** Code Builder end-to-end, Linear webhook to pipeline run to commit + PR.
 
 **Known limitations:**
 - Only the `software` template is production-ready. `finance`, `analysis`, `data`, and `conversation` are structural starters with stub tools.
-- No template upgrade path yet — once generated, manual sync only.
+- No template upgrade path yet. Once generated, manual sync only.
 - Community registry is not live. Tool sharing is via git repos for now.
 - Error messages are sometimes cryptic. Improving progressively.
 - Documentation may lag behind implementation.
 
 If you hit something broken, that's expected at this stage. [Open an issue.](https://github.com/studio-foundation/studio/issues)
 
----
-
-> Studio is not built to be fast. It is built to last.
