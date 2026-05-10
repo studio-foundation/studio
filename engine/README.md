@@ -4,7 +4,7 @@ Pipeline orchestration, state machine, persistence, hooks, and skills injection.
 
 ## Role
 
-engine is the conductor. It loads pipeline configs, sequences stages, delegates execution to ralph+runner, tracks state in SQLite, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills — but never about LLMs, files, or domain concepts.
+engine is the conductor. It loads pipeline configs, sequences stages, delegates execution to ralph+runner, tracks state in SQLite, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills, but never about LLMs, files, or domain concepts.
 
 ```
 cli → engine.run(pipeline, input) → PipelineRun
@@ -58,9 +58,9 @@ The engine executes stage hooks at four deterministic points:
 | `post_tool_use` | After a tool call (matcher-gated) | `{{tool.argName}}` |
 
 Hook failure semantics via `on_failure`:
-- `warn` (default) — log and continue
-- `reject` — stage → `rejected` (can trigger group retry)
-- `fail` — stage → `failed` (stops pipeline)
+- `warn` (default): log and continue
+- `reject`: stage → `rejected` (can trigger group retry)
+- `fail`: stage → `failed` (stops pipeline)
 
 `pre_tool_use` hooks with any failure block the tool call. Hook commands run in `repoPath` (or `configsDir` as fallback). Implemented in `pipeline/hook-executor.ts`.
 
