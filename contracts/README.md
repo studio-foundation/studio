@@ -4,7 +4,7 @@ Shared TypeScript types and interfaces for the Studio monorepo. Zero dependencie
 
 ## Role
 
-`contracts` is the leaf package — every other Studio package imports from it, nothing imports it back. It defines the language that all packages speak.
+`contracts` is the leaf package, every other Studio package imports from it, nothing imports it back. It defines the language that all packages speak.
 
 ```
 contracts ← ralph
@@ -100,7 +100,7 @@ Used by the `studio_run` builtin tool to spawn sub-pipelines from within an agen
 
 ## Rules
 
-- **Zero dependencies** — no imports from other `@studio/*` packages, ever.
-- **Zero logic** — types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
+- **Zero dependencies**: no imports from other `@studio/*` packages, ever.
+- **Zero logic**: types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
 - If you need to add a type used by two packages, put it here.
 - If you're adding logic, you're in the wrong package.
