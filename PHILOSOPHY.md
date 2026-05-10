@@ -6,7 +6,7 @@ Studio is an explicitly political project.
 
 ## The position
 
-The productivity gains from AI are real. But left unchecked, they follow the same pattern as every previous wave of automation: the value concentrates at the top, the tools become proprietary, and the people who need them most are priced out.
+The productivity gains from AI are real. Left unchecked, they follow the same pattern as every previous wave of automation. Value concentrates at the top. Tools become proprietary. The people who need them most get priced out.
 
 Studio exists to make that harder to do.
 
