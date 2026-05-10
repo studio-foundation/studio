@@ -76,7 +76,7 @@ What this means concretely:
 
 - **You can build commercial products on Studio.** Use it, extend it, sell what you build.
 - **If you modify Studio itself and run the modified version as a network service**, you must publish your changes under the same license.
-- **Using Studio as a dependency** in your application does not require you to open-source your application. The AGPL applies to Studio's code, not to the YAML configs and application code you write on top of it.
+- **Using Studio as a dependency** does not require you to open-source your application. The AGPL applies to Studio's code, not to the YAML configs and application code you write on top of it.
 
 The kernel is a commons. The license is the mechanism that keeps it that way.
 
