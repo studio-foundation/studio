@@ -1,6 +1,6 @@
 # API
 
-HTTP REST API for machine-to-machine usage. Same engine, different interface — for when there's no human at the terminal.
+HTTP REST API for machine-to-machine usage. Same engine, different interface, for when there's no human at the terminal.
 
 Start the server:
 
@@ -110,7 +110,7 @@ See [CONCEPTS.md](./CONCEPTS.md) for the full event list.
 
 ## Swagger UI
 
-Available at `/api/docs` in development (`NODE_ENV !== production`). Generated automatically from route schemas — no manual spec maintenance.
+Available at `/api/docs` in development (`NODE_ENV !== production`). Generated automatically from route schemas, no manual spec maintenance.
 
 Raw OpenAPI spec at `/api/docs/json` for client generation.
 
