@@ -135,11 +135,11 @@ es.addEventListener('pipeline_complete', (e) => { es.close(); });
 
 The API manages integration lifecycle (webhook routing, failure handling). Integrations are configured via `.studio/config.yaml` and declared via `.integration.yaml` files in `.studio/integrations/`.
 
-**Linear integration** — drag an issue to "In Progress" → Studio receives the webhook → auto-launches the matching pipeline → posts results as a comment → moves the issue to "Done" on success.
+**Linear integration**: drag an issue to "In Progress" → Studio receives the webhook → auto-launches the matching pipeline → posts results as a comment → moves the issue to "Done" on success.
 
 ## Sub-pipeline spawning
 
-The API uses `HttpApiSpawner` — a self-referential `RunSpawner` that calls back into the same API to spawn child runs. This is how `studio_run` tool calls work when the engine is running behind the API.
+The API uses `HttpApiSpawner`, a self-referential `RunSpawner` that calls back into the same API to spawn child runs. This is how `studio_run` tool calls work when the engine is running behind the API.
 
 ## Bootstrap internals
 
@@ -156,6 +156,6 @@ The API uses `HttpApiSpawner` — a self-referential `RunSpawner` that calls bac
 ## Rules
 
 - **api depends on engine + runner.** It is a composition root, same as cli.
-- **Routes must have complete Swagger schemas** — tags, summary, params, response codes. Without this, routes don't appear in Swagger UI.
-- **The engine is the same.** The API doesn't bypass or wrap the engine — it delegates to `InProcessLauncher`, which calls `PipelineEngine.run()` directly.
+- **Routes must have complete Swagger schemas**: tags, summary, params, response codes. Without this, routes don't appear in Swagger UI.
+- **The engine is the same.** The API doesn't bypass or wrap the engine, it delegates to `InProcessLauncher`, which calls `PipelineEngine.run()` directly.
 - `studio api start` calls `bootstrap()` then `buildServer()`. The two steps are separate so programmatic users can customize between them.
