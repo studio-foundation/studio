@@ -71,7 +71,7 @@ studio registry sync                             # Sync registry.lock.json
 studio registry update [name]                    # Update installed tools
 ```
 
-> Registry commands are functional locally; the public community registry is not yet live. For now, share tools as git repos.
+The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
 
 ### Other
 

@@ -165,7 +165,7 @@ Studio prioritizes reliability over speed. Pipelines validate structurally at ev
 **Known limitations:**
 - Only the `software` template is production-ready. `finance`, `analysis`, `data`, and `conversation` are structural starters with stub tools.
 - No template upgrade path yet. Once generated, manual sync only.
-- The [studio-community](https://github.com/studio-foundation/studio-community) repo is the community registry hub (tools, templates, pipelines, agents, skills). The `studio registry` CLI is not yet wired up to install from it directly — browse and clone manually for now.
+- Community registry lives at [studio-community](https://github.com/studio-foundation/studio-community) (tools, templates, pipelines, agents, skills). Install with `studio registry install <name>`, search with `studio registry search <query>`, publish with `studio registry publish <path>`.
 - Error messages are sometimes cryptic. Improving progressively.
 - Documentation may lag behind implementation.
 
