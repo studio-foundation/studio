@@ -150,6 +150,18 @@ pnpm build
 
 ---
 
+## Community registry
+
+[studio-community](https://github.com/studio-foundation/studio-community) is the shared registry for tools, templates, pipelines, integrations, agents, plugins, and skills. Open publish, no review gate.
+
+```bash
+studio registry search <query>
+studio registry install <name>
+studio registry publish <path>      # forks the registry repo and opens a PR
+```
+
+---
+
 ## Design principles
 
 Studio prioritizes reliability over speed. Pipelines validate structurally at every stage, retry with bounded budgets, and refuse to claim work they didn't do. The cost is some overhead per run. The benefit is that production failures are rare and explicable.
@@ -165,7 +177,6 @@ Studio prioritizes reliability over speed. Pipelines validate structurally at ev
 **Known limitations:**
 - Only the `software` template is production-ready. `finance`, `analysis`, `data`, and `conversation` are structural starters with stub tools.
 - No template upgrade path yet. Once generated, manual sync only.
-- Community registry is not live. Tool sharing is via git repos for now.
 - Error messages are sometimes cryptic. Improving progressively.
 - Documentation may lag behind implementation.
 
