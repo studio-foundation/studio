@@ -379,7 +379,7 @@ To validate a template against the full ruleset:
 studio validate template <path>
 ```
 
-Publishing templates to a community registry is on the roadmap. For now, share templates as git repos.
+To share a template with the community, submit it to [studio-community](https://github.com/studio-foundation/studio-community) under `templates/`. The `studio registry` CLI is not yet wired up to install from there directly — for now, clone the template repo manually.
 
 ---
 
