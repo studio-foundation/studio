@@ -50,11 +50,9 @@ Validation is binary. The output either satisfies every constraint or it doesn't
 
 **`tool_calls.minimum`** catches agents that claim to have done work without actually doing it. If the contract requires at least 1 tool call and the agent made 0, the stage fails, regardless of what the agent wrote in its output.
 
-**`tool_calls.maximum`** catches infinite loops. If an agent makes more tool calls than the cap, something is wrong.
+**`tool_calls.maximum`** catches infinite loops and bounds runaway costs. If an agent makes more tool calls than the cap, the stage fails — the cap is also a hard ceiling on per-stage spend, useful when running an orchestrator you don't fully trust yet.
 
 **`required_tools`** enforces that specific tools were actually called. A code generation stage that never called `write_file` didn't generate code.
-
-> In contract YAML, tools use dot notation (`repo_manager.write_file`). The engine transforms to dash notation (`repo_manager-write_file`) internally.
 
 ---
 
@@ -308,3 +306,9 @@ Switch models without changing pipeline logic. The orchestration layer depends o
 ```
 
 **No inverse dependencies.** ralph does not know runner. runner does not know engine. If you find yourself importing "upward," it's an architecture error.
+
+---
+
+## Gotchas
+
+**Tool naming: dot vs dash.** In contract YAML, tools use dot notation (`repo_manager.write_file`). The engine transforms to dash notation (`repo_manager-write_file`) at runtime, and that's the form you'll see in logs, hook matchers, and validation errors. Both refer to the same tool.
