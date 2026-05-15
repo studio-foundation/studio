@@ -1,6 +1,6 @@
 # @studio-foundation/engine
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **engine**: pipeline orchestration, state machine, persistence, lifecycle hooks, and skills injection.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is the **engine**: pipeline orchestration, state machine, persistence, lifecycle hooks, and skills injection.
 
 It loads pipeline configs, sequences stages, delegates each stage to [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) + [`runner`](https://www.npmjs.com/package/@studio-foundation/runner), persists state, and emits events for observability. It knows about pipelines, stages, groups, hooks, and skills, but never about LLMs, files, or domain concepts.
 

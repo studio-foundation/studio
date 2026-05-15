@@ -1,6 +1,6 @@
 # @studio-foundation/api
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **HTTP REST API**: the machine-to-machine interface over the same engine the CLI uses. Like GitHub is to `git`.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is the **HTTP REST API**: the machine-to-machine interface over the same engine the CLI uses. Like GitHub is to `git`.
 
 It wraps the engine in a Fastify server and handles fire-and-forget pipeline launches, real-time SSE streaming, webhook dispatch (Linear, Slack, CI/CD), and integration lifecycle. Use it to drive Studio from anything that can make an HTTP call.
 

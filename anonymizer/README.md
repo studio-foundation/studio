@@ -1,6 +1,6 @@
 # @studio-foundation/anonymizer
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **anonymizer**: a PII detection and anonymization library that replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is the **anonymizer**: a PII detection and anonymization library that replaces sensitive data with consistent tokens before sending to LLMs, with a keymap to restore the original values afterward.
 
 anonymizer sits at the bottom of the stack, a pure utility with zero `@studio-foundation/*` dependencies. It's usable standalone in any TypeScript project, and it's what powers `anonymize: true` in Studio agent configs.
 
