@@ -50,7 +50,7 @@ The agent framework crowd — LangGraph, CrewAI, Autogen — all share a premise
 | Autogen | Python code (conversation) | Ad-hoc | Conversation-driven | MIT |
 | **Studio** | **YAML configs** | **Structured output contracts, binary pass/fail** | **Declarative parallel groups** | **AGPL-3.0** |
 
-If your tool is one of the first three, you wrote code that constructs a graph or registers decorators. If your tool is Studio, you wrote a YAML file someone non-technical can read, audit, and modify without touching a programming environment. The trade-off is intentional, not accidental.
+If your tool is one of the first three, you wrote code that constructs a graph or registers decorators. If your tool is Studio, you wrote a YAML file that's reviewable line by line : auditable by a teammate, modifiable without a programming environment. The trade-off is intentional, not accidental.
 
 ---
 
