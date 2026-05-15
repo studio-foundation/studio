@@ -236,7 +236,7 @@ studio registry publish <path>      # forks the registry repo and opens a PR
 
 ## Status
 
-**Studio is in beta (v0.4.0).** The core works (RALPH loop, pipeline engine, groups, hooks, tools, multi-provider, CLI, API) but expect rough edges, breaking changes, and missing pieces. The architecture is stable; the surface is still moving.
+**Studio is in beta (v0.4.1).** The core works (RALPH loop, pipeline engine, groups, hooks, tools, multi-provider, CLI, API) but expect rough edges, breaking changes, and missing pieces. The architecture is stable; the surface is still moving.
 
 **Current priority:** Code Builder end-to-end, Linear webhook to pipeline run to commit + PR.
 
