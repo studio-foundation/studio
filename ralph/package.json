@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/ralph",
   "version": "0.4.1",
-  "description": "RALPH loop engine - Recursive Automated Loop for Persistent Handling",
+  "description": "Retry loop: execute, validate, retry with escalating feedback. The R in RALPH. Used by Studio.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

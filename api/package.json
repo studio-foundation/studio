@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/api",
   "version": "0.4.1",
-  "description": "HTTP REST API server for Studio — declarative YAML runtime for AI agents",
+  "description": "HTTP REST API server for Studio agent pipelines",
   "type": "module",
   "main": "./dist/api.js",
   "types": "./dist/api.d.ts",
