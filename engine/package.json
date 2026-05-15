@@ -20,7 +20,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "studio",
     "engine",

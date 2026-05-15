@@ -19,8 +19,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "files": ["dist"],
-  "keywords": ["studio", "types", "contracts"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "studio",
+    "types",
+    "contracts"
+  ],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
   "devDependencies": {

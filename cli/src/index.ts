@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
+import { createRequire } from 'module';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { runCommand } from './commands/run.js';
@@ -23,12 +24,15 @@ import { usersCommand } from './commands/users.js';
 import { ollamaCommand } from './commands/ollama.js';
 import { loadConfig } from './config.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('studio')
   .description('Studio — Declarative YAML runtime for AI agents')
-  .version('0.3.0');
+  .version(version);
 
 program
   .command('run <project/pipeline>')

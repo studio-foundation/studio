@@ -10,8 +10,14 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
-  "files": ["dist"],
-  "keywords": ["pii", "anonymization", "privacy"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "pii",
+    "anonymization",
+    "privacy"
+  ],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
   "dependencies": {
