@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/engine",
-  "version": "0.4.0",
-  "description": "Pipeline orchestration engine for Studio v7",
+  "version": "0.4.1",
+  "description": "Pipeline orchestration, state machine, and lifecycle hooks for Studio",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "studio",
     "engine",

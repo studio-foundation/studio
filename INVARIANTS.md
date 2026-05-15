@@ -1,4 +1,4 @@
-# INVARIANTS.md: Studio v7
+# INVARIANTS.md: Studio
 
 Non-negotiable contracts on system behavior. These invariants are enforced by code (TypeScript types, package structure, dependency graph), this file makes them explicit for humans and AI agents.
 
@@ -72,7 +72,7 @@ Non-negotiable contracts on system behavior. These invariants are enforced by co
 
 **Enforced by:** [`engine/src/state/status-derivation.ts`](engine/src/state/status-derivation.ts): exhaustive mapping with a `throw` for unknown states. `RalphResult` is a discriminated union with 3 states: `success | exhausted | cancelled`.
 
-**What breaks if violated:** This was bug #1 in v6, where stage status did not match task result. In v7, this function is the single contract between ralph and engine. If it becomes non-deterministic (branching on output content, intermediate states), the pipeline becomes unpredictable.
+**What breaks if violated:** This was an early architectural bug where stage status did not match task result. The current design makes this function the single contract between ralph and engine. If it becomes non-deterministic (branching on output content, intermediate states), the pipeline becomes unpredictable.
 
 ---
 

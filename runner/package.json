@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/runner",
-  "version": "0.4.0",
-  "description": "Multi-provider LLM agent runner with tool execution",
+  "version": "0.4.1",
+  "description": "Multi-provider LLM agent runner with tool plugin execution (Anthropic, OpenAI, mock). Used by Studio.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -10,7 +10,9 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "llm",
     "agent",

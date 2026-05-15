@@ -1,11 +1,11 @@
 // Derive stage status from ralph result
 // THIS IS THE CRITICAL FUNCTION
 //
-// In v7, each stage = 1 ralph call = 1 task.
+// Each stage = 1 ralph call = 1 task.
 // This function maps ralph's result directly to stage status.
 //
-// This was the #1 bug in v6: stage status didn't match task status.
-// v7 fix: SIMPLE, DETERMINISTIC, NO MAGIC.
+// An earlier architectural bug let stage status drift from task status.
+// The fix: SIMPLE, DETERMINISTIC, NO MAGIC.
 
 import type { RalphResult } from '@studio-foundation/ralph';
 import type { StageStatus } from '@studio-foundation/contracts';

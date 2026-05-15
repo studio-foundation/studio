@@ -1,8 +1,8 @@
-// Resolve stages (sequential for v7)
+// Resolve stages (sequential)
 import type { StageDefinition } from '@studio-foundation/contracts';
 
 export function resolveStages(stages: StageDefinition[]): StageDefinition[] {
-  // For v7: just return stages in order (sequential execution)
+  // Return stages in order (sequential execution)
   // Future: could support DAG, parallel stages
   return stages;
 }

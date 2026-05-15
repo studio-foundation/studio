@@ -1,4 +1,4 @@
-# CLAUDE.md — Studio v7
+# CLAUDE.md — Studio
 
 Studio is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. The engine is domain-agnostic — it knows nothing about code, files, or QA. All domain comes from YAML configs.
 

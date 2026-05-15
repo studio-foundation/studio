@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/contracts",
-  "version": "0.4.0",
-  "description": "Shared TypeScript types and interfaces for Studio v7",
+  "version": "0.4.1",
+  "description": "Shared TypeScript types and interfaces for Studio packages",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,8 +19,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "files": ["dist"],
-  "keywords": ["studio", "types", "contracts"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "studio",
+    "types",
+    "contracts"
+  ],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
   "devDependencies": {

@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/anonymizer",
-  "version": "0.4.0",
-  "description": "PII detection and anonymization with consistent token mapping",
+  "version": "0.4.1",
+  "description": "PII detection and anonymization for LLM workflows, with consistent token mapping. Used by Studio.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -10,8 +10,14 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
-  "files": ["dist"],
-  "keywords": ["pii", "anonymization", "privacy"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "pii",
+    "anonymization",
+    "privacy"
+  ],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
   "dependencies": {
