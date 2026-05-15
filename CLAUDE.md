@@ -1,6 +1,6 @@
 # CLAUDE.md — Studio v7
 
-Studio is a domain-agnostic agentic pipeline orchestrator. It executes multi-stage workflows using LLMs, with strict validation and automatic retry. The engine knows nothing about code, files, or QA — all domain comes from YAML configs.
+Studio is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. The engine is domain-agnostic — it knows nothing about code, files, or QA. All domain comes from YAML configs.
 
 ## Architecture — 7 packages, 1 monorepo
 

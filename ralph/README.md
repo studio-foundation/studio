@@ -1,6 +1,6 @@
 # @studio-foundation/ralph
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is **ralph**: the retry engine. Execute → validate → retry with escalated feedback → repeat, until success or max attempts is reached.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is **ralph**: the retry engine. Execute → validate → retry with escalated feedback → repeat, until success or max attempts is reached.
 
 **RALPH** = Recursive Automated Loop for Persistent Handling.
 

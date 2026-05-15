@@ -1,6 +1,6 @@
 # @studio-foundation/runner
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is the **runner**: a multi-provider LLM agent runner with tool plugin execution, streaming support, and PII anonymization.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is the **runner**: a multi-provider LLM agent runner with tool plugin execution, streaming support, and PII anonymization.
 
 It's the only package that knows about Anthropic, OpenAI, or what `repo_manager-write_file` does. Give it an agent config and a task, it builds the prompt, calls the LLM, executes tool calls, and returns the result. It doesn't validate, it doesn't retry — [`ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) handles that loop.
 

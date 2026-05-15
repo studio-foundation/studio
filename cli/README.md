@@ -1,6 +1,6 @@
 # @studio-foundation/cli
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. Pipelines are defined in YAML, every stage output is validated against a contract, and failures are retried with escalated feedback, no stage advances until its output is structurally proven correct.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. Pipelines are defined in YAML, every stage output is validated against a contract, and failures are retried with escalated feedback — no stage advances until its output is structurally proven correct.
 
 This package is the **CLI**: the `studio` binary. It reads your config, wires up providers and tools, delegates execution to the engine, and renders progress to your terminal.
 
@@ -11,11 +11,12 @@ This package is the **CLI**: the `studio` binary. It reads your config, wires up
 
 If you've ever wrapped the Anthropic or OpenAI API in a script and watched it claim success while silently skipping steps, Studio is for you. You get:
 
-- **Structural validation**: every stage output is checked against a JSON-schema contract. Binary pass/fail.
+- **Structured output validation**: every stage output is checked against a JSON-schema contract. Binary pass/fail.
 - **Automatic retry with feedback**: failures are re-run with the validation error injected into the prompt, up to `max_attempts`.
-- **Anti-theatre**: if an agent claims to have written a file but made zero tool calls, it fails. Tool calls are tracked by the runner, not self-reported.
+- **Tool-call verification (anti-theatre)**: if an agent claims to have written a file but made zero tool calls, it fails. Tool calls are tracked by the runner, not self-reported.
 - **Observability out of the box**: stream every tool call, retry, and rejection in real time with `--live`.
 - **Deterministic config**: pipelines, contracts, agents and tools are YAML. The engine is domain-agnostic; the behavior lives in the files.
+- **TypeScript and YAML, no Python**: declarative configs, no decorators or graph builders. A LangGraph or CrewAI alternative for teams that prefer their orchestration in config files.
 
 ## Install
 

@@ -1,6 +1,6 @@
 # @studio-foundation/contracts
 
-**Studio** is an agentic pipeline runtime that executes multi-stage LLM workflows with structural validation and automatic retry. This package is **contracts**: the shared TypeScript types and interfaces that every other Studio package imports. Zero dependencies, zero logic.
+**Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is **contracts**: the shared TypeScript types and interfaces that every other Studio package imports. Zero dependencies, zero logic.
 
 `contracts` is the leaf of the dependency graph. It defines the language all Studio packages speak: `PipelineDefinition`, `StageRun`, `OutputContract`, `AgentConfig`, `LLMRequest`, and the rest. Install it if you're writing tooling that reads or produces Studio configs, or if you're embedding Studio packages into your own code and need the types.
 
