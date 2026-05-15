@@ -1,49 +1,136 @@
 # Studio
 
-**An LLM pipeline that fails loudly when an agent lies about what it did.**
+**Studio runs AI pipelines. It knows nothing about your code, your domain, or your model. That's the design.**
 
-Validates outputs structurally, retries automatically, advances only when a stage passes.
+A declarative orchestration runtime for agentic pipelines. You write a YAML file. Studio executes the stages, validates each output against a JSON-schema contract, retries on failure, and runs groups of stages in parallel or in generation-validation loops. The engine doesn't care whether you're building software, parsing books, planning meals, or analyzing transactions — domain logic lives entirely in your configs.
+
+```yaml
+# pipelines/feature-builder.pipeline.yaml
+name: feature-builder
+stages:
+  - name: brief-analysis
+    agent: analyst
+    contract: brief-analysis
+
+  - group: implementation-review
+    max_iterations: 3
+    stages:
+      - name: code-generation
+        agent: coder
+        contract: code-generation     # requires tool_calls.minimum: 1
+      - name: qa-review
+        agent: analyst
+        contract: qa-review           # rejects → group restarts with feedback
+```
 
 ```
-$ studio run software/feature-builder --input "Add a FAQ section to the About page"
+$ studio run feature-builder --input "Add a FAQ section to the About page"
 
-[1/4] brief-analysis ............ ✓ (attempt 1/3)
-[2/4] implementation-plan ....... ✓ (attempt 1/3)
-[3/4] code-generation ........... ✓ (attempt 2/5) ← retry: theatre detected
-[4/4] qa-review ................. ✓ (attempt 1/3)
+[1/2] brief-analysis ............ ✓ (attempt 1/3)
+[2/2] implementation-review ..... ✓ (iteration 2/3)
+       ├── code-generation ...... ✓ (attempt 2/5) ← retry: theatre detected
+       └── qa-review ............ ✓ (attempt 1/2)
 
 Pipeline completed in 4m32s
 Files changed: src/pages/About.tsx (+47 lines)
 ```
 
-Run it 10 times. You get 10 correct outputs. That's what the validation loop is for.
+Run it ten times, you get ten correct outputs. That's what the contracts and retries are for.
 
 ---
 
-## The problem
+## Why Studio
 
-AI agents hallucinate results, skip steps they claim to have completed, produce outputs that look correct but aren't. The usual answer is "trust the model" or put a human on every step.
+Studio competes with two families: agentic orchestrators (LangGraph, CrewAI, Autogen) and durable workflow engines (Inngest, Temporal). The trade-offs are explicit:
 
-Studio takes a different position. Verify structurally. Retry automatically. Trust the output contract, not the agent's self-report.
+| Framework | Config surface | Validation | Parallelism | License |
+|-----------|---------------|------------|-------------|---------|
+| LangGraph | Python code (graph builders) | Custom per node | Manual via subgraphs | MIT |
+| CrewAI | Python code (decorators, roles) | Ad-hoc | Built-in, sequential default | MIT |
+| Autogen | Python code (conversation) | Ad-hoc | Conversation-driven | MIT |
+| Inngest | TypeScript code (step functions) | None at workflow level | Native parallel steps | Source-available |
+| Temporal | Multi-language workflow code | None at workflow level | Built-in | MIT |
+| **Studio** | **YAML configs** | **JSON-schema contracts, binary pass/fail** | **Declarative parallel groups** | **AGPL-3.0** |
+
+If your tool is one of the first five, you wrote code that constructs a graph or registers steps. If your tool is Studio, you wrote a YAML file someone non-technical can read, audit, and modify without touching a programming environment. That trade-off is intentional, not accidental.
+
+---
+
+## Three patterns
+
+The patterns below are why Studio exists. Each is declarative — you describe what you want, the engine handles the orchestration. Both [Wiki Creator](https://github.com/studio-foundation/wiki-creator) and [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) lean on these in production.
+
+### Generation-validation groups
+
+One stage produces, another critiques. If the critic rejects, the group restarts from the top with accumulated feedback. Max N iterations. Anti-theatre applied to creativity itself: the generator can't claim success the reviewer didn't grant.
+
+```yaml
+- group: implementation-review
+  max_iterations: 3
+  stages:
+    - name: code-generation
+      agent: coder
+      contract: code-generation
+    - name: qa-review
+      agent: reviewer
+      contract: qa-review            # post_validation.rejection_detection
+```
+
+Rejection isn't a stage failure, it's a status — configured in the contract YAML, not hardcoded. The group restarts with `group_feedback` injected into the next iteration's context.
+
+### Parallel groups
+
+Fan-out / fan-in declared in YAML. Stages run concurrently, results are accumulated for the next stage.
+
+```yaml
+- group: enrichment
+  mode: parallel
+  stages:
+    - name: extract-entities
+      agent: nlp-worker
+      contract: entities
+    - name: extract-relations
+      agent: nlp-worker
+      contract: relations
+    - name: extract-themes
+      agent: nlp-worker
+      contract: themes
+```
+
+No async/await boilerplate. No promise plumbing. The engine handles concurrency and result merging.
+
+### Anti-theatre
+
+Tool calls are tracked by the runner, not self-reported by the agent. If a stage's contract says "must call `repo_manager.write_file` at least once" and the agent made zero such calls, the stage fails — regardless of what its output claims.
+
+```yaml
+# contracts/code-generation.contract.yaml
+schema:
+  required_fields: [summary, files_changed]
+
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager.write_file
+```
+
+This catches the most common failure mode of agent pipelines: the model writes a summary that says "I created `src/foo.ts`" when it never made the tool call. Studio rejects that output. The retry attempt receives the failure as feedback.
+
+---
 
 ## How it works
 
-Studio breaks work into **stages** with explicit **output contracts** (JSON schemas that define what a stage must produce). Each stage runs through a **RALPH loop**: execute, validate against the contract, retry with enriched feedback if it fails. No stage advances until its output passes.
+A pipeline is a YAML file. It declares stages and groups. Each stage references an **agent** (a runtime config — which model, which system prompt, which tools) and an **output contract** (a JSON schema plus optional constraints like tool-call minimums).
+
+The engine executes each stage through the **RALPH loop**: execute → validate → pass advances, fail retries with enriched feedback, bounded by `max_attempts`. No stage advances until its contract passes.
 
 ```
 Pipeline (YAML)
-  └── Stage 1 → RALPH: execute → validate → pass? next : retry
-  └── Stage 2 → RALPH: execute → validate → pass? next : retry
-  └── Stage 3 → RALPH: execute → validate → pass? next : retry
+  ├── Stage → execute → validate → pass? next : retry
+  └── Group → iterate stages → check rejection → restart? : exit
 ```
 
-Validation is binary. Pass or fail.
-
-**Anti-theatre:** If a stage claims to have written files but made zero tool calls, it fails, regardless of what it says in its output. Tool calls are tracked by the runner, not self-reported by the agent.
-
-**Domain-agnostic:** The engine has zero knowledge of what domain it operates in. It doesn't know what "code" or "transactions" or "entities" mean. All domain knowledge lives in YAML configs. This is an architectural commitment, not a feature.
-
-**Provider-agnostic:** Anthropic, OpenAI, Mock, swappable per agent without touching pipeline logic. The orchestration layer doesn't depend on who does the work. It depends on the work being done correctly.
+State machine: `pending → running → success | failed | rejected | skipped`. The distinction between `failed` (contract validation failed) and `rejected` (contract validated but the verdict is negative, e.g. QA rejected) is configured in the contract, not hardcoded.
 
 ---
 
@@ -57,7 +144,7 @@ mkdir my-builder && cd my-builder
 studio init --template software --name my-builder
 ```
 
-`studio init` generates the full project structure: `.studio/` with pipelines, contracts, agents, and tools, plus the app scaffold (`src/`, `package.json`) from the template. It also initializes git and updates `.gitignore`.
+`studio init` generates the full project structure: `.studio/` with pipelines, contracts, agents, and tools, plus the app scaffold (`src/`, `package.json`) from the template. It initializes git and updates `.gitignore`.
 
 ```bash
 # Configure your provider
@@ -67,36 +154,6 @@ studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
 npm install
 studio run software/feature-builder --input "Add dark mode support"
 ```
-
----
-
-## Open source
-
-Studio is licensed under **AGPL-3.0-only**.
-
-What this means concretely:
-
-- **You can build commercial products on Studio.** Use it, extend it, sell what you build.
-- **If you modify Studio itself and run the modified version as a network service**, you must publish your changes under the same license.
-- **Using Studio as a dependency** does not require you to open-source your application. The AGPL applies to Studio's code, not to the YAML configs and application code you write on top of it.
-
-The kernel is a commons. The license is the mechanism that keeps it that way.
-
-See [LICENSE](./LICENSE) for the full text.
-
----
-
-## Philosophy
-
-Studio is an explicitly political project. The AGPL is not a default, it is a structural choice against capture.
-
-The engine is a commons by design. Domain-agnostic so no single use case can claim ownership. Provider-agnostic so no single vendor can lock it in. Open source so the tool belongs to the people who use it.
-
-Governance keeps decision-making with the people most affected by the inequalities the project aims to reduce. Diversity is not symbolic, it is decisional.
-
-The full governance model and foundational principles are documented internally.
-
-See [PHILOSOPHY.md](./PHILOSOPHY.md) for the public-facing articulation.
 
 ---
 
@@ -116,7 +173,7 @@ See [PHILOSOPHY.md](./PHILOSOPHY.md) for the public-facing articulation.
 @studio-foundation/contracts    → Shared types (zero dependencies)
 ```
 
-Seven packages, one monorepo. Each fits in a single context window. Each is testable in isolation.
+Seven packages, one monorepo. Each fits in a single context window. Each is testable in isolation. ralph doesn't know runner. runner doesn't know engine. contracts is a leaf. The dependency graph is the architecture; the architecture is the project's politics.
 
 **Build from source:**
 
@@ -129,15 +186,17 @@ pnpm build
 
 ---
 
-## Documentation
+## Commitments
 
-| Document | Content |
-|----------|---------|
-| [CONCEPTS.md](./CONCEPTS.md) | RALPH loop, output contracts, anti-theatre, groups, hooks, skills, architecture deep dive |
-| [TEMPLATES.md](./TEMPLATES.md) | The 5 architectural templates: software, finance, analysis, data, conversation |
-| [CLI.md](./CLI.md) | All CLI commands, `.studio/` structure, config format |
-| [API.md](./API.md) | HTTP endpoints, SSE streaming, webhooks |
-| [PHILOSOPHY.md](./PHILOSOPHY.md) | Political anchoring, open source as structural choice, governance principles |
+These aren't features. They're constraints the project refuses to relax.
+
+**Domain-agnostic.** The engine has zero knowledge of what domain it operates in. It doesn't know what "code" or "transactions" or "recipes" mean. All domain knowledge lives in YAML configs. No use case can claim ownership of the kernel.
+
+**Provider-agnostic.** Anthropic, OpenAI, Mock — swappable per agent without touching pipeline logic. The orchestration layer doesn't depend on who does the work. It depends on the work being done correctly.
+
+**AGPL-3.0.** You can build commercial products on Studio. Use it, extend it, sell what you build. If you modify Studio itself and run the modified version as a network service, you must publish your changes under the same license. Using Studio as a dependency does not require you to open-source your application — the AGPL applies to Studio's code, not to the configs and application code you write on top.
+
+The kernel is a commons by design. The license is the mechanism that keeps it that way. See [PHILOSOPHY.md](./PHILOSOPHY.md) for the political grounding.
 
 ---
 
@@ -147,6 +206,21 @@ pnpm build
 |---------|-------------|----------|
 | [Wiki Creator](https://github.com/studio-foundation/wiki-creator) | Extracts entities, relationships, and generates wiki pages from EPUB books using NLP + LLM pipelines | `analysis` |
 | [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) | AI meal planner: researches cuisines, develops recipes with nutritional profiles, generates grocery lists | `software` |
+
+Both run a hybrid stack: domain logic in external scripts (Python for Wiki Creator, Next.js + Prisma for Little Chef) orchestrated by Studio pipelines. The engine stays domain-agnostic; the configs do the domain work.
+
+---
+
+## Documentation
+
+| Document | Content |
+|----------|---------|
+| [CONCEPTS.md](./CONCEPTS.md) | RALPH loop, output contracts, anti-theatre, groups, hooks, skills, architecture deep dive |
+| [TEMPLATES.md](./TEMPLATES.md) | The 5 architectural templates: software, finance, analysis, data, conversation |
+| [CLI.md](./CLI.md) | All CLI commands, `.studio/` structure, config format |
+| [API.md](./API.md) | HTTP endpoints, SSE streaming, webhooks |
+| [INVARIANTS.md](./INVARIANTS.md) | Non-negotiable kernel rules |
+| [PHILOSOPHY.md](./PHILOSOPHY.md) | Political anchoring, open source as structural choice, governance principles |
 
 ---
 
@@ -159,12 +233,6 @@ studio registry search <query>
 studio registry install <name>
 studio registry publish <path>      # forks the registry repo and opens a PR
 ```
-
----
-
-## Design principles
-
-Studio prioritizes reliability over speed. Pipelines validate structurally at every stage, retry with bounded budgets, and refuse to claim work they didn't do. The cost is some overhead per run. The benefit is that production failures are rare and explicable.
 
 ---
 
@@ -181,4 +249,3 @@ Studio prioritizes reliability over speed. Pipelines validate structurally at ev
 - Documentation may lag behind implementation.
 
 If you hit something broken, that's expected at this stage. [Open an issue.](https://github.com/studio-foundation/studio/issues)
-
