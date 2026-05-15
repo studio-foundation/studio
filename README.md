@@ -2,7 +2,7 @@
 
 **Studio runs AI pipelines. It knows nothing about your code, your domain, or your model. That's the design.**
 
-A declarative orchestration runtime for agentic pipelines. You write a YAML file. Studio executes the stages, validates each output against a JSON-schema contract, retries on failure, and runs groups of stages in parallel or in generation-validation loops. The engine doesn't care whether you're building software, parsing books, planning meals, or analyzing transactions — domain logic lives entirely in your configs.
+A declarative YAML runtime for AI agents. Studio handles agent orchestration, structured output validation, parallel execution, and generation-validation loops from a config file — not yet another agent framework with Python decorators and graph builders. The engine doesn't care whether you're building software, parsing books, planning meals, or analyzing transactions: domain logic lives entirely in your configs.
 
 ```yaml
 # pipelines/feature-builder.pipeline.yaml
@@ -41,24 +41,22 @@ Run it ten times, you get ten correct outputs. That's what the contracts and ret
 
 ## Why Studio
 
-Studio competes with two families: agentic orchestrators (LangGraph, CrewAI, Autogen) and durable workflow engines (Inngest, Temporal). The trade-offs are explicit:
+The agent framework crowd — LangGraph, CrewAI, Autogen — all share a premise: agent orchestration is code. Studio's premise is the opposite. Trade-offs are explicit:
 
 | Framework | Config surface | Validation | Parallelism | License |
 |-----------|---------------|------------|-------------|---------|
 | LangGraph | Python code (graph builders) | Custom per node | Manual via subgraphs | MIT |
 | CrewAI | Python code (decorators, roles) | Ad-hoc | Built-in, sequential default | MIT |
 | Autogen | Python code (conversation) | Ad-hoc | Conversation-driven | MIT |
-| Inngest | TypeScript code (step functions) | None at workflow level | Native parallel steps | Source-available |
-| Temporal | Multi-language workflow code | None at workflow level | Built-in | MIT |
-| **Studio** | **YAML configs** | **JSON-schema contracts, binary pass/fail** | **Declarative parallel groups** | **AGPL-3.0** |
+| **Studio** | **YAML configs** | **Structured output contracts, binary pass/fail** | **Declarative parallel groups** | **AGPL-3.0** |
 
-If your tool is one of the first five, you wrote code that constructs a graph or registers steps. If your tool is Studio, you wrote a YAML file someone non-technical can read, audit, and modify without touching a programming environment. That trade-off is intentional, not accidental.
+If your tool is one of the first three, you wrote code that constructs a graph or registers decorators. If your tool is Studio, you wrote a YAML file someone non-technical can read, audit, and modify without touching a programming environment. The trade-off is intentional, not accidental.
 
 ---
 
 ## Three patterns
 
-The patterns below are why Studio exists. Each is declarative — you describe what you want, the engine handles the orchestration. Both [Wiki Creator](https://github.com/studio-foundation/wiki-creator) and [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) lean on these in production.
+The patterns below are why Studio exists. Each is declarative — you describe what you want in YAML, the engine handles the agent orchestration. Both [Wiki Creator](https://github.com/studio-foundation/wiki-creator) and [Little Chef](https://github.com/studio-foundation/little-chef-by-studio) lean on these in production.
 
 ### Generation-validation groups
 
@@ -99,9 +97,9 @@ Fan-out / fan-in declared in YAML. Stages run concurrently, results are accumula
 
 No async/await boilerplate. No promise plumbing. The engine handles concurrency and result merging.
 
-### Anti-theatre
+### Tool-call verification (anti-theatre)
 
-Tool calls are tracked by the runner, not self-reported by the agent. If a stage's contract says "must call `repo_manager.write_file` at least once" and the agent made zero such calls, the stage fails — regardless of what its output claims.
+Structured output validation, taken one step further. Tool calls are tracked by the runner, not self-reported by the agent. If a stage's contract says "must call `repo_manager.write_file` at least once" and the agent made zero such calls, the stage fails — regardless of what its output claims.
 
 ```yaml
 # contracts/code-generation.contract.yaml
