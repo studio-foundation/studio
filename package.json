@@ -2,7 +2,7 @@
   "name": "studio",
   "version": "0.4.1",
   "private": true,
-  "description": "Studio v7 — Agentic pipeline orchestrator (monorepo)",
+  "description": "Studio — Declarative YAML runtime for AI agents (monorepo)",
   "license": "AGPL-3.0-only",
   "author": "Ariane Guay",
   "repository": {

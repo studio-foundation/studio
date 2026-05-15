@@ -220,7 +220,7 @@ export class StageExecutor {
       this.config.events.onStageContext(contextEvent);
     }
 
-    // Create a single task run (v7: 1 stage = 1 task = 1 ralph call)
+    // Create a single task run (1 stage = 1 task = 1 ralph call)
     const taskRun: TaskRun = {
       id: randomUUID(),
       task_name: stageDef.name,

@@ -27,7 +27,7 @@ const program = new Command();
 
 program
   .name('studio')
-  .description('Studio v7 — Agentic pipeline orchestrator')
+  .description('Studio — Declarative YAML runtime for AI agents')
   .version('0.3.0');
 
 program

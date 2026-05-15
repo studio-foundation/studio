@@ -1,7 +1,7 @@
 {
   "name": "@studio-foundation/contracts",
   "version": "0.4.1",
-  "description": "Shared TypeScript types and interfaces for Studio v7",
+  "description": "Shared TypeScript types and interfaces for Studio — declarative YAML runtime for AI agents",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
