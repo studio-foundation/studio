@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { runAgent } from '../src/runner.js';
+import { runAgent, UNAUTHORIZED_TOOL_ERROR_PREFIX } from '../src/runner.js';
 import type { Provider } from '../src/providers/provider.js';
 import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import { ProviderRegistry } from '../src/providers/registry.js';
@@ -129,7 +129,8 @@ describe('runAgent', () => {
       agent: {
         name: 'test-agent',
         provider: 'mock',
-        model: 'test-model'
+        model: 'test-model',
+        tools: ['get_weather'],
       },
       task: {
         description: 'Get weather for Paris'
@@ -198,7 +199,8 @@ describe('runAgent', () => {
       agent: {
         name: 'test-agent',
         provider: 'mock',
-        model: 'test-model'
+        model: 'test-model',
+        tools: ['tool_a', 'tool_b'],
       },
       task: {
         description: 'Run tools'
@@ -255,7 +257,7 @@ describe('runAgent', () => {
     providerRegistry.register(new InfiniteToolCallProvider());
 
     const result = await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['infinite_tool'] },
       task: { description: 'Run forever' },
       context: {},
       toolRegistry,
@@ -296,7 +298,7 @@ describe('runAgent', () => {
     providerRegistry.register(mockProvider);
 
     const result = await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['tool_a'] },
       task: { description: 'Test accumulation' },
       context: {},
       toolRegistry,
@@ -346,7 +348,7 @@ describe('runAgent — callbacks', () => {
     const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['echo_tool'] },
       task: { description: 'Test callbacks' },
       context: {},
       toolRegistry,
@@ -399,7 +401,7 @@ describe('runAgent — callbacks', () => {
     const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['broken_tool'] },
       task: { description: 'Test error callback' },
       context: {},
       toolRegistry,
@@ -447,7 +449,7 @@ describe('runAgent — callbacks', () => {
     const completeEvents: import('@studio-foundation/contracts').ToolCallCompleteEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model', tools: ['loop_tool'] },
       task: { description: 'Test loop callbacks' },
       context: {},
       toolRegistry,
@@ -500,7 +502,7 @@ describe('runAgent — callbacks', () => {
     const progressEvents: import('@studio-foundation/contracts').AgentProgressEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['fetch_data'] },
       task: { description: 'Fetch data' },
       context: {},
       toolRegistry,
@@ -563,7 +565,7 @@ describe('runAgent — callbacks', () => {
     const progressEvents: import('@studio-foundation/contracts').AgentProgressEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['step_a', 'step_b'] },
       task: { description: 'Two-step task' },
       context: {},
       toolRegistry,
@@ -611,7 +613,7 @@ describe('runAgent — callbacks', () => {
     const thinkingEvents: import('@studio-foundation/contracts').AgentThinkingEvent[] = [];
 
     await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['silent_tool'] },
       task: { description: 'Silent' },
       context: {},
       toolRegistry,
@@ -742,7 +744,7 @@ describe('runAgent — abort signal', () => {
 
     await expect(
       runAgent({
-        agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+        agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['test_tool'] },
         task: { description: 'test' },
         context: {},
         toolRegistry,
@@ -782,7 +784,7 @@ describe('runAgent — tool_calls_count semantics', () => {
     providerRegistry.register(mockProvider);
 
     const result = await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['broken_tool'] },
       task: { description: 'test failed tool' },
       context: {},
       toolRegistry,
@@ -833,7 +835,7 @@ describe('runAgent — tool_calls_count semantics', () => {
     providerRegistry.register(mockProvider);
 
     const result = await runAgent({
-      agent: { name: 'test-agent', provider: 'mock', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock', model: 'test-model', tools: ['good_tool', 'bad_tool'] },
       task: { description: 'mixed tools' },
       context: {},
       toolRegistry,
@@ -871,7 +873,7 @@ describe('runAgent — tool_calls_count semantics', () => {
     providerRegistry.register(agentLoopProvider);
 
     const result = await runAgent({
-      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model' },
+      agent: { name: 'test-agent', provider: 'mock-loop', model: 'test-model', tools: ['failing_loop_tool'] },
       task: { description: 'test loop fail' },
       context: {},
       toolRegistry,
@@ -880,6 +882,137 @@ describe('runAgent — tool_calls_count semantics', () => {
 
     expect(result.tool_calls).toHaveLength(1);
     expect(result.tool_calls[0].error).toBe('loop tool failed');
+    expect(result.tool_calls_count).toBe(0);
+  });
+});
+
+describe('tool whitelist enforcement', () => {
+  function makeTool(name: string) {
+    return {
+      name,
+      description: `Tool ${name}`,
+      parameters: {},
+      execute: async () => ({ success: true, result: `${name}-result` }),
+    };
+  }
+
+  it('exposes only declared tools to the LLM when tools is a non-empty list', async () => {
+    const capturedRequests: LLMRequest[] = [];
+    const provider: Provider = {
+      name: 'mock-whitelist',
+      async call(req, _onToken) {
+        capturedRequests.push(req);
+        return { content: '{}', tool_calls: [], finish_reason: 'stop', usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register(makeTool('allowed-tool'));
+    toolRegistry.register(makeTool('forbidden-tool'));
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-whitelist', model: 'test-model', tools: ['allowed-tool'] },
+      task: { description: 'test whitelist' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(capturedRequests).toHaveLength(1);
+    const sentTools = capturedRequests[0].tools ?? [];
+    expect(sentTools.map(t => t.name)).toContain('allowed-tool');
+    expect(sentTools.map(t => t.name)).not.toContain('forbidden-tool');
+  });
+
+  it('exposes no tools when tools is an empty array', async () => {
+    const capturedRequests: LLMRequest[] = [];
+    const provider: Provider = {
+      name: 'mock-empty',
+      async call(req, _onToken) {
+        capturedRequests.push(req);
+        return { content: '{}', tool_calls: [], finish_reason: 'stop', usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register(makeTool('some-tool'));
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-empty', model: 'test-model', tools: [] },
+      task: { description: 'test empty whitelist' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(capturedRequests[0].tools).toBeUndefined();
+  });
+
+  it('exposes no tools when tools field is absent', async () => {
+    const capturedRequests: LLMRequest[] = [];
+    const provider: Provider = {
+      name: 'mock-absent',
+      async call(req, _onToken) {
+        capturedRequests.push(req);
+        return { content: '{}', tool_calls: [], finish_reason: 'stop', usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register(makeTool('some-tool'));
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-absent', model: 'test-model' }, // no tools field
+      task: { description: 'test absent tools' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(capturedRequests[0].tools).toBeUndefined();
+  });
+
+  it('fails the stage when agent hallucinates a tool not in its whitelist', async () => {
+    // Provider calls a tool not in the agent's declared whitelist
+    const provider: Provider = {
+      name: 'mock-hallucinate',
+      async call(_req, _onToken) {
+        return {
+          content: '',
+          tool_calls: [{ id: 'call-1', name: 'forbidden-tool', arguments: {} }],
+          finish_reason: 'tool_calls',
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        };
+      },
+    };
+
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register(makeTool('allowed-tool'));
+    toolRegistry.register(makeTool('forbidden-tool'));
+
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    const result = await runAgent({
+      agent: { name: 'test-agent', provider: 'mock-hallucinate', model: 'test-model', tools: ['allowed-tool'] },
+      task: { description: 'test hallucination' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain(UNAUTHORIZED_TOOL_ERROR_PREFIX);
+    expect(result.error).toContain('forbidden-tool');
     expect(result.tool_calls_count).toBe(0);
   });
 });

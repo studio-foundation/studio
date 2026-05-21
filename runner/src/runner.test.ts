@@ -66,6 +66,7 @@ function makeConfig(toolCallName: string, toolCallArgs: Record<string, unknown>)
     name: 'test-agent',
     provider: 'mock',
     model: 'mock',
+    tools: ['repo_manager-write_file'],
   };
 
   return { agent, toolRegistry, providerRegistry, mockExecute };
@@ -102,7 +103,7 @@ describe('runner — max tool iterations', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(loopingProvider);
 
-    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock', tools: ['repo_manager-write_file'] };
 
     const result = await runAgent({
       agent,
@@ -132,7 +133,7 @@ describe('runner — max tool iterations', () => {
     const providerRegistry = new ProviderRegistry();
     providerRegistry.register(new LoopingProvider());
 
-    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock' };
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'looping-mock', model: 'mock', tools: ['repo_manager-write_file'] };
 
     const result = await runAgent({
       agent,
@@ -220,6 +221,7 @@ describe('runner — onPreToolUse callback', () => {
       name: 'test-agent',
       provider: 'standard-mock',
       model: 'mock',
+      tools: ['repo_manager-write_file'],
     };
 
     const onPreToolUse = vi.fn().mockResolvedValue({ blocked: true, error: 'standard-path blocked' });
@@ -316,6 +318,7 @@ describe('runner — onPostToolUse callback', () => {
       name: 'test-agent',
       provider: 'standard-mock',
       model: 'mock',
+      tools: ['repo_manager-write_file'],
     };
 
     const onPostToolUse = vi.fn().mockResolvedValue({
