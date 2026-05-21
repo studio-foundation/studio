@@ -188,6 +188,15 @@ schema:
 tool_calls:
   maximum: 2
 `);
+  // Dedicated agent for maximum-only tests — declares test-tool so the whitelist allows it.
+  writeFileSync(join(AGENTS_DIR, 'maximum-only-agent.agent.yaml'), `
+name: maximum-only-agent
+provider: anthropic
+model: claude-sonnet-4-20250514
+temperature: 0.3
+tools:
+  - test-tool
+`);
   writeFileSync(join(PIPELINES_DIR, 'maximum-only.pipeline.yaml'), `
 name: maximum-only
 description: Pipeline with a contract that only sets maximum tool_calls
@@ -195,7 +204,7 @@ version: 1
 stages:
   - name: analysis
     kind: analysis
-    agent: test-agent
+    agent: maximum-only-agent
     contract: maximum-only
     ralph:
       max_attempts: 1

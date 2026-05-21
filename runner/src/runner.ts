@@ -10,6 +10,9 @@ import type { ProviderRegistry } from './providers/registry.js';
 import { isAgentLoopProvider } from './providers/provider.js';
 import type { AnonymizationMiddleware } from './middleware/anonymization.js';
 
+/** Prefix used to identify unauthorized tool calls in error messages. */
+export const UNAUTHORIZED_TOOL_ERROR_PREFIX = 'Unauthorized tool call:';
+
 export interface RunAgentConfig {
   agent: ResolvedAgentConfig;
   task: TaskInput;
@@ -59,10 +62,11 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   // Get provider
   const provider = providerRegistry.get(agent.provider);
 
-  // Get allowed tools for this agent (filter if specified)
-  const allowedTools = agent.tools && agent.tools.length > 0
-    ? toolRegistry.filter(agent.tools)
-    : toolRegistry;
+  // Strict whitelist: filter to declared tools, or empty registry if tools is absent/empty.
+  // tools: ['a', 'b'] → only a and b visible to LLM
+  // tools: []          → no tools visible
+  // tools: undefined   → no tools visible (whitelist-by-default)
+  const allowedTools = toolRegistry.filter(agent.tools ?? []);
 
   const promptSnippets = allowedTools.getActiveSnippets();
 
@@ -133,6 +137,19 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
 
         const executed = await toolExecutor.execute({ id: callId, name, arguments: args });
         allToolCalls.push(executed);
+
+        // Hallucination guard: tool not in whitelist → terminal stage error (RALPH fails, not retries)
+        if (executed.error?.startsWith('Tool not found:')) {
+          const unauthorizedError = `${UNAUTHORIZED_TOOL_ERROR_PREFIX} agent attempted to use '${name}', which is not in its allowed tool list`;
+          config.callbacks?.onToolCallComplete?.({
+            tool: name,
+            result: undefined,
+            error: unauthorizedError,
+            duration_ms: Date.now() - tcStart,
+            timestamp: Date.now(),
+          });
+          return { result: undefined, error: unauthorizedError };
+        }
 
         config.callbacks?.onToolCallComplete?.({
           tool: name,
@@ -274,6 +291,30 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           name: tc.name,
           arguments: tc.arguments,
         });
+
+        // Hallucination guard: tool not in whitelist → terminal stage error
+        if (executed.error?.startsWith('Tool not found:')) {
+          const unauthorizedError = `${UNAUTHORIZED_TOOL_ERROR_PREFIX} agent attempted to use '${tc.name}', which is not in its allowed tool list`;
+          executed = { ...executed, error: unauthorizedError };
+          allToolCalls.push(executed);
+          config.callbacks?.onToolCallComplete?.({
+            tool: tc.name,
+            result: undefined,
+            error: unauthorizedError,
+            duration_ms: Date.now() - tcStart,
+            timestamp: Date.now(),
+          });
+          const duration = Date.now() - startTime;
+          return {
+            output: null,
+            tool_calls: allToolCalls,
+            tool_calls_count: 0,
+            raw_response: lastResponse!,
+            duration_ms: duration,
+            token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+            error: unauthorizedError,
+          };
+        }
       }
 
       executedToolCalls.push(executed);
