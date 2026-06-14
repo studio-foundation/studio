@@ -109,6 +109,27 @@ describe('ClaudeCodeMcpServer', () => {
     expect(res.error.code).toBe(-32601);
   });
 
+  it('returns JSON-RPC error -32602 when tools/call params are missing', async () => {
+    const port = await server.start();
+    const res = await jsonRpc(port, 'tools/call', { name: 'repo_manager-read_file' });
+    expect(res.error).toBeDefined();
+    expect(res.error.code).toBe(-32602);
+  });
+
+  it('records tool call with error when executeTool throws', async () => {
+    executeTool.mockRejectedValueOnce(new Error('unexpected crash'));
+    const port = await server.start();
+    const res = await jsonRpc(port, 'tools/call', {
+      name: 'repo_manager-read_file',
+      arguments: { path: 'f.ts' },
+    });
+    expect(res.result.isError).toBe(true);
+    expect(res.result.content[0].text).toContain('unexpected crash');
+    const calls = server.getToolCalls();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].error).toBe('unexpected crash');
+  });
+
   it('accumulates tool calls in getToolCalls()', async () => {
     executeTool.mockResolvedValueOnce({ result: 'ok' });
     const port = await server.start();

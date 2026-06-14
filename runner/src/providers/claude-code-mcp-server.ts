@@ -98,9 +98,17 @@ export class ClaudeCodeMcpServer {
     }
 
     if (method === 'tools/call') {
-      const p = params as { name: string; arguments: Record<string, unknown> };
+      const p = params as { name?: string; arguments?: Record<string, unknown> };
+      if (!p?.name || !p?.arguments) {
+        return { error: { code: -32602, message: 'Invalid params: name and arguments are required' } };
+      }
       const callId = randomUUID();
-      const outcome = await this.executeTool(p.name, p.arguments, callId);
+      let outcome: ToolCallOutcome;
+      try {
+        outcome = await this.executeTool(p.name, p.arguments, callId);
+      } catch (err) {
+        outcome = { error: err instanceof Error ? err.message : String(err) };
+      }
 
       this.completedToolCalls.push({
         id: callId,
