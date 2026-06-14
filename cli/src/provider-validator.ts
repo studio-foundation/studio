@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { parseAndCacheModels } from './models-cache.js';
 
 export type ValidationResult =
@@ -35,6 +36,8 @@ export async function validateApiKeyLive(
         options.baseUrl ?? 'http://localhost:11434',
         abort.signal
       );
+    } else if (provider === 'claude-code') {
+      return validateClaudeCode();
     } else {
       return { status: 'warning', message: `Cannot validate unknown provider '${provider}'` };
     }
@@ -96,6 +99,22 @@ async function validateGoogleKey(
     return { status: 'invalid', error: `Invalid key (${res.status})` };
   }
   return { status: 'warning', message: `Unexpected response ${res.status} — proceeding anyway` };
+}
+
+function validateClaudeCode(): ValidationResult {
+  const which = spawnSync('which', ['claude'], { encoding: 'utf-8' });
+  if (which.status !== 0 || which.error) {
+    return { status: 'invalid', error: 'claude CLI not found — install Claude Code from https://claude.ai/code' };
+  }
+  const test = spawnSync(
+    'claude',
+    ['--print', '--output-format', 'json', '--no-verbose', '--dangerously-skip-permissions', 'respond with the word OK'],
+    { encoding: 'utf-8', timeout: 15000 }
+  );
+  if (test.status !== 0 || test.error) {
+    return { status: 'invalid', error: 'Claude Code session inactive — run `claude` to log in first' };
+  }
+  return { status: 'valid' };
 }
 
 async function validateLocalOllama(

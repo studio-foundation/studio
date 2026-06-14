@@ -8,6 +8,7 @@ export interface StudioConfig {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
     ollama?: { baseUrl?: string };
+    'claude-code'?: Record<string, never>;
   };
   paths?: {
     configs?: string;

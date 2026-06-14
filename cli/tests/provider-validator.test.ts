@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { validateApiKeyLive } from '../src/provider-validator.js';
 import { getCachedModels } from '../src/models-cache.js';
+
+vi.mock('node:child_process', () => ({ spawnSync: vi.fn() }));
+const mockSpawnSync = vi.mocked(spawnSync);
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-beforeEach(() => { mockFetch.mockReset(); });
+beforeEach(() => { mockFetch.mockReset(); mockSpawnSync.mockReset(); });
 
 function mockResponse(status: number, body?: unknown): Response {
   return {
@@ -178,5 +182,33 @@ describe('validateApiKeyLive — unknown provider', () => {
     const result = await validateApiKeyLive('future-provider', 'some-key');
     expect(result.status).toBe('warning');
     expect('message' in result && result.message).toMatch(/cannot validate/i);
+  });
+});
+
+// ─── Claude Code ─────────────────────────────────────────────────────────────
+
+describe('validateApiKeyLive — claude-code', () => {
+  it('returns invalid when claude binary is not found', async () => {
+    mockSpawnSync.mockReturnValueOnce({ status: 1, stdout: Buffer.from(''), stderr: Buffer.from(''), error: undefined } as never);
+    const result = await validateApiKeyLive('claude-code', '');
+    expect(result.status).toBe('invalid');
+    expect('error' in result && result.error).toMatch(/claude CLI not found/i);
+  });
+
+  it('returns valid when claude -p responds with exit 0', async () => {
+    mockSpawnSync
+      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('/usr/local/bin/claude'), stderr: Buffer.from(''), error: undefined } as never)
+      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('OK'), stderr: Buffer.from(''), error: undefined } as never);
+    const result = await validateApiKeyLive('claude-code', '');
+    expect(result.status).toBe('valid');
+  });
+
+  it('returns invalid when claude -p exits non-zero (session inactive)', async () => {
+    mockSpawnSync
+      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('/usr/local/bin/claude'), stderr: Buffer.from(''), error: undefined } as never)
+      .mockReturnValueOnce({ status: 1, stdout: Buffer.from(''), stderr: Buffer.from('not logged in'), error: undefined } as never);
+    const result = await validateApiKeyLive('claude-code', '');
+    expect(result.status).toBe('invalid');
+    expect('error' in result && result.error).toMatch(/session inactive/i);
   });
 });
