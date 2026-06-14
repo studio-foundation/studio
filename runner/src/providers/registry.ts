@@ -7,6 +7,7 @@ import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OpenAIResponsesProvider } from './openai-responses.js';
 import { OllamaProvider } from './ollama.js';
+import { ClaudeCodeProvider } from './claude-code.js';
 
 export class ProviderRegistry {
   private providers: Map<string, Provider> = new Map();
@@ -54,6 +55,7 @@ export function createDefaultRegistry(config: {
   anthropic?: { apiKey: string };
   openaiResponses?: { apiKey: string };
   ollama?: { baseUrl?: string };
+  claudeCode?: { model?: string };
 }): ProviderRegistry {
   const registry = new ProviderRegistry();
 
@@ -71,6 +73,10 @@ export function createDefaultRegistry(config: {
 
   if (config.ollama) {
     registry.register(new OllamaProvider(config.ollama.baseUrl));
+  }
+
+  if (config.claudeCode) {
+    registry.register(new ClaudeCodeProvider({ model: config.claudeCode.model }));
   }
 
   return registry;
