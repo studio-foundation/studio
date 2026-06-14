@@ -27,6 +27,7 @@ export { OpenAIProvider } from './providers/openai.js';
 export { OpenAIResponsesProvider } from './providers/openai-responses.js';
 export { AnthropicProvider } from './providers/anthropic.js';
 export { OllamaProvider } from './providers/ollama.js';
+export { ClaudeCodeProvider } from './providers/claude-code.js';
 export { ProviderRegistry, createDefaultRegistry } from './providers/registry.js';
 export { MockProvider } from './providers/mock.js';
 export type { MockStageConfig } from './providers/mock.js';
