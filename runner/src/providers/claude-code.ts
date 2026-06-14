@@ -59,7 +59,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
     mcpConfigPath: string,
     onToken: ((token: string) => void) | undefined,
     signal: AbortSignal | undefined
-  ): Promise<AgentLoopResult> {
+  ): Promise<Omit<AgentLoopResult, 'tool_calls'>> {
     return new Promise((resolve, reject) => {
       if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
 
@@ -83,6 +83,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       }
 
       let resultContent: string | undefined;
+      let stderrContent = '';
       let buffer = '';
 
       proc.stdout.on('data', (chunk: Buffer) => {
@@ -111,12 +112,17 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         }
       });
 
+      proc.stderr.on('data', (chunk: Buffer) => {
+        stderrContent += chunk.toString('utf-8');
+      });
+
       proc.on('close', (code) => {
         if (signal?.aborted) return;
         if (resultContent !== undefined) {
-          resolve({ content: resultContent, tool_calls: [], finish_reason: 'stop', usage: undefined });
+          resolve({ content: resultContent, finish_reason: 'stop', usage: undefined });
         } else {
-          reject(new Error(`claude -p exited with code ${code} and no result`));
+          const errDetail = stderrContent.trim() ? `: ${stderrContent.trim()}` : '';
+          reject(new Error(`claude -p exited with code ${code}${errDetail}`));
         }
       });
 
