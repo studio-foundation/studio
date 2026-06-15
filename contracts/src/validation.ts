@@ -8,6 +8,23 @@ export interface ToolCallRequirements {
   counted_tools?: string[];
 }
 
+/**
+ * An external validator: a shell command that receives the stage output as JSON
+ * on stdin and prints `{ "valid": boolean, "errors": string[] }` to stdout.
+ *
+ * This is the escape hatch for validation the declarative contract cannot express
+ * (enums, types, cross-field rules) and for validators written in another language.
+ * Unlike a required tool, it runs against the ACTUAL stage output, so the agent
+ * cannot satisfy it by reporting different arguments than it emits.
+ */
+export interface ExternalValidator {
+  name: string;
+  /** Shell command. Receives the output JSON on stdin; prints {valid, errors} on stdout. */
+  command: string;
+  /** Optional timeout in milliseconds (default 30000). */
+  timeout_ms?: number;
+}
+
 export interface OutputContract {
   name: string;
   version: number;
@@ -16,6 +33,8 @@ export interface OutputContract {
     [key: string]: unknown;
   };
   tool_calls?: ToolCallRequirements;
+  /** External validators run against the real output inside the RALPH loop. */
+  validators?: ExternalValidator[];
   custom_rules?: ValidationRule[];
   post_validation?: {
     rejection_detection: {

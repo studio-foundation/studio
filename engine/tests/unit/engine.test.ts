@@ -263,6 +263,35 @@ stages:
           include:
             - input
 `);
+
+  // Fixtures for external validator (validates the REAL output via a command).
+  writeFileSync(join(CONTRACTS_DIR, 'external-validator.contract.yaml'), `
+name: external-validator
+version: 1
+schema:
+  required_fields:
+    - summary
+validators:
+  - name: summary-good
+    command: |
+      node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const o=JSON.parse(s);const ok=o.summary==='good';process.stdout.write(JSON.stringify({valid:ok,errors:ok?[]:['summary must be good']}))})"
+`);
+  writeFileSync(join(PIPELINES_DIR, 'external-validator.pipeline.yaml'), `
+name: external-validator
+description: Pipeline whose contract validates the real output via an external command
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: external-validator
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+`);
 }
 
 // Setup fixtures before all tests
@@ -371,6 +400,45 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('failed');
     expect(result.stages[0].status).toBe('failed');
+  });
+
+  it('fails the stage when an external validator rejects the real output', async () => {
+    // required_fields [summary] is satisfied, but the external validator rejects
+    // because summary !== 'good'. Without the hook this run would succeed.
+    const badProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ summary: 'bad' }),
+        tool_calls: [],
+        finish_reason: 'stop',
+      }),
+    };
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(badProvider), register: vi.fn() } as any,
+    });
+
+    const result = await engine.run({ pipeline: 'external-validator', input: 'x' });
+
+    expect(result.status).toBe('failed');
+    expect(result.stages[0].status).toBe('failed');
+  });
+
+  it('passes the stage when the external validator accepts the real output', async () => {
+    const goodProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ summary: 'good' }),
+        tool_calls: [],
+        finish_reason: 'stop',
+      }),
+    };
+    const engine = createTestEngine({
+      providerRegistry: { get: vi.fn().mockReturnValue(goodProvider), register: vi.fn() } as any,
+    });
+
+    const result = await engine.run({ pipeline: 'external-validator', input: 'x' });
+
+    expect(result.status).toBe('success');
   });
 
   it('sets completed_at on pipeline run', async () => {
