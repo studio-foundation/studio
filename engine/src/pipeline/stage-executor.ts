@@ -49,6 +49,7 @@ import { evaluateCondition } from './condition-evaluator.js';
 import { deriveStageStatus } from '../state/status-derivation.js';
 import { transition } from '../state/state-machine.js';
 import { postValidate, type PostValidationResult } from './post-validator.js';
+import { runExternalValidators } from './external-validator.js';
 import { loadContextPacks } from './context-pack-loader.js';
 import type { EngineEvents, StageContextEvent } from '../events.js';
 import { PipelineEventEmitter } from '../events.js';
@@ -613,6 +614,13 @@ export class StageExecutor {
     // Tool groups validation (OR per group — at least one tool from each group must be called)
     if (toolCallReqs?.required_tool_groups?.length) {
       validators.push((result) => validateToolGroups(result.tool_calls, toolCallReqs));
+    }
+
+    // External validators — run a command against the REAL output (not tool args).
+    // Enforces what the declarative contract can't (enums, types, cross-field rules).
+    if (contract.validators?.length) {
+      const cwd = this.config.repoPath ?? this.config.configsDir;
+      validators.push((result) => runExternalValidators(result.output, contract.validators, cwd));
     }
 
     if (validators.length === 0) {
