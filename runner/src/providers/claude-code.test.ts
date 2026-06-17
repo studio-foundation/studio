@@ -103,6 +103,10 @@ describe('ClaudeCodeProvider', () => {
     expect(args).toContain('--model');
     expect(args).toContain('claude-sonnet-4-5');
     expect(args).toContain('--mcp-config');
+    // --output-format stream-json with --print REQUIRES --verbose; the old
+    // --no-verbose flag was removed from the claude CLI and now errors out.
+    expect(args).toContain('--verbose');
+    expect(args).not.toContain('--no-verbose');
   });
 
   it('throws when claude exits non-zero with no result event', async () => {

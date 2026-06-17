@@ -68,7 +68,9 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         '--output-format', 'stream-json',
         '--model', this.model,
         '--mcp-config', mcpConfigPath,
-        '--no-verbose',
+        // stream-json output with --print REQUIRES --verbose. (The old
+        // --no-verbose flag was removed from the claude CLI and now errors.)
+        '--verbose',
         '--dangerously-skip-permissions',
         prompt,
       ];
