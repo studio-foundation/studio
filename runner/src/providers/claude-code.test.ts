@@ -91,11 +91,15 @@ describe('ClaudeCodeProvider', () => {
     expect(tokens).toEqual(['Hello', ' world']);
   });
 
-  it('spawns claude with --output-format stream-json, --model, and --mcp-config', async () => {
+  it('spawns claude with --output-format stream-json, --model, and --mcp-config when tools are present', async () => {
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
     mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
     const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
-    await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+    const requestWithTools: LLMRequest = {
+      ...BASE_REQUEST,
+      tools: [{ name: 'echo', description: 'echo', parameters: { type: 'object', properties: {} } }],
+    };
+    await provider.runAgentLoop(requestWithTools, vi.fn());
     const [cmd, args] = mockSpawn.mock.calls[0] as [string, string[]];
     expect(cmd).toBe('claude');
     expect(args).toContain('--output-format');
@@ -107,6 +111,19 @@ describe('ClaudeCodeProvider', () => {
     // --no-verbose flag was removed from the claude CLI and now errors out.
     expect(args).toContain('--verbose');
     expect(args).not.toContain('--no-verbose');
+  });
+
+  it('skips the MCP server and --mcp-config when there are no tools', async () => {
+    // Attaching the HTTP MCP server makes the claude CLI hang on the streamable-http
+    // handshake; a tool-less agent (e.g. a pure classifier) needs no MCP server.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());  // BASE_REQUEST has no tools
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    expect(args).not.toContain('--mcp-config');
+    expect(args).toContain('--verbose');
+    expect(result.tool_calls).toEqual([]);
   });
 
   it('throws when claude exits non-zero with no result event', async () => {

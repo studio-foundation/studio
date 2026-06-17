@@ -36,14 +36,22 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
     signal?: AbortSignal
   ): Promise<AgentLoopResult> {
     const tools = request.tools ?? [];
+    const prompt = buildPrompt(request);
+
+    // No tools → no MCP server. Attaching the HTTP MCP server makes the claude CLI
+    // hang on the streamable-http handshake, and a tool-less agent has nothing to
+    // call anyway, so run a plain --print invocation with no --mcp-config.
+    if (tools.length === 0) {
+      const result = await this.spawnClaude(prompt, undefined, onToken, signal);
+      return { ...result, tool_calls: [] };
+    }
+
     const mcpServer = new ClaudeCodeMcpServer(tools, executeTool);
     const port = await mcpServer.start();
 
     const mcpConfig = { mcpServers: { studio: { type: 'http', url: `http://127.0.0.1:${port}` } } };
     const mcpConfigPath = join(tmpdir(), `studio-mcp-${randomUUID()}.json`);
     await writeFile(mcpConfigPath, JSON.stringify(mcpConfig), 'utf-8');
-
-    const prompt = buildPrompt(request);
 
     try {
       const result = await this.spawnClaude(prompt, mcpConfigPath, onToken, signal);
@@ -56,7 +64,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
 
   private spawnClaude(
     prompt: string,
-    mcpConfigPath: string,
+    mcpConfigPath: string | undefined,
     onToken: ((token: string) => void) | undefined,
     signal: AbortSignal | undefined
   ): Promise<Omit<AgentLoopResult, 'tool_calls'>> {
@@ -67,7 +75,8 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         '--print',
         '--output-format', 'stream-json',
         '--model', this.model,
-        '--mcp-config', mcpConfigPath,
+        // --mcp-config only when there are tools to expose (see runAgentLoop).
+        ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : []),
         // stream-json output with --print REQUIRES --verbose. (The old
         // --no-verbose flag was removed from the claude CLI and now errors.)
         '--verbose',
