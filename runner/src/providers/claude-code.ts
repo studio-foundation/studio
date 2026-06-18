@@ -82,6 +82,13 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         // `--tools` is variadic, so it must be followed by another flag (--verbose),
         // never by the positional prompt.
         ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : ['--tools', '']),
+        // --strict-mcp-config: use ONLY the MCP servers we pass (the studio server,
+        // or none for tool-less agents) and ignore the user's GLOBAL MCP servers
+        // (claude.ai Gmail/Drive/Linear/Notion/Figma/…). Without this, the spawned
+        // `claude` loads those at startup; their streamable-http handshake can hang
+        // the whole --print subprocess (→ Studio cancels with 0 tool calls / 0
+        // tokens) and injects ~88k tokens of tool defs into every call (~15x cost).
+        '--strict-mcp-config',
         // stream-json output with --print REQUIRES --verbose. (The old
         // --no-verbose flag was removed from the claude CLI and now errors.)
         '--verbose',
@@ -89,7 +96,11 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         prompt,
       ];
 
+      const startedAt = Date.now();
+      logCC('spawn', { model: this.model, hasMcp: !!mcpConfigPath, flags: args.slice(0, -1), promptChars: prompt.length });
+
       const proc = spawn('claude', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      logCC('spawned', { pid: proc.pid });
 
       if (signal) {
         signal.addEventListener('abort', () => {
@@ -111,6 +122,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line) as Record<string, unknown>;
+            logCC('event', { type: event.type, subtype: event.subtype });
             if (event.type === 'assistant') {
               const msg = event.message as { content?: Array<{ type: string; text?: string }> };
               for (const block of msg.content ?? []) {
@@ -129,10 +141,13 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       });
 
       proc.stderr.on('data', (chunk: Buffer) => {
-        stderrContent += chunk.toString('utf-8');
+        const s = chunk.toString('utf-8');
+        stderrContent += s;
+        logCC('stderr', s.trim());
       });
 
       proc.on('close', (code) => {
+        logCC('close', { code, ms: Date.now() - startedAt, gotResult: resultContent !== undefined });
         if (signal?.aborted) return;
         if (resultContent !== undefined) {
           resolve({ content: resultContent, finish_reason: 'stop', usage: undefined });
@@ -147,6 +162,25 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       });
     });
   }
+}
+
+/**
+ * Diagnostic logging for the claude-code provider, gated by the
+ * STUDIO_LOG_CLAUDE_CODE env var (set it to any non-empty value to enable).
+ * Writes to STDERR only — stdout carries the stream-json/result payload that
+ * callers (e.g. `studio run --json`) parse, so it must never be polluted.
+ * Lets you see, during a hang, exactly which lifecycle step stalls: spawn →
+ * spawned(pid) → event(type)… → close(code, ms, gotResult).
+ */
+function logCC(stage: string, detail: unknown): void {
+  if (!process.env.STUDIO_LOG_CLAUDE_CODE) return;
+  let rendered: string;
+  try {
+    rendered = typeof detail === 'string' ? detail : JSON.stringify(detail);
+  } catch {
+    rendered = String(detail);
+  }
+  process.stderr.write(`[claude-code] ${stage} ${rendered}\n`);
 }
 
 function buildPrompt(request: LLMRequest): string {
