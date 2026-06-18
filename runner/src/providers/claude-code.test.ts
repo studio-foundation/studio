@@ -123,6 +123,12 @@ describe('ClaudeCodeProvider', () => {
     const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
     expect(args).not.toContain('--mcp-config');
     expect(args).toContain('--verbose');
+    // built-in tools disabled for a single-turn pure completion (no agentic roaming),
+    // and the empty value must sit before a flag so the variadic doesn't eat the prompt.
+    const toolsIdx = args.indexOf('--tools');
+    expect(toolsIdx).toBeGreaterThanOrEqual(0);
+    expect(args[toolsIdx + 1]).toBe('');
+    expect(args[toolsIdx + 2]).toMatch(/^--/);
     expect(result.tool_calls).toEqual([]);
   });
 

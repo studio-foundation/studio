@@ -75,8 +75,13 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         '--print',
         '--output-format', 'stream-json',
         '--model', this.model,
-        // --mcp-config only when there are tools to expose (see runAgentLoop).
-        ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : []),
+        // With tools: expose them via the MCP server. Without tools: disable the
+        // CLI's built-in tools (`--tools ""`) so this is a single-turn pure
+        // completion — otherwise claude would run an unbounded agentic loop
+        // (reading files, running commands) instead of just answering.
+        // `--tools` is variadic, so it must be followed by another flag (--verbose),
+        // never by the positional prompt.
+        ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : ['--tools', '']),
         // stream-json output with --print REQUIRES --verbose. (The old
         // --no-verbose flag was removed from the claude CLI and now errors.)
         '--verbose',
