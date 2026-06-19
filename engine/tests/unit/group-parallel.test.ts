@@ -6,7 +6,11 @@ import type { EngineEvents } from '../../src/events.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
-const PROJECT_DIR = join(FIXTURES_DIR, 'test-project');
+// Dedicated project dir — must NOT be shared with engine.test.ts / group-loop.test.ts.
+// All three write test-agent.agent.yaml at module load, and vitest runs test files in
+// parallel; a shared path races (truncate-while-read → "expected an object"), which
+// fails on CI where the parallelism is wider than a typical local run.
+const PROJECT_DIR = join(FIXTURES_DIR, 'test-project-group-parallel');
 const PIPELINES_DIR = join(PROJECT_DIR, 'pipelines');
 const AGENTS_DIR = join(PROJECT_DIR, 'agents');
 const CONTRACTS_DIR = join(PROJECT_DIR, 'contracts');
@@ -15,7 +19,7 @@ mkdirSync(PIPELINES_DIR, { recursive: true });
 mkdirSync(AGENTS_DIR, { recursive: true });
 mkdirSync(CONTRACTS_DIR, { recursive: true });
 
-// Reuse agent fixture from group-loop.test.ts (idempotent writeFileSync)
+// Agent fixture (own copy in this file's isolated project dir)
 writeFileSync(join(AGENTS_DIR, 'test-agent.agent.yaml'), `
 name: test-agent
 provider: anthropic

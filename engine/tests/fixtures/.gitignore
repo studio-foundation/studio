@@ -1,0 +1,4 @@
+# Per-test project dirs generated at module load by group-*.test.ts.
+# Each test writes all its own fixtures, so these are recreated every run.
+test-project-group-loop/
+test-project-group-parallel/
