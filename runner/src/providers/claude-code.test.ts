@@ -127,8 +127,8 @@ describe('ClaudeCodeProvider', () => {
     const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
     expect(args).not.toContain('--mcp-config');
     // No --mcp-config here, but --strict-mcp-config still matters: it stops the
-    // CLI from loading the user's global MCP servers, which otherwise hang the
-    // tool-less classify subprocess on their handshake (the real cancel/hang bug).
+    // CLI from loading the user's global MCP servers, which otherwise inject ~88k
+    // tokens of tool defs per call (~15x cost) and can hang on their handshake.
     expect(args).toContain('--strict-mcp-config');
     expect(args).toContain('--verbose');
     // built-in tools disabled for a single-turn pure completion (no agentic roaming),
@@ -138,6 +138,18 @@ describe('ClaudeCodeProvider', () => {
     expect(args[toolsIdx + 1]).toBe('');
     expect(args[toolsIdx + 2]).toMatch(/^--/);
     expect(result.tool_calls).toEqual([]);
+  });
+
+  it('does not give claude an open stdin pipe (else --print hangs waiting for EOF)', async () => {
+    // ROOT CAUSE of the studio classify hang: spawning with stdio[0]='pipe' leaves
+    // an open, non-TTY stdin. claude 2.1.37 then blocks waiting for stdin EOF even
+    // though the prompt is a positional arg, so the subprocess never emits output
+    // and Studio cancels it (0 tool calls / 0 tokens). stdin must be 'ignore'.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    await new ClaudeCodeProvider().runAgentLoop(BASE_REQUEST, vi.fn());
+    const opts = mockSpawn.mock.calls[0][2] as { stdio?: unknown[] } | undefined;
+    expect(opts?.stdio?.[0]).toBe('ignore');
   });
 
   it('logs lifecycle to stderr only when STUDIO_LOG_CLAUDE_CODE is set', async () => {

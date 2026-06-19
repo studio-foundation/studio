@@ -99,7 +99,12 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       const startedAt = Date.now();
       logCC('spawn', { model: this.model, hasMcp: !!mcpConfigPath, flags: args.slice(0, -1), promptChars: prompt.length });
 
-      const proc = spawn('claude', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      // stdin MUST be 'ignore', not 'pipe'. The prompt is a positional arg, so we
+      // never write to stdin — but if stdin is an open, non-TTY pipe, claude 2.1.37
+      // blocks waiting for its EOF and never emits output (the studio classify hang:
+      // subprocess spawns, then silence until Studio cancels with 0 tokens). 'ignore'
+      // gives claude /dev/null for stdin → immediate EOF → it uses the positional prompt.
+      const proc = spawn('claude', args, { stdio: ['ignore', 'pipe', 'pipe'] });
       logCC('spawned', { pid: proc.pid });
 
       if (signal) {
