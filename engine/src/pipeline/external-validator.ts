@@ -70,6 +70,11 @@ function runOne(validator: ExternalValidator, output: unknown, cwd: string): Pro
       resolve(errs);
     });
 
+    // A validator that ignores stdin and exits immediately (e.g. `echo ...`)
+    // closes the pipe's read end before we finish writing, so this write emits
+    // EPIPE. That's benign — the validator's verdict is captured in 'close' — but
+    // without a listener the error is unhandled and crashes the process. Swallow it.
+    child.stdin.on('error', () => {});
     child.stdin.write(JSON.stringify(output));
     child.stdin.end();
   });

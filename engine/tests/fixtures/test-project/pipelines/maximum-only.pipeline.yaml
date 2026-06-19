@@ -5,7 +5,7 @@ version: 1
 stages:
   - name: analysis
     kind: analysis
-    agent: test-agent
+    agent: maximum-only-agent
     contract: maximum-only
     ralph:
       max_attempts: 1

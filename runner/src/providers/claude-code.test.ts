@@ -91,11 +91,15 @@ describe('ClaudeCodeProvider', () => {
     expect(tokens).toEqual(['Hello', ' world']);
   });
 
-  it('spawns claude with --output-format stream-json, --model, and --mcp-config', async () => {
+  it('spawns claude with --output-format stream-json, --model, and --mcp-config when tools are present', async () => {
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
     mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
     const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
-    await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+    const requestWithTools: LLMRequest = {
+      ...BASE_REQUEST,
+      tools: [{ name: 'echo', description: 'echo', parameters: { type: 'object', properties: {} } }],
+    };
+    await provider.runAgentLoop(requestWithTools, vi.fn());
     const [cmd, args] = mockSpawn.mock.calls[0] as [string, string[]];
     expect(cmd).toBe('claude');
     expect(args).toContain('--output-format');
@@ -103,6 +107,75 @@ describe('ClaudeCodeProvider', () => {
     expect(args).toContain('--model');
     expect(args).toContain('claude-sonnet-4-5');
     expect(args).toContain('--mcp-config');
+    // --strict-mcp-config pins the spawned claude to ONLY the studio MCP server,
+    // ignoring the user's global MCP servers (claude.ai Gmail/Drive/Linear/etc.)
+    // whose startup handshake otherwise hangs the subprocess and balloons cost.
+    expect(args).toContain('--strict-mcp-config');
+    // --output-format stream-json with --print REQUIRES --verbose; the old
+    // --no-verbose flag was removed from the claude CLI and now errors out.
+    expect(args).toContain('--verbose');
+    expect(args).not.toContain('--no-verbose');
+  });
+
+  it('skips the MCP server and --mcp-config when there are no tools', async () => {
+    // Attaching the HTTP MCP server makes the claude CLI hang on the streamable-http
+    // handshake; a tool-less agent (e.g. a pure classifier) needs no MCP server.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());  // BASE_REQUEST has no tools
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    expect(args).not.toContain('--mcp-config');
+    // No --mcp-config here, but --strict-mcp-config still matters: it stops the
+    // CLI from loading the user's global MCP servers, which otherwise inject ~88k
+    // tokens of tool defs per call (~15x cost) and can hang on their handshake.
+    expect(args).toContain('--strict-mcp-config');
+    expect(args).toContain('--verbose');
+    // built-in tools disabled for a single-turn pure completion (no agentic roaming),
+    // and the empty value must sit before a flag so the variadic doesn't eat the prompt.
+    const toolsIdx = args.indexOf('--tools');
+    expect(toolsIdx).toBeGreaterThanOrEqual(0);
+    expect(args[toolsIdx + 1]).toBe('');
+    expect(args[toolsIdx + 2]).toMatch(/^--/);
+    expect(result.tool_calls).toEqual([]);
+  });
+
+  it('does not give claude an open stdin pipe (else --print hangs waiting for EOF)', async () => {
+    // ROOT CAUSE of the studio classify hang: spawning with stdio[0]='pipe' leaves
+    // an open, non-TTY stdin. claude 2.1.37 then blocks waiting for stdin EOF even
+    // though the prompt is a positional arg, so the subprocess never emits output
+    // and Studio cancels it (0 tool calls / 0 tokens). stdin must be 'ignore'.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    await new ClaudeCodeProvider().runAgentLoop(BASE_REQUEST, vi.fn());
+    const opts = mockSpawn.mock.calls[0][2] as { stdio?: unknown[] } | undefined;
+    expect(opts?.stdio?.[0]).toBe('ignore');
+  });
+
+  it('logs lifecycle to stderr only when STUDIO_LOG_CLAUDE_CODE is set', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    const writes: string[] = [];
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(((s: string | Uint8Array) => {
+      writes.push(String(s));
+      return true;
+    }) as typeof process.stderr.write);
+    try {
+      // Off by default: no diagnostic lines.
+      delete process.env.STUDIO_LOG_CLAUDE_CODE;
+      mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+      await new ClaudeCodeProvider().runAgentLoop(BASE_REQUEST, vi.fn());
+      expect(writes.some(w => w.includes('[claude-code]'))).toBe(false);
+
+      // On when the env var is set: spawn + close lifecycle lines on stderr.
+      process.env.STUDIO_LOG_CLAUDE_CODE = '1';
+      mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+      await new ClaudeCodeProvider().runAgentLoop(BASE_REQUEST, vi.fn());
+      expect(writes.some(w => w.includes('[claude-code] spawn'))).toBe(true);
+      expect(writes.some(w => w.includes('[claude-code] close'))).toBe(true);
+    } finally {
+      delete process.env.STUDIO_LOG_CLAUDE_CODE;
+      spy.mockRestore();
+    }
   });
 
   it('throws when claude exits non-zero with no result event', async () => {

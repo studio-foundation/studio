@@ -108,7 +108,7 @@ function validateClaudeCode(): ValidationResult {
   }
   const test = spawnSync(
     'claude',
-    ['--print', '--output-format', 'json', '--no-verbose', '--dangerously-skip-permissions', 'respond with the word OK'],
+    ['--print', '--output-format', 'json', '--dangerously-skip-permissions', 'respond with the word OK'],
     { encoding: 'utf-8', timeout: 15000 }
   );
   if (test.status !== 0 || test.error) {
