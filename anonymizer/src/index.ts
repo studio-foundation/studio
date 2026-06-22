@@ -4,6 +4,8 @@ import type { PIIDetectionResult, AnonymizerOptions } from './types.js';
 
 export type { PIICategory, PIIDetectionResult, AnonymizerOptions } from './types.js';
 export { Tokenizer } from './tokenizer.js';
+export { RegexDetector } from './detection/regex-detector.js';
+export type { DetectionProvider, Span } from './detection/provider.js';
 
 /**
  * Anonymize PII in text. Returns anonymized text + keymap (token → original).
