@@ -55,3 +55,47 @@ describe('resolveByPriority — overlap rule', () => {
     expect(out.length).toBe(2);
   });
 });
+
+describe('matchPII — person (FR + EN salutations)', () => {
+  it('detects an English-salutation name', () => {
+    const text = 'Dear John Smith,';
+    const p = matchPII(text).find(s => s.type === 'person');
+    expect(p).toBeDefined();
+    expect(text.slice(p!.start, p!.end)).toBe('John Smith');
+  });
+
+  it('detects a French-salutation name (deployment prerequisite)', () => {
+    const text = 'Bonjour Marie Tremblay,';
+    const p = matchPII(text).find(s => s.type === 'person');
+    expect(p).toBeDefined();
+    expect(text.slice(p!.start, p!.end)).toBe('Marie Tremblay');
+  });
+
+  it('handles accented surnames after French salutations', () => {
+    const text = 'Madame Jean Côté';
+    const p = matchPII(text).find(s => s.type === 'person');
+    expect(p).toBeDefined();
+    expect(text.slice(p!.start, p!.end)).toBe('Jean Côté');
+  });
+
+  it('detects M. / Mme abbreviation salutations', () => {
+    expect(matchPII('M. Dupont').some(s => s.type === 'person')).toBe(true);
+    expect(matchPII('Mme Gagnon').some(s => s.type === 'person')).toBe(true);
+  });
+
+  it('does NOT match a word merely ending in m before a period (M. negative guard)', () => {
+    // "forum." ends in "m." but "m" is not a standalone token (preceded by "u"),
+    // so the M. salutation must not fire and "Trois" must not become a person.
+    const text = 'Le forum. Trois équipes inscrites';
+    expect(matchPII(text).some(s => s.type === 'person')).toBe(false);
+  });
+
+  it('person yields to a higher-priority formatted span on overlap', () => {
+    // person is lowest priority; if a formatted type claims the range, person loses.
+    const out = resolveByPriority([
+      { start: 5, end: 16, type: 'person' },
+      { start: 5, end: 16, type: 'email' },
+    ]);
+    expect(out).toEqual([{ start: 5, end: 16, type: 'email' }]);
+  });
+});

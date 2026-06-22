@@ -32,6 +32,31 @@ const FORMAT_PATTERNS: Record<FormatType, RegExp> = {
   phone: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g,
 };
 
+// Person detection is salutation-anchored (not a pure format), so it inherits
+// the deployment language. The first club deployment is French; an EN-only list
+// would silently miss French names and leak the most sensitive PII (parents and
+// minors). FR + EN salutations ship together.
+//
+// `\b...` anchors the trigger to a word boundary. `m\.` REQUIRES the trailing
+// period so a word merely ending in "m" before a period (e.g. "forum.") does
+// not fire. The captured group (m[1]) is the name only, not the salutation.
+const SALUTATION =
+  /\b(?:dear|hi|hello|greetings|hey(?:\s+there)?|mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?|bonjour|bonsoir|all[oô]|salut|ch[eè]re?s?|madame|monsieur|mme\.?|m\.)\s+([A-Z][a-zA-ZÀ-ÿ'\-]+(?:\s+[A-Z][a-zA-ZÀ-ÿ'\-]+)*)/gi;
+
+function gatherPersonCandidates(text: string): RegexMatch[] {
+  const out: RegexMatch[] = [];
+  SALUTATION.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SALUTATION.exec(text)) !== null) {
+    const name = m[1];
+    if (!name) continue;
+    const offset = m[0].indexOf(name);
+    const start = m.index + offset;
+    out.push({ start, end: start + name.length, type: 'person' });
+  }
+  return out;
+}
+
 function gatherFormatCandidates(text: string): RegexMatch[] {
   const out: RegexMatch[] = [];
   for (const type of Object.keys(FORMAT_PATTERNS) as FormatType[]) {
@@ -70,6 +95,9 @@ export function resolveByPriority(candidates: RegexMatch[]): RegexMatch[] {
 }
 
 export function matchPII(text: string): RegexMatch[] {
-  const candidates = gatherFormatCandidates(text);
+  const candidates = [
+    ...gatherFormatCandidates(text),
+    ...gatherPersonCandidates(text),
+  ];
   return resolveByPriority(candidates);
 }
