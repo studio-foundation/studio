@@ -37,22 +37,41 @@ const FORMAT_PATTERNS: Record<FormatType, RegExp> = {
 // would silently miss French names and leak the most sensitive PII (parents and
 // minors). FR + EN salutations ship together.
 //
+// Case-sensitivity is SPLIT across two passes, because a single regex cannot
+// be case-insensitive in one part and case-sensitive in another (the `i` flag
+// is all-or-nothing, and `i` on the name capture is exactly the bug: `[A-Z]`
+// would then also match lowercase, tokenizing `bonjour marie` as a person):
+//
+//   1. SALUTATION_TRIGGER (`/gi`) — case-insensitive so `bonjour` / `Bonjour` /
+//      `BONJOUR` all fire. It consumes the trigger *and* the whitespace after
+//      it, leaving lastIndex at the first character of the name.
+//   2. NAME (`/y`, sticky, NO `i`) — case-SENSITIVE, anchored to start exactly
+//      where the trigger ended. It requires an initial uppercase on every word,
+//      so a lowercase word after a salutation produces no name. A false positive
+//      (tokenizing legitimate text) is strictly worse than a miss in an email
+//      classifier, so we fail closed.
+//
+// (ES2025 inline flags `(?i:…)` would express this in one regex, but V8 on the
+// supported runtime does not yet parse them.)
+//
 // `\b...` anchors the trigger to a word boundary. `m\.` REQUIRES the trailing
 // period so a word merely ending in "m" before a period (e.g. "forum.") does
-// not fire. The captured group (m[1]) is the name only, not the salutation.
-const SALUTATION =
-  /\b(?:dear|hi|hello|greetings|hey(?:\s+there)?|mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?|bonjour|bonsoir|all[oô]|salut|ch[eè]re?s?|madame|monsieur|mme\.?|m\.)\s+([A-Z][a-zA-ZÀ-ÿ'\-]+(?:\s+[A-Z][a-zA-ZÀ-ÿ'\-]+)*)/gi;
+// not fire.
+const SALUTATION_TRIGGER =
+  /\b(?:dear|hi|hello|greetings|hey(?:\s+there)?|mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?|bonjour|bonsoir|all[oô]|salut|ch[eè]re?s?|madame|monsieur|mme\.?|m\.)\s+/gi;
+const NAME = /[A-Z][a-zA-ZÀ-ÿ'\-]+(?:\s+[A-Z][a-zA-ZÀ-ÿ'\-]+)*/y;
 
 function gatherPersonCandidates(text: string): RegexMatch[] {
   const out: RegexMatch[] = [];
-  SALUTATION.lastIndex = 0;
+  SALUTATION_TRIGGER.lastIndex = 0;
   let m: RegExpExecArray | null;
-  while ((m = SALUTATION.exec(text)) !== null) {
-    const name = m[1];
-    if (!name) continue;
-    const offset = m[0].indexOf(name);
-    const start = m.index + offset;
-    out.push({ start, end: start + name.length, type: 'person' });
+  while ((m = SALUTATION_TRIGGER.exec(text)) !== null) {
+    const start = m.index + m[0].length;
+    // Sticky: matches only if a Title-cased name begins exactly at `start`.
+    NAME.lastIndex = start;
+    const nameMatch = NAME.exec(text);
+    if (!nameMatch) continue;
+    out.push({ start, end: start + nameMatch[0].length, type: 'person' });
   }
   return out;
 }
