@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -10,13 +11,19 @@ import { validateApiKeyLive } from '../provider-validator.js';
 import { getAvailableModels } from '../models-cache.js';
 
 export const PROVIDERS = [
-  { id: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514' },
-  { id: 'openai',    label: 'OpenAI (GPT)',        defaultModel: 'gpt-4o' },
-  { id: 'google',    label: 'Google (Gemini)',     defaultModel: 'gemini-1.5-pro' },
-  { id: 'ollama',    label: 'Ollama (local)',      defaultModel: 'llama3.2' },
+  { id: 'anthropic',   label: 'Anthropic (Claude)',             defaultModel: 'claude-sonnet-4-20250514' },
+  { id: 'openai',      label: 'OpenAI (GPT)',                   defaultModel: 'gpt-4o' },
+  { id: 'google',      label: 'Google (Gemini)',                defaultModel: 'gemini-1.5-pro' },
+  { id: 'ollama',      label: 'Ollama (local)',                 defaultModel: 'llama3.2' },
+  { id: 'claude-code', label: 'Claude Code (subscription)',     defaultModel: 'claude-sonnet-4-5' },
 ] as const;
 
 export type ProviderId = (typeof PROVIDERS)[number]['id'];
+
+export function isClaudeCodeInstalled(): boolean {
+  const result = spawnSync('which', ['claude'], { encoding: 'utf-8' });
+  return result.status === 0;
+}
 
 export function validateApiKeyForProvider(provider: string, key: string): true | string {
   if (provider === 'anthropic') {
@@ -45,6 +52,8 @@ export async function addProviderConfig(
   }
   if (provider === 'ollama') {
     (config.providers as Record<string, unknown>)[provider] = { baseUrl: apiKey };
+  } else if (provider === 'claude-code') {
+    (config.providers as Record<string, unknown>)[provider] = {};
   } else {
     (config.providers as Record<string, unknown>)[provider] = { apiKey };
   }
@@ -142,9 +151,16 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
     : [];
 
   // Step 1: Select provider
+  const claudeCodeInstalled = isClaudeCodeInstalled();
   const providerId = await select<string>({
     message: 'Which provider would you like to add?',
-    choices: PROVIDERS.map((p) => ({ value: p.id, name: p.label })),
+    choices: PROVIDERS.map((p) => ({
+      value: p.id,
+      name: p.id === 'claude-code' && !claudeCodeInstalled
+        ? `${p.label} (not installed)`
+        : p.label,
+      disabled: p.id === 'claude-code' && !claudeCodeInstalled,
+    })),
   });
 
   // Step 2: Handle already-configured case
@@ -160,9 +176,15 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
     }
   }
 
-  // Step 3: Ask for API key (or base URL for ollama)
+  // Step 3: Ask for API key (or base URL for ollama, skip for claude-code)
   let apiKey = '';
-  if (providerId === 'ollama') {
+  if (providerId === 'claude-code') {
+    const spinner = ora('Checking Claude Code session...').start();
+    const result = await validateApiKeyLive('claude-code', '');
+    if (result.status === 'valid') spinner.succeed('Claude Code session active');
+    else if (result.status === 'warning') spinner.warn('message' in result ? result.message : '');
+    else { spinner.fail('error' in result ? result.error : ''); }
+  } else if (providerId === 'ollama') {
     apiKey = await input({
       message: 'Ollama base URL:',
       default: 'http://localhost:11434',
@@ -206,7 +228,7 @@ async function configAddProviderWizard(configFile: string): Promise<void> {
 
   // Step 4b: Choose default model (if setting as default and models are available)
   let defaultModel: string | undefined;
-  if (setDefault && providerId !== 'ollama') {
+  if (setDefault && providerId !== 'ollama' && providerId !== 'claude-code') {
     const models = await getAvailableModels(providerId, apiKey);
     const meta = PROVIDERS.find((p) => p.id === providerId);
     const fallbackModel = meta?.defaultModel ?? 'claude-sonnet-4-20250514';
@@ -357,14 +379,25 @@ export async function configCommand(
         }
 
         // Direct mode
-        if (provider !== 'ollama' && !options.apiKey) {
+        if (provider !== 'ollama' && provider !== 'claude-code' && !options.apiKey) {
           console.error(`Error: --api-key is required for provider '${provider}'`);
           process.exit(1);
         }
 
         const apiKey = options.apiKey ?? '';
 
-        if (provider !== 'ollama') {
+        if (provider === 'claude-code') {
+          process.stdout.write('Checking Claude Code session...');
+          const result = await validateApiKeyLive('claude-code', '');
+          if (result.status === 'valid') {
+            console.log(chalk.green(' ✓ Session active'));
+          } else if (result.status === 'warning') {
+            console.log(chalk.yellow(` ⚠ ${'message' in result ? result.message : ''}`));
+          } else {
+            console.error(chalk.red(` ✗ ${'error' in result ? result.error : ''}`));
+            process.exit(1);
+          }
+        } else if (provider !== 'ollama') {
           const validation = validateApiKeyForProvider(provider, apiKey);
           if (validation !== true) {
             console.error(`Error: ${validation}`);
