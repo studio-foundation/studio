@@ -189,6 +189,7 @@ New `tests/regex-detector.test.ts`:
 - **Partial-overlap interval test (Constraint 1):** a candidate that partially overlaps an already-accepted higher-priority span (extends into it without sharing a start) is dropped — guards the true-intersection requirement, not just start-position freedom.
 - **`person` through the new flow (Constraint 2):** salutation-based name yields a clean span over the captured name only; when a higher-priority formatted span overlaps the name region, `person` yields to it.
 - **French salutation (Constraint 3):** a name preceded by a French salutation (e.g. `"Bonjour Marie Tremblay,"`) produces a correct `person` span over the name. Cover representative FR triggers (`Bonjour`, `Madame`/`Monsieur`, `M.`/`Mme`, `Cher`/`Chère`) and an accented surname (e.g. *Côté*) to guard accent handling.
+- **`M.`/`Mme` abbreviation negative test (Constraint 3 guard):** `M.` followed by a capitalized word that is *not* a name must produce **no** `person` span — e.g. a capitalized word that simply follows an abbreviation period or a sentence-initial capital after `M.` in non-salutation use. French email traffic has many capitalized words after periods; a false-positive `person` silently corrupts the classification signal (the same argument that put `address` out of scope). This borders the `M.`/`Mme` guard so the detector is honest about what it does **and does not** catch.
 
 Regression: existing `tests/detector.test.ts` continues to pass unchanged — proves the refactor is behavior-preserving for the old path.
 
