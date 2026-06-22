@@ -48,7 +48,7 @@ user data → anonymize() → [PERSON_1], [EMAIL_1] → LLM → deanonymize() �
 | `phone` | `PHONE_N` | US phone numbers (10 digits, various formats) |
 | `ssn` | `SSN_N` | Social security numbers (ddd-dd-dddd) |
 | `credit_card` | `CREDIT_CARD_N` | 16-digit card numbers |
-| `address` | `ADDRESS_N` | Reserved (detection not yet implemented) |
+| `address` | `ADDRESS_N` | Reserved — delegated to future NER detector (not regex-detected) |
 
 ## Detection strategy
 
@@ -58,7 +58,13 @@ Two-phase detection on each call:
 
 2. **Person names (best effort)**: salutation-gated pattern (`Dear X`, `Hi X`, `Mr. X`, etc.). Only catches explicitly addressed names, not bare occurrences.
 
-Spans are non-overlapping. If two patterns match the same range, the first one wins and the position is marked occupied.
+Spans are non-overlapping. Overlaps are resolved by an explicit priority
+(credit_card > ssn > email > phone > person, most-specific wins): the
+highest-priority match takes the whole span and overlapping lower-priority
+matches are dropped. Detection is pluggable via the `DetectionProvider`
+interface (`detect(text) → Promise<Span[]>`); `RegexDetector` is the built-in
+provider. Person detection covers FR + EN salutations. `address` is not
+detected by regex — it is delegated to a future NER detector.
 
 ## Token consistency
 

@@ -42,3 +42,13 @@ describe('RegexDetector', () => {
     expect(text.slice(person!.start, person!.end)).toBe('Marie Tremblay');
   });
 });
+
+describe('package public exports', () => {
+  it('exposes RegexDetector and the provider types from the package root', async () => {
+    const mod = await import('../src/index.js');
+    expect(typeof mod.RegexDetector).toBe('function');
+    const det = new mod.RegexDetector();
+    const spans = await det.detect('Contact mc@acme.com');
+    expect(spans.some((s: { type: string }) => s.type === 'email')).toBe(true);
+  });
+});
