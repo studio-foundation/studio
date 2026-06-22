@@ -83,6 +83,21 @@ describe('matchPII — person (FR + EN salutations)', () => {
     expect(matchPII('Mme Gagnon').some(s => s.type === 'person')).toBe(true);
   });
 
+  it('does NOT capture a lowercase word after a lowercase salutation (/i false-positive guard)', () => {
+    // The salutation trigger stays case-insensitive, but the name capture must
+    // require an initial uppercase. "bonjour marie est revenue" must NOT tokenize
+    // any lowercase word as a person — a false positive is strictly worse than a miss.
+    const text = 'bonjour marie est revenue';
+    expect(matchPII(text).some(s => s.type === 'person')).toBe(false);
+  });
+
+  it('still detects a capitalized name after a lowercase salutation', () => {
+    const text = 'bonjour Marie Tremblay';
+    const p = matchPII(text).find(s => s.type === 'person');
+    expect(p).toBeDefined();
+    expect(text.slice(p!.start, p!.end)).toBe('Marie Tremblay');
+  });
+
   it('does NOT match a word merely ending in m before a period (M. negative guard)', () => {
     // "forum." ends in "m." but "m" is not a standalone token (preceded by "u"),
     // so the M. salutation must not fire and "Trois" must not become a person.
