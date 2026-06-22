@@ -79,7 +79,7 @@ export interface DetectionProvider {
 Owns:
 
 - The **canonical vocabulary**: `type PIIType = 'email' | 'phone' | 'ssn' | 'credit_card' | 'person'`.
-- The patterns (email/phone/ssn/credit_card regex + the salutation-based `person` logic), moved from `detector.ts`.
+- The patterns (email/phone/ssn/credit_card regex + the salutation-based `person` logic), moved from `detector.ts`. **The `person` salutation list must cover FR + EN in this PR (see Constraint 3).**
 - The **explicit priority list** in one documented place:
 
 ```ts
@@ -124,6 +124,21 @@ Four of the five types are pure format regexes. `person` is **not** — it is a 
 
 This is the one type to test carefully through the new flow, since the other four are pure pattern matches with no contextual capture.
 
+### Constraint 3 — `person` salutations must cover FR + EN (deployment prerequisite)
+
+The first club deployment is a **French-language** volleyball club; its emails are mostly in French. Because `person` detection is anchored on the salutation (natural-language context, unlike the four language-neutral format types), an English-only salutation list would **silently miss French names** — leaking the most sensitive PII in the club context: the names of parents and minors. `person` is therefore simultaneously the type most fragile to language and the most critical for this deployment. FR+EN coverage ships in **this** PR, not later.
+
+The salutation list must include, at minimum:
+
+- **English (existing):** `Dear`, `Hi`, `Hello`, `Greetings`, `Hey` (+ `Hey there`), `Mr.`, `Mrs.`, `Ms.`, `Dr.`, `Prof.`
+- **French (new):** `Bonjour`, `Bonsoir`, `Allô` / `Allo` (with and without accent), `Salut`, `Cher` / `Chère` / `Chers` / `Chères` (handle accents), `Madame`, `Monsieur`, and the abbreviations `M.` and `Mme`.
+
+Notes:
+- The matching stays case-insensitive and accent-aware; the captured-name group (`[A-Z][a-zA-ZÀ-ÿ'\-]+ …`) already tolerates accented surnames (e.g. *Côté*, *Tremblay*), so only the salutation *trigger* list widens.
+- Mind the abbreviation boundaries: `M.` must require the trailing period (and a following capitalized name) so it does not fire on a stray capital `M`; `Mme` likewise anchored to a following name.
+
+The other four types (email, phone, ssn, credit_card) are format-based and language-neutral — no change.
+
 ## Consumers
 
 ```ts
@@ -162,6 +177,7 @@ export function detectPII(text: string): PIISpan[] {
 - **`address` dropped (B over C/A on the address sub-question).** No address regex, not even a minimal one. False positives in an email classifier silently corrupt the LLM signal and a weak detector gives dishonest assurance. The original AC's "addresses" was corrected in STU-397; address is deferred to NER. Documented on both `PRIORITY` and `RegexDetector` (deliberate redundancy — prevents re-adding from either entry point).
 - **Explicit priority `credit_card > ssn > email > phone > person`** (most-specific-wins), as declared data in one place, not array order.
 - **Free-string `Span.type` at the public interface, internal narrowing to `PIIType`** — the right seam for future providers.
+- **FR + EN salutations for `person` in this PR.** The first deployment is a French club; an EN-only list would silently leak parent/minor names. `person` is the type most fragile to language and most critical for the club, so bilingual coverage is a deployment prerequisite, not a later enhancement. The four format types are language-neutral and unchanged.
 
 ## Tests (isolation — no middleware, no runner)
 
@@ -172,6 +188,7 @@ New `tests/regex-detector.test.ts`:
 - **Overlap by priority:** a digit run that both `credit_card` and `ssn`/`phone` could match → assert `credit_card` wins and the losers are absent.
 - **Partial-overlap interval test (Constraint 1):** a candidate that partially overlaps an already-accepted higher-priority span (extends into it without sharing a start) is dropped — guards the true-intersection requirement, not just start-position freedom.
 - **`person` through the new flow (Constraint 2):** salutation-based name yields a clean span over the captured name only; when a higher-priority formatted span overlaps the name region, `person` yields to it.
+- **French salutation (Constraint 3):** a name preceded by a French salutation (e.g. `"Bonjour Marie Tremblay,"`) produces a correct `person` span over the name. Cover representative FR triggers (`Bonjour`, `Madame`/`Monsieur`, `M.`/`Mme`, `Cher`/`Chère`) and an accented surname (e.g. *Côté*) to guard accent handling.
 
 Regression: existing `tests/detector.test.ts` continues to pass unchanged — proves the refactor is behavior-preserving for the old path.
 
@@ -179,6 +196,7 @@ Regression: existing `tests/detector.test.ts` continues to pass unchanged — pr
 
 - [ ] `DetectionProvider` defined in the anonymizer package, `detect(text) → Promise<Span[]>`.
 - [ ] `RegexDetector` returns correct spans (`start`/`end`/`type`) for email/phone/ssn/credit_card/person — no replacement. (`address` deliberately delegated to NER, out of regex scope.)
+- [ ] `person` salutation list covers FR + EN (`Bonjour`, `Bonsoir`, `Allô`/`Allo`, `Salut`, `Cher`/`Chère`/`Chers`/`Chères`, `Madame`, `Monsieur`, `M.`, `Mme` + existing English); a French-salutation name (e.g. `"Bonjour Marie Tremblay,"`) produces a correct `person` span. Deployment prerequisite for the French club, not deferred.
 - [ ] Overlap spans handled in a defined way: explicit documented priority (`credit_card > ssn > email > phone > person`), winner takes the whole span, lower-priority overlaps dropped.
 - [ ] Unit tests of the detector in isolation, no dependency on middleware or runner.
 - [ ] No internal `@studio-foundation/*` dependency added to anonymizer (stays co-leaf with contracts, INV-10).
