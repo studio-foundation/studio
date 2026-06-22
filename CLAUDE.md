@@ -82,6 +82,20 @@ pending → running → success
 5. **Tools live in runner, not engine.** The engine passes configs to runner.
 6. **Prompts live in runner.** `prompt-builder.ts` assembles system prompt + context.
 
+## Versioning & Releases
+
+Studio uses **unified (lockstep) versioning**: the root and all 7 packages always share one version. There is no independent per-package versioning — "which version is anonymizer?" is the wrong question; it's always the current Studio version.
+
+- **One version, bumped together.** Never hand-edit a single package's `version`. Run `pnpm version:bump <semver>` ([scripts/bump-version.mjs](scripts/bump-version.mjs)), which rewrites all 8 `package.json` files (root + 7 packages) to the same number. `studio --version` reads it from `cli/package.json`.
+- **`workspace:*` for internal deps.** Packages never pin each other's version, so a bump needs no cross-package coordination.
+- **Bump at release time, not per PR.** Feature and fix PRs do NOT touch the version. When publishing to npm, a dedicated `chore: bump version to X.Y.Z` commit batches all merged work into one bump.
+- **Semver rule (pre-1.0 / 0.x):**
+  - **MINOR** (`0.4.1 → 0.5.0`) — a new feature **or** a breaking change.
+  - **PATCH** (`0.4.1 → 0.4.2`) — backward-compatible bug fixes only.
+  - A breaking change does **not** force `1.0.0`. The jump to 1.0 is an explicit product decision, never an automatic consequence of a breaking change.
+
+_Example: a PR that adds a new public API to one package (a backward-compatible feature) earns a **minor** bump for the whole monorepo at the next release._
+
 ## Tools
 
 Tools are YAML plugins (`.tool.yaml`). The runner is a tool plugin runtime.
