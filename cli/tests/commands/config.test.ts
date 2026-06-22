@@ -202,6 +202,18 @@ describe('addProviderConfig', () => {
   });
 });
 
+describe('PROVIDERS — claude-code', () => {
+  it('includes claude-code in the PROVIDERS list', () => {
+    const ids = PROVIDERS.map(p => p.id);
+    expect(ids).toContain('claude-code');
+  });
+
+  it('claude-code defaultModel is claude-sonnet-4-5', () => {
+    const cc = PROVIDERS.find(p => p.id === 'claude-code');
+    expect(cc?.defaultModel).toBe('claude-sonnet-4-5');
+  });
+});
+
 describe('isProviderConfigured', () => {
   const CONFIG_FILE = resolve(STUDIO_DIR, 'config.yaml');
 
