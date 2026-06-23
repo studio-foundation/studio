@@ -73,7 +73,9 @@ export async function anonymizeWithProvider(
   let result = text;
   for (const span of sortedDesc) {
     const value = text.slice(span.start, span.end);
-    const token = tokenizer.tokenize(value, span.type as PIICategory);
+    // span.type is a free string (the provider's vocabulary); the Tokenizer
+    // derives a clean prefix from it — no cast, no undefined_N tokens.
+    const token = tokenizer.tokenize(value, span.type);
     result = result.slice(0, span.start) + token + result.slice(span.end);
   }
 

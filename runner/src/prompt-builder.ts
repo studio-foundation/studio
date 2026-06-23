@@ -10,6 +10,17 @@ import type { SkillContent } from './tools/skills/skill-loader.js';
 // import sites keep working.
 export type { TaskInput } from '@studio-foundation/contracts';
 
+/**
+ * Whether a task is in structured (field) mode rather than flat-description mode.
+ * Single source of truth for the `description` XOR `fields` branch — both the
+ * anonymization injection point and prompt assembly call this instead of
+ * re-checking `fields && Object.keys(fields).length > 0`. An empty record
+ * degrades to flat mode.
+ */
+export function hasFields(task: TaskInput): boolean {
+  return !!task.fields && Object.keys(task.fields).length > 0;
+}
+
 export interface ExecutionContext {
   attempt: number;
   previous_failures?: Array<{
@@ -326,11 +337,10 @@ function renderToolResults(previous_tool_results: Record<string, ToolCall[]>): s
  * Render the `## Task` section. When the input carries named `fields`, render
  * each as its own `### <name>` subsection (the values are already tokenized by
  * the time the prompt is built). Otherwise fall back to the flat description.
- * Field names are treated opaquely — no domain knowledge of what they mean.
  */
 function renderTask(task: TaskInput): string {
-  if (task.fields && Object.keys(task.fields).length > 0) {
-    const sections = Object.entries(task.fields)
+  if (hasFields(task)) {
+    const sections = Object.entries(task.fields!)
       .map(([name, value]) => `### ${name}\n\n${value}`)
       .join('\n\n');
     return `## Task\n\n${sections}`;

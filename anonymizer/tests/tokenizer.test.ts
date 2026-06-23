@@ -42,6 +42,33 @@ describe('Tokenizer', () => {
     }
   });
 
+  it('derives a clean uppercase prefix for an out-of-vocabulary category', () => {
+    // A future DetectionProvider may return types outside the 6 built-ins
+    // (Span.type is a free string by design). They must still tokenize cleanly,
+    // never as `undefined_1`.
+    const t = tokenizer.tokenize('Acme Corp', 'organization');
+    expect(t).toBe('ORGANIZATION_1');
+    expect(tokenizer.getKeymap()).toEqual({ ORGANIZATION_1: 'Acme Corp' });
+  });
+
+  it('does not collide two distinct out-of-vocabulary categories', () => {
+    const a = tokenizer.tokenize('Acme Corp', 'organization');
+    const b = tokenizer.tokenize('FR76 1234', 'iban');
+    expect(a).toBe('ORGANIZATION_1');
+    expect(b).toBe('IBAN_1');
+    expect(tokenizer.getKeymap()).toEqual({
+      ORGANIZATION_1: 'Acme Corp',
+      IBAN_1: 'FR76 1234',
+    });
+  });
+
+  it('loadKeymap restores counters for out-of-vocabulary categories', () => {
+    tokenizer.loadKeymap({ ORGANIZATION_1: 'Acme Corp' });
+    const next = tokenizer.tokenize('Globex', 'organization');
+    expect(next).toBe('ORGANIZATION_2'); // counter restored, no collision
+    expect(tokenizer.tokenize('Acme Corp', 'organization')).toBe('ORGANIZATION_1');
+  });
+
   it('loadKeymap restores state for cross-call consistency', () => {
     // Simulate loading a pre-existing keymap
     tokenizer.loadKeymap({ 'PERSON_1': 'Alice', 'EMAIL_1': 'alice@example.com' });
