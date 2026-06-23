@@ -70,10 +70,18 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
 
   const promptSnippets = allowedTools.getActiveSnippets();
 
-  // Injection point 1: Anonymize task input before building prompt
-  const taskForPrompt = mw
-    ? { ...task, description: mw.anonymize(task.description) }
-    : task;
+  // Injection point 1: Anonymize task input BEFORE building the prompt.
+  // One documented branch: structured `fields` present → tokenize each field
+  // (run-level shared keymap), so the assembled prompt only ever sees tokens;
+  // `fields` absent → the flat-description path, unchanged.
+  let taskForPrompt = task;
+  if (mw) {
+    if (task.fields && Object.keys(task.fields).length > 0) {
+      taskForPrompt = { ...task, fields: await mw.anonymizeFields(task.fields) };
+    } else {
+      taskForPrompt = { ...task, description: mw.anonymize(task.description) };
+    }
+  }
 
   // Build initial prompt
   const messages = buildPrompt({

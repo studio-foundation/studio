@@ -1,6 +1,7 @@
 import { detectPII } from './detector.js';
 import { Tokenizer } from './tokenizer.js';
-import type { PIIDetectionResult, AnonymizerOptions } from './types.js';
+import type { PIIDetectionResult, AnonymizerOptions, PIICategory } from './types.js';
+import type { DetectionProvider } from './detection/provider.js';
 
 export type { PIICategory, PIIDetectionResult, AnonymizerOptions } from './types.js';
 export { Tokenizer } from './tokenizer.js';
@@ -33,6 +34,46 @@ export function anonymize(text: string, options?: AnonymizerOptions): PIIDetecti
   let result = text;
   for (const span of sortedDesc) {
     const token = tokenizer.tokenize(span.value, span.category);
+    result = result.slice(0, span.start) + token + result.slice(span.end);
+  }
+
+  return { text: result, keymap: tokenizer.getKeymap() };
+}
+
+/**
+ * Anonymize PII using a pluggable {@link DetectionProvider} instead of the
+ * built-in regex detector. The provider returns positional spans only; the
+ * value is reconstructed HERE via text.slice and tokenized with `span.type` as
+ * the category. Async to cover network providers (e.g. Presidio HTTP).
+ *
+ * Same contract as {@link anonymize}: pass seedKeymap to keep tokens consistent
+ * across calls (a value already mapped reuses its token).
+ */
+export async function anonymizeWithProvider(
+  text: string,
+  provider: DetectionProvider,
+  options?: AnonymizerOptions,
+): Promise<PIIDetectionResult> {
+  const spans = await provider.detect(text);
+  const filtered = options?.categories
+    ? spans.filter(s => options.categories!.includes(s.type as PIICategory))
+    : spans;
+
+  const tokenizer = new Tokenizer();
+  if (options?.seedKeymap && Object.keys(options.seedKeymap).length > 0) {
+    tokenizer.loadKeymap(options.seedKeymap);
+  }
+
+  if (filtered.length === 0) {
+    return { text, keymap: tokenizer.getKeymap() };
+  }
+
+  // Replace spans right-to-left so earlier offsets stay valid as we splice.
+  const sortedDesc = [...filtered].sort((a, b) => b.start - a.start);
+  let result = text;
+  for (const span of sortedDesc) {
+    const value = text.slice(span.start, span.end);
+    const token = tokenizer.tokenize(value, span.type as PIICategory);
     result = result.slice(0, span.start) + token + result.slice(span.end);
   }
 
