@@ -1,34 +1,31 @@
-import type { PIICategory } from './types.js';
-
-const CATEGORY_PREFIX: Record<PIICategory, string> = {
-  person: 'PERSON',
-  email: 'EMAIL',
-  phone: 'PHONE',
-  address: 'ADDRESS',
-  ssn: 'SSN',
-  credit_card: 'CREDIT_CARD',
-};
-
 export class Tokenizer {
   // original value → token
   private inverse = new Map<string, string>();
   // token → original value
   private keymap = new Map<string, string>();
-  // category → counter
-  private counters = new Map<PIICategory, number>();
+  // category (lowercased) → counter
+  private counters = new Map<string, number>();
 
   /**
    * Get or create a consistent sequential token for a PII value.
+   *
+   * `category` is a free string: the built-in detector emits the six PIICategory
+   * values, but a pluggable DetectionProvider (STU-397) may return its own
+   * vocabulary (e.g. "organization", "iban"). The token prefix is the category
+   * uppercased — for the built-in categories that is exactly the old fixed
+   * mapping (person → PERSON, credit_card → CREDIT_CARD), so existing tokens are
+   * unchanged — and the counter is keyed by the lowercased category so distinct
+   * types never collide on a single prefix.
    */
-  tokenize(value: string, category: PIICategory): string {
+  tokenize(value: string, category: string): string {
     const existing = this.inverse.get(value);
     if (existing) return existing;
 
-    const counter = (this.counters.get(category) ?? 0) + 1;
-    this.counters.set(category, counter);
+    const key = category.toLowerCase();
+    const counter = (this.counters.get(key) ?? 0) + 1;
+    this.counters.set(key, counter);
 
-    const prefix = CATEGORY_PREFIX[category];
-    const token = `${prefix}_${counter}`;
+    const token = `${category.toUpperCase()}_${counter}`;
 
     this.inverse.set(value, token);
     this.keymap.set(token, value);
@@ -47,15 +44,14 @@ export class Tokenizer {
     for (const [token, value] of Object.entries(keymap)) {
       this.keymap.set(token, value);
       this.inverse.set(value, token);
-      // Restore counter state from token name (e.g. PERSON_3 → counter = 3)
+      // Restore counter state from token name (e.g. PERSON_3 → counter = 3).
+      // The prefix lowercased is the counter key, mirroring tokenize().
       const match = token.match(/^([A-Z_]+)_(\d+)$/);
       if (match) {
-        const cat = Object.entries(CATEGORY_PREFIX).find(([, p]) => p === match[1])?.[0] as PIICategory | undefined;
-        if (cat) {
-          const n = parseInt(match[2], 10);
-          if ((this.counters.get(cat) ?? 0) < n) {
-            this.counters.set(cat, n);
-          }
+        const key = match[1].toLowerCase();
+        const n = parseInt(match[2], 10);
+        if ((this.counters.get(key) ?? 0) < n) {
+          this.counters.set(key, n);
         }
       }
     }

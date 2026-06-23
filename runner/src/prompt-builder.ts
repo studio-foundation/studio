@@ -2,8 +2,24 @@
  * Prompt builder - constructs messages for LLM with retry escalation
  */
 
-import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall } from '@studio-foundation/contracts';
+import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall, TaskInput } from '@studio-foundation/contracts';
 import type { SkillContent } from './tools/skills/skill-loader.js';
+
+// TaskInput is the runner's input contract — defined in @studio-foundation/contracts
+// (the leaf package) and re-exported here so existing `@studio-foundation/runner`
+// import sites keep working.
+export type { TaskInput } from '@studio-foundation/contracts';
+
+/**
+ * Whether a task is in structured (field) mode rather than flat-description mode.
+ * Single source of truth for the `description` XOR `fields` branch — both the
+ * anonymization injection point and prompt assembly call this instead of
+ * re-checking `fields && Object.keys(fields).length > 0`. An empty record
+ * degrades to flat mode.
+ */
+export function hasFields(task: TaskInput): boolean {
+  return !!task.fields && Object.keys(task.fields).length > 0;
+}
 
 export interface ExecutionContext {
   attempt: number;
@@ -11,12 +27,6 @@ export interface ExecutionContext {
     error: string;
     tool_calls_count: number;
   }>;
-}
-
-export interface TaskInput {
-  description: string;
-  expected_output?: string;
-  contract_name?: string;
 }
 
 export interface GroupFeedbackContext {
@@ -179,8 +189,8 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
     userContent += renderToolResults(context.previous_tool_results);
   }
 
-  // Add task description
-  userContent += `## Task\n\n${task.description}`;
+  // Add task — from structured fields when present, else the flat description.
+  userContent += renderTask(task);
 
   // Add retry escalation if this is a retry attempt
   if (executionContext && executionContext.attempt > 1) {
@@ -321,6 +331,21 @@ function renderToolResults(previous_tool_results: Record<string, ToolCall[]>): s
     }
   }
   return out;
+}
+
+/**
+ * Render the `## Task` section. When the input carries named `fields`, render
+ * each as its own `### <name>` subsection (the values are already tokenized by
+ * the time the prompt is built). Otherwise fall back to the flat description.
+ */
+function renderTask(task: TaskInput): string {
+  if (hasFields(task)) {
+    const sections = Object.entries(task.fields!)
+      .map(([name, value]) => `### ${name}\n\n${value}`)
+      .join('\n\n');
+    return `## Task\n\n${sections}`;
+  }
+  return `## Task\n\n${task.description}`;
 }
 
 function getFieldTypeHint(field: string): string {

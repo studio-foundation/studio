@@ -35,6 +35,7 @@ import {
   type TaskInput,
   AnonymizationMiddleware,
 } from '@studio-foundation/runner';
+import { buildTaskInput } from './task-input.js';
 import { loadAgentProfile } from './agent-loader.js';
 import { loadContract } from './contract-loader.js';
 import { loadSkillFiles } from './skill-loader.js';
@@ -333,10 +334,7 @@ export class StageExecutor {
         const agentRunId = randomUUID();
         const agentRunStartedAt = new Date().toISOString();
 
-        const taskInput: TaskInput = {
-          description: typeof userInput === 'string' ? userInput : JSON.stringify(userInput),
-          contract_name: contract?.name,
-        };
+        const taskInput: TaskInput = buildTaskInput(userInput, contract?.name);
 
         // Map ralph context to runner context
         const runnerExecContext = {
