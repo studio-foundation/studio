@@ -1,0 +1,8 @@
+# Heavy, dev-machine-only (model runners). Pin exact versions after first install:
+#   pip install -r requirements.txt && pip freeze > requirements.lock
+presidio-analyzer==2.2.355
+spacy==3.7.5
+gliner==0.2.13
+torch
+# spaCy FR model is installed separately (not on PyPI as a normal dep):
+#   python -m spacy download fr_core_news_lg
