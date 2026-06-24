@@ -32,14 +32,28 @@ export class AnonymizationMiddleware {
 
   /**
    * Anonymize named input fields independently, BEFORE prompt assembly. Each
-   * field is detected + tokenized through the injected DetectionProvider, all
-   * sharing this instance's run-level keymap — so a PII value appearing in two
-   * fields receives the SAME token. Field names are opaque; only values are
-   * inspected. Async because DetectionProvider.detect is async.
+   * in-scope field is detected + tokenized through the injected
+   * DetectionProvider, all sharing this instance's run-level keymap — so a PII
+   * value appearing in two in-scope fields receives the SAME token.
+   *
+   * `scope` is an OPAQUE list of field names to anonymize: undefined → all
+   * fields (fail-safe); [] → none; ['a'] → only field `a`. Out-of-scope fields
+   * are copied byte-for-byte and are NEVER passed to the detector, so their PII
+   * cannot enter the keymap and collide with a value tokenized elsewhere.
+   * Membership is a set check on opaque names — the kernel never branches on
+   * what a name means (INV-04). Async because DetectionProvider.detect is async.
    */
-  async anonymizeFields(fields: Record<string, string>): Promise<Record<string, string>> {
+  async anonymizeFields(
+    fields: Record<string, string>,
+    scope?: string[],
+  ): Promise<Record<string, string>> {
     const out: Record<string, string> = {};
     for (const [name, value] of Object.entries(fields)) {
+      // Out of scope → copy verbatim, no detection. Undefined scope = all in.
+      if (scope !== undefined && !scope.includes(name)) {
+        out[name] = value;
+        continue;
+      }
       const result = await anonymizeWithProvider(value, this.detector, {
         ...this.options,
         seedKeymap: this.keymap,
