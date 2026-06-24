@@ -76,7 +76,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   let taskForPrompt = task;
   if (mw) {
     if (hasFields(task)) {
-      taskForPrompt = { ...task, fields: await mw.anonymizeFields(task.fields!) };
+      taskForPrompt = { ...task, fields: await mw.anonymizeFields(task.fields!, task.anonymize_fields) };
     } else {
       taskForPrompt = { ...task, description: mw.anonymize(task.description) };
     }

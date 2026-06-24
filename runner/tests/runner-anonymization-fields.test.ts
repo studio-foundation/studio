@@ -75,4 +75,27 @@ describe('runAgent with structured-field anonymization', () => {
     expect(promptText).not.toContain('mc@acme.com');
     expect(promptText).toContain('EMAIL_1');
   });
+
+  it('AC5: out-of-scope field reaches the prompt as cleartext (deterministic stage survives)', async () => {
+    const provider = new MockProvider('{"result":"ok"}');
+    await runAgent({
+      agent: { name: 'test', provider: 'mock', model: 'x' },
+      task: {
+        description: '',
+        fields: { from: 'mc@acme.com', body: 'Reply to jane@acme.com' },
+        anonymize_fields: ['body'], // only body in scope; from stays clear
+      },
+      context: {},
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: registryWith(provider),
+      anonymizationMiddleware: new AnonymizationMiddleware(),
+    });
+
+    const promptText = provider.capturedRequests[0].messages.map(m => m.content).join(' ');
+    // from is out of scope → its real address is present for a cleartext pass
+    expect(promptText).toContain('mc@acme.com');
+    // body is in scope → tokenized, real address absent
+    expect(promptText).toContain('EMAIL_1');
+    expect(promptText).not.toContain('jane@acme.com');
+  });
 });

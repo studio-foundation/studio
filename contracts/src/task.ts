@@ -17,6 +17,13 @@ export type TaskStatus = 'pending' | 'running' | 'success' | 'failed';
 export interface TaskInput {
   description: string;
   fields?: Record<string, string>;
+  /**
+   * Opaque scope: names of `fields` to anonymize. Treated as opaque strings —
+   * the kernel imposes no domain meaning (INV-04). Undefined → anonymize all
+   * fields (fail-safe); [] → anonymize none; ['a'] → only field `a`. Ignored
+   * when `fields` is absent.
+   */
+  anonymize_fields?: string[];
   expected_output?: string;
   contract_name?: string;
 }
