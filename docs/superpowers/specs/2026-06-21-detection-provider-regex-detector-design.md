@@ -126,7 +126,7 @@ This is the one type to test carefully through the new flow, since the other fou
 
 ### Constraint 3 — `person` salutations must cover FR + EN (deployment prerequisite)
 
-The first club deployment is a **French-language** volleyball club; its emails are mostly in French. Because `person` detection is anchored on the salutation (natural-language context, unlike the four language-neutral format types), an English-only salutation list would **silently miss French names** — leaking the most sensitive PII in the club context: the names of parents and minors. `person` is therefore simultaneously the type most fragile to language and the most critical for this deployment. FR+EN coverage ships in **this** PR, not later.
+The first deployment is a **French-language** context; its emails are mostly in French. Because `person` detection is anchored on the salutation (natural-language context, unlike the four language-neutral format types), an English-only salutation list would **silently miss French names** — leaking the most sensitive PII in that context: the names of parents and minors. `person` is therefore simultaneously the type most fragile to language and the most critical for this deployment. FR+EN coverage ships in **this** PR, not later.
 
 The salutation list must include, at minimum:
 
@@ -177,7 +177,7 @@ export function detectPII(text: string): PIISpan[] {
 - **`address` dropped (B over C/A on the address sub-question).** No address regex, not even a minimal one. False positives in an email classifier silently corrupt the LLM signal and a weak detector gives dishonest assurance. The original AC's "addresses" was corrected in STU-397; address is deferred to NER. Documented on both `PRIORITY` and `RegexDetector` (deliberate redundancy — prevents re-adding from either entry point).
 - **Explicit priority `credit_card > ssn > email > phone > person`** (most-specific-wins), as declared data in one place, not array order.
 - **Free-string `Span.type` at the public interface, internal narrowing to `PIIType`** — the right seam for future providers.
-- **FR + EN salutations for `person` in this PR.** The first deployment is a French club; an EN-only list would silently leak parent/minor names. `person` is the type most fragile to language and most critical for the club, so bilingual coverage is a deployment prerequisite, not a later enhancement. The four format types are language-neutral and unchanged.
+- **FR + EN salutations for `person` in this PR.** The first deployment is a French-language context; an EN-only list would silently leak parent/minor names. `person` is the type most fragile to language and most critical for it, so bilingual coverage is a deployment prerequisite, not a later enhancement. The four format types are language-neutral and unchanged.
 
 ## Tests (isolation — no middleware, no runner)
 
@@ -197,7 +197,7 @@ Regression: existing `tests/detector.test.ts` continues to pass unchanged — pr
 
 - [ ] `DetectionProvider` defined in the anonymizer package, `detect(text) → Promise<Span[]>`.
 - [ ] `RegexDetector` returns correct spans (`start`/`end`/`type`) for email/phone/ssn/credit_card/person — no replacement. (`address` deliberately delegated to NER, out of regex scope.)
-- [ ] `person` salutation list covers FR + EN (`Bonjour`, `Bonsoir`, `Allô`/`Allo`, `Salut`, `Cher`/`Chère`/`Chers`/`Chères`, `Madame`, `Monsieur`, `M.`, `Mme` + existing English); a French-salutation name (e.g. `"Bonjour Marie Tremblay,"`) produces a correct `person` span. Deployment prerequisite for the French club, not deferred.
+- [ ] `person` salutation list covers FR + EN (`Bonjour`, `Bonsoir`, `Allô`/`Allo`, `Salut`, `Cher`/`Chère`/`Chers`/`Chères`, `Madame`, `Monsieur`, `M.`, `Mme` + existing English); a French-salutation name (e.g. `"Bonjour Marie Tremblay,"`) produces a correct `person` span. Deployment prerequisite for the French-language context, not deferred.
 - [ ] Overlap spans handled in a defined way: explicit documented priority (`credit_card > ssn > email > phone > person`), winner takes the whole span, lower-priority overlaps dropped.
 - [ ] Unit tests of the detector in isolation, no dependency on middleware or runner.
 - [ ] No internal `@studio-foundation/*` dependency added to anonymizer (stays co-leaf with contracts, INV-10).
