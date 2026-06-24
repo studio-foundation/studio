@@ -3,7 +3,7 @@
 Writes predictions.gliner.jsonl for the best-performing FR label."""
 from gliner import GLiNER
 
-from _io import read_corpus, write_predictions
+from corpus_io import read_corpus, write_predictions
 from mapping import map_gliner, select_best_label
 from score import load_jsonl
 

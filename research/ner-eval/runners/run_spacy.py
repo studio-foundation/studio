@@ -2,7 +2,7 @@
     python runners/run_spacy.py"""
 import spacy
 
-from _io import read_corpus, write_predictions
+from corpus_io import read_corpus, write_predictions
 from mapping import map_spacy
 
 

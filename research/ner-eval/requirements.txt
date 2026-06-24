@@ -1,8 +1,13 @@
 # Heavy, dev-machine-only (model runners). Pin exact versions after first install:
 #   pip install -r requirements.txt && pip freeze > requirements.lock
 presidio-analyzer==2.2.355
-spacy==3.7.5
-gliner==0.2.13
+# spacy 3.7.5 has no Python 3.14 (cp314) wheel and fails to build thinc from source.
+# 3.8.13 ships a prebuilt cp314 wheel; presidio 2.2.355 allows spacy<4.0.0, so this is compatible.
+spacy==3.8.13
+# gliner 0.2.13's _from_pretrained requires proxies/resume_download kwargs that
+# huggingface_hub>=1.0 no longer passes. 0.2.27 is compatible; it caps transformers<5.7.0,
+# which pip downgrades automatically (only gliner uses transformers here).
+gliner==0.2.27
 torch
 # spaCy FR model is installed separately (not on PyPI as a normal dep):
 #   python -m spacy download fr_core_news_lg
