@@ -3,7 +3,7 @@
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 
-from _io import read_corpus, write_predictions
+from corpus_io import read_corpus, write_predictions
 from mapping import map_presidio
 
 
