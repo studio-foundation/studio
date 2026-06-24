@@ -24,4 +24,15 @@ describe('buildTaskInput', () => {
     const t = buildTaskInput({ z: 'a', a: 'b', m: 'c' });
     expect(Object.keys(t.fields!)).toEqual(['z', 'a', 'm']);
   });
+
+  it('propagates an opaque anonymize scope onto a record input', () => {
+    const t = buildTaskInput({ from: 'mc@acme.com', body: 'hi' }, 'c', ['body']);
+    expect(t.anonymize_fields).toEqual(['body']);
+    expect(t.fields).toEqual({ from: 'mc@acme.com', body: 'hi' });
+  });
+
+  it('leaves anonymize_fields undefined when no scope is given', () => {
+    const t = buildTaskInput({ from: 'mc@acme.com' }, 'c');
+    expect(t.anonymize_fields).toBeUndefined();
+  });
 });
