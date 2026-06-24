@@ -33,7 +33,7 @@ const FORMAT_PATTERNS: Record<FormatType, RegExp> = {
 };
 
 // Person detection is salutation-anchored (not a pure format), so it inherits
-// the deployment language. The first club deployment is French; an EN-only list
+// the deployment language. The first deployment is French-language; an EN-only list
 // would silently miss French names and leak the most sensitive PII (parents and
 // minors). FR + EN salutations ship together.
 //
