@@ -64,6 +64,10 @@ Agents are optimized to produce plausible output. An agent asked to write code c
 
 This is not a heuristic. It is structural. The runner tracks every tool call. The contract specifies what must have occurred. The engine compares the two. Theatre is caught mechanically.
 
+Anti-theatre applies to configs too. A contract or pipeline field the kernel does not implement is **rejected at load time with a hard error** — never silently ignored. A silently ignored field is config-theatre: you believe a guarantee is in place that is never enforced. The error names the unknown field, the file, and suggests the closest valid field.
+
+This is why `field_constraints` and `post_validation.constraints` are rejected rather than implemented: constraints beyond `required_fields` (types, lengths, item counts, cross-field rules) already have a home — **external validators** (`validators:`), which run against the real output inside the RALPH loop. One mechanism that works beats two that overlap.
+
 ---
 
 ## Post-validation rejection
