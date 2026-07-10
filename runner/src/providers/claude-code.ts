@@ -19,6 +19,18 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
     this.model = config.model ?? 'claude-sonnet-4-5';
   }
 
+  /**
+   * Resolve the model to spawn `claude` with. The per-agent model — resolved by
+   * the engine into request.model (STU-429) — takes precedence. The
+   * construction-time model (config.claudeCode.model, i.e. defaults.model) is
+   * only a FALLBACK, for direct callers that omit or blank out request.model.
+   * `||` (not `??`) so an empty string also falls back, never reaching the CLI
+   * as a broken `--model ""`.
+   */
+  private resolveModel(request: LLMRequest): string {
+    return request.model || this.model;
+  }
+
   async call(request: LLMRequest, onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
     const result = await this.runAgentLoop(request, async () => ({ result: null }), onToken, signal);
     return {
@@ -37,12 +49,13 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
   ): Promise<AgentLoopResult> {
     const tools = request.tools ?? [];
     const prompt = buildPrompt(request);
+    const model = this.resolveModel(request);
 
     // No tools → no MCP server. Attaching the HTTP MCP server makes the claude CLI
     // hang on the streamable-http handshake, and a tool-less agent has nothing to
     // call anyway, so run a plain --print invocation with no --mcp-config.
     if (tools.length === 0) {
-      const result = await this.spawnClaude(prompt, undefined, onToken, signal);
+      const result = await this.spawnClaude(model, prompt, undefined, onToken, signal);
       return { ...result, tool_calls: [] };
     }
 
@@ -54,7 +67,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
     await writeFile(mcpConfigPath, JSON.stringify(mcpConfig), 'utf-8');
 
     try {
-      const result = await this.spawnClaude(prompt, mcpConfigPath, onToken, signal);
+      const result = await this.spawnClaude(model, prompt, mcpConfigPath, onToken, signal);
       return { ...result, tool_calls: mcpServer.getToolCalls() };
     } finally {
       await mcpServer.stop();
@@ -63,6 +76,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
   }
 
   private spawnClaude(
+    model: string,
     prompt: string,
     mcpConfigPath: string | undefined,
     onToken: ((token: string) => void) | undefined,
@@ -74,7 +88,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       const args = [
         '--print',
         '--output-format', 'stream-json',
-        '--model', this.model,
+        '--model', model,
         // With tools: expose them via the MCP server. Without tools: disable the
         // CLI's built-in tools (`--tools ""`) so this is a single-turn pure
         // completion — otherwise claude would run an unbounded agentic loop
@@ -97,7 +111,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       ];
 
       const startedAt = Date.now();
-      logCC('spawn', { model: this.model, hasMcp: !!mcpConfigPath, flags: args.slice(0, -1), promptChars: prompt.length });
+      logCC('spawn', { model, hasMcp: !!mcpConfigPath, flags: args.slice(0, -1), promptChars: prompt.length });
 
       // stdin MUST be 'ignore', not 'pipe'. The prompt is a positional arg, so we
       // never write to stdin — but if stdin is an open, non-TTY pipe, claude 2.1.37
