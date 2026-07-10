@@ -117,6 +117,35 @@ describe('ClaudeCodeProvider', () => {
     expect(args).not.toContain('--no-verbose');
   });
 
+  it('honors the per-agent model from request.model over the construction-time default', async () => {
+    // STU-429: the construction-time model (from config.claudeCode.model, i.e.
+    // defaults.model) is only a FALLBACK. When a stage's agent declares its own
+    // model, the engine resolves it into request.model — the provider must spawn
+    // claude with THAT model, not the default it was constructed with.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' }); // default
+    const requestWithModel: LLMRequest = { ...BASE_REQUEST, model: 'claude-opus-4-1' }; // per-agent override
+    await provider.runAgentLoop(requestWithModel, vi.fn());
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    const modelIdx = args.indexOf('--model');
+    expect(modelIdx).toBeGreaterThanOrEqual(0);
+    expect(args[modelIdx + 1]).toBe('claude-opus-4-1');
+  });
+
+  it('falls back to the construction-time default when request.model is absent', async () => {
+    // Direct callers (not the runner) may omit model; the construction default
+    // still applies as the fallback.
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    const requestNoModel = { ...BASE_REQUEST, model: undefined } as unknown as LLMRequest;
+    await provider.runAgentLoop(requestNoModel, vi.fn());
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    const modelIdx = args.indexOf('--model');
+    expect(args[modelIdx + 1]).toBe('claude-sonnet-4-5');
+  });
+
   it('skips the MCP server and --mcp-config when there are no tools', async () => {
     // Attaching the HTTP MCP server makes the claude CLI hang on the streamable-http
     // handshake; a tool-less agent (e.g. a pure classifier) needs no MCP server.
