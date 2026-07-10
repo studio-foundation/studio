@@ -5,10 +5,13 @@ schema:
   required_fields:
     - summary
     - files_changed
-  files_changed:
-    min_items: 1
-    item_schema:
-      required: [path, action, content]
+
+# Item-level constraints are not part of the declarative schema — use an
+# external validator against the real output if you need them:
+#
+# validators:
+#   - name: files-changed-shape
+#     command: "jq -e '.files_changed | length >= 1 and all(has(\"path\") and has(\"action\") and has(\"content\"))'"
 
 tool_calls:
   minimum: 1

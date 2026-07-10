@@ -21,7 +21,6 @@ stages:
         # - pipeline_start_context  # Uncomment to include git_status, recent_commits, etc.
     ralph:
       max_attempts: 3
-      retry_delay_ms: 1000
 
   - name: implementation-plan
     kind: planning
@@ -33,7 +32,6 @@ stages:
         - previous_stage_output
     ralph:
       max_attempts: 3
-      retry_delay_ms: 1000
 
   - group: implementation-review
     max_iterations: 3
@@ -50,7 +48,6 @@ stages:
             # - pipeline_start_context  # Uncomment to include git_status, recent_commits, etc.
         ralph:
           max_attempts: 3
-          retry_delay_ms: 1000
 
       - name: qa-review
         kind: qa
@@ -62,4 +59,3 @@ stages:
             - previous_stage_output
         ralph:
           max_attempts: 2
-          retry_delay_ms: 500
