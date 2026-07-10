@@ -5,10 +5,14 @@ schema:
   required_fields:
     - summary
     - recommendations
-  summary:
-    min_length: 50
-  recommendations:
-    min_items: 1
+
+# Constraints beyond required_fields (lengths, item counts, types) are not
+# part of the declarative schema — express them as external validators, which
+# run against the real output inside the RALPH loop:
+#
+# validators:
+#   - name: min-content
+#     command: "jq -e '(.summary | length >= 50) and (.recommendations | length >= 1)'"
 
 tool_calls:
   minimum: 0  # Analysis doesn't require tool calls

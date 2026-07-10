@@ -30,7 +30,6 @@ export interface OutputContract {
   version: number;
   schema?: {
     required_fields?: string[];
-    [key: string]: unknown;
   };
   tool_calls?: ToolCallRequirements;
   /** External validators run against the real output inside the RALPH loop. */

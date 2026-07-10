@@ -4,6 +4,61 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand, StageHooks } from '@studio-foundation/contracts';
+import { assertKnownFields } from './strict-fields.js';
+
+// Every field the kernel implements, per block (see PipelineDefinition and
+// friends in @studio-foundation/contracts). Anything else is config-theatre
+// and must be rejected at load time, not silently ignored.
+const PIPELINE_FIELDS = [
+  'name', 'description', 'version', 'on_pipeline_start', 'input_schema', 'repo', 'stages',
+] as const;
+const STAGE_FIELDS = [
+  'name', 'condition', 'kind', 'agent', 'executor', 'script', 'runtime',
+  'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
+] as const;
+const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
+const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
+const CONTEXT_FIELDS = ['include', 'packs'] as const;
+const TOOLS_FIELDS = ['required'] as const;
+const HOOKS_FIELDS = ['on_stage_start', 'on_stage_complete', 'pre_tool_use', 'post_tool_use'] as const;
+const STAGE_HOOK_FIELDS = ['command', 'on_failure'] as const;
+const TOOL_HOOK_FIELDS = ['matcher', 'command', 'on_failure'] as const;
+const STARTUP_COMMAND_FIELDS = ['command', 'inject_as'] as const;
+const REPO_FIELDS = ['url', 'branch'] as const;
+const INPUT_SCHEMA_FIELDS = ['type', 'fields'] as const;
+const INPUT_FIELD_FIELDS = ['name', 'type', 'prompt', 'required', 'default', 'items'] as const;
+
+/** assertKnownFields on a block only if it is a plain object. */
+function checkBlock(
+  block: unknown,
+  allowed: readonly string[],
+  what: string,
+  context: string
+): void {
+  if (block && typeof block === 'object' && !Array.isArray(block)) {
+    assertKnownFields(block as Record<string, unknown>, allowed, what, context);
+  }
+}
+
+/** Strict-check a stage and every nested block the kernel owns. */
+function checkStageFields(stage: any, context: string): void {
+  const inStage = `of stage '${stage.name}'`;
+  assertKnownFields(stage, STAGE_FIELDS, `stage '${stage.name}'`, context);
+  checkBlock(stage.ralph, RALPH_FIELDS, `ralph ${inStage}`, context);
+  checkBlock(stage.context, CONTEXT_FIELDS, `context ${inStage}`, context);
+  checkBlock(stage.tools, TOOLS_FIELDS, `tools ${inStage}`, context);
+  checkBlock(stage.hooks, HOOKS_FIELDS, `hooks ${inStage}`, context);
+  if (stage.hooks && typeof stage.hooks === 'object') {
+    for (const point of HOOKS_FIELDS) {
+      const entries = stage.hooks[point];
+      if (!Array.isArray(entries)) continue;
+      const allowed = point.startsWith('on_stage') ? STAGE_HOOK_FIELDS : TOOL_HOOK_FIELDS;
+      for (const entry of entries) {
+        checkBlock(entry, allowed, `hooks.${point} entry ${inStage}`, context);
+      }
+    }
+  }
+}
 
 export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   let content: string;
@@ -44,15 +99,32 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
     throw new Error(`Pipeline must have at least one stage${context}`);
   }
 
+  assertKnownFields(parsed, PIPELINE_FIELDS, `pipeline '${parsed.name}'`, context);
+  checkBlock(parsed.repo, REPO_FIELDS, `repo of pipeline '${parsed.name}'`, context);
+  checkBlock(parsed.input_schema, INPUT_SCHEMA_FIELDS, `input_schema of pipeline '${parsed.name}'`, context);
+  const inputFields = (parsed.input_schema as Record<string, unknown> | undefined)?.fields;
+  if (Array.isArray(inputFields)) {
+    for (const f of inputFields) {
+      checkBlock(f, INPUT_FIELD_FIELDS, `input_schema field of pipeline '${parsed.name}'`, context);
+    }
+  }
+  if (Array.isArray(parsed.on_pipeline_start)) {
+    for (const cmd of parsed.on_pipeline_start) {
+      checkBlock(cmd, STARTUP_COMMAND_FIELDS, `on_pipeline_start entry of pipeline '${parsed.name}'`, context);
+    }
+  }
+
   const stages: PipelineEntry[] = [];
   for (const entry of parsed.stages as any[]) {
     if (entry.group) {
       // Group entry
+      assertKnownFields(entry, GROUP_FIELDS, `group '${entry.group}'`, context);
       if (!Array.isArray(entry.stages) || entry.stages.length < 2) {
         throw new Error(`Group '${entry.group}' must have at least 2 stages${context}`);
       }
       for (const s of entry.stages) {
         validateStageFields(s, context);
+        checkStageFields(s, context);
       }
 
       const mode = entry.mode === 'parallel' ? 'parallel' : undefined;
@@ -75,6 +147,7 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
     } else {
       // Simple stage
       validateStageFields(entry, context);
+      checkStageFields(entry, context);
       stages.push({ ...entry, hooks: parseStageHooks(entry) } as StageDefinition);
     }
   }
