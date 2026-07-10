@@ -52,6 +52,44 @@ describe('resolveDependencies', () => {
     expect(result.required).toEqual([]);
   });
 
+  it('throws a hard error when a required dependency is missing from the index (STU-409)', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = { generated_at: '', version: '1', packages: [] };
+    const pkgMeta = meta('software-full', {
+      tools: { required: ['ghost-tool'] },
+    });
+    await expect(
+      resolveDependencies('software-full', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH)
+    ).rejects.toThrow(/required dependency 'ghost-tool'.*software-full/s);
+  });
+
+  it('throws when a transitive required dependency is missing', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('B', 'tool')],
+    };
+    const fetchMeta = async (name: string): Promise<PackageMetadata> => {
+      if (name === 'B') return meta('B', { tools: { required: ['ghost'] } });
+      return meta(name);
+    };
+    const pkgMeta = meta('A', { tools: { required: ['B'] } });
+    await expect(
+      resolveDependencies('A', pkgMeta, index, EMPTY_LOCKFILE, fetchMeta)
+    ).rejects.toThrow(/required dependency 'ghost'.*'B'/s);
+  });
+
+  it('does not throw for a missing recommended dependency (optional)', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = { generated_at: '', version: '1', packages: [] };
+    const pkgMeta = meta('software-full', {
+      skills: { recommended: ['nice-to-have'] },
+    });
+    const result = await resolveDependencies('software-full', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH);
+    expect(result.recommended).toEqual([]);
+    expect(result.required).toEqual([]);
+  });
+
   it('resolves required deps recursively (A requires B which requires C)', async () => {
     const { resolveDependencies } = await import('../../src/registry/resolver.js');
     const index: RegistryIndex = {
