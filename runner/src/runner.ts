@@ -66,7 +66,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   // tools: ['a', 'b'] → only a and b visible to LLM
   // tools: []          → no tools visible
   // tools: undefined   → no tools visible (whitelist-by-default)
-  const allowedTools = toolRegistry.filter(agent.tools ?? []);
+  const allowedTools = toolRegistry.filter(agent.tools ?? [], { agentName: agent.name });
 
   const promptSnippets = allowedTools.getActiveSnippets();
 
