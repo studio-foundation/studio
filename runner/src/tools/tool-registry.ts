@@ -97,28 +97,71 @@ export class ToolRegistry {
   }
 
   /**
-   * Create a new registry filtered to specific tool names.
-   * Normalizes dots to hyphens so both "repo_manager.write_file"
-   * and "repo_manager-write_file" match the registered name.
-   * Plugin snippet metadata is carried over for included tools.
+   * All tools belonging to a plugin (by its registered plugin name).
    */
-  filter(allowedTools: string[]): ToolRegistry {
-    const filtered = new ToolRegistry();
-    for (const toolName of allowedTools) {
-      const tool = this.tools.get(toolName)
-        ?? this.tools.get(normalizeToolName(toolName));
-      if (tool) {
-        filtered.register(tool);
-        // Carry over plugin metadata so getActiveSnippets() works on filtered registry
-        const pluginName = this.toolToPlugin.get(normalizeToolName(tool.name));
-        if (pluginName) {
-          filtered.toolToPlugin.set(normalizeToolName(tool.name), pluginName);
-          const snippet = this.pluginSnippets.get(pluginName);
-          if (snippet) filtered.pluginSnippets.set(pluginName, snippet);
-        }
+  private toolsForPlugin(pluginName: string): Tool[] {
+    const result: Tool[] = [];
+    for (const tool of this.tools.values()) {
+      if (this.toolToPlugin.get(normalizeToolName(tool.name)) === pluginName) {
+        result.push(tool);
       }
     }
+    return result;
+  }
+
+  /** Copy a tool plus its plugin snippet metadata into `target`. */
+  private copyTool(tool: Tool, target: ToolRegistry): void {
+    target.register(tool);
+    const pluginName = this.toolToPlugin.get(normalizeToolName(tool.name));
+    if (pluginName) {
+      target.toolToPlugin.set(normalizeToolName(tool.name), pluginName);
+      const snippet = this.pluginSnippets.get(pluginName);
+      if (snippet) target.pluginSnippets.set(pluginName, snippet);
+    }
+  }
+
+  /**
+   * Create a new registry filtered to specific tool names.
+   *
+   * A whitelist entry resolves in this order:
+   *  1. an exact tool name — dots normalized to hyphens, so both
+   *     "repo_manager.write_file" and "repo_manager-write_file" match;
+   *  2. a plugin name — expands to every command of that plugin, so an
+   *     agent can whitelist "repo_manager" to get all "repo_manager-*" tools.
+   *
+   * An entry that matches neither is a hard error, never a silent drop: a
+   * dropped whitelist entry leaves the agent quietly missing a tool it was
+   * meant to have. An empty whitelist yields an empty registry (no error).
+   */
+  filter(allowedTools: string[], opts?: { agentName?: string }): ToolRegistry {
+    const filtered = new ToolRegistry();
+    for (const name of allowedTools) {
+      const exact = this.tools.get(name) ?? this.tools.get(normalizeToolName(name));
+      if (exact) {
+        this.copyTool(exact, filtered);
+        continue;
+      }
+
+      const pluginTools = this.toolsForPlugin(name);
+      if (pluginTools.length > 0) {
+        for (const tool of pluginTools) this.copyTool(tool, filtered);
+        continue;
+      }
+
+      const where = opts?.agentName ? ` for agent '${opts.agentName}'` : '';
+      throw new Error(
+        `Unknown tool or plugin '${name}'${where}. ` +
+        `Available: ${this.availableNames().join(', ') || '(none registered)'}.`
+      );
+    }
     return filtered;
+  }
+
+  /** Full tool names plus distinct plugin names, for error messages. */
+  private availableNames(): string[] {
+    const names = new Set<string>(this.tools.keys());
+    for (const plugin of this.toolToPlugin.values()) names.add(plugin);
+    return Array.from(names).sort();
   }
 
   /**

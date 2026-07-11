@@ -26,15 +26,24 @@ function flattenDeps(
   deps: PackageDependencies,
   kind: 'required' | 'recommended',
   index: RegistryIndex,
+  requiredBy: string,
 ): DependencyNode[] {
   const nodes: DependencyNode[] = [];
-  for (const [, spec] of Object.entries(deps)) {
+  for (const [category, spec] of Object.entries(deps)) {
     const names: string[] = (spec as Record<string, string[]>)[kind] ?? [];
     for (const name of names) {
       const entry = index.packages.find(p => p.name === name);
       if (entry) {
         nodes.push({ name, type: entry.type as PackageType });
+      } else if (kind === 'required') {
+        // Fail loud, before install: a required dep absent from the index would
+        // otherwise install "successfully" and then crash at run time.
+        throw new Error(
+          `Missing required dependency '${name}' (${category}) of package '${requiredBy}': ` +
+          `not found in the registry index. Run 'studio registry sync' or check the package name.`
+        );
       }
+      // A missing recommended dependency is optional — skipped, not fatal.
     }
   }
   return nodes;
@@ -69,7 +78,7 @@ export async function resolveDependencies(
         }
       }
 
-      const requiredNodes = flattenDeps(pkgMeta.dependencies, 'required', index);
+      const requiredNodes = flattenDeps(pkgMeta.dependencies, 'required', index, name);
       for (const node of requiredNodes) {
         if (!resolved.has(node.name)) {
           const subMeta = await fetchMeta(node.name);
@@ -92,7 +101,7 @@ export async function resolveDependencies(
       }
     }
 
-    const firstLevelRequired = flattenDeps(meta.dependencies, 'required', index);
+    const firstLevelRequired = flattenDeps(meta.dependencies, 'required', index, rootPackageName);
     for (const node of firstLevelRequired) {
       const subMeta = await fetchMeta(node.name);
       await visit(node.name, subMeta);
@@ -103,7 +112,7 @@ export async function resolveDependencies(
   }
 
   const recommended: DependencyNode[] = meta.dependencies
-    ? flattenDeps(meta.dependencies, 'recommended', index)
+    ? flattenDeps(meta.dependencies, 'recommended', index, rootPackageName)
     : [];
 
   return {
