@@ -107,19 +107,23 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         // --no-verbose flag was removed from the claude CLI and now errors.)
         '--verbose',
         '--dangerously-skip-permissions',
-        prompt,
       ];
 
       const startedAt = Date.now();
-      logCC('spawn', { model, hasMcp: !!mcpConfigPath, flags: args.slice(0, -1), promptChars: prompt.length });
+      logCC('spawn', { model, hasMcp: !!mcpConfigPath, flags: args, promptChars: prompt.length });
 
-      // stdin MUST be 'ignore', not 'pipe'. The prompt is a positional arg, so we
-      // never write to stdin — but if stdin is an open, non-TTY pipe, claude 2.1.37
-      // blocks waiting for its EOF and never emits output (the studio classify hang:
-      // subprocess spawns, then silence until Studio cancels with 0 tokens). 'ignore'
-      // gives claude /dev/null for stdin → immediate EOF → it uses the positional prompt.
-      const proc = spawn('claude', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      // The prompt goes on stdin, never in argv. Linux caps ONE argv entry at
+      // MAX_ARG_STRLEN (32 pages = 131072 bytes — not the ARG_MAX getconf reports),
+      // so a positional prompt makes spawn throw E2BIG for every agent whose payload
+      // outgrows 128 KiB, before the process exists (STU-561).
+      // What stdin must never be is an open pipe nobody closes: claude 2.1.37 blocks
+      // waiting for its EOF and never emits output. `end()` below is what delivers it.
+      const proc = spawn('claude', args, { stdio: ['pipe', 'pipe', 'pipe'] });
       logCC('spawned', { pid: proc.pid });
+      proc.stdin.on('error', () => {
+        // The CLI can exit before reading it all; `close` already reports that.
+      });
+      proc.stdin.end(prompt);
 
       if (signal) {
         signal.addEventListener('abort', () => {

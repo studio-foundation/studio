@@ -31,10 +31,12 @@ function makeFakeProcess(lines: string[], exitCode = 0) {
     stderr: Readable;
     stdin: Writable;
     kill: ReturnType<typeof vi.fn>;
+    stdinWritten: string;
   };
   proc.stdout = new Readable({ read() {} });
   proc.stderr = new Readable({ read() {} });
-  proc.stdin = new Writable({ write(_chunk, _enc, cb) { cb(); } });
+  proc.stdinWritten = '';
+  proc.stdin = new Writable({ write(chunk, _enc, cb) { proc.stdinWritten += String(chunk); cb(); } });
   proc.kill = vi.fn();
 
   setTimeout(() => {
@@ -117,6 +119,46 @@ describe('ClaudeCodeProvider', () => {
     expect(args).not.toContain('--no-verbose');
   });
 
+  it('sends the prompt on stdin and closes it, never in argv', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    const proc = makeFakeProcess(lines);
+    mockSpawn.mockReturnValueOnce(proc);
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    const [, args, options] = mockSpawn.mock.calls[0] as [string, string[], { stdio: string[] }];
+    // A positional prompt caps every agent at MAX_ARG_STRLEN and fails with E2BIG
+    // before the process exists (STU-561) — the last arg must stay a flag.
+    expect(args.some(arg => arg.includes('Hello'))).toBe(false);
+    expect(args.at(-1)).toBe('--dangerously-skip-permissions');
+    expect(options.stdio[0]).toBe('pipe');
+    expect(proc.stdinWritten).toContain('Hello');
+    expect(proc.stdinWritten).toContain('You are helpful.');
+    // claude blocks forever on a pipe nobody closes; end() is what delivers the EOF.
+    expect(proc.stdin.writableEnded).toBe(true);
+  });
+
+  it('a prompt past MAX_ARG_STRLEN reaches a real process on stdin and cannot on argv', async () => {
+    // The reason the test above exists, against the real kernel rather than a mock:
+    // Linux caps one argv entry at 32 pages, so the old positional prompt made
+    // spawn throw E2BIG for any agent whose payload outgrew it (STU-561). This is
+    // not a Claude limit and no CLI flag lifts it — stdin is the only way through.
+    const { spawn: realSpawn } =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const huge = 'x'.repeat(512 * 1024);
+    expect(() => realSpawn('/bin/cat', [huge], { stdio: 'ignore' })).toThrow(/E2BIG/);
+
+    const received = await new Promise<number>((resolve, reject) => {
+      const proc = realSpawn('/bin/cat', [], { stdio: ['pipe', 'pipe', 'ignore'] });
+      let out = 0;
+      proc.stdout.on('data', (chunk: Buffer) => { out += chunk.length; });
+      proc.on('close', () => resolve(out));
+      proc.on('error', reject);
+      proc.stdin.end(huge);
+    });
+    expect(received).toBe(huge.length);
+  });
+
   it('honors the per-agent model from request.model over the construction-time default', async () => {
     // STU-429: the construction-time model (from config.claudeCode.model, i.e.
     // defaults.model) is only a FALLBACK. When a stage's agent declares its own
@@ -169,16 +211,16 @@ describe('ClaudeCodeProvider', () => {
     expect(result.tool_calls).toEqual([]);
   });
 
-  it('does not give claude an open stdin pipe (else --print hangs waiting for EOF)', async () => {
-    // ROOT CAUSE of the studio classify hang: spawning with stdio[0]='pipe' leaves
-    // an open, non-TTY stdin. claude 2.1.37 then blocks waiting for stdin EOF even
-    // though the prompt is a positional arg, so the subprocess never emits output
-    // and Studio cancels it (0 tool calls / 0 tokens). stdin must be 'ignore'.
+  it('never leaves claude an open stdin pipe (else --print hangs waiting for EOF)', async () => {
+    // ROOT CAUSE of the studio classify hang: an open, non-TTY stdin nobody closes.
+    // claude 2.1.37 blocks waiting for its EOF and never emits output, so Studio
+    // cancels it (0 tool calls / 0 tokens). The prompt now travels on that pipe, so
+    // the guard is no longer stdio[0]='ignore' — it is that the pipe always ends.
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
-    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const proc = makeFakeProcess(lines);
+    mockSpawn.mockReturnValueOnce(proc);
     await new ClaudeCodeProvider().runAgentLoop(BASE_REQUEST, vi.fn());
-    const opts = mockSpawn.mock.calls[0][2] as { stdio?: unknown[] } | undefined;
-    expect(opts?.stdio?.[0]).toBe('ignore');
+    expect(proc.stdin.writableEnded).toBe(true);
   });
 
   it('logs lifecycle to stderr only when STUDIO_LOG_CLAUDE_CODE is set', async () => {
