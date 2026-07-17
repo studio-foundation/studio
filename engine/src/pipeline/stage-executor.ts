@@ -432,6 +432,21 @@ export class StageExecutor {
     } catch (err) {
       // AbortError from signal propagation is handled inside ralph (returns 'cancelled').
       // Any other throw is a technical failure (network, timeout, etc.) — mark stage failed.
+      // Record it as a failed agent run: the executor throws before it can push one, so
+      // without this every reader (`studio status`, `logs`, the run JSONL, the CLI's own
+      // "Errors:" line) reports a stage that failed for no stated reason (STU-561).
+      taskRun.agent_runs.push({
+        id: randomUUID(),
+        agent_name: agentConfig?.name ?? `script:${stageDef.script ?? 'unknown'}`,
+        attempt: 1,
+        status: 'failed',
+        tool_calls: 0,
+        started_at: stageStartedAt,
+        completed_at: new Date().toISOString(),
+        error: err instanceof Error ? err.message : String(err),
+      });
+      taskRun.status = 'failed';
+      taskRun.completed_at = new Date().toISOString();
       stageRun.status = transition('running', 'fail');
       stageRun.completed_at = new Date().toISOString();
       stageRun.tasks = [taskRun];
