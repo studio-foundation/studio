@@ -25,6 +25,13 @@ export interface RalphConfig<T> {
   onRetry?: (event: RetryEvent<T>) => void | Promise<void>;
   onSuccess?: (result: T, attempts: number) => void | Promise<void>;
   onExhausted?: (lastResult: T, allFailures: string[]) => void | Promise<void>;
+  /**
+   * Predicate marking a failed result as deterministic — one that a retry
+   * cannot fix (e.g. a script process that crashed at startup). When it returns
+   * true for a result that failed validation, the loop stops immediately
+   * instead of burning the remaining attempts. Success is never re-checked.
+   */
+  isFatal?: (result: T) => boolean;
   signal?: AbortSignal;
 }
 
@@ -34,7 +41,7 @@ export type RalphResult<T> =
   | { status: 'cancelled'; lastResult?: T; attempts: number };
 
 export async function ralph<T>(config: RalphConfig<T>): Promise<RalphResult<T>> {
-  const { executor, validator, maxAttempts, retryStrategy, onRetry, onSuccess, onExhausted, signal } = config;
+  const { executor, validator, maxAttempts, retryStrategy, onRetry, onSuccess, onExhausted, isFatal, signal } = config;
 
   let attempt = 1;
   const allFailures: string[] = [];
@@ -77,7 +84,14 @@ export async function ralph<T>(config: RalphConfig<T>): Promise<RalphResult<T>> 
     // 4. Si invalide → accumuler erreurs
     allFailures.push(...validation.errors);
 
-    // 5. Si dernière tentative → EXHAUSTED
+    // 5. Deterministic failure → stop now, don't burn the remaining attempts.
+    //    A crashed startup won't heal on attempt 2/3.
+    if (isFatal?.(result)) {
+      await onExhausted?.(result, allFailures);
+      return { status: 'exhausted', lastResult: result, attempts: attempt, failures: allFailures };
+    }
+
+    // 6. Si dernière tentative → EXHAUSTED
     if (attempt >= maxAttempts) {
       await onExhausted?.(result, allFailures);
       return { status: 'exhausted', lastResult: result, attempts: attempt, failures: allFailures };

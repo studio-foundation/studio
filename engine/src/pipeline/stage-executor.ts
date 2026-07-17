@@ -387,16 +387,21 @@ export class StageExecutor {
               timeoutMs: stageDef.timeout_ms,
             });
 
-        // Record agent run
+        // Record agent run. A terminal executor error (a crashed script, max
+        // tool iterations) must land on the run as status 'failed' + error —
+        // otherwise the reason the runner already captured (e.g. a python
+        // stage's stderr) never reaches `studio status`, the run JSONL, or the
+        // CLI's "Errors:" line, which read the last agent run's error. (STU-568)
         const agentRun: AgentRun = {
           id: agentRunId,
           agent_name: agentConfig?.name ?? `script:${stageDef.script ?? 'unknown'}`,
           attempt: execContext.attempt,
-          status: 'success',
+          status: result.error ? 'failed' : 'success',
           tool_calls: result.tool_calls_count,
           started_at: agentRunStartedAt,
           completed_at: new Date().toISOString(),
           output: result.output,
+          ...(result.error ? { error: result.error } : {}),
         };
         taskRun.agent_runs.push(agentRun);
 
@@ -405,6 +410,12 @@ export class StageExecutor {
       validator: ralphValidator,
       maxAttempts: stageDef.ralph?.max_attempts ?? 3,
       retryStrategy,
+      // A script stage is deterministic: re-running the same command on the
+      // same stdin yields the same result, so a process-level error (a startup
+      // crash, a non-zero exit, a timeout) will not heal on retry. Fail fast
+      // instead of burning every attempt on an identical crash. Agent stages
+      // are stochastic and keep their retries. (STU-568)
+      isFatal: stageDef.agent ? undefined : (result) => result.error != null,
       signal,
       onRetry: async (event) => {
         // Extract raw output for diagnostic logging

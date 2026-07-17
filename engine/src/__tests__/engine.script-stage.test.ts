@@ -69,23 +69,17 @@ describe('engine — script stage execution', () => {
     );
   });
 
-  it('retries on script error (runScript returns error field)', async () => {
-    const scriptError = {
+  it('does not retry a script error — a deterministic crash fails fast (STU-568)', async () => {
+    // A script is deterministic: re-running the same command on the same stdin
+    // yields the same crash. Burning 3 attempts on an identical ImportError is
+    // exactly what STU-568 fixes — even with max_attempts: 3, one call is enough.
+    vi.mocked(runScript).mockResolvedValue({
       output: null,
       tool_calls: [],
       tool_calls_count: 0,
       duration_ms: 10,
-      error: 'Script exited with code 1: parse error',
-    };
-    vi.mocked(runScript)
-      .mockResolvedValueOnce(scriptError)
-      .mockResolvedValueOnce(scriptError)
-      .mockResolvedValue({
-        output: { title: 'My Book', chapters: 3 },
-        tool_calls: [],
-        tool_calls_count: 0,
-        duration_ms: 50,
-      });
+      error: "Script exited with code 1: ImportError: cannot import name 'EXTRACTION_CONFIG_FILE'",
+    });
 
     const engine = makeEngine();
     const result = await engine.run({
@@ -96,30 +90,15 @@ describe('engine — script stage execution', () => {
       userInput: 'parse book.epub',
     });
 
-    expect(result.status).toBe('success');
-    expect(vi.mocked(runScript)).toHaveBeenCalledTimes(3);
-  });
-
-  it('fails stage after exhausting max_attempts', async () => {
-    vi.mocked(runScript).mockResolvedValue({
-      output: null,
-      tool_calls: [],
-      tool_calls_count: 0,
-      duration_ms: 10,
-      error: 'Script exited with code 1: always failing',
-    });
-
-    const engine = makeEngine();
-    const result = await engine.run({
-      pipelineDef: {
-        ...SCRIPT_PIPELINE,
-        stages: [{ ...SCRIPT_PIPELINE.stages[0], ralph: { max_attempts: 2, retry_strategy: 'none' } }],
-      },
-      userInput: 'parse book.epub',
-    });
-
     expect(result.status).toBe('failed');
     expect(result.stages[0]?.status).toBe('failed');
-    expect(vi.mocked(runScript)).toHaveBeenCalledTimes(2);
+    // Failed on the first attempt without burning the other two.
+    expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);
+
+    // The child's real reason (exit code + stderr) is surfaced on the agent run
+    // — this is what `studio status` and the CLI's "Errors:" line read (STU-568).
+    const lastAgentRun = result.stages[0]?.tasks[0]?.agent_runs.at(-1);
+    expect(lastAgentRun?.status).toBe('failed');
+    expect(lastAgentRun?.error).toMatch(/ImportError: cannot import name 'EXTRACTION_CONFIG_FILE'/);
   });
 });

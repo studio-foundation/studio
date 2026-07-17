@@ -73,8 +73,22 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
     proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
     proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
 
-    proc.stdin.write(stdin);
-    proc.stdin.end();
+    // A child that dies before reading its stdin (an ImportError, a syntax
+    // error, a missing dependency, an OOM at import time) leaves the pipe
+    // broken. Writing to it then emits an async 'error' (EPIPE) on the stdin
+    // stream — and with no listener Node promotes that to an unhandled 'error'
+    // event that crashes the whole CLI, burying the child's real stderr.
+    // Swallow it: the child's exit code and captured stderr are the real
+    // failure reason, and 'close' below carries them. (STU-568)
+    proc.stdin.on('error', () => { /* child gone — reported via 'close' */ });
+
+    try {
+      proc.stdin.write(stdin);
+      proc.stdin.end();
+    } catch {
+      // Synchronous throw on an already-destroyed stream — same story as the
+      // 'error' handler above. Let 'close'/'error'/timeout settle the result.
+    }
 
     proc.on('close', (exitCode) => {
       const duration_ms = Date.now() - startTime;
