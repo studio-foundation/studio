@@ -342,6 +342,65 @@ describe('ralph loop', () => {
     expect(validator).toHaveBeenCalledTimes(1);
   });
 
+  it('stops immediately without retrying when isFatal returns true', async () => {
+    const executor = vi.fn().mockResolvedValue({ error: 'ImportError at startup' });
+    const validator = vi.fn().mockReturnValue({ valid: false, errors: ['ImportError at startup'], warnings: [] });
+    const onRetry = vi.fn();
+    const onExhausted = vi.fn();
+
+    const result = await ralph<{ error?: string }>({
+      executor,
+      validator,
+      maxAttempts: 3,
+      retryStrategy: noDelay(),
+      isFatal: (r) => r.error != null,
+      onRetry,
+      onExhausted,
+    });
+
+    expect(result.status).toBe('exhausted');
+    expect(result.attempts).toBe(1);
+    // A deterministic crash must not burn the remaining attempts.
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(onExhausted).toHaveBeenCalledWith({ error: 'ImportError at startup' }, ['ImportError at startup']);
+    if (result.status === 'exhausted') {
+      expect(result.failures).toEqual(['ImportError at startup']);
+    }
+  });
+
+  it('keeps retrying when isFatal returns false for a recoverable failure', async () => {
+    const validator = vi.fn()
+      .mockReturnValueOnce({ valid: false, errors: ['transient'], warnings: [] })
+      .mockReturnValueOnce({ valid: true, errors: [], warnings: [] });
+
+    const result = await ralph<{ error?: string }>({
+      executor: async () => ({}),
+      validator,
+      maxAttempts: 3,
+      retryStrategy: noDelay(),
+      isFatal: (r) => r.error != null, // no .error → not fatal → retry allowed
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.attempts).toBe(2);
+  });
+
+  it('never consults isFatal on a valid result', async () => {
+    const isFatal = vi.fn().mockReturnValue(true);
+
+    const result = await ralph({
+      executor: async () => 'result',
+      validator: () => ({ valid: true, errors: [], warnings: [] }),
+      maxAttempts: 3,
+      retryStrategy: noDelay(),
+      isFatal,
+    });
+
+    expect(result.status).toBe('success');
+    expect(isFatal).not.toHaveBeenCalled();
+  });
+
   it('propagates executor exceptions that are not abort errors', async () => {
     const error = new Error('unexpected failure');
 

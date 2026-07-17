@@ -17,6 +17,14 @@ function makeContext(overrides?: Partial<AgentContext>): AgentContext {
   } as AgentContext;
 }
 
+/** stdin stub that both records write/end and supports .on('error') like a real stream. */
+function makeStdinMock() {
+  const stdin = new EventEmitter() as EventEmitter & { write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> };
+  stdin.write = vi.fn();
+  stdin.end = vi.fn();
+  return stdin;
+}
+
 function makeSpawnMock(opts: {
   stdout?: string;
   stderr?: string;
@@ -26,7 +34,7 @@ function makeSpawnMock(opts: {
   const proc = new EventEmitter() as ReturnType<typeof cp.spawn>;
   (proc as any).stdout = new EventEmitter();
   (proc as any).stderr = new EventEmitter();
-  (proc as any).stdin = { write: vi.fn(), end: vi.fn() };
+  (proc as any).stdin = makeStdinMock();
   (proc as any).kill = vi.fn();
 
   vi.mocked(cp.spawn).mockReturnValue(proc as any);
@@ -100,7 +108,7 @@ describe('runScript', () => {
     const proc = new EventEmitter() as ReturnType<typeof cp.spawn>;
     (proc as any).stdout = new EventEmitter();
     (proc as any).stderr = new EventEmitter();
-    (proc as any).stdin = { write: vi.fn(), end: vi.fn() };
+    (proc as any).stdin = makeStdinMock();
     vi.mocked(cp.spawn).mockReturnValue(proc as any);
     setTimeout(() => proc.emit('error', new Error('ENOENT: python3 not found')), 10);
 
@@ -160,7 +168,7 @@ describe('runScript', () => {
   });
 
   it('writes context JSON to stdin', async () => {
-    const stdinMock = { write: vi.fn(), end: vi.fn() };
+    const stdinMock = makeStdinMock();
     const proc = new EventEmitter() as ReturnType<typeof cp.spawn>;
     (proc as any).stdout = new EventEmitter();
     (proc as any).stderr = new EventEmitter();
@@ -176,5 +184,60 @@ describe('runScript', () => {
 
     expect(stdinMock.write).toHaveBeenCalledWith(JSON.stringify(ctx));
     expect(stdinMock.end).toHaveBeenCalled();
+  });
+
+  it('does not crash and surfaces stderr when the child dies before reading stdin (EPIPE)', async () => {
+    // Child crashed at startup (e.g. ImportError), then the parent's write to
+    // its stdin raises EPIPE. Regression guard for STU-568: this used to become
+    // an unhandled 'error' event that crashed the whole CLI.
+    const proc = new EventEmitter() as ReturnType<typeof cp.spawn>;
+    (proc as any).stdout = new EventEmitter();
+    (proc as any).stderr = new EventEmitter();
+    (proc as any).kill = vi.fn();
+    const stdin = makeStdinMock();
+    // Writing to the broken pipe emits an async 'error' on stdin.
+    stdin.write.mockImplementation(() => {
+      setTimeout(() => stdin.emit('error', Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })), 0);
+      return true;
+    });
+    (proc as any).stdin = stdin;
+    vi.mocked(cp.spawn).mockReturnValue(proc as any);
+
+    setTimeout(() => {
+      (proc as any).stderr.emit('data', Buffer.from("ImportError: cannot import name 'EXTRACTION_CONFIG_FILE'"));
+      proc.emit('close', 1);
+    }, 10);
+
+    const result = await runScript({
+      scriptPath: 'scripts/entity_extraction.py',
+      runtime: 'python',
+      context: makeContext(),
+    });
+
+    // No throw, and the child's real stderr + exit code become the reason.
+    expect(result.output).toBeNull();
+    expect(result.error).toMatch(/exited with code 1/);
+    expect(result.error).toMatch(/ImportError: cannot import name 'EXTRACTION_CONFIG_FILE'/);
+  });
+
+  it('does not crash when stdin.write throws synchronously', async () => {
+    const proc = new EventEmitter() as ReturnType<typeof cp.spawn>;
+    (proc as any).stdout = new EventEmitter();
+    (proc as any).stderr = new EventEmitter();
+    (proc as any).kill = vi.fn();
+    const stdin = makeStdinMock();
+    stdin.write.mockImplementation(() => { throw Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }); });
+    (proc as any).stdin = stdin;
+    vi.mocked(cp.spawn).mockReturnValue(proc as any);
+
+    setTimeout(() => {
+      (proc as any).stderr.emit('data', Buffer.from('SyntaxError: invalid syntax'));
+      proc.emit('close', 1);
+    }, 10);
+
+    const result = await runScript({ scriptPath: 'scripts/broken.py', runtime: 'python', context: makeContext() });
+
+    expect(result.error).toMatch(/exited with code 1/);
+    expect(result.error).toMatch(/SyntaxError: invalid syntax/);
   });
 });
