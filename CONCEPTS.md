@@ -112,6 +112,46 @@ Groups enable creation-critique-revision workflows without manual intervention. 
 
 ---
 
+## Fan-out (map) stages
+
+A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, then collects the structured outputs. It exists to replace the "shell `studio run <pipeline>` per item, parse stdout, scrape the run log" glue that scripts otherwise reinvent — the child runs are spawned **in-process** through the engine's run spawner, and each returns its last stage's output **directly**. No subprocess, no tempfiles, no log scraping.
+
+```yaml
+- name: plan            # a normal stage produces the list…
+  agent: planner
+  contract: entity-list
+
+- map: generate-pages   # …and the fan-out runs a sub-pipeline per item
+  over: stages.plan.output.entities   # context path to the array
+  pipeline: wiki-page-item            # sub-pipeline run once per item
+  input:                              # per-item input template
+    entity: "{{item}}"
+    book_context: "{{input.book_context}}"
+  concurrency: 4                      # max items in flight (default 1)
+  on_item_failure: collect-all        # fail-fast (default) | collect-all
+```
+
+- **`over`** resolves to a list via the same reference syntax as `condition`: `input.<path>` or `stages.<name>.output(.<path>)`. If it doesn't resolve to an array, the stage fails.
+- **Per-item input** comes from `input:` (a template where `{{item}}`, `{{item.<path>}}`, `{{index}}`, `{{input}}`, `{{input.<path>}}` are substituted — a value that is exactly one `{{ref}}` keeps its native type), or from `as: <key>` shorthand (`{ <key>: item }`), or the item object itself when neither is given.
+- **`concurrency`** bounds how many item runs are in flight at once (default 1 = sequential).
+- **`on_item_failure`** is the per-item failure policy:
+  - `fail-fast` (default): stop launching new items on the first failure; the stage fails. In-flight items still finish.
+  - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
+
+The stage output is structured for the next stage to consume — no scraping:
+
+```jsonc
+{
+  "total": 3, "succeeded": 3, "failed": 0,
+  "outputs": [ /* successful item outputs, in order */ ],
+  "results": [ { "index": 0, "status": "success", "output": {…}, "run_id": "…" }, … ]
+}
+```
+
+A downstream stage reads it like any other stage output, e.g. `over: stages.generate-pages.output.outputs` or `context.include: [previous_stage_output]`. Child runs count against `maxDepth`, exactly like `studio_run`.
+
+---
+
 ## Context propagation
 
 Each stage declares exactly what context it receives:

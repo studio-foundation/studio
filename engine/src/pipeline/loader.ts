@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, StartupCommand, StageHooks } from '@studio-foundation/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
 import { assertKnownFields } from './strict-fields.js';
 
 // Every field the kernel implements, per block (see PipelineDefinition and
@@ -17,6 +17,7 @@ const STAGE_FIELDS = [
   'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
+const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
 const CONTEXT_FIELDS = ['include', 'packs'] as const;
 const TOOLS_FIELDS = ['required'] as const;
@@ -116,7 +117,10 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
 
   const stages: PipelineEntry[] = [];
   for (const entry of parsed.stages as any[]) {
-    if (entry.group) {
+    if (entry.map !== undefined) {
+      // Fan-out / map stage
+      stages.push(parseMapStage(entry, context));
+    } else if (entry.group) {
       // Group entry
       assertKnownFields(entry, GROUP_FIELDS, `group '${entry.group}'`, context);
       if (!Array.isArray(entry.stages) || entry.stages.length < 2) {
@@ -219,4 +223,45 @@ function validateStageFields(stage: any, context: string): void {
   if (!stage.kind && !stage.executor) throw new Error(`Stage '${stage.name}' missing 'kind'${context}`);
   if (!stage.agent && stage.executor !== 'script') throw new Error(`Stage '${stage.name}' missing 'agent'${context}`);
   if (stage.executor === 'script' && !stage.script) throw new Error(`Stage '${stage.name}' missing 'script' (required when executor: 'script')${context}`);
+}
+
+function parseMapStage(entry: any, context: string): MapStage {
+  const name = entry.map;
+  if (!name || typeof name !== 'string') {
+    throw new Error(`Map stage missing 'map' (the fan-out stage name)${context}`);
+  }
+  assertKnownFields(entry, MAP_FIELDS, `map stage '${name}'`, context);
+
+  if (!entry.over || typeof entry.over !== 'string') {
+    throw new Error(`Map stage '${name}' missing 'over' (context path to the list, e.g. stages.plan.output.items)${context}`);
+  }
+  if (!entry.pipeline || typeof entry.pipeline !== 'string') {
+    throw new Error(`Map stage '${name}' missing 'pipeline' (the sub-pipeline to run per item)${context}`);
+  }
+  if (entry.input !== undefined && (typeof entry.input !== 'object' || entry.input === null || Array.isArray(entry.input))) {
+    throw new Error(`Map stage '${name}' field 'input' must be an object of key → template${context}`);
+  }
+  if (entry.as !== undefined && typeof entry.as !== 'string') {
+    throw new Error(`Map stage '${name}' field 'as' must be a string${context}`);
+  }
+  if (entry.concurrency !== undefined) {
+    if (typeof entry.concurrency !== 'number' || !Number.isInteger(entry.concurrency) || entry.concurrency < 1) {
+      throw new Error(`Map stage '${name}' field 'concurrency' must be a positive integer${context}`);
+    }
+  }
+  const onItemFailure = entry.on_item_failure ?? 'fail-fast';
+  if (onItemFailure !== 'fail-fast' && onItemFailure !== 'collect-all') {
+    throw new Error(`Map stage '${name}' field 'on_item_failure' must be 'fail-fast' or 'collect-all'${context}`);
+  }
+
+  return {
+    map: name,
+    over: entry.over,
+    pipeline: entry.pipeline,
+    ...(entry.condition !== undefined ? { condition: entry.condition } : {}),
+    ...(entry.input !== undefined ? { input: entry.input } : {}),
+    ...(entry.as !== undefined ? { as: entry.as } : {}),
+    ...(entry.concurrency !== undefined ? { concurrency: entry.concurrency } : {}),
+    on_item_failure: onItemFailure,
+  };
 }

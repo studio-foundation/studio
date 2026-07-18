@@ -91,6 +91,29 @@ export interface GroupCompleteEvent {
   status: string;
 }
 
+export interface MapStartEvent {
+  map_name: string;
+  total_items: number;
+  concurrency: number;
+}
+
+export interface MapItemCompleteEvent {
+  map_name: string;
+  index: number;
+  total_items: number;
+  status: 'success' | 'failed';
+  run_id?: string;
+  error?: string;
+}
+
+export interface MapCompleteEvent {
+  map_name: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  status: string;
+}
+
 export interface StageContextEvent {
   stage: string;
   run_id: string;
@@ -130,6 +153,9 @@ export interface EngineEvents {
   onGroupIteration?: (event: GroupIterationEvent) => void;
   onGroupFeedback?: (event: GroupFeedbackEvent) => void;
   onGroupComplete?: (event: GroupCompleteEvent) => void;
+  onMapStart?: (event: MapStartEvent) => void;
+  onMapItemComplete?: (event: MapItemCompleteEvent) => void;
+  onMapComplete?: (event: MapCompleteEvent) => void;
   onStageContext?: (event: StageContextEvent) => void;
   // Real-time tool call streaming (used by --live mode)
   onToolCallStart?: (event: StagedToolCallStartEvent) => void;
@@ -150,7 +176,10 @@ export type PipelineEvent =
   | { type: 'group_start'; groupName: string; maxIterations: number }
   | { type: 'group_iteration'; groupName: string; iteration: number; maxIterations: number }
   | { type: 'group_feedback'; groupName: string; iteration: number; rejectionReason: string }
-  | { type: 'group_complete'; groupName: string; iterations: number; status: string };
+  | { type: 'group_complete'; groupName: string; iterations: number; status: string }
+  | { type: 'map_start'; mapName: string; totalItems: number }
+  | { type: 'map_item_complete'; mapName: string; index: number; status: string }
+  | { type: 'map_complete'; mapName: string; succeeded: number; failed: number; status: string };
 
 export class PipelineEventEmitter {
   private listeners: Array<(event: PipelineEvent) => void> = [];

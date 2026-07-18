@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { ProgressDisplay } from '../output/progress.js';
 import type { PipelineDefinition, ToolCall } from '@studio-foundation/contracts';
-import { isStageGroup } from '@studio-foundation/contracts';
+import { isStageGroup, isMapStage } from '@studio-foundation/contracts';
 
 // ── JSONL file discovery ─────────────────────────────────────────────────────
 
@@ -279,6 +279,8 @@ export function resolveStageFromPipeline(
   for (const entry of pipeline.stages) {
     if (isStageGroup(entry)) {
       for (const s of entry.stages) leafNames.push(s.name);
+    } else if (isMapStage(entry)) {
+      leafNames.push(entry.map);
     } else {
       leafNames.push(entry.name);
     }

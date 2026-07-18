@@ -46,6 +46,8 @@ Studio/
 
 **Groups** — Multi-stage feedback loops. A group contains stages that execute in iterations. If the last stage rejects (via `post_validation.rejection_detection`), the group restarts from the beginning with accumulated feedback. Max iterations configured via `max_iterations`.
 
+**Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`). Output is `{ total, succeeded, failed, outputs, results }`. See CONCEPTS.md.
+
 **Context propagation** — Each stage configures exactly what context it receives via `context.include: [...]`. Options: `input`, `previous_stage_output`, `all_stage_outputs`, `group_feedback`, `repo_files`.
 
 **on_pipeline_start** — Shell commands executed at pipeline startup before any stage. Their stdout is injected into stage context.

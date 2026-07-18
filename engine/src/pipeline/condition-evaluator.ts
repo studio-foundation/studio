@@ -45,27 +45,46 @@ function resolveLhs(
   lhs: string,
   context: { input: PipelineInput; stageOutputs: Map<string, unknown> },
 ): unknown {
-  if (lhs.startsWith('input.')) {
-    const fieldPath = lhs.slice('input.'.length);
+  return resolveContextPath(lhs, context);
+}
+
+/**
+ * Resolve a context reference to its value. Shared by the condition evaluator
+ * and the fan-out `over:`/`{{...}}` resolution so both read context identically.
+ * Supported forms:
+ *   input.<field.path>
+ *   stages.<stage-name>.output.<field.path>
+ * Returns undefined for any unknown prefix or unreachable path.
+ */
+export function resolveContextPath(
+  ref: string,
+  context: { input: PipelineInput; stageOutputs: Map<string, unknown> },
+): unknown {
+  if (ref === 'input') return context.input;
+
+  if (ref.startsWith('input.')) {
+    const fieldPath = ref.slice('input.'.length);
     if (typeof context.input !== 'object' || context.input === null) return undefined;
     return traversePath(context.input as Record<string, unknown>, fieldPath);
   }
 
-  if (lhs.startsWith('stages.')) {
-    // Format: stages.<stage-name>.output.<field.path>
-    // Stage names can contain hyphens — split on first '.output.' occurrence
-    const rest = lhs.slice('stages.'.length);
-    const outputMarker = '.output.';
+  if (ref.startsWith('stages.')) {
+    // Format: stages.<stage-name>.output(.<field.path>)?
+    // Stage names can contain hyphens — split on first '.output' occurrence
+    const rest = ref.slice('stages.'.length);
+    const outputMarker = '.output';
     const markerIdx = rest.indexOf(outputMarker);
     if (markerIdx === -1) return undefined;
 
     const stageName = rest.slice(0, markerIdx);
-    const fieldPath = rest.slice(markerIdx + outputMarker.length);
-
+    const afterMarker = rest.slice(markerIdx + outputMarker.length);
     const stageOutput = context.stageOutputs.get(stageName);
     if (stageOutput === undefined || stageOutput === null) return undefined;
 
-    return traversePath(stageOutput as Record<string, unknown>, fieldPath);
+    // "stages.foo.output" → the whole output; "stages.foo.output.a.b" → nested
+    if (afterMarker === '') return stageOutput;
+    if (!afterMarker.startsWith('.')) return undefined;
+    return traversePath(stageOutput as Record<string, unknown>, afterMarker.slice(1));
   }
 
   return undefined;
