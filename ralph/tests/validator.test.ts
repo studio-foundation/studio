@@ -84,6 +84,166 @@ describe('validateSchema', () => {
 
     expect(result.valid).toBe(true);
   });
+
+  it('fails when array output given but object expected', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { required_fields: ['summary'] }
+    };
+
+    const result = validateSchema(['not', 'an', 'object'], contract);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Expected object output, got array');
+  });
+});
+
+describe('validateSchema — field-level (types, enums, nested)', () => {
+  it('passes when a field matches its declared type', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { count: { type: 'number' }, name: { type: 'string' } } }
+    };
+
+    const result = validateSchema({ count: 3, name: 'x' }, contract);
+    expect(result.valid).toBe(true);
+  });
+
+  it('fails when a field has the wrong type', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { count: { type: 'number' } } }
+    };
+
+    const result = validateSchema({ count: 'three' }, contract);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("Field 'count' must be number, got string");
+  });
+
+  it('enforces integer separately from number', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { n: { type: 'integer' } } }
+    };
+
+    expect(validateSchema({ n: 4 }, contract).valid).toBe(true);
+    expect(validateSchema({ n: 4.5 }, contract).valid).toBe(false);
+  });
+
+  it('accepts a value in the enum', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { importance: { type: 'string', enum: ['principal', 'secondary', 'figurant'] } } }
+    };
+
+    expect(validateSchema({ importance: 'secondary' }, contract).valid).toBe(true);
+  });
+
+  it('rejects a value outside the enum with the allowed set in the message', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { importance: { type: 'string', enum: ['principal', 'secondary', 'figurant'] } } }
+    };
+
+    const result = validateSchema({ importance: 'lead' }, contract);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'Field \'importance\' must be one of [principal, secondary, figurant], got "lead"'
+    );
+  });
+
+  it('does not check a field spec for an absent field (presence is required_fields\' job)', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { importance: { type: 'string', enum: ['principal'] } } }
+    };
+
+    // importance absent → no error from fields; nothing requires it.
+    expect(validateSchema({ other: 1 }, contract).valid).toBe(true);
+  });
+
+  it('validates nested required fields inside an object', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { meta: { type: 'object', required_fields: ['author'] } } }
+    };
+
+    const result = validateSchema({ meta: { title: 't' } }, contract);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Missing required field: meta.author');
+  });
+
+  it('validates each element of an array via items, pointing at the index', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: {
+        required_fields: ['pages'],
+        fields: {
+          pages: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required_fields: ['title', 'importance'],
+              fields: { importance: { type: 'string', enum: ['principal', 'secondary', 'figurant'] } }
+            }
+          }
+        }
+      }
+    };
+
+    const output = {
+      pages: [
+        { title: 'A', importance: 'principal' },
+        { title: 'B', importance: 'lead' },     // bad enum
+        { importance: 'secondary' }               // missing title
+      ]
+    };
+    const result = validateSchema(output, contract);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'Field \'pages[1].importance\' must be one of [principal, secondary, figurant], got "lead"'
+    );
+    expect(result.errors).toContain('Missing required field: pages[2].title');
+  });
+
+  it('reports a type error at the array-field level when the value is not an array', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: { fields: { pages: { type: 'array', items: { type: 'object' } } } }
+    };
+
+    const result = validateSchema({ pages: 'nope' }, contract);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("Field 'pages' must be array, got string");
+  });
+
+  it('combines required_fields (presence) and fields (shape)', () => {
+    const contract: OutputContract = {
+      name: 'test',
+      version: 1,
+      schema: {
+        required_fields: ['status'],
+        fields: { status: { type: 'string', enum: ['approved', 'rejected'] } }
+      }
+    };
+
+    // present but bad value
+    expect(validateSchema({ status: 'maybe' }, contract).valid).toBe(false);
+    // absent → presence error
+    expect(validateSchema({}, contract).errors).toContain('Missing required field: status');
+    // valid
+    expect(validateSchema({ status: 'approved' }, contract).valid).toBe(true);
+  });
 });
 
 describe('validateToolCalls', () => {

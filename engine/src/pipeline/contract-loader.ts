@@ -12,7 +12,8 @@ const CONTRACT_FIELDS = [
   'name', 'version', 'schema', 'tool_calls', 'validators',
   'custom_rules', 'post_validation', 'expected_outputs',
 ] as const;
-const SCHEMA_FIELDS = ['required_fields'] as const;
+const SCHEMA_FIELDS = ['required_fields', 'fields'] as const;
+const FIELD_SPEC_FIELDS = ['type', 'enum', 'required_fields', 'fields', 'items'] as const;
 const EXPECTED_OUTPUTS_FIELDS = ['files'] as const;
 const TOOL_CALLS_FIELDS = [
   'minimum', 'maximum', 'required_tools', 'required_tool_groups', 'counted_tools',
@@ -67,6 +68,10 @@ export function parseContractYaml(yamlContent: string, sourcePath?: string): Out
   };
 
   check(parsed.schema, SCHEMA_FIELDS, 'schema');
+  const schemaFields = (parsed.schema as Record<string, unknown> | undefined)?.fields;
+  if (schemaFields && typeof schemaFields === 'object' && !Array.isArray(schemaFields)) {
+    checkFieldSpecs(schemaFields as Record<string, unknown>, 'schema.fields', inContract, context);
+  }
   check(parsed.tool_calls, TOOL_CALLS_FIELDS, 'tool_calls');
   check(parsed.expected_outputs, EXPECTED_OUTPUTS_FIELDS, 'expected_outputs');
   check(parsed.post_validation, POST_VALIDATION_FIELDS, 'post_validation');
@@ -82,4 +87,31 @@ export function parseContractYaml(yamlContent: string, sourcePath?: string): Out
   }
 
   return parsed as unknown as OutputContract;
+}
+
+/**
+ * Fail-loud strict check for `schema.fields`: every field spec, and every nested
+ * spec inside `fields`/`items`, may only carry keys the validator implements. A
+ * stray key here (e.g. `min_items`, `pattern`) is config-theatre — it must be
+ * rejected at load time, not silently ignored, exactly like the top-level blocks.
+ */
+function checkFieldSpecs(
+  fields: Record<string, unknown>,
+  path: string,
+  inContract: string,
+  context: string
+): void {
+  for (const [name, spec] of Object.entries(fields)) {
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) continue;
+    const specObj = spec as Record<string, unknown>;
+    assertKnownFields(specObj, FIELD_SPEC_FIELDS, `${path}.${name} ${inContract}`, context);
+
+    if (specObj.fields && typeof specObj.fields === 'object' && !Array.isArray(specObj.fields)) {
+      checkFieldSpecs(specObj.fields as Record<string, unknown>, `${path}.${name}.fields`, inContract, context);
+    }
+    if (specObj.items && typeof specObj.items === 'object' && !Array.isArray(specObj.items)) {
+      // `items` is itself a single field spec; check it under a one-entry map.
+      checkFieldSpecs({ '[]': specObj.items }, `${path}.${name}.items`, inContract, context);
+    }
+  }
 }

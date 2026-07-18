@@ -54,6 +54,40 @@ Validation is binary. The output either satisfies every constraint or it doesn't
 
 **`required_tools`** enforces that specific tools were actually called. A code generation stage that never called `write_file` didn't generate code.
 
+### Field-level validation (`schema.fields`)
+
+`required_fields` only checks that a top-level key is present. `schema.fields` goes further, declaratively: the type a field must hold, the set of values it may take, and — for objects and arrays — the shape of what's nested inside. It fires only for fields that are present, so it composes cleanly with `required_fields` (presence) rather than duplicating it.
+
+```yaml
+name: wiki-page
+version: 1
+schema:
+  required_fields:
+    - pages
+  fields:
+    pages:
+      type: array
+      items:
+        type: object
+        required_fields: [title, importance, entity_type]
+        fields:
+          importance:
+            type: string
+            enum: [principal, secondary, figurant]
+          entity_type:
+            type: string
+            enum: [person, place, organization, event, concept]
+```
+
+Supported per-field keys:
+
+- **`type`** — `string`, `number`, `integer`, `boolean`, `object`, or `array`. A mismatch fails the field (and skips its nested checks, which assume the type held).
+- **`enum`** — the allowed values, compared with strict equality.
+- **`required_fields`** / **`fields`** — for `object` fields, the nested keys that must be present and the specs applied to nested keys that are. Recurses to any depth.
+- **`items`** — for `array` fields, the spec every element must satisfy (e.g. each `pages[]` entry).
+
+Failures name the exact path — `Field 'pages[2].importance' must be one of [principal, secondary, figurant], got "lead"` — so the retry feedback points the agent at the offending value. This is the mechanism that lets invariants like "`importance ∈ {principal, secondary, figurant}`" be enforced by the contract itself instead of by an ad-hoc gate in a downstream script.
+
 ---
 
 ## Anti-theatre
@@ -66,7 +100,7 @@ This is not a heuristic. It is structural. The runner tracks every tool call. Th
 
 Anti-theatre applies to configs too. A contract or pipeline field the kernel does not implement is **rejected at load time with a hard error** — never silently ignored. A silently ignored field is config-theatre: you believe a guarantee is in place that is never enforced. The error names the unknown field, the file, and suggests the closest valid field.
 
-This is why `field_constraints` and `post_validation.constraints` are rejected rather than implemented: constraints beyond `required_fields` (types, lengths, item counts, cross-field rules) already have a home — **external validators** (`validators:`), which run against the real output inside the RALPH loop. One mechanism that works beats two that overlap.
+This is why `field_constraints` and `post_validation.constraints` are rejected rather than implemented: they are not names the kernel implements, and a field the kernel does not implement is theatre. Field-level shape has a real home — declarative **`schema.fields`** (types, enums, nested required fields, array item specs) — and constraints that genuinely need code, span multiple fields, or are written in another language have another — **external validators** (`validators:`), which run against the real output inside the RALPH loop. Each mechanism owns a distinct job; neither is a synonym for an unimplemented field name.
 
 ---
 

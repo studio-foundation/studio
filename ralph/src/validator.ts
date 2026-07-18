@@ -1,5 +1,5 @@
 // Validation engine
-import type { ValidationResult, OutputContract, ToolCall, ToolCallRequirements } from '@studio-foundation/contracts';
+import type { ValidationResult, OutputContract, FieldSpec, FieldType, ToolCall, ToolCallRequirements } from '@studio-foundation/contracts';
 
 export type { ToolCallRequirements } from '@studio-foundation/contracts';
 
@@ -10,29 +10,126 @@ export interface AgentRunResult {
   tool_calls: ToolCall[];
 }
 
+/** Human-readable JSON type of a runtime value, for error messages. */
+function describeType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+/** Does `value` match the declared field `type`? */
+function matchesType(value: unknown, type: FieldType): boolean {
+  switch (type) {
+    case 'string':
+      return typeof value === 'string';
+    case 'number':
+      return typeof value === 'number' && !Number.isNaN(value);
+    case 'integer':
+      return typeof value === 'number' && Number.isInteger(value);
+    case 'boolean':
+      return typeof value === 'boolean';
+    case 'object':
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    case 'array':
+      return Array.isArray(value);
+  }
+}
+
+/**
+ * The type a spec effectively requires. An explicit `type` wins; otherwise it's
+ * inferred from structural keys so that `items` implies array and
+ * `required_fields`/`fields` imply object. This makes the nested checks below
+ * safe: if the effective type is enforced, the runtime shape is guaranteed.
+ */
+function effectiveType(spec: FieldSpec): FieldType | undefined {
+  if (spec.type) return spec.type;
+  if (spec.items) return 'array';
+  if (spec.required_fields || spec.fields) return 'object';
+  return undefined;
+}
+
+/**
+ * Validate a single field value against its spec, accumulating errors with a
+ * dotted/indexed `path` (e.g. `pages[2].importance`) so failures point at the
+ * exact location. Recurses into object fields and array items.
+ */
+function validateField(value: unknown, spec: FieldSpec, path: string, errors: string[]): void {
+  const type = effectiveType(spec);
+
+  // Type gate — on mismatch, stop: enum/nested checks assume the type held.
+  if (type && !matchesType(value, type)) {
+    errors.push(`Field '${path}' must be ${type}, got ${describeType(value)}`);
+    return;
+  }
+
+  // Enumeration — value must be one of the allowed literals.
+  if (spec.enum && spec.enum.length > 0 && !spec.enum.some((allowed) => allowed === value)) {
+    errors.push(
+      `Field '${path}' must be one of [${spec.enum.join(', ')}], got ${JSON.stringify(value)}`
+    );
+  }
+
+  // Nested object: required sub-fields and per-field specs.
+  if ((spec.required_fields || spec.fields) && matchesType(value, 'object')) {
+    const obj = value as Record<string, unknown>;
+    if (spec.required_fields) {
+      for (const field of spec.required_fields) {
+        if (!(field in obj)) {
+          errors.push(`Missing required field: ${path}.${field}`);
+        }
+      }
+    }
+    if (spec.fields) {
+      for (const [name, childSpec] of Object.entries(spec.fields)) {
+        if (name in obj) {
+          validateField(obj[name], childSpec, `${path}.${name}`, errors);
+        }
+      }
+    }
+  }
+
+  // Array items: every element must satisfy the item spec.
+  if (spec.items && Array.isArray(value)) {
+    value.forEach((item, index) => {
+      validateField(item, spec.items as FieldSpec, `${path}[${index}]`, errors);
+    });
+  }
+}
+
 export function validateSchema(output: unknown, contract: OutputContract): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // If no schema defined, consider it valid
-  if (!contract.schema || !contract.schema.required_fields) {
+  const schema = contract.schema;
+
+  // Nothing to check without required_fields or field specs.
+  if (!schema || (!schema.required_fields && !schema.fields)) {
     return { valid: true, errors, warnings };
   }
 
-  const requiredFields = contract.schema.required_fields as string[];
-
   // Output must be an object to check fields
-  if (output === null || typeof output !== 'object') {
-    errors.push(`Expected object output, got ${output === null ? 'null' : typeof output}`);
+  if (output === null || typeof output !== 'object' || Array.isArray(output)) {
+    errors.push(`Expected object output, got ${describeType(output)}`);
     return { valid: false, errors, warnings };
   }
 
   const outputObj = output as Record<string, unknown>;
 
-  // Check each required field
-  for (const field of requiredFields) {
-    if (!(field in outputObj)) {
-      errors.push(`Missing required field: ${field}`);
+  // Top-level presence check (required_fields)
+  if (schema.required_fields) {
+    for (const field of schema.required_fields) {
+      if (!(field in outputObj)) {
+        errors.push(`Missing required field: ${field}`);
+      }
+    }
+  }
+
+  // Field-level shape check (type / enum / nested) — only for present fields.
+  if (schema.fields) {
+    for (const [name, spec] of Object.entries(schema.fields)) {
+      if (name in outputObj) {
+        validateField(outputObj[name], spec, name, errors);
+      }
     }
   }
 

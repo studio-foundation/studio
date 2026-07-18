@@ -117,12 +117,71 @@ post_validation:
     );
   });
 
+  it('accepts schema.fields with type/enum/nested/items', () => {
+    const yamlContent = `
+name: wiki-page
+version: 1
+schema:
+  required_fields: [pages]
+  fields:
+    pages:
+      type: array
+      items:
+        type: object
+        required_fields: [title, importance]
+        fields:
+          importance:
+            type: string
+            enum: [principal, secondary, figurant]
+`;
+    expect(() => parseContractYaml(yamlContent)).not.toThrow();
+  });
+
+  it('rejects an unknown key inside a top-level field spec', () => {
+    const yamlContent = `
+name: bad-spec
+version: 1
+schema:
+  fields:
+    count:
+      type: number
+      min: 5
+`;
+    expect(() => parseContractYaml(yamlContent)).toThrow(
+      /Unknown field 'min' in schema.fields.count of contract 'bad-spec'/
+    );
+  });
+
+  it('rejects an unknown key inside a nested items spec (theatre at depth)', () => {
+    const yamlContent = `
+name: bad-nested
+version: 1
+schema:
+  fields:
+    pages:
+      type: array
+      items:
+        type: object
+        min_items: 5
+`;
+    expect(() => parseContractYaml(yamlContent)).toThrow(
+      /Unknown field 'min_items' in schema.fields.pages.items/
+    );
+  });
+
   it('accepts a fully-featured valid contract', () => {
     const yamlContent = `
 name: full
 version: 1
 schema:
   required_fields: [summary, files_changed]
+  fields:
+    summary:
+      type: string
+    files_changed:
+      type: array
+      items:
+        type: string
 tool_calls:
   minimum: 1
   maximum: 15

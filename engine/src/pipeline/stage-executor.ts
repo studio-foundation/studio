@@ -612,8 +612,8 @@ export class StageExecutor {
     // Compose ralph's built-in validators
     const validators: Validator<AgentRunResult>[] = [errorCheck];
 
-    // Schema validation (required_fields)
-    if (contract.schema?.required_fields) {
+    // Schema validation (required_fields presence + field-level type/enum/nested)
+    if (contract.schema?.required_fields || contract.schema?.fields) {
       validators.push((result) => validateSchema(result.output, contract));
     }
 
@@ -642,7 +642,8 @@ export class StageExecutor {
     }
 
     // External validators — run a command against the REAL output (not tool args).
-    // Enforces what the declarative contract can't (enums, types, cross-field rules).
+    // Enforces what the declarative schema can't (cross-field rules, computed
+    // constraints); field-level types/enums/nesting live in schema.fields.
     if (contract.validators?.length) {
       const cwd = this.config.repoPath ?? this.config.configsDir;
       validators.push((result) => runExternalValidators(result.output, contract.validators, cwd));
