@@ -2,8 +2,9 @@
 //
 // Each validator is a shell command that receives the output as JSON on stdin and
 // prints `{ "valid": boolean, "errors": string[] }` on stdout. This is the binary
-// validation hook the declarative contract cannot express (enums, types, cross-field
-// rules) and the way to reuse a validator written in another language. Because it
+// validation hook for what the declarative schema cannot express (cross-field rules,
+// computed constraints) and the way to reuse a validator written in another language.
+// Field-level types, enums and nested shape now live in schema.fields. Because it
 // validates the ACTUAL output — not agent-reported tool arguments — the agent cannot
 // fake it. The result flows into the RALPH loop like any other validator.
 import { spawn } from 'node:child_process';

@@ -146,6 +146,33 @@ schema:
     - acceptance_criteria
 ```
 
+### With Field-Level Validation (types, enums, nested)
+
+```yaml
+name: wiki-page
+version: 1
+schema:
+  required_fields:
+    - pages
+  fields:
+    pages:
+      type: array
+      items:
+        type: object
+        required_fields: [title, importance, entity_type]
+        fields:
+          importance:
+            type: string
+            enum: [principal, secondary, figurant]
+```
+
+`schema.fields` validates the type, allowed values (`enum`), and nested shape of a
+field declaratively — enforced natively in the RALPH loop, so a bad `importance`
+enriches the retry feedback instead of needing an ad-hoc gate in a script. Keys:
+`type` (string/number/integer/boolean/object/array), `enum`, `required_fields`,
+`fields` (nested objects), `items` (array element spec). Checks fire only for
+fields that are present; use `required_fields` for presence.
+
 ### With Anti-theatre (code-generation)
 
 ```yaml

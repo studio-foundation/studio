@@ -12,10 +12,13 @@ export interface ToolCallRequirements {
  * An external validator: a shell command that receives the stage output as JSON
  * on stdin and prints `{ "valid": boolean, "errors": string[] }` to stdout.
  *
- * This is the escape hatch for validation the declarative contract cannot express
- * (enums, types, cross-field rules) and for validators written in another language.
- * Unlike a required tool, it runs against the ACTUAL stage output, so the agent
- * cannot satisfy it by reporting different arguments than it emits.
+ * This is the escape hatch for validation the declarative schema cannot express
+ * (cross-field rules, computed constraints) and for validators written in another
+ * language. Field-level shape — types, enums, nested required fields — now lives
+ * declaratively in `schema.fields` (see FieldSpec); reach for an external validator
+ * only when a rule spans multiple fields or needs real code. Unlike a required tool,
+ * it runs against the ACTUAL stage output, so the agent cannot satisfy it by
+ * reporting different arguments than it emits.
  */
 export interface ExternalValidator {
   name: string;
@@ -38,12 +41,52 @@ export interface ExpectedOutputs {
   files: string[];
 }
 
+/**
+ * The JSON type a field is expected to hold. `integer` is `number` narrowed to
+ * whole values; `object` excludes arrays and null (use `array` for lists).
+ */
+export type FieldType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array';
+
+/**
+ * Declarative shape of a single field — the piece that lifts contract validation
+ * beyond "the key is present" (required_fields) to "the value is the right type,
+ * one of the allowed values, and structurally sound".
+ *
+ * Every check is optional and only fires when the field is actually present;
+ * presence is still governed by `required_fields`. This keeps the two orthogonal:
+ * `required_fields` says a field must exist, `fields` says what it must look like.
+ *
+ * Recursion covers nested structures the PoC contracts need:
+ *   - `type: object` + `required_fields`/`fields` validates a sub-object
+ *   - `type: array` + `items` validates every element (e.g. each `pages[]` entry)
+ */
+export interface FieldSpec {
+  /** Expected JSON type. On mismatch the field fails and nested checks are skipped. */
+  type?: FieldType;
+  /** Allowed values (enumeration), compared with strict equality. */
+  enum?: Array<string | number | boolean>;
+  /** For objects: names of nested fields that must be present. */
+  required_fields?: string[];
+  /** For objects: per-field specs applied to nested fields that are present. */
+  fields?: Record<string, FieldSpec>;
+  /** For arrays: the spec every element must satisfy. */
+  items?: FieldSpec;
+}
+
+/**
+ * A stage's output schema. `required_fields` checks top-level presence; `fields`
+ * adds declarative type/enum/nested validation for the fields it names. Both are
+ * optional and compose — a contract can use either, both, or neither.
+ */
+export interface OutputSchema {
+  required_fields?: string[];
+  fields?: Record<string, FieldSpec>;
+}
+
 export interface OutputContract {
   name: string;
   version: number;
-  schema?: {
-    required_fields?: string[];
-  };
+  schema?: OutputSchema;
   tool_calls?: ToolCallRequirements;
   /** External validators run against the real output inside the RALPH loop. */
   validators?: ExternalValidator[];
