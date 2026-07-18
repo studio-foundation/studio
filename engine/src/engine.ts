@@ -10,7 +10,7 @@ import type {
   StageRun,
   ToolCall,
 } from '@studio-foundation/contracts';
-import { isStageGroup } from '@studio-foundation/contracts';
+import { isStageGroup, isMapStage } from '@studio-foundation/contracts';
 import {
   type ToolRegistry,
   type ProviderRegistry,
@@ -33,6 +33,7 @@ import { PipelineEventEmitter } from './events.js';
 import { resolveProjectPaths } from './pipeline/types.js';
 import { StageExecutor } from './pipeline/stage-executor.js';
 import { GroupOrchestrator } from './pipeline/group-orchestrator.js';
+import { MapOrchestrator } from './pipeline/map-orchestrator.js';
 
 export interface EngineConfig {
   configsDir: string;
@@ -79,6 +80,8 @@ function collectLeafStageNames(entries: PipelineEntry[]): string[] {
   for (const entry of entries) {
     if (isStageGroup(entry)) {
       for (const stage of entry.stages) names.push(stage.name);
+    } else if (isMapStage(entry)) {
+      names.push(entry.map);
     } else {
       names.push(entry.name);
     }
@@ -105,6 +108,7 @@ function countTotalStages(entries: PipelineEntry[]): number {
     if (isStageGroup(entry)) {
       count += entry.stages.length;
     } else {
+      // Simple stage or map (fan-out) stage — one entry each.
       count++;
     }
   }
@@ -133,6 +137,7 @@ export class PipelineEngine {
   private pipelineTotals = { tokens: 0, toolCalls: 0 };
   private stageExecutor: StageExecutor;
   private groupOrchestrator: GroupOrchestrator;
+  private mapOrchestrator: MapOrchestrator;
 
   constructor(
     private config: EngineConfig,
@@ -154,6 +159,12 @@ export class PipelineEngine {
       events,
       emitter: this.emitter,
       stageExecutor: this.stageExecutor,
+    });
+    this.mapOrchestrator = new MapOrchestrator({
+      events,
+      emitter: this.emitter,
+      spawner: config.spawner,
+      maxDepth: config.maxDepth ?? 3,
     });
   }
 
@@ -366,6 +377,73 @@ export class PipelineEngine {
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           return pipelineRun;
         }
+      } else if (isMapStage(entry)) {
+        // ========== MAP (FAN-OUT) ==========
+        stageCounter++;
+
+        // Skip stage if resuming from a later stage
+        if (skipSet.has(entry.map)) {
+          const skippedReason = input.originalRunId
+            ? `resumed from run ${input.originalRunId}`
+            : 'resumed from prior run';
+          const skippedRun = makeSkippedStageRun(entry.map, skippedReason);
+          this.events?.onStageComplete?.({
+            stage_name: entry.map,
+            stage_index: stageCounter - 1,
+            total_stages: totalStages,
+            status: 'skipped',
+            attempts: 0,
+            duration_ms: 0,
+            skipped_reason: skippedReason,
+          });
+          pipelineRun.stages.push(skippedRun);
+          previousStageName = entry.map;
+          continue;
+        }
+
+        const mapResult = await this.mapOrchestrator.run(
+          entry,
+          pipelineContext,
+          stageCounter - 1,
+          totalStages,
+          pipelineRun.id,
+          input.depth ?? 0,
+          signal,
+        );
+
+        pipelineRun.stages.push(mapResult.stageRun);
+
+        if (mapResult.status === 'failed' || mapResult.status === 'cancelled') {
+          pipelineRun.status = mapResult.status;
+          pipelineRun.completed_at = new Date().toISOString();
+          if (mapResult.status === 'cancelled') {
+            this.events?.onPipelineCancelled?.({
+              run_id: pipelineRun.id,
+              cancelled_at_stage: mapResult.stageRun.stage_name,
+              duration_ms: Date.now() - pipelineStartTime,
+            });
+          }
+          await this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
+          this.events?.onPipelineComplete?.({
+            pipeline_name: pipeline.name,
+            run_id: pipelineRun.id,
+            status: pipelineRun.status,
+            duration_ms: Date.now() - pipelineStartTime,
+            total_tokens: this.pipelineTotals.tokens,
+            total_tool_calls: this.pipelineTotals.toolCalls,
+          });
+          this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
+          return pipelineRun;
+        }
+
+        // Propagate the collected fan-out output to downstream stages.
+        if (mapResult.output !== undefined) {
+          addStageOutput(pipelineContext, entry.map, mapResult.output);
+        }
+        previousStageName = entry.map;
       } else {
         // ========== SIMPLE STAGE ==========
         stageCounter++;

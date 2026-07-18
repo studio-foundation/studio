@@ -1,0 +1,93 @@
+// Build the per-item input for a fan-out (map) stage.
+//
+// Each item of the `over:` list becomes one sub-pipeline run. The input for
+// that run is derived from the map stage config:
+//   - `input:` template → interpolate {{item}}, {{item.<path>}}, {{index}},
+//     {{input}}, {{input.<path>}} in each value.
+//   - `as:` shorthand   → { [as]: item }
+//   - neither           → the item itself, if it is a plain object.
+
+import type { MapStage } from '@studio-foundation/contracts';
+import type { PipelineInput } from './context-propagation.js';
+
+interface ItemScope {
+  item: unknown;
+  index: number;
+  input: PipelineInput;
+}
+
+/** Resolve a single {{...}} reference against the item/index/input scope. */
+function resolveRef(ref: string, scope: ItemScope): unknown {
+  const trimmed = ref.trim();
+  if (trimmed === 'item') return scope.item;
+  if (trimmed === 'index') return scope.index;
+  if (trimmed === 'input') return scope.input;
+  if (trimmed.startsWith('item.')) return traverse(scope.item, trimmed.slice('item.'.length));
+  if (trimmed.startsWith('input.')) return traverse(scope.input, trimmed.slice('input.'.length));
+  return undefined;
+}
+
+function traverse(obj: unknown, path: string): unknown {
+  let current: unknown = obj;
+  for (const part of path.split('.')) {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function stringify(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+const TOKEN = /\{\{([^}]+)\}\}/g;
+
+/**
+ * Interpolate a template value. Non-strings pass through unchanged. A string
+ * that is exactly one `{{ref}}` keeps the resolved value's native type (so an
+ * object/array item stays structured); any other string interpolates to text.
+ */
+function interpolate(value: unknown, scope: ItemScope): unknown {
+  if (typeof value !== 'string') return value;
+
+  const soleMatch = value.match(/^\{\{([^}]+)\}\}$/);
+  if (soleMatch) {
+    return resolveRef(soleMatch[1], scope);
+  }
+
+  return value.replace(TOKEN, (_full, ref) => stringify(resolveRef(ref, scope)));
+}
+
+/** Build the sub-pipeline input for one item of a fan-out stage. */
+export function buildItemInput(
+  map: MapStage,
+  item: unknown,
+  index: number,
+  pipelineInput: PipelineInput,
+): Record<string, unknown> {
+  const scope: ItemScope = { item, index, input: pipelineInput };
+
+  if (map.input) {
+    const result: Record<string, unknown> = {};
+    for (const [key, template] of Object.entries(map.input)) {
+      result[key] = interpolate(template, scope);
+    }
+    return result;
+  }
+
+  if (map.as) {
+    return { [map.as]: item };
+  }
+
+  if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+    return item as Record<string, unknown>;
+  }
+
+  throw new Error(
+    `Map stage '${map.map}': item at index ${index} is not an object, so it cannot be used as pipeline input directly. ` +
+    `Add 'as: <key>' (input becomes { <key>: item }) or an 'input:' template.`
+  );
+}

@@ -24,7 +24,14 @@ export type {
   StageContextEvent,
   StagedToolCallStartEvent,
   StagedToolCallCompleteEvent,
+  MapStartEvent,
+  MapItemCompleteEvent,
+  MapCompleteEvent,
 } from './events.js';
+
+// Fan-out (map) stage
+export { MapOrchestrator } from './pipeline/map-orchestrator.js';
+export type { MapStageOutput, MapItemResult, MapRunResult } from './pipeline/map-orchestrator.js';
 
 // State management
 export { deriveStageStatus } from './state/status-derivation.js';
