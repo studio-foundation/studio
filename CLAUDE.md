@@ -174,6 +174,18 @@ post_validation:
     summary_field: summary
 ```
 
+### With Expected Outputs (post-execution file check)
+
+```yaml
+expected_outputs:
+  files:
+    - wiki_pages.json     # literal path — must exist
+    - "batch_*.json"      # glob — must match at least one file
+    - "out/**/*.md"       # recursive glob
+```
+
+A `success` return code proves the agent *finished*, not that it produced its artifacts. `expected_outputs.files` is a post-execution filesystem check: each entry (a path or glob, relative to the repo workspace) must match ≥1 existing file. It runs inside the RALPH loop, so a miss enriches the retry feedback (`Expected output missing: no file matches '…'`) and only fails the stage once attempts are exhausted. This is the orchestrator responsibility that used to live in callers (e.g. `run_wiki.py`'s `check_outputs`/`required_files`).
+
 ## Events System
 
 | Event | When | Data |

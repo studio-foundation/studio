@@ -10,9 +10,10 @@ import { assertKnownFields } from './strict-fields.js';
 // A field listed nowhere here is config-theatre and must be rejected, not ignored.
 const CONTRACT_FIELDS = [
   'name', 'version', 'schema', 'tool_calls', 'validators',
-  'custom_rules', 'post_validation',
+  'custom_rules', 'post_validation', 'expected_outputs',
 ] as const;
 const SCHEMA_FIELDS = ['required_fields'] as const;
+const EXPECTED_OUTPUTS_FIELDS = ['files'] as const;
 const TOOL_CALLS_FIELDS = [
   'minimum', 'maximum', 'required_tools', 'required_tool_groups', 'counted_tools',
 ] as const;
@@ -67,6 +68,7 @@ export function parseContractYaml(yamlContent: string, sourcePath?: string): Out
 
   check(parsed.schema, SCHEMA_FIELDS, 'schema');
   check(parsed.tool_calls, TOOL_CALLS_FIELDS, 'tool_calls');
+  check(parsed.expected_outputs, EXPECTED_OUTPUTS_FIELDS, 'expected_outputs');
   check(parsed.post_validation, POST_VALIDATION_FIELDS, 'post_validation');
   const rejectionDetection = (parsed.post_validation as Record<string, unknown> | undefined)
     ?.rejection_detection;

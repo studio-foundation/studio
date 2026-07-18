@@ -51,6 +51,7 @@ import { deriveStageStatus } from '../state/status-derivation.js';
 import { transition } from '../state/state-machine.js';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 import { runExternalValidators } from './external-validator.js';
+import { checkExpectedOutputs } from './output-checker.js';
 import { loadContextPacks } from './context-pack-loader.js';
 import type { EngineEvents, StageContextEvent } from '../events.js';
 import { PipelineEventEmitter } from '../events.js';
@@ -645,6 +646,13 @@ export class StageExecutor {
     if (contract.validators?.length) {
       const cwd = this.config.repoPath ?? this.config.configsDir;
       validators.push((result) => runExternalValidators(result.output, contract.validators, cwd));
+    }
+
+    // Expected outputs — check the filesystem for the files the stage must leave
+    // on disk. A "success" return code doesn't prove the artifacts exist; this does.
+    if (contract.expected_outputs?.files?.length) {
+      const cwd = this.config.repoPath ?? this.config.configsDir;
+      validators.push(() => checkExpectedOutputs(contract.expected_outputs, cwd));
     }
 
     if (validators.length === 0) {

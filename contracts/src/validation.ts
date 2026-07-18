@@ -25,6 +25,19 @@ export interface ExternalValidator {
   timeout_ms?: number;
 }
 
+/**
+ * Post-execution filesystem check: the files/artifacts a stage MUST leave on
+ * disk to be considered done. A "success" return code doesn't prove the agent
+ * actually produced its outputs — this closes that gap. Each entry is a path or
+ * glob (relative to the repo workspace); a stage fails if any entry matches no
+ * existing file. Runs inside the RALPH loop, so a miss enriches the retry
+ * feedback before the stage is finally failed.
+ */
+export interface ExpectedOutputs {
+  /** Paths or glob patterns (relative to the repo workspace). Each must match ≥1 existing file. */
+  files: string[];
+}
+
 export interface OutputContract {
   name: string;
   version: number;
@@ -34,6 +47,8 @@ export interface OutputContract {
   tool_calls?: ToolCallRequirements;
   /** External validators run against the real output inside the RALPH loop. */
   validators?: ExternalValidator[];
+  /** Files/artifacts the stage must leave on disk. Checked post-execution. */
+  expected_outputs?: ExpectedOutputs;
   custom_rules?: ValidationRule[];
   post_validation?: {
     rejection_detection: {

@@ -91,6 +91,18 @@ tool_calls:
     expect(() => parseContractYaml(yamlContent)).toThrow(/Did you mean 'minimum'\?/);
   });
 
+  it('rejects an unknown key inside expected_outputs', () => {
+    const yamlContent = `
+name: bad-outputs
+version: 1
+expected_outputs:
+  file: wiki_pages.json
+`;
+    expect(() => parseContractYaml(yamlContent)).toThrow(
+      /Unknown field 'file' in expected_outputs of contract 'bad-outputs'.*Did you mean 'files'\?/
+    );
+  });
+
   it('rejects an unknown key inside rejection_detection', () => {
     const yamlContent = `
 name: bad-rd
@@ -125,6 +137,10 @@ custom_rules:
   - name: actionable
     description: "must be actionable"
     check: "recommendations.length > 0"
+expected_outputs:
+  files:
+    - wiki_pages.json
+    - "batch_*.json"
 post_validation:
   rejection_detection:
     field: status
