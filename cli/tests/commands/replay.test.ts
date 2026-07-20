@@ -219,6 +219,22 @@ describe('resolveStageFromPipeline', () => {
   it('index 0 returns the first stage name', () => {
     expect(resolveStageFromPipeline('0', pipeline)).toBe('stage-a');
   });
+
+  it('resolves call and map stages by name and leaf index', () => {
+    const chained: PipelineDefinition = {
+      name: 'chained', description: 'call + map + call', version: 1,
+      stages: [
+        { call: 'wiki-extraction', pipeline: 'wiki-extraction' } as any,
+        { map: 'fan', over: 'input.items', pipeline: 'child', as: 'item' } as any,
+        { call: 'pages-export' } as any,
+      ],
+    };
+    // leaf order: wiki-extraction(0), fan(1), pages-export(2)
+    expect(resolveStageFromPipeline('wiki-extraction', chained)).toBe('wiki-extraction');
+    expect(resolveStageFromPipeline('pages-export', chained)).toBe('pages-export');
+    expect(resolveStageFromPipeline('0', chained)).toBe('wiki-extraction');
+    expect(resolveStageFromPipeline('2', chained)).toBe('pages-export');
+  });
 });
 
 describe('replay integration — full JSONL file', () => {

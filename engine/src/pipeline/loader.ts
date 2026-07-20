@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, CallStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
 import { assertKnownFields, suggestClosest } from './strict-fields.js';
 import { CONTEXT_INCLUDE_DIRECTIVES } from './context-propagation.js';
 
@@ -19,6 +19,7 @@ const STAGE_FIELDS = [
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
 const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure'] as const;
+const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
 const CONTEXT_FIELDS = ['include', 'packs'] as const;
 const TOOLS_FIELDS = ['required'] as const;
@@ -143,6 +144,9 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
     if (entry.map !== undefined) {
       // Fan-out / map stage
       stages.push(parseMapStage(entry, context));
+    } else if (entry.call !== undefined) {
+      // One-shot sub-pipeline call
+      stages.push(parseCallStage(entry, context));
     } else if (entry.group) {
       // Group entry
       assertKnownFields(entry, GROUP_FIELDS, `group '${entry.group}'`, context);
@@ -286,5 +290,27 @@ function parseMapStage(entry: any, context: string): MapStage {
     ...(entry.as !== undefined ? { as: entry.as } : {}),
     ...(entry.concurrency !== undefined ? { concurrency: entry.concurrency } : {}),
     on_item_failure: onItemFailure,
+  };
+}
+
+function parseCallStage(entry: any, context: string): CallStage {
+  const name = entry.call;
+  if (!name || typeof name !== 'string') {
+    throw new Error(`Call stage missing 'call' (the stage name)${context}`);
+  }
+  assertKnownFields(entry, CALL_FIELDS, `call stage '${name}'`, context);
+
+  if (entry.pipeline !== undefined && typeof entry.pipeline !== 'string') {
+    throw new Error(`Call stage '${name}' field 'pipeline' must be a string${context}`);
+  }
+  if (entry.input !== undefined && (typeof entry.input !== 'object' || entry.input === null || Array.isArray(entry.input))) {
+    throw new Error(`Call stage '${name}' field 'input' must be an object of key → template${context}`);
+  }
+
+  return {
+    call: name,
+    ...(entry.pipeline !== undefined ? { pipeline: entry.pipeline } : {}),
+    ...(entry.condition !== undefined ? { condition: entry.condition } : {}),
+    ...(entry.input !== undefined ? { input: entry.input } : {}),
   };
 }

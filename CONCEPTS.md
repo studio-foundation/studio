@@ -197,6 +197,29 @@ Under `--live` (and in the default spinner mode) a fan-out stage renders its own
 
 ---
 
+## Call (sub-pipeline) stages
+
+A **call** stage runs a named pipeline **once** and exposes its output to later stages under the stage name. It is a fan-out with the iteration removed — the same in-process run spawner, structured output, no log scraping — for when the shape is a **sequence**, not a fan-out. It exists so a pipeline can chain other top-level pipelines in one YAML instead of an external orchestrator sequencing them:
+
+```yaml
+name: wiki
+description: Full wiki build — the four pipelines run_wiki.py used to sequence
+version: 1
+stages:
+  - call: wiki-extraction     # stage name; pipeline defaults to the same name
+  - call: wiki-resolution
+  - call: wiki-preparation
+  - call: pages-export
+```
+
+- **`call`** is the stage name (the discriminant). Restart targets it by name: `studio replay <run> --restart --stage wiki-resolution`.
+- **`pipeline`** is the sub-pipeline to run; it **defaults to the `call` value**, so calling a pipeline under its own name needs one line. Set it when the stage name and pipeline name differ (e.g. calling the same pipeline twice).
+- **`input`** maps the child's input from the parent context: a template where `{{input}}`, `{{input.<path>}}` and `{{stages.<name>.output.<path>}}` are substituted (a value that is exactly one `{{ref}}` keeps its native type). **Omitted → the parent input is forwarded to the child unchanged**, which is what the sequence above relies on. A non-object parent input with no template fails the stage.
+- **`condition`** skips the call when false, like any other stage.
+- The child's output is propagated **directly** (not wrapped) under the stage name — `stages.<call>.output.<path>` — and a child failure fails the call stage and stops the parent. Child runs count against `maxDepth`, exactly like `map` and `studio_run`.
+
+---
+
 ## Context propagation
 
 Each stage declares exactly what context it receives:

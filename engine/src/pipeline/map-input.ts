@@ -9,6 +9,7 @@
 
 import type { MapStage } from '@studio-foundation/contracts';
 import type { PipelineInput } from './context-propagation.js';
+import { interpolateTemplate } from './template-interpolation.js';
 
 interface ItemScope {
   item: unknown;
@@ -18,12 +19,11 @@ interface ItemScope {
 
 /** Resolve a single {{...}} reference against the item/index/input scope. */
 function resolveRef(ref: string, scope: ItemScope): unknown {
-  const trimmed = ref.trim();
-  if (trimmed === 'item') return scope.item;
-  if (trimmed === 'index') return scope.index;
-  if (trimmed === 'input') return scope.input;
-  if (trimmed.startsWith('item.')) return traverse(scope.item, trimmed.slice('item.'.length));
-  if (trimmed.startsWith('input.')) return traverse(scope.input, trimmed.slice('input.'.length));
+  if (ref === 'item') return scope.item;
+  if (ref === 'index') return scope.index;
+  if (ref === 'input') return scope.input;
+  if (ref.startsWith('item.')) return traverse(scope.item, ref.slice('item.'.length));
+  if (ref.startsWith('input.')) return traverse(scope.input, ref.slice('input.'.length));
   return undefined;
 }
 
@@ -34,31 +34,6 @@ function traverse(obj: unknown, path: string): unknown {
     current = (current as Record<string, unknown>)[part];
   }
   return current;
-}
-
-function stringify(value: unknown): string {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
-}
-
-const TOKEN = /\{\{([^}]+)\}\}/g;
-
-/**
- * Interpolate a template value. Non-strings pass through unchanged. A string
- * that is exactly one `{{ref}}` keeps the resolved value's native type (so an
- * object/array item stays structured); any other string interpolates to text.
- */
-function interpolate(value: unknown, scope: ItemScope): unknown {
-  if (typeof value !== 'string') return value;
-
-  const soleMatch = value.match(/^\{\{([^}]+)\}\}$/);
-  if (soleMatch) {
-    return resolveRef(soleMatch[1], scope);
-  }
-
-  return value.replace(TOKEN, (_full, ref) => stringify(resolveRef(ref, scope)));
 }
 
 /**
@@ -97,7 +72,7 @@ export function buildItemInput(
   if (map.input) {
     const result: Record<string, unknown> = {};
     for (const [key, template] of Object.entries(map.input)) {
-      result[key] = interpolate(template, scope);
+      result[key] = interpolateTemplate(template, (ref) => resolveRef(ref, scope));
     }
     return result;
   }
