@@ -26,7 +26,7 @@ Read every commit. The **highest** matching row wins.
 |---|---|
 | **MINOR** `0.5.2 → 0.6.0` | A new capability reachable from YAML or the CLI (new stage type, new contract key, new command/flag, new tool). **Or** any breaking change: a config key removed or renamed, a default changed, an output shape changed, a previously-accepted config now rejected. |
 | **PATCH** `0.5.2 → 0.5.3` | Only backward-compatible bug fixes, plus docs/CI/test-only commits. Every existing `.studio/` config keeps working untouched. |
-| **MAJOR** `0.x → 1.0.0` | **Never derived from commits.** The jump to 1.0 is an explicit product decision. If the user has not said "this is 1.0", it is not 1.0 — propose MINOR and say why. |
+| **MAJOR** `0.x → 1.0.0` | **Never derived from commits.** See CLAUDE.md § *When Studio goes 1.0* for the criteria and the tripwire that opens the question. If it hasn't fired, propose MINOR and say why. |
 
 Pre-1.0, a breaking change earns MINOR, not MAJOR. That is deliberate — do not "upgrade" it.
 

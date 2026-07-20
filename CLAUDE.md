@@ -98,6 +98,31 @@ Studio uses **unified (lockstep) versioning**: the root and all 7 packages alway
 
 _Example: a PR that adds a new public API to one package (a backward-compatible feature) earns a **minor** bump for the whole monorepo at the next release._
 
+### Release procedure
+
+Use the `bump-version` skill. Two rules it exists to protect, both learned by breaking them:
+
+- **The baseline is npm, not git tags.** `npm view @studio-foundation/cli version` is the last version that actually shipped. Tags exist for versions that never published (`v0.5.0`, `v0.5.1`), so diffing from the last tag gives the wrong commit range.
+- **Publish, then release.** `gh workflow run npm-publish.yml -f version=X.Y.Z`, verify all 7 packages on npm, and only then cut the GitHub release. Releases are immutable here — a tag name is reserved permanently, so a release cut before npm accepts destroys that version number.
+
+### Recommending a bump
+
+When work merges to `main` and there are unreleased commits, say so and name the level with the commits that justify it — "3 commits since `0.5.2`, all fixes: patch." Don't wait to be asked; an unreleased `main` is invisible otherwise.
+
+Surface it at a checkpoint — after a merge, at the end of a work session — not in the middle of an unrelated task.
+
+### When Studio goes 1.0
+
+`1.0.0` means one thing: **an existing `.studio/` config will keep working until a major bump.** It's a stability promise, not a quality bar or a maturity verdict. Studio can be good and stay at `0.x` indefinitely; the cost of staying is zero.
+
+Three criteria, all required:
+
+1. **The YAML surface could be frozen.** The keys in `pipeline`/`contract`/`agent` files stop moving. Adding or renaming config keys each cycle means no.
+2. **Configs exist that this repo doesn't control.** While every `.studio/` in the world is one of ours, `1.0` buys nothing — breaking changes are free and we know it.
+3. **A breaking change has a migration path**, not just a changelog line.
+
+**Tripwire:** three consecutive releases with no config-breaking change, without effort spent avoiding one. That's the signal the surface stabilized on its own — data, not a feeling. Until it fires, the question isn't open, and `MAJOR` is never derived from commits.
+
 ## Tools
 
 Tools are YAML plugins (`.tool.yaml`). The runner is a tool plugin runtime.
