@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/ralph",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Retry loop: execute, validate, retry with escalating feedback. The R in RALPH. Used by Studio.",
   "type": "module",
   "main": "./dist/index.js",
