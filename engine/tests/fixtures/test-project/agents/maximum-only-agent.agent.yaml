@@ -1,7 +1,0 @@
-
-name: maximum-only-agent
-provider: anthropic
-model: claude-sonnet-4-20250514
-temperature: 0.3
-tools:
-  - test-tool
