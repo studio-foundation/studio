@@ -446,12 +446,30 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       console.log(chalk.gray(`View details: studio status ${progress.runId}`));
     }
 
-    if (result.status === 'cancelled') {
-      process.exit(130);
-    }
-    process.exit(result.status === 'success' ? 0 : 1);
+    const exitCode = result.status === 'cancelled' ? 130 : result.status === 'success' ? 0 : 1;
+    await exitAfterFlush(exitCode);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
+}
+
+/**
+ * Exit once stdout and stderr have drained to the OS.
+ *
+ * Writing to a pipe is asynchronous: Node buffers the write and flushes on a
+ * later tick, so `process.exit()` immediately after `console.log` terminates
+ * before the flush and cuts stdout at the pipe buffer (~8 KiB). A large
+ * `--json` payload then never reaches the caller — the exact-8192-byte
+ * truncation of STU-594/STU-533. A zero-length trailing write's callback fires
+ * after every queued chunk has been handed to the OS (writes drain FIFO), so it
+ * is a reliable "flushed" signal; a TTY drains synchronously and calls back at
+ * once.
+ */
+function exitAfterFlush(code: number): Promise<never> {
+  const drain = (stream: NodeJS.WriteStream): Promise<void> =>
+    new Promise((res) => stream.write('', () => res()));
+  return Promise.all([drain(process.stdout), drain(process.stderr)]).then(() =>
+    process.exit(code)
+  );
 }
