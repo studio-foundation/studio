@@ -3,6 +3,13 @@ name: Publish to npm
 on:
   release:
     types: [created]
+  # Immutable releases reserve a tag name permanently, so a release that fails to
+  # publish burns a version. Publish manually first, then cut the release.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (e.g. 0.5.2)
+        required: true
 
 jobs:
   publish:
@@ -36,7 +43,7 @@ jobs:
       - name: Determine version and dist-tag
         id: dist-tag
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${{ inputs.version || github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           if [[ "${{ github.event.release.prerelease }}" == "true" || "$VERSION" == *"-"* ]]; then
