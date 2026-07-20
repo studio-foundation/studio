@@ -18,7 +18,7 @@ const STAGE_FIELDS = [
   'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
-const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure'] as const;
+const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume'] as const;
 const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
 const CONTEXT_FIELDS = ['include', 'packs'] as const;
@@ -280,6 +280,9 @@ function parseMapStage(entry: any, context: string): MapStage {
   if (onItemFailure !== 'fail-fast' && onItemFailure !== 'collect-all') {
     throw new Error(`Map stage '${name}' field 'on_item_failure' must be 'fail-fast' or 'collect-all'${context}`);
   }
+  if (entry.resume !== undefined && typeof entry.resume !== 'boolean') {
+    throw new Error(`Map stage '${name}' field 'resume' must be a boolean${context}`);
+  }
 
   return {
     map: name,
@@ -290,6 +293,7 @@ function parseMapStage(entry: any, context: string): MapStage {
     ...(entry.as !== undefined ? { as: entry.as } : {}),
     ...(entry.concurrency !== undefined ? { concurrency: entry.concurrency } : {}),
     on_item_failure: onItemFailure,
+    ...(entry.resume !== undefined ? { resume: entry.resume } : {}),
   };
 }
 
