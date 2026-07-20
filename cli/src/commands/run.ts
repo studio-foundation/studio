@@ -150,6 +150,49 @@ export function mergeEvents(
         status: e.status,
       });
     },
+    onMapStart: (e) => {
+      progressEvents.onMapStart?.(e);
+      logger.log({
+        event: 'map_start',
+        map: e.map_name,
+        total_items: e.total_items,
+        concurrency: e.concurrency,
+      });
+    },
+    onMapItemStart: (e) => {
+      progressEvents.onMapItemStart?.(e);
+      logger.log({
+        event: 'map_item_start',
+        map: e.map_name,
+        index: e.index,
+        total_items: e.total_items,
+        label: e.label,
+      });
+    },
+    onMapItemComplete: (e) => {
+      progressEvents.onMapItemComplete?.(e);
+      logger.log({
+        event: 'map_item_complete',
+        map: e.map_name,
+        index: e.index,
+        total_items: e.total_items,
+        status: e.status,
+        ...(e.label !== undefined ? { label: e.label } : {}),
+        ...(e.run_id ? { run_id: e.run_id } : {}),
+        ...(e.error ? { error: e.error } : {}),
+      });
+    },
+    onMapComplete: (e) => {
+      progressEvents.onMapComplete?.(e);
+      logger.log({
+        event: 'map_complete',
+        map: e.map_name,
+        total: e.total,
+        succeeded: e.succeeded,
+        failed: e.failed,
+        status: e.status,
+      });
+    },
     onPipelineCancelled: (e) => {
       logger.log({
         event: 'pipeline_cancelled',

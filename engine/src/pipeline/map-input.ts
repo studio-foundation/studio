@@ -61,6 +61,30 @@ function interpolate(value: unknown, scope: ItemScope): unknown {
   return value.replace(TOKEN, (_full, ref) => stringify(resolveRef(ref, scope)));
 }
 
+/**
+ * A short, human-readable identity for one item of a fan-out list, for progress
+ * display. Prefers a meaningful field of an object item (title/name/id/…) over
+ * a bare index, so an operator watching a --live run sees *which* entity is in
+ * flight, not just "#37". Never throws — it is display-only and must tolerate
+ * any item shape (including the ones buildItemInput would reject).
+ */
+export function mapItemLabel(item: unknown, index: number): string {
+  if (typeof item === 'string') return item.trim() || `#${index}`;
+  if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+  if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+    const obj = item as Record<string, unknown>;
+    for (const key of ['title', 'name', 'id', 'slug', 'label', 'key', 'entity']) {
+      const v = obj[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      if (typeof v === 'number') return String(v);
+    }
+    for (const v of Object.values(obj)) {
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+  }
+  return `#${index}`;
+}
+
 /** Build the sub-pipeline input for one item of a fan-out stage. */
 export function buildItemInput(
   map: MapStage,
