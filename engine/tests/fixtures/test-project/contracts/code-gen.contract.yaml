@@ -1,6 +1,0 @@
-
-name: code-gen
-version: 1
-schema:
-  required_fields:
-    - files_changed

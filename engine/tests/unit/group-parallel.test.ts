@@ -6,7 +6,7 @@ import type { EngineEvents } from '../../src/events.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
-const PROJECT_DIR = join(FIXTURES_DIR, 'test-project');
+const PROJECT_DIR = join(FIXTURES_DIR, 'test-project-group-parallel');
 const PIPELINES_DIR = join(PROJECT_DIR, 'pipelines');
 const AGENTS_DIR = join(PROJECT_DIR, 'agents');
 const CONTRACTS_DIR = join(PROJECT_DIR, 'contracts');
@@ -15,7 +15,7 @@ mkdirSync(PIPELINES_DIR, { recursive: true });
 mkdirSync(AGENTS_DIR, { recursive: true });
 mkdirSync(CONTRACTS_DIR, { recursive: true });
 
-// Reuse agent fixture from group-loop.test.ts (idempotent writeFileSync)
+// Agent fixture (this file owns its project dir)
 writeFileSync(join(AGENTS_DIR, 'test-agent.agent.yaml'), `
 name: test-agent
 provider: anthropic

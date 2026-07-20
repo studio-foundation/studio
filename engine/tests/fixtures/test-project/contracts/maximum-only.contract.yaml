@@ -1,8 +1,0 @@
-
-name: maximum-only
-version: 1
-schema:
-  required_fields:
-    - summary
-tool_calls:
-  maximum: 2

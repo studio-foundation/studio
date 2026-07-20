@@ -6,12 +6,12 @@ import type { EngineEvents } from '../../src/events.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
-const PROJECT_DIR = join(FIXTURES_DIR, 'test-project');
+const PROJECT_DIR = join(FIXTURES_DIR, 'test-project-group-loop');
 const PIPELINES_DIR = join(PROJECT_DIR, 'pipelines');
 const AGENTS_DIR = join(PROJECT_DIR, 'agents');
 const CONTRACTS_DIR = join(PROJECT_DIR, 'contracts');
 
-// Ensure fixture dirs exist (shared with engine.test.ts)
+// Fixture dirs owned by this file — never shared, tests run in parallel workers
 mkdirSync(PIPELINES_DIR, { recursive: true });
 mkdirSync(AGENTS_DIR, { recursive: true });
 mkdirSync(CONTRACTS_DIR, { recursive: true });
