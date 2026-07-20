@@ -81,8 +81,9 @@ export interface StageDefinition {
   hooks?: StageHooks;
 }
 
-// A pipeline entry is either a stage, a group of stages, or a fan-out over a list
-export type PipelineEntry = StageDefinition | StageGroup | MapStage;
+// A pipeline entry is either a stage, a group of stages, a fan-out over a list,
+// or a one-shot call to another pipeline.
+export type PipelineEntry = StageDefinition | StageGroup | MapStage | CallStage;
 
 export interface StageGroup {
   group: string;
@@ -115,10 +116,36 @@ export interface MapStage {
   on_item_failure?: 'fail-fast' | 'collect-all'; // default: 'fail-fast'
 }
 
+/**
+ * A call stage: run a named pipeline once, inline, and expose its output to
+ * later parent stages under the stage name. This is `map` with the iteration
+ * removed — same RunSpawner machinery, structured output, no log scraping — for
+ * when the shape is a sequence, not a fan-out (e.g. chaining wiki-extraction →
+ * wiki-resolution → wiki-preparation → pages-export in one top-level pipeline).
+ */
+export interface CallStage {
+  call: string;                             // the stage name (discriminant)
+  condition?: string;                       // skip the call if false
+  pipeline?: string;                        // sub-pipeline to run once (defaults to `call`)
+  /**
+   * Input for the child run. Each value may reference the parent context via
+   * {{input}}, {{input.<path>}}, {{stages.<name>.output.<path>}} — the same
+   * substitution as `map`'s `input`, minus the per-item {{item}}/{{index}}. A
+   * value that is exactly one {{ref}} keeps the resolved value's native type;
+   * any other string interpolates to text. Omitted → the parent input is
+   * forwarded to the child unchanged.
+   */
+  input?: Record<string, unknown>;
+}
+
 export function isStageGroup(entry: PipelineEntry): entry is StageGroup {
   return 'group' in entry && 'stages' in entry;
 }
 
 export function isMapStage(entry: PipelineEntry): entry is MapStage {
   return 'map' in entry && 'over' in entry;
+}
+
+export function isCallStage(entry: PipelineEntry): entry is CallStage {
+  return 'call' in entry;
 }

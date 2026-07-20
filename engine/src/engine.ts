@@ -10,7 +10,7 @@ import type {
   StageRun,
   ToolCall,
 } from '@studio-foundation/contracts';
-import { isStageGroup, isMapStage } from '@studio-foundation/contracts';
+import { isStageGroup, isMapStage, isCallStage } from '@studio-foundation/contracts';
 import {
   type ToolRegistry,
   type ProviderRegistry,
@@ -34,6 +34,7 @@ import { resolveProjectPaths } from './pipeline/types.js';
 import { StageExecutor } from './pipeline/stage-executor.js';
 import { GroupOrchestrator } from './pipeline/group-orchestrator.js';
 import { MapOrchestrator } from './pipeline/map-orchestrator.js';
+import { CallOrchestrator } from './pipeline/call-orchestrator.js';
 
 export interface EngineConfig {
   configsDir: string;
@@ -82,6 +83,8 @@ function collectLeafStageNames(entries: PipelineEntry[]): string[] {
       for (const stage of entry.stages) names.push(stage.name);
     } else if (isMapStage(entry)) {
       names.push(entry.map);
+    } else if (isCallStage(entry)) {
+      names.push(entry.call);
     } else {
       names.push(entry.name);
     }
@@ -138,6 +141,7 @@ export class PipelineEngine {
   private stageExecutor: StageExecutor;
   private groupOrchestrator: GroupOrchestrator;
   private mapOrchestrator: MapOrchestrator;
+  private callOrchestrator: CallOrchestrator;
 
   constructor(
     private config: EngineConfig,
@@ -161,6 +165,12 @@ export class PipelineEngine {
       stageExecutor: this.stageExecutor,
     });
     this.mapOrchestrator = new MapOrchestrator({
+      events,
+      emitter: this.emitter,
+      spawner: config.spawner,
+      maxDepth: config.maxDepth ?? 3,
+    });
+    this.callOrchestrator = new CallOrchestrator({
       events,
       emitter: this.emitter,
       spawner: config.spawner,
@@ -444,6 +454,73 @@ export class PipelineEngine {
           addStageOutput(pipelineContext, entry.map, mapResult.output);
         }
         previousStageName = entry.map;
+      } else if (isCallStage(entry)) {
+        // ========== CALL (ONE-SHOT SUB-PIPELINE) ==========
+        stageCounter++;
+
+        // Skip stage if resuming from a later stage
+        if (skipSet.has(entry.call)) {
+          const skippedReason = input.originalRunId
+            ? `resumed from run ${input.originalRunId}`
+            : 'resumed from prior run';
+          const skippedRun = makeSkippedStageRun(entry.call, skippedReason);
+          this.events?.onStageComplete?.({
+            stage_name: entry.call,
+            stage_index: stageCounter - 1,
+            total_stages: totalStages,
+            status: 'skipped',
+            attempts: 0,
+            duration_ms: 0,
+            skipped_reason: skippedReason,
+          });
+          pipelineRun.stages.push(skippedRun);
+          previousStageName = entry.call;
+          continue;
+        }
+
+        const callResult = await this.callOrchestrator.run(
+          entry,
+          pipelineContext,
+          stageCounter - 1,
+          totalStages,
+          pipelineRun.id,
+          input.depth ?? 0,
+          signal,
+        );
+
+        pipelineRun.stages.push(callResult.stageRun);
+
+        if (callResult.status === 'failed' || callResult.status === 'cancelled') {
+          pipelineRun.status = callResult.status;
+          pipelineRun.completed_at = new Date().toISOString();
+          if (callResult.status === 'cancelled') {
+            this.events?.onPipelineCancelled?.({
+              run_id: pipelineRun.id,
+              cancelled_at_stage: callResult.stageRun.stage_name,
+              duration_ms: Date.now() - pipelineStartTime,
+            });
+          }
+          await this.config.db?.savePipelineRun(pipelineRun);
+          if (runMiddleware) {
+            await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
+          }
+          this.events?.onPipelineComplete?.({
+            pipeline_name: pipeline.name,
+            run_id: pipelineRun.id,
+            status: pipelineRun.status,
+            duration_ms: Date.now() - pipelineStartTime,
+            total_tokens: this.pipelineTotals.tokens,
+            total_tool_calls: this.pipelineTotals.toolCalls,
+          });
+          this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
+          return pipelineRun;
+        }
+
+        // Propagate the child pipeline's output to downstream stages.
+        if (callResult.output !== undefined) {
+          addStageOutput(pipelineContext, entry.call, callResult.output);
+        }
+        previousStageName = entry.call;
       } else {
         // ========== SIMPLE STAGE ==========
         stageCounter++;

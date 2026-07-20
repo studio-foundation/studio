@@ -33,6 +33,10 @@ export type {
 export { MapOrchestrator } from './pipeline/map-orchestrator.js';
 export type { MapStageOutput, MapItemResult, MapRunResult } from './pipeline/map-orchestrator.js';
 
+// One-shot sub-pipeline call stage
+export { CallOrchestrator } from './pipeline/call-orchestrator.js';
+export type { CallRunResult } from './pipeline/call-orchestrator.js';
+
 // State management
 export { deriveStageStatus } from './state/status-derivation.js';
 export { isValidTransition, transition } from './state/state-machine.js';
