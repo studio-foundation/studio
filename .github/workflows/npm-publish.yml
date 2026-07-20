@@ -1,10 +1,9 @@
 name: Publish to npm
 
+# Publish first, then cut the GitHub release. Releases are immutable here: a tag
+# name stays reserved even after its release is deleted, so publishing on
+# `release: created` burns a version number every time npm rejects the push.
 on:
-  release:
-    types: [created]
-  # Immutable releases reserve a tag name permanently, so a release that fails to
-  # publish burns a version. Publish manually first, then cut the release.
   workflow_dispatch:
     inputs:
       version:
@@ -43,10 +42,10 @@ jobs:
       - name: Determine version and dist-tag
         id: dist-tag
         run: |
-          VERSION="${{ inputs.version || github.event.release.tag_name }}"
+          VERSION="${{ inputs.version }}"
           VERSION="${VERSION#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          if [[ "${{ github.event.release.prerelease }}" == "true" || "$VERSION" == *"-"* ]]; then
+          if [[ "$VERSION" == *"-"* ]]; then
             echo "tag=beta" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
