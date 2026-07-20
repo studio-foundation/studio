@@ -1,4 +1,9 @@
 {
+  "extraKnownMarketplaces": {
+    "claude-toolbox": {
+      "source": { "source": "github", "repo": "arianeguay/claude-toolbox" }
+    }
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
@@ -8,6 +13,7 @@
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
     "superpowers@superpowers-dev": true,
-    "linear@claude-plugins-official": true
+    "linear@claude-plugins-official": true,
+    "toolbox@claude-toolbox": true
   }
 }
