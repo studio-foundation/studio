@@ -32,6 +32,13 @@ export type {
 // Fan-out (map) stage
 export { MapOrchestrator } from './pipeline/map-orchestrator.js';
 export type { MapStageOutput, MapItemResult, MapRunResult } from './pipeline/map-orchestrator.js';
+export {
+  FileSystemMapItemCache,
+  InMemoryMapItemCache,
+  hashItemInput,
+  canonicalize,
+} from './pipeline/map-item-cache.js';
+export type { MapItemCache, CachedMapItem, MapCacheNamespace } from './pipeline/map-item-cache.js';
 
 // One-shot sub-pipeline call stage
 export { CallOrchestrator } from './pipeline/call-orchestrator.js';

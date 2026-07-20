@@ -114,6 +114,8 @@ export interface MapItemCompleteEvent {
   label?: string;
   run_id?: string;
   error?: string;
+  /** True when the item was served from the resume cache (not spawned this run). */
+  cached?: boolean;
 }
 
 export interface MapCompleteEvent {

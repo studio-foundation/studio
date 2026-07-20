@@ -20,6 +20,7 @@ import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
 import { buildItemInput, mapItemLabel } from './map-input.js';
 import type { PipelineContext } from './context-propagation.js';
+import { hashItemInput, type MapItemCache, type MapCacheNamespace, type CachedMapItem } from './map-item-cache.js';
 
 export interface MapItemResult {
   index: number;
@@ -27,12 +28,16 @@ export interface MapItemResult {
   output?: unknown;
   error?: string;
   run_id?: string;
+  /** True when served from the resume cache instead of spawned this run. */
+  cached?: boolean;
 }
 
 export interface MapStageOutput {
   total: number;
   succeeded: number;
   failed: number;
+  /** Of the successes, how many were served from the resume cache (not spawned). */
+  resumed: number;
   results: MapItemResult[];
   /** Successful item outputs in index order — the common "collect what worked" path. */
   outputs: unknown[];
@@ -49,6 +54,8 @@ export interface MapOrchestratorConfig {
   emitter: PipelineEventEmitter;
   spawner?: RunSpawner;
   maxDepth: number;
+  /** Durable per-item store for `resume: true` map stages. Absent → resume is a no-op. */
+  cache?: MapItemCache;
 }
 
 function errorMessage(err: unknown): string {
@@ -65,6 +72,7 @@ export class MapOrchestrator {
     totalStages: number,
     runId: string,
     depth: number,
+    pipelineName: string,
     signal?: AbortSignal,
   ): Promise<MapRunResult> {
     const startedAt = new Date().toISOString();
@@ -172,7 +180,7 @@ export class MapOrchestrator {
     this.config.emitter.emit({ type: 'map_start', mapName: map.map, totalItems: items.length });
 
     if (items.length === 0) {
-      const emptyOutput: MapStageOutput = { total: 0, succeeded: 0, failed: 0, results: [], outputs: [] };
+      const emptyOutput: MapStageOutput = { total: 0, succeeded: 0, failed: 0, resumed: 0, results: [], outputs: [] };
       this.config.events?.onMapComplete?.({ map_name: map.map, total: 0, succeeded: 0, failed: 0, status: 'success' });
       this.config.emitter.emit({ type: 'map_complete', mapName: map.map, succeeded: 0, failed: 0, status: 'success' });
       return finish('success', emptyOutput);
@@ -186,6 +194,20 @@ export class MapOrchestrator {
       );
     }
 
+    // Per-item resume — skip items a previous run already completed. Opt-in
+    // (`resume: true`) and a no-op without a configured cache. The key is the
+    // item *input*, so a reordered/filtered list still hits and a changed item
+    // misses (see MapStage.resume docs). Failures are never cached, so they
+    // retry next run; a cache-served item counts as a success and never trips
+    // fail-fast.
+    const resumeEnabled = map.resume === true && this.config.cache !== undefined;
+    const cache = this.config.cache;
+    const namespace: MapCacheNamespace = {
+      pipeline: pipelineName,
+      stage: map.map,
+      subPipeline: map.pipeline,
+    };
+
     const results = new Array<MapItemResult | undefined>(items.length);
     let cursor = 0;
     let abortLaunch = false; // fail-fast: stop pulling new items after a failure
@@ -196,9 +218,47 @@ export class MapOrchestrator {
         const i = cursor++;
         if (i >= items.length) return;
 
+        const label = mapItemLabel(items[i], i);
+
+        // Resume check — before announcing the item as started, so a cache hit
+        // is served without a spinner. buildItemInput can throw for a bad item;
+        // fall through to the normal path, which surfaces that as an item failure.
+        let itemInput: Record<string, unknown> | undefined;
+        let cached: CachedMapItem | undefined;
+        if (resumeEnabled && cache) {
+          try {
+            itemInput = buildItemInput(map, items[i], i, context.input);
+            cached = await cache.get(namespace, hashItemInput(itemInput));
+          } catch {
+            itemInput = undefined;
+            cached = undefined;
+          }
+        }
+
+        if (cached) {
+          const itemResult: MapItemResult = {
+            index: i,
+            status: 'success',
+            output: cached.output,
+            cached: true,
+            ...(cached.run_id ? { run_id: cached.run_id } : {}),
+          };
+          results[i] = itemResult;
+          this.config.events?.onMapItemComplete?.({
+            map_name: map.map,
+            index: i,
+            total_items: items.length,
+            status: 'success',
+            label,
+            cached: true,
+            ...(cached.run_id ? { run_id: cached.run_id } : {}),
+          });
+          this.config.emitter.emit({ type: 'map_item_complete', mapName: map.map, index: i, status: 'success' });
+          continue;
+        }
+
         // Name the item as it goes in flight, so a --live operator sees which
         // items are running right now (not just an advancing count).
-        const label = mapItemLabel(items[i], i);
         this.config.events?.onMapItemStart?.({
           map_name: map.map,
           index: i,
@@ -208,7 +268,7 @@ export class MapOrchestrator {
 
         let itemResult: MapItemResult;
         try {
-          const input = buildItemInput(map, items[i], i, context.input);
+          const input = itemInput ?? buildItemInput(map, items[i], i, context.input);
           const spawn = await spawner.spawnAndWait({
             pipeline: map.pipeline,
             input,
@@ -216,6 +276,15 @@ export class MapOrchestrator {
             depth: depth + 1,
           });
           itemResult = { index: i, status: 'success', output: spawn.output, run_id: spawn.run_id };
+          // Only successful items are cached — a failure stays un-cached so it
+          // retries next run.
+          if (resumeEnabled && cache) {
+            await cache.set(namespace, hashItemInput(input), {
+              output: spawn.output,
+              run_id: spawn.run_id,
+              cached_at: new Date().toISOString(),
+            });
+          }
         } catch (err) {
           itemResult = { index: i, status: 'failed', error: errorMessage(err) };
           if (failFast) abortLaunch = true;
@@ -251,6 +320,7 @@ export class MapOrchestrator {
       total: items.length,
       succeeded: succeeded.length,
       failed: failed.length,
+      resumed: succeeded.filter(r => r.cached).length,
       results: settled,
       outputs: succeeded.map(r => r.output),
     };

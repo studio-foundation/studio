@@ -163,6 +163,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
     book_context: "{{input.book_context}}"
   concurrency: 4                      # max items in flight (default 1)
   on_item_failure: collect-all        # fail-fast (default) | collect-all
+  resume: true                        # skip items already done in a prior run (default false)
 ```
 
 - **`over`** resolves to a list via the same reference syntax as `condition`: `input.<path>` or `stages.<name>.output(.<path>)`. If it doesn't resolve to an array, the stage fails.
@@ -171,18 +172,31 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
 - **`on_item_failure`** is the per-item failure policy:
   - `fail-fast` (default): stop launching new items on the first failure; the stage fails. In-flight items still finish.
   - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
+- **`resume`** (default `false`) turns on **per-item resume** — see below.
 
 The stage output is structured for the next stage to consume — no scraping:
 
 ```jsonc
 {
   "total": 3, "succeeded": 3, "failed": 0,
+  "resumed": 0,   // of the successes, how many were served from the resume cache
   "outputs": [ /* successful item outputs, in order */ ],
-  "results": [ { "index": 0, "status": "success", "output": {…}, "run_id": "…" }, … ]
+  "results": [ { "index": 0, "status": "success", "output": {…}, "run_id": "…", "cached": false }, … ]
 }
 ```
 
 A downstream stage reads it like any other stage output, e.g. `over: stages.generate-pages.output.outputs` or `context.include: [previous_stage_output]`. Child runs count against `maxDepth`, exactly like `studio_run`.
+
+### Per-item resume (`resume: true`)
+
+A fan-out over hundreds of network-bound items is a run measured in hours. Without resume, one timeout near the end re-costs the **whole** stage on the next invocation — the all-or-nothing regression that blocks migrating hand-written per-unit loops (`discover_relationships.py`'s per-chunk votes cache, `generate_wiki_pages.py`'s per-page commit) to `map`. `resume: true` lifts that per-unit persistence into the engine:
+
+- **Skips items already completed** in an earlier run of the same stage, and re-spawns only the incomplete ones.
+- **The resume key is the item _input_** (the sub-pipeline input built for the item), never its index or list position. So reordering or filtering the `over:` list still hits the cache — a verdict computed for item X is never replayed for a different item Y (the identity-vs-inputs trap recorded in wiki-creator's alias/page caches) — while changing an item's content (or its `input:`/`as:` mapping, or the target `pipeline:`) misses and recomputes.
+- **Failures are never cached.** A failed item retries on the next run; completed items stay done.
+- **Orthogonal to `on_item_failure`.** The cache is consulted and written under both `fail-fast` and `collect-all`, and a cache-served item counts as a success — it never trips `fail-fast`. On a `fail-fast` re-run, the previously-completed prefix is served from cache and the stage picks up at the first item that had not finished.
+
+The cache is a JSON file per completed item under `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json`, so it survives a process restart between runs. It is best-effort: a read error is a miss and a write error is swallowed (the item simply re-runs) — resume never fails the stage. Cache-served items are flagged `cached: true` in the `map_item_complete` event and counted in the output's `resumed`.
 
 ### Live progress
 

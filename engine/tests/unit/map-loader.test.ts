@@ -84,6 +84,30 @@ describe('loader — map (fan-out) stage', () => {
     on_item_failure: retry`))).toThrow(/fail-fast.*collect-all/);
   });
 
+  it('parses resume: true and defaults it to absent', () => {
+    const withResume = parsePipelineYaml(base(`  - map: gen
+    over: input.items
+    pipeline: child
+    resume: true`));
+    const a = withResume.stages[0];
+    if (!isMapStage(a)) throw new Error('not a map stage');
+    expect(a.resume).toBe(true);
+
+    const without = parsePipelineYaml(base(`  - map: gen
+    over: input.items
+    pipeline: child`));
+    const b = without.stages[0];
+    if (!isMapStage(b)) throw new Error('not a map stage');
+    expect(b.resume).toBeUndefined();
+  });
+
+  it('rejects a non-boolean resume', () => {
+    expect(() => parsePipelineYaml(base(`  - map: gen
+    over: input.items
+    pipeline: child
+    resume: sometimes`))).toThrow(/'resume' must be a boolean/);
+  });
+
   it('coexists with normal stages and groups in one pipeline', () => {
     const p = parsePipelineYaml(`
 name: t

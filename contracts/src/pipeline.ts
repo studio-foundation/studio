@@ -114,6 +114,33 @@ export interface MapStage {
   as?: string;                              // shorthand: input = { [as]: item } (ignored when `input` is set)
   concurrency?: number;                     // max items in flight, default 1 (sequential)
   on_item_failure?: 'fail-fast' | 'collect-all'; // default: 'fail-fast'
+  /**
+   * Per-item resume (default: false). When `true`, a re-run of this map stage
+   * skips items that already completed successfully in an earlier run and
+   * re-spawns only the incomplete ones — the shape `discover_relationships.py`'s
+   * per-chunk votes cache has by hand, lifted into the engine so a run of
+   * hundreds of network-bound items isn't all-or-nothing (one timeout near the
+   * end no longer re-costs the whole stage).
+   *
+   * The resume key is derived from the **item input** (the sub-pipeline input
+   * built for this item), never its index or list position. So:
+   *   - reordering or filtering the `over:` list still hits the cache — a verdict
+   *     computed for item X is never replayed for a different item Y (the
+   *     identity-vs-inputs trap recorded in wiki-creator's alias/page caches);
+   *   - changing an item's content (or the `input:`/`as:` mapping, or the target
+   *     `pipeline:`) changes the key, so that item is recomputed.
+   *
+   * A per-item **failure is never cached** — a failed item retries on the next
+   * run while completed items stay done. Resume is orthogonal to
+   * `on_item_failure`: the cache is consulted and written under both `fail-fast`
+   * and `collect-all`, and a cache-served item counts as a success (it never
+   * trips `fail-fast`).
+   *
+   * The cache lives on disk under `.studio/runs/map-cache/…`, keyed by parent
+   * pipeline + stage + sub-pipeline + item-input hash, so it survives a process
+   * restart between runs.
+   */
+  resume?: boolean;
 }
 
 /**

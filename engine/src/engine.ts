@@ -34,7 +34,9 @@ import { resolveProjectPaths } from './pipeline/types.js';
 import { StageExecutor } from './pipeline/stage-executor.js';
 import { GroupOrchestrator } from './pipeline/group-orchestrator.js';
 import { MapOrchestrator } from './pipeline/map-orchestrator.js';
+import { FileSystemMapItemCache } from './pipeline/map-item-cache.js';
 import { CallOrchestrator } from './pipeline/call-orchestrator.js';
+import { join } from 'node:path';
 
 export interface EngineConfig {
   configsDir: string;
@@ -169,6 +171,9 @@ export class PipelineEngine {
       emitter: this.emitter,
       spawner: config.spawner,
       maxDepth: config.maxDepth ?? 3,
+      // Durable per-item resume store for `map` stages with `resume: true`.
+      // Lives alongside the anonymization keymaps under .studio/runs/.
+      cache: new FileSystemMapItemCache(join(config.configsDir, 'runs', 'map-cache')),
     });
     this.callOrchestrator = new CallOrchestrator({
       events,
@@ -418,6 +423,7 @@ export class PipelineEngine {
           totalStages,
           pipelineRun.id,
           input.depth ?? 0,
+          pipeline.name,
           signal,
         );
 
