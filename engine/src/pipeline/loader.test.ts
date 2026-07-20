@@ -126,3 +126,41 @@ stages:
     expect(stage.hooks).toBeUndefined();
   });
 });
+
+describe('parsePipelineYaml — context.include directives (STU-593)', () => {
+  const withInclude = (include: string) => `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: analyze
+    kind: analysis
+    agent: analyst
+    context:
+      include:
+        - input
+        - ${include}
+`;
+
+  it('accepts every directive getContextForStage implements', () => {
+    for (const directive of [
+      'input', 'previous_stage_output', 'all_stage_outputs', 'stage_name',
+      'group_feedback', 'previous_stage_tool_results', 'all_stage_tool_results',
+      'repo_files', 'repo_structure', 'pipeline_start_context',
+    ]) {
+      expect(() => parsePipelineYaml(withInclude(directive))).not.toThrow();
+    }
+  });
+
+  it('throws on an unknown context.include directive instead of silently dropping it', () => {
+    expect(() => parsePipelineYaml(withInclude('entity-classification'))).toThrow(
+      /Unknown context\.include 'entity-classification' in stage 'analyze'/,
+    );
+  });
+
+  it('suggests the closest directive on a typo', () => {
+    expect(() => parsePipelineYaml(withInclude('all_stage_output'))).toThrow(
+      /Did you mean 'all_stage_outputs'\?/,
+    );
+  });
+});

@@ -146,6 +146,25 @@ export function buildContextContent(
   return content;
 }
 
+// Every directive `getContextForStage` implements below. A `context.include`
+// entry outside this set is config-theatre: the switch has no case for it, so it
+// is silently dropped — the user believes a context is wired that never arrives
+// (STU-593). The loader validates against this at load time. KEEP IN SYNC with
+// the switch cases below: a case added here without an entry is rejected at load;
+// an entry added without a case is silently ignored, the bug this closes.
+export const CONTEXT_INCLUDE_DIRECTIVES = [
+  'input',
+  'previous_stage_output',
+  'all_stage_outputs',
+  'stage_name',
+  'group_feedback',
+  'previous_stage_tool_results',
+  'all_stage_tool_results',
+  'repo_files',
+  'repo_structure',
+  'pipeline_start_context',
+] as const;
+
 export function getContextForStage(
   context: PipelineContext,
   stage: StageDefinition,

@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
-import { assertKnownFields } from './strict-fields.js';
+import { assertKnownFields, suggestClosest } from './strict-fields.js';
+import { CONTEXT_INCLUDE_DIRECTIVES } from './context-propagation.js';
 
 // Every field the kernel implements, per block (see PipelineDefinition and
 // friends in @studio-foundation/contracts). Anything else is config-theatre
@@ -41,12 +42,34 @@ function checkBlock(
   }
 }
 
+/**
+ * Reject a `context.include` directive the kernel does not implement. The block
+ * keys (include/packs) are already checked; this checks the include *values* —
+ * an unknown one has no switch case in getContextForStage and is silently
+ * dropped, so the user believes a context is wired that never arrives (STU-593).
+ */
+function checkContextInclude(stage: any, context: string): void {
+  const includes = stage.context?.include;
+  if (!Array.isArray(includes)) return;
+  for (const directive of includes) {
+    if (typeof directive === 'string' && !(CONTEXT_INCLUDE_DIRECTIVES as readonly string[]).includes(directive)) {
+      const suggestion = suggestClosest(directive, CONTEXT_INCLUDE_DIRECTIVES);
+      throw new Error(
+        `Unknown context.include '${directive}' in stage '${stage.name}'${context}.` +
+        (suggestion ? ` Did you mean '${suggestion}'?` : '') +
+        ` Known directives: ${[...CONTEXT_INCLUDE_DIRECTIVES].sort().join(', ')}.`
+      );
+    }
+  }
+}
+
 /** Strict-check a stage and every nested block the kernel owns. */
 function checkStageFields(stage: any, context: string): void {
   const inStage = `of stage '${stage.name}'`;
   assertKnownFields(stage, STAGE_FIELDS, `stage '${stage.name}'`, context);
   checkBlock(stage.ralph, RALPH_FIELDS, `ralph ${inStage}`, context);
   checkBlock(stage.context, CONTEXT_FIELDS, `context ${inStage}`, context);
+  checkContextInclude(stage, context);
   checkBlock(stage.tools, TOOLS_FIELDS, `tools ${inStage}`, context);
   checkBlock(stage.hooks, HOOKS_FIELDS, `hooks ${inStage}`, context);
   if (stage.hooks && typeof stage.hooks === 'object') {
