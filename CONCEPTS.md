@@ -184,6 +184,17 @@ The stage output is structured for the next stage to consume — no scraping:
 
 A downstream stage reads it like any other stage output, e.g. `over: stages.generate-pages.output.outputs` or `context.include: [previous_stage_output]`. Child runs count against `maxDepth`, exactly like `studio_run`.
 
+### Live progress
+
+Under `--live` (and in the default spinner mode) a fan-out stage renders its own progress instead of a single hanging spinner — essential for real workloads of hundreds of items over runs measured in hours. The CLI surfaces:
+
+- a header naming the fan-out with its item count and concurrency,
+- a live status line with advancing `done`/`failed` counts and the **identities of the items currently in flight** (derived from each item, e.g. its `title`/`name`/`id`, not just an index) — it tracks multiple items at once under `concurrency > 1`,
+- a per-item **failure line the moment it happens**, naming the item and its child run ID (so you can `studio status <run-id>` to drill in), not just an aggregate at the end,
+- a final `succeeded/failed` summary.
+
+**Nesting decision (explicit):** child sub-pipeline stages are **collapsed**, not rendered — each item is a single progress line. A fan-out over hundreds of multi-stage sub-pipelines would otherwise drown the terminal, and child runs are spawned through a fresh engine that carries no event sink, so their stage events never reach the parent display anyway. Drill into any one child via its run ID. The full map lifecycle (`map_start`, `map_item_start`, `map_item_complete`, `map_complete`) is also written to the run JSONL.
+
 ---
 
 ## Context propagation

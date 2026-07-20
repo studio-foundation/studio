@@ -273,6 +273,54 @@ describe('mergeEvents — tool call events', () => {
   });
 });
 
+describe('mergeEvents — map (fan-out) events', () => {
+  it('forwards map lifecycle events to the progress display AND logs them', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const startSpy = vi.fn();
+    const itemStartSpy = vi.fn();
+    const itemCompleteSpy = vi.fn();
+    const completeSpy = vi.fn();
+    const progressEvents: EngineEvents = {
+      onMapStart: startSpy,
+      onMapItemStart: itemStartSpy,
+      onMapItemComplete: itemCompleteSpy,
+      onMapComplete: completeSpy,
+    };
+
+    const events = mergeEvents(progressEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+
+    const startEvent = { map_name: 'generate', total_items: 20, concurrency: 4 };
+    const itemStartEvent = { map_name: 'generate', index: 3, total_items: 20, label: 'Napoléon' };
+    const itemFailEvent = {
+      map_name: 'generate', index: 3, total_items: 20, status: 'failed' as const,
+      label: 'Napoléon', run_id: 'child-run-9', error: 'boom',
+    };
+    const completeEvent = { map_name: 'generate', total: 20, succeeded: 19, failed: 1, status: 'failed' };
+
+    // Regression guard: mergeEvents is a hand-written whitelist; a missing
+    // handler here means a fan-out renders as a silent spinner (STU-598).
+    events.onMapStart!(startEvent);
+    events.onMapItemStart!(itemStartEvent);
+    events.onMapItemComplete!(itemFailEvent);
+    events.onMapComplete!(completeEvent);
+
+    expect(startSpy).toHaveBeenCalledWith(startEvent);
+    expect(itemStartSpy).toHaveBeenCalledWith(itemStartEvent);
+    expect(itemCompleteSpy).toHaveBeenCalledWith(itemFailEvent);
+    expect(completeSpy).toHaveBeenCalledWith(completeEvent);
+
+    expect(entries.find(e => e.event === 'map_start')).toMatchObject({ map: 'generate', total_items: 20, concurrency: 4 });
+    expect(entries.find(e => e.event === 'map_item_start')).toMatchObject({ index: 3, label: 'Napoléon' });
+    // The failed item's child run ID and label are captured in the log.
+    expect(entries.find(e => e.event === 'map_item_complete')).toMatchObject({
+      status: 'failed', label: 'Napoléon', run_id: 'child-run-9', error: 'boom',
+    });
+    expect(entries.find(e => e.event === 'map_complete')).toMatchObject({ succeeded: 19, failed: 1, status: 'failed' });
+  });
+});
+
 describe('mergeEvents — run_id cleanup', () => {
   it('does not pass explicit run_id: undefined in stage_start payload', async () => {
     const { mergeEvents } = await import('../src/commands/run.js');

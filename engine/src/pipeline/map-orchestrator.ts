@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto';
 import type { MapStage, RunSpawner, StageRun, StageStatus, TaskRun } from '@studio-foundation/contracts';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
-import { buildItemInput } from './map-input.js';
+import { buildItemInput, mapItemLabel } from './map-input.js';
 import type { PipelineContext } from './context-propagation.js';
 
 export interface MapItemResult {
@@ -196,6 +196,16 @@ export class MapOrchestrator {
         const i = cursor++;
         if (i >= items.length) return;
 
+        // Name the item as it goes in flight, so a --live operator sees which
+        // items are running right now (not just an advancing count).
+        const label = mapItemLabel(items[i], i);
+        this.config.events?.onMapItemStart?.({
+          map_name: map.map,
+          index: i,
+          total_items: items.length,
+          label,
+        });
+
         let itemResult: MapItemResult;
         try {
           const input = buildItemInput(map, items[i], i, context.input);
@@ -217,6 +227,7 @@ export class MapOrchestrator {
           index: i,
           total_items: items.length,
           status: itemResult.status,
+          label,
           ...(itemResult.run_id ? { run_id: itemResult.run_id } : {}),
           ...(itemResult.error ? { error: itemResult.error } : {}),
         });

@@ -4,6 +4,7 @@ import type { EngineEvents } from '@studio-foundation/engine';
 import { formatDuration } from './formatter.js';
 import { summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult, formatTokens, formatStageLine, countWriteFiles } from './formatters.js';
 import { ParallelRenderer } from './parallel-progress.js';
+import { MapRenderer } from './map-progress.js';
 
 export class ProgressDisplay {
   private spinner: Ora | null = null;
@@ -18,6 +19,10 @@ export class ProgressDisplay {
   // Parallel group rendering
   private isInParallelGroup = false;
   private parallelRenderer: ParallelRenderer | null = null;
+
+  // Fan-out (map) stage rendering
+  private isInMapStage = false;
+  private mapRenderer: MapRenderer | null = null;
 
   // State tracking for stage progress
   runId = '';
@@ -69,6 +74,9 @@ export class ProgressDisplay {
     this.parallelRenderer?.interrupt();
     this.parallelRenderer = null;
     this.isInParallelGroup = false;
+    this.mapRenderer?.interrupt();
+    this.mapRenderer = null;
+    this.isInMapStage = false;
     if (this.isStreamingTokens) {
       process.stdout.write('\n');
       this.isStreamingTokens = false;
@@ -126,6 +134,17 @@ export class ProgressDisplay {
 
       onStageComplete: (event) => {
         if (this.jsonMode) return;
+
+        // A map stage draws its own progress (header + live counts + per-item
+        // failures + summary) via onMapStart/onMapItemComplete/onMapComplete.
+        // Its final summary was already printed by onMapComplete, so skip the
+        // generic stage-completion output here.
+        if (this.isInMapStage) {
+          this.isInMapStage = false;
+          this.mapRenderer?.interrupt();
+          this.mapRenderer = null;
+          return;
+        }
 
         const duration = formatDuration(event.duration_ms);
         const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
@@ -314,6 +333,49 @@ export class ProgressDisplay {
             console.log(chalk.red(`  ✗ Rejected after ${event.iterations} iterations (max reached)`));
           }
         }
+      },
+
+      onMapStart: (event) => {
+        if (this.jsonMode) return;
+        this.isInMapStage = true;
+
+        // Tear down whatever onStageStart spun up for this stage — a map stage
+        // is not a single agent call, so the "Thinking…" spinner is wrong here.
+        this.clearTimer();
+        if (this.live) {
+          // The "[i/n] map-name…" header line is already persisted to scrollback.
+          this.thinkingSpinner?.stop();
+          this.thinkingSpinner = null;
+        } else {
+          // Freeze the in-place stage line as the header, then hand off.
+          this.spinner?.stopAndPersist();
+          this.spinner = null;
+        }
+
+        this.mapRenderer = new MapRenderer();
+        this.mapRenderer.start(event.map_name, event.total_items, event.concurrency);
+      },
+
+      onMapItemStart: (event) => {
+        if (this.jsonMode) return;
+        this.mapRenderer?.itemStart(event.index, event.label);
+      },
+
+      onMapItemComplete: (event) => {
+        if (this.jsonMode) return;
+        this.mapRenderer?.itemComplete(
+          event.index,
+          event.status,
+          event.label ?? `#${event.index}`,
+          event.run_id,
+          event.error,
+        );
+      },
+
+      onMapComplete: (event) => {
+        if (this.jsonMode) return;
+        this.mapRenderer?.finish(event.succeeded, event.failed, event.status);
+        this.mapRenderer = null;
       },
 
       onAgentThinking: (event) => {

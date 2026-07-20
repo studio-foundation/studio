@@ -97,11 +97,21 @@ export interface MapStartEvent {
   concurrency: number;
 }
 
+export interface MapItemStartEvent {
+  map_name: string;
+  index: number;
+  total_items: number;
+  /** Human-readable identity of the item (derived from the item, not just its index). */
+  label: string;
+}
+
 export interface MapItemCompleteEvent {
   map_name: string;
   index: number;
   total_items: number;
   status: 'success' | 'failed';
+  /** Human-readable identity of the item — same value as the matching MapItemStartEvent. */
+  label?: string;
   run_id?: string;
   error?: string;
 }
@@ -154,6 +164,7 @@ export interface EngineEvents {
   onGroupFeedback?: (event: GroupFeedbackEvent) => void;
   onGroupComplete?: (event: GroupCompleteEvent) => void;
   onMapStart?: (event: MapStartEvent) => void;
+  onMapItemStart?: (event: MapItemStartEvent) => void;
   onMapItemComplete?: (event: MapItemCompleteEvent) => void;
   onMapComplete?: (event: MapCompleteEvent) => void;
   onStageContext?: (event: StageContextEvent) => void;

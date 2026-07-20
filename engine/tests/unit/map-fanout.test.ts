@@ -251,6 +251,7 @@ describe('Fan-out (map) stage', () => {
     const events: Array<{ type: string; data: any }> = [];
     const engine = createEngine(spawner, {
       onMapStart: (e) => events.push({ type: 'start', data: e }),
+      onMapItemStart: (e) => events.push({ type: 'item_start', data: e }),
       onMapItemComplete: (e) => events.push({ type: 'item', data: e }),
       onMapComplete: (e) => events.push({ type: 'complete', data: e }),
     });
@@ -260,5 +261,36 @@ describe('Fan-out (map) stage', () => {
     expect(events.find(e => e.type === 'start')?.data).toMatchObject({ map_name: 'generate', total_items: 2 });
     expect(events.filter(e => e.type === 'item')).toHaveLength(2);
     expect(events.find(e => e.type === 'complete')?.data).toMatchObject({ succeeded: 2, failed: 0, status: 'success' });
+  });
+
+  it('names each item as it enters flight and when it settles (for --live progress)', async () => {
+    const spawner = new FakeSpawner((_c, i) => {
+      if (i === 1) throw new Error('boom');
+      return ok(`run-${i}`, i);
+    });
+    const starts: Array<{ index: number; label: string }> = [];
+    const completes: Array<{ index: number; label?: string; status: string; run_id?: string }> = [];
+    const engine = createEngine(spawner, {
+      onMapItemStart: (e) => starts.push({ index: e.index, label: e.label }),
+      onMapItemComplete: (e) => completes.push({ index: e.index, label: e.label, status: e.status, run_id: e.run_id }),
+    });
+
+    // Objects with a `title` field → the label is the title, not the index.
+    await engine.run({
+      pipelineDef: mapPipeline({ concurrency: 3, on_item_failure: 'collect-all', as: 'entity' }),
+      input: { items: [{ title: 'Alpha' }, { title: 'Beta' }, { title: 'Gamma' }] },
+    });
+
+    expect(starts.sort((a, b) => a.index - b.index)).toEqual([
+      { index: 0, label: 'Alpha' },
+      { index: 1, label: 'Beta' },
+      { index: 2, label: 'Gamma' },
+    ]);
+
+    const byIndex = new Map(completes.map(c => [c.index, c]));
+    expect(byIndex.get(0)).toMatchObject({ label: 'Alpha', status: 'success', run_id: 'run-0' });
+    // The failing item carries its label at the moment it fails.
+    expect(byIndex.get(1)).toMatchObject({ label: 'Beta', status: 'failed' });
+    expect(byIndex.get(2)).toMatchObject({ label: 'Gamma', status: 'success', run_id: 'run-2' });
   });
 });

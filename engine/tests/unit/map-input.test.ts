@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildItemInput } from '../../src/pipeline/map-input.js';
+import { buildItemInput, mapItemLabel } from '../../src/pipeline/map-input.js';
 import type { MapStage } from '@studio-foundation/contracts';
 
 function mapStage(partial: Partial<MapStage>): MapStage {
@@ -59,5 +59,33 @@ describe('buildItemInput', () => {
   it('input takes precedence over as', () => {
     const m = mapStage({ as: 'entity', input: { x: '{{item}}' } });
     expect(buildItemInput(m, 'v', 0, {})).toEqual({ x: 'v' });
+  });
+});
+
+describe('mapItemLabel', () => {
+  it('uses a string item verbatim', () => {
+    expect(mapItemLabel('Napoléon', 0)).toBe('Napoléon');
+  });
+
+  it('stringifies number and boolean items', () => {
+    expect(mapItemLabel(42, 0)).toBe('42');
+    expect(mapItemLabel(false, 0)).toBe('false');
+  });
+
+  it('prefers a meaningful field of an object item', () => {
+    expect(mapItemLabel({ title: 'Chapter 1', body: '...' }, 0)).toBe('Chapter 1');
+    expect(mapItemLabel({ name: 'Alice' }, 0)).toBe('Alice');
+    expect(mapItemLabel({ id: 7, extra: 'x' }, 0)).toBe('7');
+  });
+
+  it('falls back to the first string value when no known field is present', () => {
+    expect(mapItemLabel({ description: 'a battle' }, 0)).toBe('a battle');
+  });
+
+  it('falls back to #index for shapeless or empty items', () => {
+    expect(mapItemLabel({}, 4)).toBe('#4');
+    expect(mapItemLabel(null, 5)).toBe('#5');
+    expect(mapItemLabel([1, 2, 3], 6)).toBe('#6');
+    expect(mapItemLabel('   ', 7)).toBe('#7');
   });
 });
