@@ -51,6 +51,19 @@ export class ProgressDisplay {
     this.stageStartTime = Date.now();
   }
 
+  private indent(depth: number): string {
+    return '  '.repeat(depth);
+  }
+
+  /** Stop any spinner that owns the current line before printing a static child line. */
+  private stopSpinnersForChildLine(): void {
+    this.thinkingSpinner?.stop();
+    this.thinkingSpinner = null;
+    this.toolSpinner?.stop();
+    this.toolSpinner = null;
+    this.clearTimer();
+  }
+
   private startTimer(updateFn: (elapsed: string) => void): void {
     this.timerInterval = setInterval(() => {
       const s = Math.floor((Date.now() - this.stageStartTime) / 1000);
@@ -97,8 +110,14 @@ export class ProgressDisplay {
         console.log(chalk.blue(`\nRunning pipeline: ${event.pipeline_name}\n`));
       },
 
-      onStageStart: (event) => {
+      onStageStart: (event, ctx) => {
         if (this.jsonMode) return;
+        if (ctx && ctx.depth >= 1) {
+          this.stopSpinnersForChildLine();
+          const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
+          console.log(this.indent(ctx.depth) + chalk.cyan(`${prefix} ${event.stage_name}...`));
+          return;
+        }
         this.currentStageIndex = event.stage_index;
         this.currentTotalStages = event.total_stages;
         this.currentStageName = event.stage_name;
@@ -132,8 +151,16 @@ export class ProgressDisplay {
         }
       },
 
-      onStageComplete: (event) => {
+      onStageComplete: (event, ctx) => {
         if (this.jsonMode) return;
+        if (ctx && ctx.depth >= 1) {
+          const mark = event.status === 'success' ? chalk.green('✓')
+            : event.status === 'skipped' ? chalk.gray('⊘')
+            : event.status === 'rejected' ? chalk.yellow('rejected')
+            : chalk.red('✗');
+          console.log(this.indent(ctx.depth) + `${mark} ${event.stage_name}`);
+          return;
+        }
 
         // A map stage draws its own progress (header + live counts + per-item
         // failures + summary) via onMapStart/onMapItemComplete/onMapComplete.
@@ -389,7 +416,8 @@ export class ProgressDisplay {
         this.mapRenderer = null;
       },
 
-      onAgentThinking: (event) => {
+      onAgentThinking: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         for (const line of event.thought.trim().split('\n')) {
           const trimmed = line.trim();
@@ -397,7 +425,8 @@ export class ProgressDisplay {
         }
       },
 
-      onAgentProgress: (event) => {
+      onAgentProgress: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         for (const line of event.message.trim().split('\n')) {
           const trimmed = line.trim();
@@ -405,7 +434,8 @@ export class ProgressDisplay {
         }
       },
 
-      onAgentToken: (event) => {
+      onAgentToken: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode || !this.live || this.isInParallelGroup) return;
         if (this.thinkingSpinner) {
           this.clearTimer();
@@ -417,8 +447,14 @@ export class ProgressDisplay {
         process.stdout.write(chalk.dim(event.token));
       },
 
-      onToolCallStart: (event) => {
-        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
+      onToolCallStart: (event, ctx) => {
+        if (this.jsonMode) return;
+        if (ctx && ctx.depth >= 1) {
+          this.stopSpinnersForChildLine();
+          console.log(this.indent(ctx.depth + 1) + chalk.dim(`${getToolIcon(event.tool)} ${event.tool}(${summarizeToolParams(event.tool, event.params)})`));
+          return;
+        }
+        if (!this.live || this.isInParallelGroup) return;
         // End any in-progress token stream line before starting tool spinner
         if (this.isStreamingTokens) {
           process.stdout.write('\n');
@@ -437,8 +473,13 @@ export class ProgressDisplay {
         }).start();
       },
 
-      onToolCallComplete: (event) => {
-        if (this.jsonMode || !this.live || this.isInParallelGroup) return;
+      onToolCallComplete: (event, ctx) => {
+        if (this.jsonMode) return;
+        if (ctx && ctx.depth >= 1) {
+          console.log(this.indent(ctx.depth + 1) + chalk.dim(`  → ${summarizeToolResult(event.result, event.error)}`));
+          return;
+        }
+        if (!this.live || this.isInParallelGroup) return;
         const summary = summarizeToolResult(event.result, event.error);
         if (event.error) {
           this.toolSpinner?.fail(chalk.red(`${this.currentToolText} — ${event.error}`));
