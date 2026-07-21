@@ -65,6 +65,23 @@ describe('loader — call (one-shot sub-pipeline) stage', () => {
     input: "not an object"`))).toThrow(/'input' must be an object/);
   });
 
+  it('parses on_failure and defaults it to absent', () => {
+    const p = parsePipelineYaml(base(`  - call: x
+    on_failure: continue`));
+    const entry = p.stages[0];
+    if (!isCallStage(entry)) throw new Error('not a call stage');
+    expect(entry.on_failure).toBe('continue');
+
+    const q = parsePipelineYaml(base(`  - call: x`));
+    if (!isCallStage(q.stages[0])) throw new Error('not a call stage');
+    expect((q.stages[0] as any).on_failure).toBeUndefined();
+  });
+
+  it('rejects an unknown on_failure value (fail-loud)', () => {
+    expect(() => parsePipelineYaml(base(`  - call: x
+    on_failure: degrade`))).toThrow(/'on_failure' must be 'fail' or 'continue'/);
+  });
+
   it('coexists with normal stages, groups and map stages in one pipeline', () => {
     const p = parsePipelineYaml(`
 name: t

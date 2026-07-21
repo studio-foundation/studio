@@ -144,6 +144,53 @@ describe('Call (one-shot sub-pipeline) stage', () => {
     expect(result.stages[0].tasks[0].agent_runs[0].error).toContain('child boom');
   });
 
+  it('on_failure: continue — records the failed stage and runs the rest', async () => {
+    const spawner = new FakeSpawner((c) => {
+      if (c.pipeline === 'flaky') throw new Error('child boom');
+      return ok('r', { ok: true });
+    });
+    const engine = createEngine(spawner);
+
+    const pipelineDef: PipelineDefinition = {
+      name: 'tolerated-failure', description: 'd', version: 1,
+      stages: [
+        { call: 'a', pipeline: 'flaky', on_failure: 'continue' } as any,
+        // No output was propagated for `a`, so a condition on it resolves false.
+        { call: 'b', pipeline: 'child', condition: 'stages.a.output.done == true' } as any,
+        { call: 'c', pipeline: 'child' } as any,
+      ],
+    };
+    const result = await engine.run({ pipelineDef, input: {} });
+
+    expect(result.status).toBe('success');
+    expect(result.stages.map(s => s.status)).toEqual(['failed', 'skipped', 'success']);
+    // The tolerated failure still surfaces its error in the run record.
+    expect(result.stages[0].tasks[0].agent_runs[0].error).toContain('child boom');
+    // Distinguishable: failed (tolerated) vs skipped (condition) in one run.
+    expect((result.stages[1] as any).skipped_reason).toContain('condition not met');
+  });
+
+  it('on_failure: continue does not tolerate cancellation', async () => {
+    const controller = new AbortController();
+    const spawner = new FakeSpawner(() => {
+      controller.abort();
+      throw new Error('aborted mid-flight');
+    });
+    const engine = createEngine(spawner);
+
+    const pipelineDef: PipelineDefinition = {
+      name: 'cancelled-not-tolerated', description: 'd', version: 1,
+      stages: [
+        { call: 'a', pipeline: 'child', on_failure: 'continue' } as any,
+        { call: 'b', pipeline: 'child' } as any,
+      ],
+    };
+    const result = await engine.run({ pipelineDef, input: {}, signal: controller.signal });
+
+    expect(result.status).toBe('cancelled');
+    expect(result.stages).toHaveLength(1); // b never ran
+  });
+
   it('skips the call when its condition is not met', async () => {
     const spawner = new FakeSpawner(() => ok('r', 1));
     const engine = createEngine(spawner);
