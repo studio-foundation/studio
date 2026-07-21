@@ -91,12 +91,20 @@ Studio uses **unified (lockstep) versioning**: the root and all 7 packages alway
 - **One version, bumped together.** Never hand-edit a single package's `version`. Run `pnpm version:bump <semver>` ([scripts/bump-version.mjs](scripts/bump-version.mjs)), which rewrites all 8 `package.json` files (root + 7 packages) to the same number. `studio --version` reads it from `cli/package.json`.
 - **`workspace:*` for internal deps.** Packages never pin each other's version, so a bump needs no cross-package coordination.
 - **Bump at release time, not per PR.** Feature and fix PRs do NOT touch the version. When publishing to npm, a dedicated `chore: bump version to X.Y.Z` commit batches all merged work into one bump.
-- **Semver rule (pre-1.0 / 0.x):**
-  - **MINOR** (`0.4.1 → 0.5.0`) — a new feature **or** a breaking change.
-  - **PATCH** (`0.4.1 → 0.4.2`) — backward-compatible bug fixes only.
+- **Semver rule (pre-1.0 / 0.x).** Classify by **reachable surface, not by lines added.** The whole rule reduces to one question about a change:
+
+  > **Could an existing `.studio/` config author now write something they couldn't before, or does their current config break?**
+
+  - **No** — the change is a bug fix, internal machinery, or observability, and no `.studio/` surface grew → **PATCH** (`0.8.2 → 0.8.3`).
+  - **Yes, a new thing they can reach** — a new YAML key, CLI flag, or documented status/output they author configs against → **MINOR** (`0.8.2 → 0.9.0`).
+  - **Their existing config breaks** → **MINOR** in 0.x (post-1.0 this becomes MAJOR).
   - A breaking change does **not** force `1.0.0`. The jump to 1.0 is an explicit product decision, never an automatic consequence of a breaking change.
 
-_Example: a PR that adds a new public API to one package (a backward-compatible feature) earns a **minor** bump for the whole monorepo at the next release._
+  **Why classify this way:** the old "any new feature → minor" rule tripped on every fix, because almost every fix adds *some* internal surface (a new enum value, a persisted field, a guard). Minor inflated; PATCH never fired; the number stopped carrying signal. Adding code in service of a bug fix is still a **PATCH** — what moves the minor is new surface a config author can *reach*, not new surface that merely exists.
+
+_Worked examples:_
+- _A run gains a new `interrupted` status **emitted by the engine** (not written by users into YAML) plus internal owner fields, to fix a stuck-run bug → **PATCH**. The bug is fixed and no `.studio/` config gains anything to write._
+- _A pipeline gains a new `on_stage_start` hook key users can add to their YAML → **MINOR**. New reachable surface, even though it's backward-compatible._
 
 ### Release procedure
 
@@ -107,7 +115,7 @@ Use the `bump-version` skill. Two rules it exists to protect, both learned by br
 
 ### Recommending a bump
 
-When work merges to `main` and there are unreleased commits, say so and name the level with the commits that justify it — "3 commits since `0.5.2`, all fixes: patch." Don't wait to be asked; an unreleased `main` is invisible otherwise.
+When work merges to `main` and there are unreleased commits, say so and name the level with the commits that justify it — run each through the reachable-surface question above and take the highest it produces. "3 commits since `0.5.2`, all fix bugs with no new `.studio/` surface: patch." A `feat:` commit message does **not** by itself mean minor — a fix implemented as a `feat` (new internal enum/field) is still a patch; only a commit that adds surface a config author can reach earns the minor. Don't wait to be asked; an unreleased `main` is invisible otherwise.
 
 Surface it at a checkpoint — after a merge, at the end of a work session — not in the middle of an unrelated task.
 
