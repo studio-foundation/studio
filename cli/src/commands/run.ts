@@ -36,9 +36,9 @@ export function mergeEvents(
 ): EngineEvents {
   let totalStages = 0;
   return {
-    onPipelineStart: (e) => {
+    onPipelineStart: (e, ctx) => {
       logger.start(e.run_id, pipeline);
-      progressEvents.onPipelineStart?.(e);
+      progressEvents.onPipelineStart?.(e, ctx);
       logger.log({
         event: 'pipeline_start',
         run_id: e.run_id,
@@ -46,8 +46,8 @@ export function mergeEvents(
         input,
       });
     },
-    onPipelineComplete: (e) => {
-      progressEvents.onPipelineComplete?.(e);
+    onPipelineComplete: (e, ctx) => {
+      progressEvents.onPipelineComplete?.(e, ctx);
       logger.log({
         event: 'pipeline_complete',
         run_id: e.run_id,
@@ -59,9 +59,9 @@ export function mergeEvents(
         total_stages: totalStages,
       });
     },
-    onStageStart: (e) => {
+    onStageStart: (e, ctx) => {
       totalStages = e.total_stages;
-      progressEvents.onStageStart?.(e);
+      progressEvents.onStageStart?.(e, ctx);
       logger.log({
         event: 'stage_start',
         stage: e.stage_name,
@@ -80,8 +80,8 @@ export function mergeEvents(
         ...(e.system_prompt !== undefined ? { system_prompt: e.system_prompt } : {}),
       });
     },
-    onStageComplete: (e) => {
-      progressEvents.onStageComplete?.(e);
+    onStageComplete: (e, ctx) => {
+      progressEvents.onStageComplete?.(e, ctx);
       logger.log({
         event: 'stage_complete',
         stage: e.stage_name,
@@ -102,8 +102,8 @@ export function mergeEvents(
         ...(e.skipped_reason ? { skipped_reason: e.skipped_reason } : {}),
       });
     },
-    onTaskRetry: (e) => {
-      progressEvents.onTaskRetry?.(e);
+    onTaskRetry: (e, ctx) => {
+      progressEvents.onTaskRetry?.(e, ctx);
       logger.log({
         event: 'stage_retry',
         stage: e.stage,
@@ -114,16 +114,16 @@ export function mergeEvents(
         ...(e.tool_calls_count !== undefined ? { tool_calls_count: e.tool_calls_count } : {}),
       });
     },
-    onGroupStart: (e) => {
-      progressEvents.onGroupStart?.(e);
+    onGroupStart: (e, ctx) => {
+      progressEvents.onGroupStart?.(e, ctx);
       logger.log({
         event: 'group_start',
         group: e.group_name,
         max_iterations: e.max_iterations,
       });
     },
-    onGroupIteration: (e) => {
-      progressEvents.onGroupIteration?.(e);
+    onGroupIteration: (e, ctx) => {
+      progressEvents.onGroupIteration?.(e, ctx);
       logger.log({
         event: 'group_iteration',
         group: e.group_name,
@@ -131,8 +131,8 @@ export function mergeEvents(
         max_iterations: e.max_iterations,
       });
     },
-    onGroupFeedback: (e) => {
-      progressEvents.onGroupFeedback?.(e);
+    onGroupFeedback: (e, ctx) => {
+      progressEvents.onGroupFeedback?.(e, ctx);
       logger.log({
         event: 'group_feedback',
         group: e.group_name,
@@ -141,8 +141,8 @@ export function mergeEvents(
         rejection_details: e.rejection_details,
       });
     },
-    onGroupComplete: (e) => {
-      progressEvents.onGroupComplete?.(e);
+    onGroupComplete: (e, ctx) => {
+      progressEvents.onGroupComplete?.(e, ctx);
       logger.log({
         event: 'group_complete',
         group: e.group_name,
@@ -150,8 +150,8 @@ export function mergeEvents(
         status: e.status,
       });
     },
-    onMapStart: (e) => {
-      progressEvents.onMapStart?.(e);
+    onMapStart: (e, ctx) => {
+      progressEvents.onMapStart?.(e, ctx);
       logger.log({
         event: 'map_start',
         map: e.map_name,
@@ -159,8 +159,8 @@ export function mergeEvents(
         concurrency: e.concurrency,
       });
     },
-    onMapItemStart: (e) => {
-      progressEvents.onMapItemStart?.(e);
+    onMapItemStart: (e, ctx) => {
+      progressEvents.onMapItemStart?.(e, ctx);
       logger.log({
         event: 'map_item_start',
         map: e.map_name,
@@ -169,8 +169,8 @@ export function mergeEvents(
         label: e.label,
       });
     },
-    onMapItemComplete: (e) => {
-      progressEvents.onMapItemComplete?.(e);
+    onMapItemComplete: (e, ctx) => {
+      progressEvents.onMapItemComplete?.(e, ctx);
       logger.log({
         event: 'map_item_complete',
         map: e.map_name,
@@ -182,8 +182,8 @@ export function mergeEvents(
         ...(e.error ? { error: e.error } : {}),
       });
     },
-    onMapComplete: (e) => {
-      progressEvents.onMapComplete?.(e);
+    onMapComplete: (e, ctx) => {
+      progressEvents.onMapComplete?.(e, ctx);
       logger.log({
         event: 'map_complete',
         map: e.map_name,
@@ -201,16 +201,16 @@ export function mergeEvents(
         duration_ms: e.duration_ms,
       });
     },
-    onToolCallStart: (e) => {
-      progressEvents.onToolCallStart?.(e);
+    onToolCallStart: (e, ctx) => {
+      progressEvents.onToolCallStart?.(e, ctx);
       logger.log({
         event: 'tool_call_start',
         tool: e.tool,
         params: e.params,
       });
     },
-    onToolCallComplete: (e) => {
-      progressEvents.onToolCallComplete?.(e);
+    onToolCallComplete: (e, ctx) => {
+      progressEvents.onToolCallComplete?.(e, ctx);
       logger.log({
         event: 'tool_call_complete',
         tool: e.tool,
@@ -219,8 +219,8 @@ export function mergeEvents(
         duration_ms: e.duration_ms,
       });
     },
-    onAgentThinking: (e) => progressEvents.onAgentThinking?.(e),
-    onAgentProgress: (e) => progressEvents.onAgentProgress?.(e),
+    onAgentThinking: (e, ctx) => progressEvents.onAgentThinking?.(e, ctx),
+    onAgentProgress: (e, ctx) => progressEvents.onAgentProgress?.(e, ctx),
   };
 }
 
@@ -404,9 +404,9 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     );
     const events: EngineEvents = {
       ...baseEvents,
-      onToolCallComplete: (e) => {
+      onToolCallComplete: (e, ctx) => {
         fileCollector.onToolCallComplete(e);
-        baseEvents.onToolCallComplete?.(e);
+        baseEvents.onToolCallComplete?.(e, ctx);
       },
     };
 
@@ -422,7 +422,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       ...(options.provider ? { providerOverride: options.provider } : {}),
     };
 
-    const spawner = new DirectEngineSpawner(engineConfig);
+    const spawner = new DirectEngineSpawner(engineConfig, events);
 
     const engine = new PipelineEngine(
       {
