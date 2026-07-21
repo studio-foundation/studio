@@ -6,6 +6,7 @@ const mockOraInstance = {
   stop: vi.fn().mockReturnThis(),
   succeed: vi.fn().mockReturnThis(),
   fail: vi.fn().mockReturnThis(),
+  stopAndPersist: vi.fn().mockReturnThis(),
 };
 vi.mock('ora', () => ({ default: vi.fn(() => mockOraInstance) }));
 import ora from 'ora';
@@ -86,6 +87,39 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
     vi.clearAllMocks();
     events.onStageComplete!(stageCompleteEvent());
     expect(mockOraInstance.stop).toHaveBeenCalled();
+  });
+
+  it('renders a condition-skipped stage as skipped, not failed (live mode)', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const d = makeDisplay();
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    events.onStageComplete!({
+      stage_name: 'section-filter-verdict', stage_index: 2, total_stages: 7,
+      status: 'skipped', attempts: 0, duration_ms: 1,
+      skipped_reason: 'condition not met: stages.section-filter-pre.output.needs_verdict == true',
+    });
+    const allOutput = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(allOutput).toContain('⊘ skipped');
+    expect(allOutput).toContain('condition not met');
+    expect(allOutput).not.toContain('✗ failed');
+    logSpy.mockRestore();
+  });
+
+  it('renders a condition-skipped stage via stopAndPersist, not fail (quiet mode)', () => {
+    const d = new ProgressDisplay(false, 'quiet');
+    const events = d.getEvents();
+    events.onStageStart!(stageStartEvent());
+    vi.clearAllMocks();
+    events.onStageComplete!({
+      stage_name: 'section-filter-verdict', stage_index: 2, total_stages: 7,
+      status: 'skipped', attempts: 0, duration_ms: 1,
+      skipped_reason: 'condition not met: stages.section-filter-pre.output.needs_verdict == true',
+    });
+    expect(mockOraInstance.stopAndPersist).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('skipped') })
+    );
+    expect(mockOraInstance.fail).not.toHaveBeenCalled();
   });
 
   it('does NOT start thinking spinner in non-live mode', () => {
