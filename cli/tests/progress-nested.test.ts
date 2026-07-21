@@ -77,4 +77,42 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     expect(logs.find(l => l.includes('child-stage'))).toBeUndefined();
     display.interrupt();
   });
+
+  it('runs a live thinking spinner for a child stage and stops it on completion', () => {
+    const display = live();
+    const ev = display.getEvents();
+
+    ev.onStageStart!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 1, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect((display as any).thinkingSpinner).toBeTruthy();
+
+    ev.onStageComplete!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 1, status: 'success', attempts: 1, duration_ms: 5 } as any,
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect((display as any).thinkingSpinner).toBeNull();
+    display.interrupt();
+  });
+
+  it('does not leave two spinners running when a sibling child stage starts', () => {
+    const display = live();
+    const ev = display.getEvents();
+
+    ev.onStageStart!(
+      { stage_name: 'stage-a', stage_index: 0, total_stages: 2, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    const first = (display as any).thinkingSpinner;
+    ev.onStageStart!(
+      { stage_name: 'stage-b', stage_index: 1, total_stages: 2, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    const second = (display as any).thinkingSpinner;
+    expect(second).toBeTruthy();
+    expect(second).not.toBe(first); // prior spinner replaced, not stacked
+    expect(first.isSpinning).toBe(false);
+    display.interrupt();
+  });
 });

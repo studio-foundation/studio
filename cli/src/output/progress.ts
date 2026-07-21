@@ -66,6 +66,22 @@ export class ProgressDisplay {
     this.clearTimer();
   }
 
+  /**
+   * Live "Thinking… (Ns)" spinner for the innermost active child stage, indented
+   * under its line. Call stopSpinnersForChildLine() first — only one spinner ever
+   * owns the bottom line, so a child pipeline's linear cascade shows liveness
+   * without nesting two spinners.
+   */
+  private startChildThinkingSpinner(depth: number): void {
+    this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: depth * 2 + 2, color: 'gray' }).start();
+    this.resetStageTimer();
+    this.startTimer((elapsed) => {
+      if (this.thinkingSpinner) {
+        this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
+      }
+    });
+  }
+
   private startTimer(updateFn: (elapsed: string) => void): void {
     this.timerInterval = setInterval(() => {
       const s = Math.floor((Date.now() - this.stageStartTime) / 1000);
@@ -120,6 +136,7 @@ export class ProgressDisplay {
             this.stopSpinnersForChildLine();
             const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
             console.log(this.indent(ctx.depth) + chalk.cyan(`${prefix} ${event.stage_name}...`));
+            this.startChildThinkingSpinner(ctx.depth);
           }
           return;
         }
@@ -136,6 +153,7 @@ export class ProgressDisplay {
         }
 
         if (this.live) {
+          this.stopSpinnersForChildLine();
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
           this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
           this.resetStageTimer();
@@ -160,6 +178,7 @@ export class ProgressDisplay {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
           if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            this.stopSpinnersForChildLine();
             const mark = event.status === 'success' ? chalk.green('✓')
               : event.status === 'skipped' ? chalk.gray('⊘')
               : event.status === 'rejected' ? chalk.yellow('rejected')
@@ -469,6 +488,7 @@ export class ProgressDisplay {
           if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
             this.stopSpinnersForChildLine();
             console.log(this.indent(ctx.depth + 1) + chalk.dim(`${getToolIcon(event.tool)} ${event.tool}(${summarizeToolParams(event.tool, event.params)})`));
+            this.startChildThinkingSpinner(ctx.depth);
           }
           return;
         }
@@ -495,7 +515,9 @@ export class ProgressDisplay {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
           if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            this.stopSpinnersForChildLine();
             console.log(this.indent(ctx.depth + 1) + chalk.dim(`  → ${summarizeToolResult(event.result, event.error)}`));
+            this.startChildThinkingSpinner(ctx.depth);
           }
           return;
         }
