@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "description": "Studio — Declarative YAML runtime for AI agents (monorepo)",
   "license": "AGPL-3.0-only",

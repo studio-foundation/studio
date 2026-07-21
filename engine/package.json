@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/engine",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Pipeline orchestration, state machine, and lifecycle hooks for Studio",
   "type": "module",
   "main": "./dist/index.js",
