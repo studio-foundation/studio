@@ -268,8 +268,8 @@ describe('mergeEvents — tool call events', () => {
     events.onToolCallStart!(startEvent);
     events.onToolCallComplete!(completeEvent);
 
-    expect(startSpy).toHaveBeenCalledWith(startEvent);
-    expect(completeSpy).toHaveBeenCalledWith(completeEvent);
+    expect(startSpy).toHaveBeenCalledWith(startEvent, undefined);
+    expect(completeSpy).toHaveBeenCalledWith(completeEvent, undefined);
   });
 });
 
@@ -306,10 +306,10 @@ describe('mergeEvents — map (fan-out) events', () => {
     events.onMapItemComplete!(itemFailEvent);
     events.onMapComplete!(completeEvent);
 
-    expect(startSpy).toHaveBeenCalledWith(startEvent);
-    expect(itemStartSpy).toHaveBeenCalledWith(itemStartEvent);
-    expect(itemCompleteSpy).toHaveBeenCalledWith(itemFailEvent);
-    expect(completeSpy).toHaveBeenCalledWith(completeEvent);
+    expect(startSpy).toHaveBeenCalledWith(startEvent, undefined);
+    expect(itemStartSpy).toHaveBeenCalledWith(itemStartEvent, undefined);
+    expect(itemCompleteSpy).toHaveBeenCalledWith(itemFailEvent, undefined);
+    expect(completeSpy).toHaveBeenCalledWith(completeEvent, undefined);
 
     expect(entries.find(e => e.event === 'map_start')).toMatchObject({ map: 'generate', total_items: 20, concurrency: 4 });
     expect(entries.find(e => e.event === 'map_item_start')).toMatchObject({ index: 3, label: 'Napoléon' });
