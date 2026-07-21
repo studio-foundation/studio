@@ -61,6 +61,8 @@ export class ProgressDisplay {
     this.thinkingSpinner = null;
     this.toolSpinner?.stop();
     this.toolSpinner = null;
+    this.spinner?.stop();
+    this.spinner = null;
     this.clearTimer();
   }
 
@@ -104,7 +106,8 @@ export class ProgressDisplay {
 
   getEvents(): EngineEvents {
     return {
-      onPipelineStart: (event) => {
+      onPipelineStart: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         this.runId = event.run_id;
         console.log(chalk.blue(`\nRunning pipeline: ${event.pipeline_name}\n`));
@@ -113,9 +116,11 @@ export class ProgressDisplay {
       onStageStart: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          this.stopSpinnersForChildLine();
-          const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
-          console.log(this.indent(ctx.depth) + chalk.cyan(`${prefix} ${event.stage_name}...`));
+          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            this.stopSpinnersForChildLine();
+            const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
+            console.log(this.indent(ctx.depth) + chalk.cyan(`${prefix} ${event.stage_name}...`));
+          }
           return;
         }
         this.currentStageIndex = event.stage_index;
@@ -154,11 +159,13 @@ export class ProgressDisplay {
       onStageComplete: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          const mark = event.status === 'success' ? chalk.green('✓')
-            : event.status === 'skipped' ? chalk.gray('⊘')
-            : event.status === 'rejected' ? chalk.yellow('rejected')
-            : chalk.red('✗');
-          console.log(this.indent(ctx.depth) + `${mark} ${event.stage_name}`);
+          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            const mark = event.status === 'success' ? chalk.green('✓')
+              : event.status === 'skipped' ? chalk.gray('⊘')
+              : event.status === 'rejected' ? chalk.yellow('rejected')
+              : chalk.red('✗');
+            console.log(this.indent(ctx.depth) + `${mark} ${event.stage_name}`);
+          }
           return;
         }
 
@@ -281,7 +288,8 @@ export class ProgressDisplay {
         }
       },
 
-      onTaskRetry: (event) => {
+      onTaskRetry: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
 
         if (this.isInParallelGroup) {
@@ -331,7 +339,8 @@ export class ProgressDisplay {
         }
       },
 
-      onGroupStart: (event) => {
+      onGroupStart: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (event.parallel) {
           this.isInParallelGroup = true;
           this.parallelRenderer = new ParallelRenderer();
@@ -339,14 +348,16 @@ export class ProgressDisplay {
         // Otherwise silent — sequential group is transparent at the pipeline level
       },
 
-      onGroupIteration: (event) => {
+      onGroupIteration: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         if (event.iteration > 1) {
           console.log(chalk.yellow(`\n  ↻ Feedback loop iteration ${event.iteration}/${event.max_iterations}`));
         }
       },
 
-      onGroupFeedback: (event) => {
+      onGroupFeedback: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         console.log(chalk.yellow(`    Rejected: ${event.rejection_reason}`));
         if (this.verbose && event.rejection_details.length > 0) {
@@ -357,7 +368,8 @@ export class ProgressDisplay {
         console.log(chalk.yellow(`    Re-running with feedback...`));
       },
 
-      onGroupComplete: (event) => {
+      onGroupComplete: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.isInParallelGroup) {
           this.parallelRenderer?.stop();
           this.parallelRenderer = null;
@@ -373,7 +385,8 @@ export class ProgressDisplay {
         }
       },
 
-      onMapStart: (event) => {
+      onMapStart: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         this.isInMapStage = true;
 
@@ -394,12 +407,14 @@ export class ProgressDisplay {
         this.mapRenderer.start(event.map_name, event.total_items, event.concurrency);
       },
 
-      onMapItemStart: (event) => {
+      onMapItemStart: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         this.mapRenderer?.itemStart(event.index, event.label);
       },
 
-      onMapItemComplete: (event) => {
+      onMapItemComplete: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         this.mapRenderer?.itemComplete(
           event.index,
@@ -410,7 +425,8 @@ export class ProgressDisplay {
         );
       },
 
-      onMapComplete: (event) => {
+      onMapComplete: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
         this.mapRenderer?.finish(event.succeeded, event.failed, event.status);
         this.mapRenderer = null;
@@ -450,8 +466,10 @@ export class ProgressDisplay {
       onToolCallStart: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          this.stopSpinnersForChildLine();
-          console.log(this.indent(ctx.depth + 1) + chalk.dim(`${getToolIcon(event.tool)} ${event.tool}(${summarizeToolParams(event.tool, event.params)})`));
+          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            this.stopSpinnersForChildLine();
+            console.log(this.indent(ctx.depth + 1) + chalk.dim(`${getToolIcon(event.tool)} ${event.tool}(${summarizeToolParams(event.tool, event.params)})`));
+          }
           return;
         }
         if (!this.live || this.isInParallelGroup) return;
@@ -476,7 +494,9 @@ export class ProgressDisplay {
       onToolCallComplete: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          console.log(this.indent(ctx.depth + 1) + chalk.dim(`  → ${summarizeToolResult(event.result, event.error)}`));
+          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+            console.log(this.indent(ctx.depth + 1) + chalk.dim(`  → ${summarizeToolResult(event.result, event.error)}`));
+          }
           return;
         }
         if (!this.live || this.isInParallelGroup) return;
@@ -507,7 +527,8 @@ export class ProgressDisplay {
         });
       },
 
-      onPipelineComplete: (event) => {
+      onPipelineComplete: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
 
         console.log('');

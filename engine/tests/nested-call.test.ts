@@ -109,4 +109,40 @@ describe('nested call — spawner handoff (STU-615)', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('gives concurrent same-depth spawns distinct childIds (STU-620)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'studio-concurrent-spawn-'));
+    try {
+      writeConfigs(root);
+      const engineConfig = {
+        configsDir: root,
+        repoPath: root,
+        providerRegistry: { get: () => undefined, register: () => undefined } as any,
+        db: new InMemoryRunStore(),
+      } as unknown as EngineConfig;
+
+      const seen: Array<{ stage: string; depth?: number; childId?: string }> = [];
+      const events = {
+        onStageStart: (e: any, ctx?: any) =>
+          seen.push({ stage: e.stage_name, depth: ctx?.depth, childId: ctx?.childId }),
+      };
+
+      const spawner = new DirectEngineSpawner(engineConfig, events);
+
+      const [resultA, resultB] = await Promise.all([
+        spawner.spawnAndWait({ pipeline: 'leaf', input: {}, parentRunId: 'parent-a', depth: 1 }),
+        spawner.spawnAndWait({ pipeline: 'leaf', input: {}, parentRunId: 'parent-b', depth: 1 }),
+      ]);
+
+      expect(resultA.status).toBe('success');
+      expect(resultB.status).toBe('success');
+
+      const leafStageEvents = seen.filter(s => s.stage === 'leaf-stage' && s.depth === 1);
+      expect(leafStageEvents).toHaveLength(2);
+      const childIds = leafStageEvents.map(s => s.childId);
+      expect(new Set(childIds).size).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

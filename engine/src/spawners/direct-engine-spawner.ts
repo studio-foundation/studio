@@ -12,8 +12,9 @@ export class DirectEngineSpawner implements RunSpawner {
     // stages of its own, capping nesting at depth 1 while maxDepth promises 3
     // (STU-615). The orchestrators' depth guard is the recursion limit.
     //
-    // Stamp the child's events with its depth + a unique childId so the CLI can
-    // render nested progress and keep concurrent map siblings apart (STU-620).
+    // Stamp the child's events with its depth + a unique childId so event
+    // consumers can distinguish concurrent child runs (STU-620). The CLI
+    // currently renders nesting by depth alone.
     const childEvents = this.events
       ? createTaggingAdapter(this.events, { depth: config.depth, childId: `d${config.depth}#${this.childCounter++}` })
       : undefined;

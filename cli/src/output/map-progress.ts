@@ -11,9 +11,11 @@
 //   - a permanent line the moment an item fails, naming it and its child run ID,
 //   - a final summary line.
 //
-// Map items render one line each here. Child sub-pipeline stages now bubble up
-// via the spawner's tagging adapter (STU-620) and are printed indented by the
-// ProgressDisplay handlers; this renderer still owns the per-item summary line.
+// Map items render one line each here. Child sub-pipeline stages bubble up via
+// the spawner's tagging adapter (STU-620): for a nested `call` stage outside a
+// map, ProgressDisplay prints them indented, but inside a map stage they stay
+// collapsed to this renderer's per-item line — rendering both would smear the
+// map's live counts.
 
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';

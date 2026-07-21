@@ -31,4 +31,50 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     expect(logs.join('')).not.toContain('x');
     expect(logs.join('')).not.toContain('y');
   });
+
+  it('suppresses a depth>=1 stage-start line in non-live mode', () => {
+    const display = new ProgressDisplay(false, { live: false, verbose: false });
+    const ev = display.getEvents();
+    ev.onStageStart!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 2, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect(logs.find(l => l.includes('child-stage'))).toBeUndefined();
+  });
+
+  it('does not reprint pipeline banners or mutate runId for child pipeline events', () => {
+    const display = live();
+    const ev = display.getEvents();
+
+    ev.onPipelineStart!({ pipeline_name: 'parent', run_id: 'parent-1' } as any);
+    expect(display.runId).toBe('parent-1');
+    logs.length = 0;
+
+    ev.onPipelineStart!({ pipeline_name: 'child', run_id: 'child-1' } as any, { depth: 1, childId: 'd1#0' });
+    expect(logs.some(l => l.includes('Running pipeline'))).toBe(false);
+    expect(display.runId).toBe('parent-1');
+
+    expect(() =>
+      ev.onTaskRetry!(
+        { stage: 'child-stage', attempt: 1, max_attempts: 3, failures: ['bad output'] } as any,
+        { depth: 1, childId: 'd1#0' },
+      )
+    ).not.toThrow();
+    expect(logs.length).toBe(0);
+  });
+
+  it('suppresses depth>=1 stage-start lines while inside a map stage', () => {
+    const display = live();
+    const ev = display.getEvents();
+
+    ev.onMapStart!({ map_name: 'fan-out', total_items: 2, concurrency: 1 } as any);
+    logs.length = 0;
+
+    ev.onStageStart!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 1, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect(logs.find(l => l.includes('child-stage'))).toBeUndefined();
+    display.interrupt();
+  });
 });
