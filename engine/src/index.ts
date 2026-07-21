@@ -52,6 +52,7 @@ export type { StageLifecycleState } from './state/state-machine.js';
 // Run store
 export { InMemoryRunStore, SQLiteRunStore, PgRunStore } from './state/run-store.js';
 export type { RunStore, AsyncRunStore, AnyRunStore } from './state/run-store.js';
+export { isRunOrphaned, reconcileOrphan } from './state/orphan.js';
 
 // Pipeline loaders
 export { loadPipeline, loadPipelineByName, parsePipelineYaml } from './pipeline/loader.js';

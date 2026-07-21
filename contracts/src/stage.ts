@@ -1,6 +1,6 @@
 // Stage status and results
 
-export type StageStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'rejected' | 'cancelled';
+export type StageStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'rejected' | 'cancelled' | 'interrupted';
 
 export type StageKind = string;
 
