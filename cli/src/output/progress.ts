@@ -167,6 +167,8 @@ export class ProgressDisplay {
             finalText = formatStageLine(prefix, event.stage_name, chalk.green('✓') + chalk.gray(` (${infoStr})`));
           } else if (event.status === 'rejected') {
             finalText = formatStageLine(prefix, event.stage_name, chalk.red('✗ rejected') + chalk.gray(` (${duration})`));
+          } else if (event.status === 'skipped') {
+            finalText = formatStageLine(prefix, event.stage_name, chalk.dim('⊘ skipped'));
           } else {
             finalText = formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`));
           }
@@ -192,6 +194,9 @@ export class ProgressDisplay {
                 console.log(chalk.yellow(`      - ${detail}`));
               }
             }
+          } else if (event.status === 'skipped') {
+            console.log(chalk.dim(`  ⊘ skipped`));
+            if (event.skipped_reason) console.log(chalk.gray(`    ${event.skipped_reason}`));
           } else {
             console.log(chalk.red(`  ✗ failed`) + chalk.gray(` (${infoStr})`));
           }
@@ -211,6 +216,12 @@ export class ProgressDisplay {
               console.log(chalk.yellow(`    - ${detail}`));
             }
           }
+        } else if (event.status === 'skipped') {
+          this.spinner?.stopAndPersist({
+            symbol: chalk.dim('⊘'),
+            text: formatStageLine(prefix, event.stage_name, chalk.dim('skipped')),
+          });
+          if (event.skipped_reason) console.log(chalk.gray(`  ${event.skipped_reason}`));
         } else {
           this.spinner?.fail(
             formatStageLine(prefix, event.stage_name, chalk.red('✗ failed') + chalk.gray(` (${infoStr})`))

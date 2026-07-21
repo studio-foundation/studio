@@ -29,13 +29,16 @@ export function formatResult(run: PipelineRun): void {
       const stage = run.stages[i];
       const index = `[${i + 1}/${total}]`;
       const name = stage.stage_name;
-      const attempts = stage.tasks[0]?.agent_runs.length ?? 0;
+      // A call/map stage produces no agent runs, so an attempt count is meaningless for it.
+      const agentRuns = stage.tasks[0]?.agent_runs.length;
+      const attempts = agentRuns ?? 0;
 
       const dots = '.'.repeat(Math.max(2, 30 - name.length));
 
       if (stage.status === 'success') {
+        const attemptText = agentRuns !== undefined ? ` (${agentRuns} attempt${agentRuns !== 1 ? 's' : ''})` : '';
         console.log(
-          `  ${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')} (${attempts} attempt${attempts !== 1 ? 's' : ''})`
+          `  ${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')}${attemptText}`
         );
       } else if (stage.status === 'rejected') {
         console.log(

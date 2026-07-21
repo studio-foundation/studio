@@ -81,6 +81,51 @@ describe('formatResult', () => {
     expect(text).toContain('4m32s');
   });
 
+  it('omits the attempt count for a successful call stage (no agent runs)', () => {
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'wiki-resolution',
+          status: 'success',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:01:00.000Z',
+          tasks: [],
+        },
+      ],
+    });
+
+    formatResult(run);
+
+    const text = output.join('\n');
+    expect(text).toContain('wiki-resolution');
+    expect(text).toContain('✓');
+    expect(text).not.toContain('attempt');
+  });
+
+  it('renders a condition-skipped stage as skipped with its reason', () => {
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'section-filter-verdict',
+          status: 'skipped',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:00.000Z',
+          tasks: [],
+          skipped_reason: 'condition not met: stages.section-filter-pre.output.needs_verdict == true',
+        },
+      ],
+    });
+
+    formatResult(run);
+
+    const text = output.join('\n');
+    expect(text).toContain('⊘ skipped');
+    expect(text).toContain('condition not met');
+    expect(text).not.toContain('FAILED');
+  });
+
   it('should display failed pipeline with error info', () => {
     const run = makeRun({
       status: 'failed',
