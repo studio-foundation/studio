@@ -73,4 +73,40 @@ describe('nested call — spawner handoff (STU-615)', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('stamps child stage events with their nesting depth (STU-620)', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const { DirectEngineSpawner } = await import('../src/spawners/direct-engine-spawner.js');
+    const { InMemoryRunStore } = await import('../src/state/run-store.js');
+    const root = mkdtempSync(join(tmpdir(), 'studio-depth-events-'));
+    try {
+      writeConfigs(root);
+      const engineConfig = {
+        configsDir: root,
+        repoPath: root,
+        providerRegistry: { get: () => undefined, register: () => undefined } as any,
+        db: new InMemoryRunStore(),
+      } as unknown as EngineConfig;
+
+      const seen: Array<{ stage: string; depth?: number; childId?: string }> = [];
+      const events = {
+        onStageStart: (e: any, ctx?: any) =>
+          seen.push({ stage: e.stage_name, depth: ctx?.depth, childId: ctx?.childId }),
+      };
+
+      const spawner = new DirectEngineSpawner(engineConfig, events);
+      const engine = new PipelineEngine({ ...engineConfig, spawner, maxDepth: 3 }, events);
+      const result = await engine.run({ pipeline: 'parent', input: { book: 'x' } });
+      expect(result.status).toBe('success');
+
+      const leafCall = seen.find(s => s.stage === 'leaf-call');   // mid pipeline stage, depth 1
+      const leafStage = seen.find(s => s.stage === 'leaf-stage'); // leaf pipeline stage, depth 2
+      expect(leafCall?.depth).toBe(1);
+      expect(leafStage?.depth).toBe(2);
+      expect(typeof leafCall?.childId).toBe('string');
+      expect(leafStage?.childId).not.toBe(leafCall?.childId);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
