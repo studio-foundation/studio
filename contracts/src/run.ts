@@ -14,6 +14,11 @@ export interface PipelineRun {
   stages: StageRun[];
   input?: Record<string, unknown>;
   parent_run_id?: string;
+  // Owning process identity, stamped at creation while status is `running`.
+  // Lets a reader detect an orphaned `running` row whose process died without
+  // writing a terminal status (SIGKILL, OOM, force-quit) and reconcile it.
+  pid?: number;
+  hostname?: string;
 }
 
 export interface StageRun {

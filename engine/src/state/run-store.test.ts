@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { SQLiteRunStore, PgRunStore } from './run-store.js';
+import os from 'node:os';
+import { SQLiteRunStore, PgRunStore, InMemoryRunStore } from './run-store.js';
 import type { PipelineRun } from '@studio-foundation/contracts';
+
+// A pid beyond Linux pid_max can never name a live process, so kill(pid, 0)
+// reports ESRCH — a deterministic stand-in for a dead owner.
+const DEAD_PID = 2 ** 31 - 2;
 
 function makeRun(overrides?: Partial<PipelineRun>): PipelineRun {
   return {
@@ -60,6 +65,68 @@ describe('SQLiteRunStore', () => {
       store.savePipelineRun(run);
       const retrieved = store.getPipelineRun('child-123');
       expect(retrieved?.parent_run_id).toBe('parent-456');
+    });
+  });
+
+  describe('orphaned-run reconciliation (STU-625)', () => {
+    const orphan = (overrides?: Partial<PipelineRun>): PipelineRun =>
+      makeRun({ status: 'running', pid: DEAD_PID, hostname: os.hostname(), ...overrides });
+
+    it('reports an orphaned running row as interrupted', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan());
+      expect(store.getPipelineRun('run-1')?.status).toBe('interrupted');
+    });
+
+    it('persists the reconciliation so a status filter no longer sees it as running', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan());
+      store.getPipelineRun('run-1');
+      expect(store.listPipelineRuns({ status: 'running' })).toHaveLength(0);
+      expect(store.listPipelineRuns({ status: 'interrupted' })).toHaveLength(1);
+    });
+
+    it('reconciles via listPipelineRuns and getLatestRun too', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan());
+      expect(store.listPipelineRuns()[0].status).toBe('interrupted');
+      expect(store.getLatestRun()?.status).toBe('interrupted');
+    });
+
+    it('closes out orphaned child rows the same way', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan({ id: 'child-1', parent_run_id: 'run-1' }));
+      expect(store.getPipelineRun('child-1')?.status).toBe('interrupted');
+    });
+
+    it('leaves a live running row alone', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan({ pid: process.pid }));
+      expect(store.getPipelineRun('run-1')?.status).toBe('running');
+    });
+
+    it('does not judge a run from another host', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(orphan({ hostname: 'some-other-host' }));
+      expect(store.getPipelineRun('run-1')?.status).toBe('running');
+    });
+
+    it('leaves a running row with no owner info alone', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(makeRun({ status: 'running' }));
+      expect(store.getPipelineRun('run-1')?.status).toBe('running');
+    });
+
+    it('never touches a terminal row', () => {
+      const store = new SQLiteRunStore(':memory:');
+      store.savePipelineRun(makeRun({ status: 'success', pid: DEAD_PID, hostname: os.hostname() }));
+      expect(store.getPipelineRun('run-1')?.status).toBe('success');
+    });
+
+    it('applies to the in-memory store as well', () => {
+      const store = new InMemoryRunStore();
+      store.savePipelineRun(orphan());
+      expect(store.getPipelineRun('run-1')?.status).toBe('interrupted');
     });
   });
 });
