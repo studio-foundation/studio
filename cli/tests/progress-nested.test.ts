@@ -96,6 +96,32 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     display.interrupt();
   });
 
+  it('does not resurrect a spinner from in-flight child events after interrupt (Ctrl-C)', () => {
+    const display = live();
+    const ev = display.getEvents();
+
+    ev.onStageStart!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 2, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect((display as any).thinkingSpinner).toBeTruthy();
+
+    display.interrupt();
+    expect((display as any).thinkingSpinner).toBeNull();
+
+    // Engine keeps emitting until the abort lands — these must not restart the spinner/timer.
+    ev.onStageComplete!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 2, status: 'success', attempts: 1, duration_ms: 5 } as any,
+      { depth: 1, childId: 'd1#0' },
+    );
+    ev.onStageStart!(
+      { stage_name: 'sibling', stage_index: 1, total_stages: 2, max_attempts: 1 },
+      { depth: 1, childId: 'd1#0' },
+    );
+    expect((display as any).thinkingSpinner).toBeNull();
+    expect((display as any).timerInterval).toBeNull();
+  });
+
   it('does not leave two spinners running when a sibling child stage starts', () => {
     const display = live();
     const ev = display.getEvents();

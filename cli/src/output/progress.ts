@@ -15,6 +15,7 @@ export class ProgressDisplay {
   private isStreamingTokens = false;
   private stageStartTime = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private interrupted = false;
 
   // Parallel group rendering
   private isInParallelGroup = false;
@@ -73,6 +74,7 @@ export class ProgressDisplay {
    * without nesting two spinners.
    */
   private startChildThinkingSpinner(depth: number): void {
+    if (this.interrupted) return; // in-flight child events must not resurrect the spinner after Ctrl-C
     this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: depth * 2 + 2, color: 'gray' }).start();
     this.resetStageTimer();
     this.startTimer((elapsed) => {
@@ -101,6 +103,7 @@ export class ProgressDisplay {
   }
 
   interrupt(): void {
+    this.interrupted = true;
     this.clearTimer();
     this.parallelRenderer?.interrupt();
     this.parallelRenderer = null;
@@ -140,6 +143,7 @@ export class ProgressDisplay {
           }
           return;
         }
+        if (this.interrupted) return; // don't start a fresh spinner once cancelling
         this.currentStageIndex = event.stage_index;
         this.currentTotalStages = event.total_stages;
         this.currentStageName = event.stage_name;
@@ -492,7 +496,7 @@ export class ProgressDisplay {
           }
           return;
         }
-        if (!this.live || this.isInParallelGroup) return;
+        if (!this.live || this.isInParallelGroup || this.interrupted) return;
         // End any in-progress token stream line before starting tool spinner
         if (this.isStreamingTokens) {
           process.stdout.write('\n');
