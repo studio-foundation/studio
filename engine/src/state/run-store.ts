@@ -3,6 +3,7 @@
 
 import { createRequire } from 'node:module';
 import type { PipelineRun } from '@studio-foundation/contracts';
+import { reconcileOrphan } from './orphan.js';
 
 export interface RunStore {
   savePipelineRun(run: PipelineRun): void;
@@ -35,13 +36,19 @@ export class InMemoryRunStore implements RunStore {
     this.runs.set(run.id, structuredClone(run));
   }
 
+  private reconcile(run: PipelineRun): PipelineRun {
+    const fixed = reconcileOrphan(run);
+    if (fixed !== run) this.savePipelineRun(fixed);
+    return fixed;
+  }
+
   getPipelineRun(id: string): PipelineRun | null {
     const run = this.runs.get(id);
-    return run ? structuredClone(run) : null;
+    return run ? this.reconcile(structuredClone(run)) : null;
   }
 
   listPipelineRuns(options?: { limit?: number; status?: string }): PipelineRun[] {
-    let runs = Array.from(this.runs.values());
+    let runs = Array.from(this.runs.values()).map(r => this.reconcile(structuredClone(r)));
 
     if (options?.status) {
       runs = runs.filter(r => r.status === options.status);
@@ -54,7 +61,7 @@ export class InMemoryRunStore implements RunStore {
       runs = runs.slice(0, options.limit);
     }
 
-    return runs.map(r => structuredClone(r));
+    return runs;
   }
 
   getLatestRun(pipelineName?: string): PipelineRun | null {
@@ -67,7 +74,7 @@ export class InMemoryRunStore implements RunStore {
     if (runs.length === 0) return null;
 
     runs.sort((a, b) => b.started_at.localeCompare(a.started_at));
-    return structuredClone(runs[0]);
+    return this.reconcile(structuredClone(runs[0]));
   }
 
   saveLogPath(runId: string, logPath: string): void {
@@ -150,13 +157,19 @@ export class SQLiteRunStore implements RunStore {
     );
   }
 
+  private reconcile(run: PipelineRun): PipelineRun {
+    const fixed = reconcileOrphan(run);
+    if (fixed !== run) this.savePipelineRun(fixed);
+    return fixed;
+  }
+
   getPipelineRun(id: string): PipelineRun | null {
     const row = this.db.prepare('SELECT result FROM pipeline_runs WHERE id = ?').get(id) as
       | { result: string }
       | undefined;
 
     if (!row) return null;
-    return JSON.parse(row.result) as PipelineRun;
+    return this.reconcile(JSON.parse(row.result) as PipelineRun);
   }
 
   listPipelineRuns(options?: { limit?: number; status?: string }): PipelineRun[] {
@@ -176,7 +189,10 @@ export class SQLiteRunStore implements RunStore {
     }
 
     const rows = this.db.prepare(sql).all(...params) as Array<{ result: string }>;
-    return rows.map(row => JSON.parse(row.result) as PipelineRun);
+    let runs = rows.map(row => this.reconcile(JSON.parse(row.result) as PipelineRun));
+    // Re-filter: a reconciled row's status may no longer match the requested one.
+    if (options?.status) runs = runs.filter(r => r.status === options.status);
+    return runs;
   }
 
   getLatestRun(pipelineName?: string): PipelineRun | null {
@@ -192,7 +208,7 @@ export class SQLiteRunStore implements RunStore {
 
     const row = this.db.prepare(sql).get(...params) as { result: string } | undefined;
     if (!row) return null;
-    return JSON.parse(row.result) as PipelineRun;
+    return this.reconcile(JSON.parse(row.result) as PipelineRun);
   }
 
   saveLogPath(runId: string, logPath: string): void {
@@ -285,6 +301,12 @@ export class PgRunStore implements AsyncRunStore {
     );
   }
 
+  private async reconcile(run: PipelineRun): Promise<PipelineRun> {
+    const fixed = reconcileOrphan(run);
+    if (fixed !== run) await this.savePipelineRun(fixed);
+    return fixed;
+  }
+
   async getPipelineRun(id: string): Promise<PipelineRun | null> {
     await this.ensureSchema();
     const res = await this.pool.query<{ result: string }>(
@@ -292,7 +314,7 @@ export class PgRunStore implements AsyncRunStore {
       [id]
     );
     if (res.rows.length === 0) return null;
-    return JSON.parse(res.rows[0].result) as PipelineRun;
+    return this.reconcile(JSON.parse(res.rows[0].result) as PipelineRun);
   }
 
   async listPipelineRuns(options?: { limit?: number; status?: string }): Promise<PipelineRun[]> {
@@ -313,7 +335,12 @@ export class PgRunStore implements AsyncRunStore {
     }
 
     const res = await this.pool.query<{ result: string }>(sql, params);
-    return res.rows.map((r) => JSON.parse(r.result) as PipelineRun);
+    let runs = await Promise.all(
+      res.rows.map((r) => this.reconcile(JSON.parse(r.result) as PipelineRun))
+    );
+    // Re-filter: a reconciled row's status may no longer match the requested one.
+    if (options?.status) runs = runs.filter((r) => r.status === options.status);
+    return runs;
   }
 
   async getLatestRun(pipelineName?: string): Promise<PipelineRun | null> {
@@ -330,7 +357,7 @@ export class PgRunStore implements AsyncRunStore {
 
     const res = await this.pool.query<{ result: string }>(sql, params);
     if (res.rows.length === 0) return null;
-    return JSON.parse(res.rows[0].result) as PipelineRun;
+    return this.reconcile(JSON.parse(res.rows[0].result) as PipelineRun);
   }
 
   async saveLogPath(runId: string, logPath: string): Promise<void> {

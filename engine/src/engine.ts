@@ -2,6 +2,7 @@
 // Connects ralph (retry loop) + runner (agent execution) + contracts (validation)
 
 import { randomUUID } from 'node:crypto';
+import os from 'node:os';
 import type {
   PipelineEntry,
   PipelineRun,
@@ -208,6 +209,11 @@ export class PipelineEngine {
       status: 'running',
       started_at: new Date().toISOString(),
       stages: [],
+      // Owner identity so a reader can detect this row if the process dies
+      // without writing a terminal status (STU-625). Children (map/call) run
+      // in this same process, so they inherit the same pid and reconcile together.
+      pid: process.pid,
+      hostname: os.hostname(),
       ...(typeof userInputValue === 'object' && userInputValue !== null
         ? { input: userInputValue as Record<string, unknown> }
         : {}),
