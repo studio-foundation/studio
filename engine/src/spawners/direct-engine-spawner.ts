@@ -5,7 +5,10 @@ export class DirectEngineSpawner implements RunSpawner {
   constructor(private engineConfig: EngineConfig) {}
 
   async spawnAndWait(config: SpawnConfig): Promise<SpawnResult> {
-    const child = new PipelineEngine(this.engineConfig);
+    // Hand the spawner down: without it a child engine cannot run `call`/`map`
+    // stages of its own, capping nesting at depth 1 while maxDepth promises 3
+    // (STU-615). The orchestrators' depth guard is the recursion limit.
+    const child = new PipelineEngine({ ...this.engineConfig, spawner: this });
     const result: PipelineRun = await child.run({
       pipeline: config.pipeline,
       input: config.input,
