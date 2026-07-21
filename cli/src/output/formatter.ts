@@ -9,6 +9,12 @@ export function formatResult(run: PipelineRun): void {
     console.log(`Status:   ${chalk.green('✓ success')}`);
   } else if (run.status === 'rejected') {
     console.log(`Status:   ${chalk.red('✗ rejected by QA')}`);
+  } else if (run.status === 'cancelled') {
+    console.log(`Status:   ${chalk.yellow('⚠ cancelled')}`);
+  } else if (run.status === 'interrupted') {
+    console.log(`Status:   ${chalk.yellow('⚠ interrupted (process died mid-run)')}`);
+  } else if (run.status === 'running') {
+    console.log(`Status:   ${chalk.cyan('● running')}`);
   } else {
     console.log(`Status:   ${chalk.red('✗ failed')}`);
   }
