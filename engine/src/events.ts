@@ -154,29 +154,50 @@ export interface StagedAgentTokenEvent extends AgentTokenEvent {
   stage: string;
 }
 
+/** Orchestration context stamped onto child-run events by the spawner. */
+export interface EventContext {
+  depth: number;   // 0 = top-level engine, 1+ = spawned child
+  childId: string; // stable per child run, minted by the spawner
+}
+
 export interface EngineEvents {
-  onPipelineStart?: (event: PipelineStartEvent) => void;
-  onPipelineComplete?: (event: PipelineCompleteEvent) => void;
-  onPipelineCancelled?: (event: PipelineCancelledEvent) => void;
-  onStageStart?: (event: StageStartEvent) => void;
-  onStageComplete?: (event: StageCompleteEvent) => void;
-  onTaskRetry?: (event: StageRetryEvent) => void;
-  onGroupStart?: (event: GroupStartEvent) => void;
-  onGroupIteration?: (event: GroupIterationEvent) => void;
-  onGroupFeedback?: (event: GroupFeedbackEvent) => void;
-  onGroupComplete?: (event: GroupCompleteEvent) => void;
-  onMapStart?: (event: MapStartEvent) => void;
-  onMapItemStart?: (event: MapItemStartEvent) => void;
-  onMapItemComplete?: (event: MapItemCompleteEvent) => void;
-  onMapComplete?: (event: MapCompleteEvent) => void;
-  onStageContext?: (event: StageContextEvent) => void;
+  onPipelineStart?: (event: PipelineStartEvent, ctx?: EventContext) => void;
+  onPipelineComplete?: (event: PipelineCompleteEvent, ctx?: EventContext) => void;
+  onPipelineCancelled?: (event: PipelineCancelledEvent, ctx?: EventContext) => void;
+  onStageStart?: (event: StageStartEvent, ctx?: EventContext) => void;
+  onStageComplete?: (event: StageCompleteEvent, ctx?: EventContext) => void;
+  onTaskRetry?: (event: StageRetryEvent, ctx?: EventContext) => void;
+  onGroupStart?: (event: GroupStartEvent, ctx?: EventContext) => void;
+  onGroupIteration?: (event: GroupIterationEvent, ctx?: EventContext) => void;
+  onGroupFeedback?: (event: GroupFeedbackEvent, ctx?: EventContext) => void;
+  onGroupComplete?: (event: GroupCompleteEvent, ctx?: EventContext) => void;
+  onMapStart?: (event: MapStartEvent, ctx?: EventContext) => void;
+  onMapItemStart?: (event: MapItemStartEvent, ctx?: EventContext) => void;
+  onMapItemComplete?: (event: MapItemCompleteEvent, ctx?: EventContext) => void;
+  onMapComplete?: (event: MapCompleteEvent, ctx?: EventContext) => void;
+  onStageContext?: (event: StageContextEvent, ctx?: EventContext) => void;
   // Real-time tool call streaming (used by --live mode)
-  onToolCallStart?: (event: StagedToolCallStartEvent) => void;
-  onToolCallComplete?: (event: StagedToolCallCompleteEvent) => void;
+  onToolCallStart?: (event: StagedToolCallStartEvent, ctx?: EventContext) => void;
+  onToolCallComplete?: (event: StagedToolCallCompleteEvent, ctx?: EventContext) => void;
   // Agent thinking/progress (text content emitted alongside tool calls)
-  onAgentThinking?: (event: StagedAgentThinkingEvent) => void;
-  onAgentProgress?: (event: StagedAgentProgressEvent) => void;
-  onAgentToken?: (event: StagedAgentTokenEvent) => void;
+  onAgentThinking?: (event: StagedAgentThinkingEvent, ctx?: EventContext) => void;
+  onAgentProgress?: (event: StagedAgentProgressEvent, ctx?: EventContext) => void;
+  onAgentToken?: (event: StagedAgentTokenEvent, ctx?: EventContext) => void;
+}
+
+/**
+ * Wrap a parent event sink so a child run's events reach it stamped with `ctx`.
+ * A Proxy forwards any defined handler, injecting ctx as the trailing argument;
+ * the child engine keeps emitting one-arg calls unchanged.
+ */
+export function createTaggingAdapter(parent: EngineEvents, ctx: EventContext): EngineEvents {
+  return new Proxy({} as EngineEvents, {
+    get(_target, prop: string) {
+      const handler = (parent as Record<string, unknown>)[prop];
+      if (typeof handler !== 'function') return undefined;
+      return (event: unknown) => (handler as (e: unknown, c: EventContext) => void).call(parent, event, ctx);
+    },
+  });
 }
 
 // Keep the generic event bus for other use cases
