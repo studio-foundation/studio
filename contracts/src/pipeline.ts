@@ -153,6 +153,16 @@ export interface MapStage {
 export interface CallStage {
   call: string;                             // the stage name (discriminant)
   condition?: string;                       // skip the call if false
+  /**
+   * What a failed child does to the parent. 'fail' (default) fails the parent
+   * pipeline. 'continue' records the stage as failed (surfaced in `studio
+   * status`, the run JSONL and the CLI) but proceeds to the next stage,
+   * propagating no output — a downstream stage sees this stage name absent
+   * from its context and can apply its own safe default. A cancelled child
+   * always cancels the parent; a `condition`-skipped call stays `skipped`, so
+   * a tolerated failure and a skip are distinguishable in the run record.
+   */
+  on_failure?: 'fail' | 'continue';
   pipeline?: string;                        // sub-pipeline to run once (defaults to `call`)
   /**
    * Input for the child run. Each value may reference the parent context via

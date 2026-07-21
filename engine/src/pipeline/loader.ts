@@ -19,7 +19,7 @@ const STAGE_FIELDS = [
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
 const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume'] as const;
-const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input'] as const;
+const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input', 'on_failure'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
 const CONTEXT_FIELDS = ['include', 'packs'] as const;
 const TOOLS_FIELDS = ['required'] as const;
@@ -310,11 +310,17 @@ function parseCallStage(entry: any, context: string): CallStage {
   if (entry.input !== undefined && (typeof entry.input !== 'object' || entry.input === null || Array.isArray(entry.input))) {
     throw new Error(`Call stage '${name}' field 'input' must be an object of key → template${context}`);
   }
+  if (entry.on_failure !== undefined && entry.on_failure !== 'fail' && entry.on_failure !== 'continue') {
+    throw new Error(
+      `Call stage '${name}' field 'on_failure' must be 'fail' or 'continue', got '${entry.on_failure}'${context}`
+    );
+  }
 
   return {
     call: name,
     ...(entry.pipeline !== undefined ? { pipeline: entry.pipeline } : {}),
     ...(entry.condition !== undefined ? { condition: entry.condition } : {}),
     ...(entry.input !== undefined ? { input: entry.input } : {}),
+    ...(entry.on_failure !== undefined ? { on_failure: entry.on_failure } : {}),
   };
 }

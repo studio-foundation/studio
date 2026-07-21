@@ -496,7 +496,14 @@ export class PipelineEngine {
 
         pipelineRun.stages.push(callResult.stageRun);
 
-        if (callResult.status === 'failed' || callResult.status === 'cancelled') {
+        // A tolerated failure (`on_failure: continue`) is recorded as a failed
+        // stage but does not stop the run: no output is propagated, so a
+        // downstream stage sees this stage name absent from its context and
+        // applies its own safe default. Cancellation is never tolerated.
+        const failureTolerated =
+          callResult.status === 'failed' && entry.on_failure === 'continue';
+
+        if (!failureTolerated && (callResult.status === 'failed' || callResult.status === 'cancelled')) {
           pipelineRun.status = callResult.status;
           pipelineRun.completed_at = new Date().toISOString();
           if (callResult.status === 'cancelled') {
