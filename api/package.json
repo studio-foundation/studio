@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/api",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "HTTP REST API server for Studio agent pipelines",
   "type": "module",
   "main": "./dist/api.js",
