@@ -100,3 +100,24 @@ describe('DirectEngineSpawner', () => {
     ).rejects.toThrow('Child run child-rej rejected');
   });
 });
+
+describe('DirectEngineSpawner nesting (STU-615)', () => {
+  it('hands itself down so a called pipeline can call/map in turn', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const captured: any[] = [];
+    (PipelineEngine as any).mockImplementation(function (cfg: any) {
+      captured.push(cfg);
+      return { run: vi.fn().mockResolvedValue(makeSuccessRun()) };
+    });
+
+    const spawner = new DirectEngineSpawner({ configsDir: '/x' } as unknown as EngineConfig);
+    await spawner.spawnAndWait({ pipeline: 'child', input: {}, parentRunId: 'p1', depth: 1 });
+
+    // The child engine's config must carry the spawner — without it, a call
+    // stage at depth 2 dies with "requires a run spawner" while maxDepth
+    // promises 3.
+    expect(captured).toHaveLength(1);
+    expect(captured[0].spawner).toBe(spawner);
+    expect(captured[0].configsDir).toBe('/x');
+  });
+});
