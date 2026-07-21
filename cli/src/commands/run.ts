@@ -422,7 +422,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       ...(options.provider ? { providerOverride: options.provider } : {}),
     };
 
-    const spawner = new DirectEngineSpawner(engineConfig);
+    const spawner = new DirectEngineSpawner(engineConfig, events);
 
     const engine = new PipelineEngine(
       {

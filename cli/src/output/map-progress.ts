@@ -11,13 +11,9 @@
 //   - a permanent line the moment an item fails, naming it and its child run ID,
 //   - a final summary line.
 //
-// NESTING DECISION (documented, per STU-598): child sub-pipeline stages are
-// COLLAPSED, not rendered. Each item is one progress line. This is deliberate —
-// a fan-out over hundreds of items, each a multi-stage sub-pipeline, would drown
-// the terminal if every child stage rendered. It also matches the runtime: child
-// runs are spawned via a fresh engine that carries no event sink, so their stage
-// events never reach this display in the first place. The item's child run ID is
-// surfaced so an operator can `studio status <run-id>` to drill into any one.
+// Map items render one line each here. Child sub-pipeline stages now bubble up
+// via the spawner's tagging adapter (STU-620) and are printed indented by the
+// ProgressDisplay handlers; this renderer still owns the per-item summary line.
 
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
