@@ -269,10 +269,10 @@ describe('Fan-out (map) stage', () => {
       return ok(`run-${i}`, i);
     });
     const starts: Array<{ index: number; label: string }> = [];
-    const completes: Array<{ index: number; label?: string; status: string; run_id?: string }> = [];
+    const completes: Array<{ index: number; label?: string; status: string; run_id?: string; output?: unknown }> = [];
     const engine = createEngine(spawner, {
       onMapItemStart: (e) => starts.push({ index: e.index, label: e.label }),
-      onMapItemComplete: (e) => completes.push({ index: e.index, label: e.label, status: e.status, run_id: e.run_id }),
+      onMapItemComplete: (e) => completes.push({ index: e.index, label: e.label, status: e.status, run_id: e.run_id, output: e.output }),
     });
 
     // Objects with a `title` field → the label is the title, not the index.
@@ -288,9 +288,11 @@ describe('Fan-out (map) stage', () => {
     ]);
 
     const byIndex = new Map(completes.map(c => [c.index, c]));
-    expect(byIndex.get(0)).toMatchObject({ label: 'Alpha', status: 'success', run_id: 'run-0' });
+    // The completion event carries the child's output, so a consumer can render
+    // what each item produced (STU-626), not just that it settled.
+    expect(byIndex.get(0)).toMatchObject({ label: 'Alpha', status: 'success', run_id: 'run-0', output: 0 });
     // The failing item carries its label at the moment it fails.
     expect(byIndex.get(1)).toMatchObject({ label: 'Beta', status: 'failed' });
-    expect(byIndex.get(2)).toMatchObject({ label: 'Gamma', status: 'success', run_id: 'run-2' });
+    expect(byIndex.get(2)).toMatchObject({ label: 'Gamma', status: 'success', run_id: 'run-2', output: 2 });
   });
 });

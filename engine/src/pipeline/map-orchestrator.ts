@@ -251,6 +251,7 @@ export class MapOrchestrator {
             status: 'success',
             label,
             cached: true,
+            output: cached.output,
             ...(cached.run_id ? { run_id: cached.run_id } : {}),
           });
           this.config.emitter.emit({ type: 'map_item_complete', mapName: map.map, index: i, status: 'success' });
@@ -297,6 +298,7 @@ export class MapOrchestrator {
           total_items: items.length,
           status: itemResult.status,
           label,
+          ...(itemResult.output !== undefined ? { output: itemResult.output } : {}),
           ...(itemResult.run_id ? { run_id: itemResult.run_id } : {}),
           ...(itemResult.error ? { error: itemResult.error } : {}),
         });
