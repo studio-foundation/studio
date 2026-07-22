@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import type { AgentConfig } from '@studio-foundation/contracts';
+import { resolveEnvVars } from './env-vars.js';
 
 export async function loadAgentProfile(
   name: string,
@@ -22,7 +23,7 @@ export async function loadAgentProfile(
 }
 
 export function parseAgentYaml(yamlContent: string, sourcePath?: string): AgentConfig {
-  const parsed = yaml.load(yamlContent) as Record<string, unknown>;
+  const parsed = yaml.load(resolveEnvVars(yamlContent)) as Record<string, unknown>;
   const context = sourcePath ? ` (from ${sourcePath})` : '';
 
   if (!parsed || typeof parsed !== 'object') {

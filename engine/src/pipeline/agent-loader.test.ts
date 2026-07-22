@@ -26,6 +26,35 @@ model: claude-haiku-4-5-20251001
     const result = parseAgentYaml(yaml);
     expect(result.plugins).toBeUndefined();
   });
+
+  it('interpolates ${VAR:-default} in provider/model — env overrides the pin', () => {
+    process.env.STUDIO_SMART_PROVIDER = 'anthropic';
+    process.env.STUDIO_SMART_MODEL = 'claude-opus-4-8';
+    try {
+      const result = parseAgentYaml(`
+name: verdict-agent
+provider: \${STUDIO_SMART_PROVIDER:-claude-code}
+model: \${STUDIO_SMART_MODEL:-claude-haiku-4-5}
+`);
+      expect(result.provider).toBe('anthropic');
+      expect(result.model).toBe('claude-opus-4-8');
+    } finally {
+      delete process.env.STUDIO_SMART_PROVIDER;
+      delete process.env.STUDIO_SMART_MODEL;
+    }
+  });
+
+  it('keeps the pinned default when the env var is unset', () => {
+    delete process.env.STUDIO_SMART_PROVIDER;
+    delete process.env.STUDIO_SMART_MODEL;
+    const result = parseAgentYaml(`
+name: verdict-agent
+provider: \${STUDIO_SMART_PROVIDER:-claude-code}
+model: \${STUDIO_SMART_MODEL:-claude-haiku-4-5}
+`);
+    expect(result.provider).toBe('claude-code');
+    expect(result.model).toBe('claude-haiku-4-5');
+  });
 });
 
 describe('skill injection logic', () => {

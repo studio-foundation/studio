@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
+import { resolveEnvVars } from '@studio-foundation/engine';
 import { findStudioDir } from './studio-dir.js';
+
+export { resolveEnvVars };
 
 export interface StudioConfig {
   providers?: {
@@ -92,11 +95,4 @@ async function loadFromFile(filePath: string): Promise<StudioConfig> {
   }
 
   return parsed as StudioConfig;
-}
-
-export function resolveEnvVars(content: string): string {
-  return content.replace(/\$\{([^}]+)\}/g, (_match, varName: string) => {
-    const value = process.env[varName.trim()];
-    return value === undefined ? '' : value;
-  });
 }
