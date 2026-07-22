@@ -47,6 +47,7 @@ program
   .option('--verbose', 'Show detailed execution logs')
   .option('--live', 'Show live per-tool-call spinners during execution')
   .option('--anonymize', 'Anonymize PII in inputs and outputs before sending to LLM')
+  .option('--stream-items', 'Emit one NDJSON line per map item to stderr as it lands (for a parent process to render)')
   .action(runCommand);
 
 program

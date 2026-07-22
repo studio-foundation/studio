@@ -152,13 +152,17 @@ describe('Fan-out (map) — per-item resume', () => {
     await makeEngine(spawner1).run({ pipelineDef: mapPipeline(), input: { items: ['a'] } });
 
     const cachedFlags: Array<boolean | undefined> = [];
+    const cachedOutputs: unknown[] = [];
     const spawner2 = new FakeSpawner((c) => ok('r2', { page: (c.input as any).entity }));
     await makeEngine(spawner2, {
-      onMapItemComplete: (e) => cachedFlags.push(e.cached),
+      onMapItemComplete: (e) => { cachedFlags.push(e.cached); cachedOutputs.push(e.output); },
     }).run({ pipelineDef: mapPipeline(), input: { items: ['a'] } });
 
     expect(spawner2.calls).toHaveLength(0);
     expect(cachedFlags).toEqual([true]);
+    // A cache-served item still carries its output, so a consumer renders it
+    // on resume exactly as on a fresh spawn (STU-626).
+    expect(cachedOutputs).toEqual([{ page: 'a' }]);
   });
 
   it('fail-fast: cached successes never trip the abort; only a fresh failure does', async () => {

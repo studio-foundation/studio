@@ -116,6 +116,8 @@ export interface MapItemCompleteEvent {
   error?: string;
   /** True when the item was served from the resume cache (not spawned this run). */
   cached?: boolean;
+  /** The child run's output — what the item produced, for a consumer to render (domain-owned). */
+  output?: unknown;
 }
 
 export interface MapCompleteEvent {
