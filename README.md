@@ -1,5 +1,9 @@
 # Studio
 
+[![npm version](https://img.shields.io/npm/v/@studio-foundation/cli.svg)](https://www.npmjs.com/package/@studio-foundation/cli)
+[![npm downloads](https://img.shields.io/npm/dm/@studio-foundation/cli.svg)](https://www.npmjs.com/package/@studio-foundation/cli)
+[![license](https://img.shields.io/npm/l/@studio-foundation/cli.svg)](LICENSE)
+
 **Studio runs AI pipelines. It knows nothing about your code, your domain, or your model. That's the design.**
 
 A declarative YAML runtime for AI agents. Studio handles agent orchestration, structured output validation, parallel execution, and generation-validation loops from a config file — not yet another agent framework with Python decorators and graph builders. The engine doesn't care whether you're building software, parsing books, planning meals, or analyzing transactions: domain logic lives entirely in your configs.
