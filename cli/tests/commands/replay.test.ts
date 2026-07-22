@@ -47,6 +47,13 @@ describe('findJsonlFile', () => {
     const result = findJsonlFile(RUNS_DIR, 'abc1-2345');
     expect(result).toBe(resolve(RUNS_DIR, filename));
   });
+
+  it('matches the full UUID the CLI prints (STU-619)', () => {
+    const filename = '2026-02-22T14h35m-feature-builder-abc12345.jsonl';
+    writeFileSync(resolve(RUNS_DIR, filename), '');
+    const result = findJsonlFile(RUNS_DIR, 'abc12345-6789-4abc-8def-0123456789ab');
+    expect(result).toBe(resolve(RUNS_DIR, filename));
+  });
 });
 
 describe('mapJsonlLineToEvent', () => {

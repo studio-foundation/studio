@@ -8,7 +8,7 @@ import { isStageGroup, isMapStage, isCallStage } from '@studio-foundation/contra
 // ── JSONL file discovery ─────────────────────────────────────────────────────
 
 function normalizeRunId(runId: string): string {
-  return runId.replace(/-/g, '');
+  return runId.replace(/-/g, '').slice(0, 8);
 }
 
 /**
