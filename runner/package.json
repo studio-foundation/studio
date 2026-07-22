@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/runner",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Multi-provider LLM agent runner with tool plugin execution (Anthropic, OpenAI, mock). Used by Studio.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
