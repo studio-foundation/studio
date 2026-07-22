@@ -18,8 +18,9 @@
 // map's live counts.
 
 import chalk from 'chalk';
-import ora, { type Ora } from 'ora';
+import { type Ora } from 'ora';
 import { formatDuration } from './formatter.js';
+import { makeSpinner } from './spinner.js';
 
 interface InFlight {
   label: string;
@@ -71,7 +72,7 @@ export class MapRenderer {
         chalk.gray(` — fan-out over ${total} item${total === 1 ? '' : 's'} (concurrency ${concurrency})`),
     );
 
-    this.spinner = ora({ text: this.statusText(), indent: 2, color: 'cyan' }).start();
+    this.spinner = makeSpinner({ text: this.statusText(), indent: 2, color: 'cyan' }).start();
     this.timer = setInterval(() => {
       if (this.spinner) this.spinner.text = this.statusText();
     }, 250);
