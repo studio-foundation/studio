@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/anonymizer",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "PII detection and anonymization for LLM workflows, with consistent token mapping. Used by Studio.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
