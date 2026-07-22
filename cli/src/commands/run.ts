@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import type { EngineEvents } from '@studio-foundation/engine';
+import type { EngineEvents, MapItemCompleteEvent } from '@studio-foundation/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
 import { resolveRepoPath } from '@studio-foundation/engine';
@@ -26,6 +26,32 @@ interface RunOptions {
   live?: boolean;
   provider?: string;
   anonymize?: boolean;
+  streamItems?: boolean;
+}
+
+/**
+ * Tag prefixing each --stream-items NDJSON line on stderr. A parent process
+ * (the wiki-creator fan-out scripts) tails stderr, keeps lines with this tag,
+ * and renders each map item's output in its own vocabulary as it lands —
+ * stdout stays reserved for the --json aggregate.
+ */
+export const MAP_ITEM_STREAM_TAG = '@@studio:map_item@@';
+
+/** One tagged NDJSON line for a settled map item (no trailing newline). */
+export function formatMapItemStreamLine(e: MapItemCompleteEvent): string {
+  return (
+    MAP_ITEM_STREAM_TAG +
+    ' ' +
+    JSON.stringify({
+      map: e.map_name,
+      index: e.index,
+      total: e.total_items,
+      label: e.label,
+      status: e.status,
+      cached: e.cached ?? false,
+      output: e.output,
+    })
+  );
 }
 
 export function mergeEvents(
@@ -409,6 +435,18 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         baseEvents.onToolCallComplete?.(e, ctx);
       },
     };
+
+    if (options.streamItems) {
+      const inner = events.onMapItemComplete;
+      events.onMapItemComplete = (e, ctx) => {
+        inner?.(e, ctx);
+        // Stream every map item regardless of nesting: a fan-out run as a
+        // native `call` stage (e.g. wiki-full → discover-relationships) settles
+        // its items at depth ≥1, and each item bubbles to this handler exactly
+        // once, so there is nothing to de-duplicate against.
+        process.stderr.write(formatMapItemStreamLine(e) + '\n');
+      };
+    }
 
     const engineConfig = {
       configsDir,
