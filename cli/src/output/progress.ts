@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import ora, { type Ora } from 'ora';
+import { type Ora } from 'ora';
+import { makeSpinner } from './spinner.js';
 import type { EngineEvents } from '@studio-foundation/engine';
 import { formatDuration } from './formatter.js';
 import { summarizeToolCalls, getToolIcon, summarizeToolParams, summarizeToolResult, formatStageOutput, formatToolResult, formatTokens, formatStageLine, countWriteFiles } from './formatters.js';
@@ -75,7 +76,7 @@ export class ProgressDisplay {
    */
   private startChildThinkingSpinner(depth: number): void {
     if (this.interrupted) return; // in-flight child events must not resurrect the spinner after Ctrl-C
-    this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: depth * 2 + 2, color: 'gray' }).start();
+    this.thinkingSpinner = makeSpinner({ text: chalk.dim('Thinking... (0s)'), indent: depth * 2 + 2, color: 'gray' }).start();
     this.resetStageTimer();
     this.startTimer((elapsed) => {
       if (this.thinkingSpinner) {
@@ -159,7 +160,7 @@ export class ProgressDisplay {
         if (this.live) {
           this.stopSpinnersForChildLine();
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
-          this.thinkingSpinner = ora({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
+          this.thinkingSpinner = makeSpinner({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
           this.resetStageTimer();
           this.startTimer((elapsed) => {
             if (this.thinkingSpinner) {
@@ -168,7 +169,7 @@ export class ProgressDisplay {
           });
         } else {
           this.spinnerText = formatStageLine(prefix, event.stage_name, '');
-          this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
+          this.spinner = makeSpinner({ text: this.spinnerText, color: 'cyan' }).start();
           this.resetStageTimer();
           this.startTimer((elapsed) => {
             if (this.spinner) {
@@ -358,7 +359,7 @@ export class ProgressDisplay {
         if (!this.live) {
           const suffix = `(attempt ${this.currentAttempt}/${event.max_attempts})`;
           this.spinnerText = formatStageLine(prefix, this.currentStageName, suffix);
-          this.spinner = ora({ text: this.spinnerText, color: 'cyan' }).start();
+          this.spinner = makeSpinner({ text: this.spinnerText, color: 'cyan' }).start();
         }
       },
 
@@ -508,7 +509,7 @@ export class ProgressDisplay {
         const icon = getToolIcon(event.tool);
         const params = summarizeToolParams(event.tool, event.params);
         this.currentToolText = `${icon} ${event.tool}${params}`;
-        this.toolSpinner = ora({
+        this.toolSpinner = makeSpinner({
           text: chalk.white(this.currentToolText),
           indent: 2,
           color: 'cyan',
@@ -544,7 +545,7 @@ export class ProgressDisplay {
 
         // Restart thinking spinner even on error — LLM still processes the result and may retry
         const fromSec = this.elapsedSeconds();
-        this.thinkingSpinner = ora({ text: chalk.dim(`Thinking... (from ${fromSec}s)`), indent: 2, color: 'gray' }).start();
+        this.thinkingSpinner = makeSpinner({ text: chalk.dim(`Thinking... (from ${fromSec}s)`), indent: 2, color: 'gray' }).start();
         this.thinkingSpinner.text = chalk.dim(`Thinking... (from ${fromSec}s)`);
         this.startTimer((elapsed) => {
           if (this.thinkingSpinner) {
