@@ -1,6 +1,6 @@
 {
   "name": "@studio-foundation/contracts",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Shared TypeScript types and interfaces for Studio packages",
   "type": "module",
   "main": "./dist/index.js",
