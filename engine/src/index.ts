@@ -57,6 +57,7 @@ export { isRunOrphaned, reconcileOrphan } from './state/orphan.js';
 // Pipeline loaders
 export { loadPipeline, loadPipelineByName, parsePipelineYaml } from './pipeline/loader.js';
 export { loadAgentProfile, parseAgentYaml } from './pipeline/agent-loader.js';
+export { resolveEnvVars } from './pipeline/env-vars.js';
 export { loadContract, parseContractYaml } from './pipeline/contract-loader.js';
 
 // Context propagation
