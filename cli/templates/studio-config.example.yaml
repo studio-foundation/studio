@@ -12,6 +12,10 @@
 # Secrets never belong in this file: reference an environment variable
 # (${VAR}, or ${VAR:-default}) and let config.yaml resolve it.
 
+# Semver range this project needs of Studio itself. `studio run` stops before
+# any stage when the installed CLI falls outside it.
+# studio_version: ">=0.10.0"
+
 # providers:
 #   anthropic:
 #     apiKey: ${ANTHROPIC_API_KEY}

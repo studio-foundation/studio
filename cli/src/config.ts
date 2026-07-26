@@ -7,6 +7,8 @@ import { findStudioDir } from './studio-dir.js';
 export { resolveEnvVars };
 
 export interface StudioConfig {
+  /** semver range this project requires of Studio itself, e.g. ">=0.10.0" */
+  studio_version?: string;
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
