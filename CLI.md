@@ -9,6 +9,7 @@ Studio's primary interface for human use. For machine-to-machine usage (webhooks
 ```bash
 studio run <pipeline> --input "..."              # Run a pipeline
 studio init                                      # Bootstrap a new project (interactive)
+studio doctor                                    # Can this machine run this project?
 studio config set provider anthropic --api-key $KEY
 studio status [run-id]                           # Check status (last run if no ID)
 studio logs [run-id]                             # View run logs (JSONL)
@@ -208,6 +209,36 @@ Any semver range works (`>=0.10.0`, `^0.10.0`, `0.10.x`). Without the key, no ve
 This exists because a too-old Studio doesn't always fail loudly — a config using a key that version doesn't understand can leave a stage silently no-op'ing while the run still reports success. The guard turns that into a startup error.
 
 `studio registry install` applies the same check to a package's own `studio_version` and refuses to install one that needs a newer CLI.
+
+---
+
+## Preflight — `studio doctor`
+
+The checks above each fire at `studio run`, one at a time, in the middle of starting a pipeline. `studio doctor` runs them all at once, before you commit to a run, and answers a single question: **can this machine run this project?**
+
+```
+studio doctor
+
+  ✓ Studio version     0.10.0  (project requires >=0.9.0)
+  ✗ Config             config.yaml missing 1 key: providers.anthropic.apiKey
+  ✗ Required binaries  gh missing or unsupported
+  ⚠ Env vars           ANTHROPIC_API_KEY unset — resolves to an empty value
+
+  3 problems found — fix before running:
+
+  <the same actionable message each check prints at run>
+```
+
+| Check | What it verifies |
+|---|---|
+| Studio version | The installed CLI satisfies `studio_version` |
+| Config | `config.yaml` has every key the `config.example.yaml` contract declares |
+| Required binaries | Every `requires_binaries` entry — the project's and each tool plugin's — is on PATH and in range |
+| Env vars | Every `${VAR}` referenced by `config.yaml` resolves to a value |
+
+The env var check is the one `studio run` doesn't have: `${VAR}` with nothing behind it resolves to an **empty string**, so the key is present and the contract passes while the value is blank. It's a `⚠`, not a `✗` — a project can legitimately reference a key for a provider it isn't using.
+
+Exit code is `1` when any `✗` check fails (a `⚠` alone exits `0`), so `studio doctor` works as a CI or bootstrap gate.
 
 ---
 

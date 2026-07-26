@@ -68,6 +68,8 @@ Studio/
 
 **Required binaries (`requires_binaries`)** — Declared in `.studio/config.yaml` (project-wide) and in `constraints.requires_binaries` of any `.tool.yaml` (per plugin). `studio run` checks every entry against PATH before the first stage and exits with the missing ones. An entry may carry a semver range (`"node >=18 <=22"`), in which case `<binary> --version` is probed too. `studio registry install` warns instead of blocking. See CLI.md.
 
+**Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus an env-var check `run` doesn't have: a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
+
 ## State Machine
 
 ```
