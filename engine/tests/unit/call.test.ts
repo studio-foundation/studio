@@ -78,6 +78,8 @@ describe('Call (one-shot sub-pipeline) stage', () => {
     expect(stage.status).toBe('success');
     // Output is the child's output, propagated directly (not wrapped).
     expect((stage as any).output).toEqual({ pages: 3 });
+    // The spawned child run id is recorded so readers can nest it.
+    expect(stage.child_run_id).toBe('run-0');
   });
 
   it('defaults the child pipeline to the stage name', async () => {
