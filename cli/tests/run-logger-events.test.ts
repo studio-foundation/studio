@@ -321,6 +321,32 @@ describe('mergeEvents — map (fan-out) events', () => {
   });
 });
 
+describe('mergeEvents — nested (call/map) child runs', () => {
+  it('never reopens the log stream for a child, and tags its events with depth', async () => {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const events = mergeEvents({} as EngineEvents, logger, 'wiki-full', 'input');
+    const childCtx = { depth: 1, childId: 'd1#0' };
+
+    events.onPipelineStart!({ pipeline_name: 'wiki-full', run_id: 'parent-12345678' });
+    events.onPipelineStart!({ pipeline_name: 'child', run_id: 'child-12345678' }, childCtx);
+    events.onStageComplete!(
+      { stage_name: 'child-stage', stage_index: 0, total_stages: 1, status: 'success', attempts: 1, duration_ms: 1 },
+      childCtx
+    );
+    events.onStageComplete!({
+      stage_name: 'parent-stage', stage_index: 0, total_stages: 1, status: 'success', attempts: 1, duration_ms: 2,
+    });
+
+    expect(logger.start).toHaveBeenCalledTimes(1);
+    expect(logger.start).toHaveBeenCalledWith('parent-12345678', 'wiki-full');
+
+    const stageEntries = entries.filter(e => e.event === 'stage_complete');
+    expect(stageEntries.find(e => e.stage === 'child-stage')!.depth).toBe(1);
+    expect(stageEntries.find(e => e.stage === 'parent-stage')).not.toHaveProperty('depth');
+  });
+});
+
 describe('mergeEvents — run_id cleanup', () => {
   it('does not pass explicit run_id: undefined in stage_start payload', async () => {
     const { mergeEvents } = await import('../src/commands/run.js');

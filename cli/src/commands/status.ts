@@ -47,8 +47,11 @@ function runIdShort(runId: string): string {
   return runId.replace(/-/g, '').slice(0, 8);
 }
 
-async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun | null> {
-  const runsPath = resolve(process.cwd(), RUNS_DIR);
+export async function getRunFromJsonl(
+  runId: string | undefined,
+  cwd: string = process.cwd()
+): Promise<PipelineRun | null> {
+  const runsPath = resolve(cwd, RUNS_DIR);
   let entries: import('node:fs').Dirent[];
   try {
     entries = await readdir(runsPath, { withFileTypes: true });
@@ -82,10 +85,13 @@ async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun |
       })
       .filter((r): r is Record<string, unknown> => r !== null);
 
+    // Child runs spawned by a call/map stage log into this same file, tagged
+    // with their depth; the top-level run is the untagged one.
+    const topLevel = lines.filter((r) => !r.depth);
     const forRun = shortId
-      ? lines.filter((r) => (r.run_id as string) === shortId || (r.run_id as string)?.startsWith(shortId))
-      : lines;
-    const records = forRun.length > 0 ? forRun : lines;
+      ? topLevel.filter((r) => (r.run_id as string) === shortId || (r.run_id as string)?.startsWith(shortId))
+      : topLevel;
+    const records = forRun.length > 0 ? forRun : topLevel;
 
     let pipeline_name = '';
     let started_at = '';
@@ -104,7 +110,7 @@ async function getRunFromJsonl(runId: string | undefined): Promise<PipelineRun |
       const event = r.event as string;
       const ts = r.ts as string;
       if (event === 'pipeline_start') {
-        pipeline_name = `${r.project}/${r.pipeline}`;
+        pipeline_name = String(r.pipeline ?? '');
         started_at = ts ?? '';
       } else if (event === 'pipeline_complete') {
         status = (r.status as string) ?? 'running';

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import type { EngineEvents, MapItemCompleteEvent } from '@studio-foundation/engine';
+import type { EngineEvents, EventContext, MapItemCompleteEvent } from '@studio-foundation/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
 import { resolveRepoPath } from '@studio-foundation/engine';
@@ -63,11 +63,19 @@ export function mergeEvents(
   input: string | Record<string, unknown>
 ): EngineEvents {
   let totalStages = 0;
+  // Child runs spawned by `call`/`map` stages emit through this same sink, so
+  // every event carries its `depth`: readers of the log (studio status, replay)
+  // keep the top-level run apart from the nested ones interleaved in the file.
+  const log = (ctx: EventContext | undefined, payload: Record<string, unknown>): void =>
+    logger.log(ctx?.depth ? { ...payload, depth: ctx.depth } : payload);
   return {
     onPipelineStart: (e, ctx) => {
-      logger.start(e.run_id, pipeline);
+      // Only the top-level run opens the file. Restarting the stream on a
+      // nested pipeline_start redirected the parent's remaining events into a
+      // child file and left the parent log a stub (STU-680).
+      if (!ctx?.depth) logger.start(e.run_id, pipeline);
       progressEvents.onPipelineStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'pipeline_start',
         run_id: e.run_id,
         pipeline,
@@ -76,7 +84,7 @@ export function mergeEvents(
     },
     onPipelineComplete: (e, ctx) => {
       progressEvents.onPipelineComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'pipeline_complete',
         run_id: e.run_id,
         pipeline_name: e.pipeline_name,
@@ -90,7 +98,7 @@ export function mergeEvents(
     onStageStart: (e, ctx) => {
       totalStages = e.total_stages;
       progressEvents.onStageStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'stage_start',
         stage: e.stage_name,
         stage_index: e.stage_index,
@@ -98,8 +106,8 @@ export function mergeEvents(
         max_attempts: e.max_attempts,
       });
     },
-    onStageContext: (e) => {
-      logger.log({
+    onStageContext: (e, ctx) => {
+      log(ctx, {
         event: 'stage_context',
         stage: e.stage,
         run_id: e.run_id,
@@ -110,7 +118,7 @@ export function mergeEvents(
     },
     onStageComplete: (e, ctx) => {
       progressEvents.onStageComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'stage_complete',
         stage: e.stage_name,
         status: e.status,
@@ -132,7 +140,7 @@ export function mergeEvents(
     },
     onTaskRetry: (e, ctx) => {
       progressEvents.onTaskRetry?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'stage_retry',
         stage: e.stage,
         attempt: e.attempt,
@@ -144,7 +152,7 @@ export function mergeEvents(
     },
     onGroupStart: (e, ctx) => {
       progressEvents.onGroupStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'group_start',
         group: e.group_name,
         max_iterations: e.max_iterations,
@@ -152,7 +160,7 @@ export function mergeEvents(
     },
     onGroupIteration: (e, ctx) => {
       progressEvents.onGroupIteration?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'group_iteration',
         group: e.group_name,
         iteration: e.iteration,
@@ -161,7 +169,7 @@ export function mergeEvents(
     },
     onGroupFeedback: (e, ctx) => {
       progressEvents.onGroupFeedback?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'group_feedback',
         group: e.group_name,
         iteration: e.iteration,
@@ -171,7 +179,7 @@ export function mergeEvents(
     },
     onGroupComplete: (e, ctx) => {
       progressEvents.onGroupComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'group_complete',
         group: e.group_name,
         iterations: e.iterations,
@@ -180,7 +188,7 @@ export function mergeEvents(
     },
     onMapStart: (e, ctx) => {
       progressEvents.onMapStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'map_start',
         map: e.map_name,
         total_items: e.total_items,
@@ -189,7 +197,7 @@ export function mergeEvents(
     },
     onMapItemStart: (e, ctx) => {
       progressEvents.onMapItemStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'map_item_start',
         map: e.map_name,
         index: e.index,
@@ -199,7 +207,7 @@ export function mergeEvents(
     },
     onMapItemComplete: (e, ctx) => {
       progressEvents.onMapItemComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'map_item_complete',
         map: e.map_name,
         index: e.index,
@@ -212,7 +220,7 @@ export function mergeEvents(
     },
     onMapComplete: (e, ctx) => {
       progressEvents.onMapComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'map_complete',
         map: e.map_name,
         total: e.total,
@@ -221,8 +229,8 @@ export function mergeEvents(
         status: e.status,
       });
     },
-    onPipelineCancelled: (e) => {
-      logger.log({
+    onPipelineCancelled: (e, ctx) => {
+      log(ctx, {
         event: 'pipeline_cancelled',
         run_id: e.run_id,
         cancelled_at_stage: e.cancelled_at_stage,
@@ -231,7 +239,7 @@ export function mergeEvents(
     },
     onToolCallStart: (e, ctx) => {
       progressEvents.onToolCallStart?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'tool_call_start',
         tool: e.tool,
         params: e.params,
@@ -239,7 +247,7 @@ export function mergeEvents(
     },
     onToolCallComplete: (e, ctx) => {
       progressEvents.onToolCallComplete?.(e, ctx);
-      logger.log({
+      log(ctx, {
         event: 'tool_call_complete',
         tool: e.tool,
         result: e.result,
