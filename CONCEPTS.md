@@ -232,6 +232,19 @@ stages:
 - **`condition`** skips the call when false, like any other stage.
 - The child's output is propagated **directly** (not wrapped) under the stage name — `stages.<call>.output.<path>` — and a child failure fails the call stage and stops the parent. Child runs count against `maxDepth`, exactly like `map` and `studio_run`.
 
+`studio status <run-id>` surfaces each stage's **wall-clock** next to its status marker, and for a call-chained run it nests every child pipeline's own stages beneath the call — so which child dominates the run is read off the line, not reconstructed from the JSONL:
+
+```
+Stages:
+  [1/2] wiki-extraction ............... ✓  1.3s
+    └─ wiki-extraction
+       [1/2] extract-entities .......... ✓  0.9s
+       [2/2] emit-pages ................ ✓  0.4s
+  [2/2] pages-export .................. ✓  16.3s
+    └─ pages-export
+       [1/1] write-files ............... ✓  16.2s
+```
+
 ---
 
 ## Context propagation
