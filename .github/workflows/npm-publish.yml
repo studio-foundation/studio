@@ -11,8 +11,12 @@ on:
         required: true
 
 jobs:
+  binaries:
+    uses: ./.github/workflows/build-binaries.yml
+
   publish:
     name: Publish @studio packages
+    needs: binaries
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -53,6 +57,25 @@ jobs:
 
       - name: Bump all package versions to match release tag
         run: pnpm -r exec npm version ${{ steps.dist-tag.outputs.version }} --no-git-tag-version --allow-same-version
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: dist-binaries
+          merge-multiple: true
+
+      # Writes dist-npm/<platform>/ and the matching optionalDependencies into
+      # cli/package.json — so these must publish before the CLI that depends on them.
+      - name: Build per-platform binary packages
+        run: node scripts/build-npm-packages.mjs
+
+      - name: Publish per-platform binary packages
+        run: |
+          for dir in dist-npm/*/; do
+            npm publish "$dir" --access public --tag ${{ steps.dist-tag.outputs.tag }}
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish packages (dependency order)
         run: |

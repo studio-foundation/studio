@@ -37,4 +37,4 @@ for (const rel of packages) {
 }
 
 console.log(`\nAll ${packages.length} packages bumped to ${newVersion}.`);
-console.log('Note: CLI binary reads its version from cli/package.json at runtime.');
+console.log('Note: the CLI version is inlined into the build from cli/package.json.');

@@ -1,0 +1,55 @@
+name: Build binaries
+
+# Reusable: compiles the standalone CLI for every platform and leaves the results
+# in `binaries-*` artifacts for the calling workflow to publish.
+on:
+  workflow_call:
+
+jobs:
+  compile:
+    name: Compile (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Bun cross-compiles every non-Apple target from one Linux runner.
+          - os: ubuntu-24.04
+            platforms: linux-x64 linux-x64-musl linux-arm64 linux-arm64-musl win-x64
+          # macOS refuses to launch an unsigned Mach-O binary, so those are built on
+          # a macOS runner where `codesign` is available.
+          - os: macos-14
+            platforms: darwin-arm64 darwin-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Compile binaries
+        run: node scripts/build-binary.mjs ${{ matrix.platforms }}
+
+      - name: Ad-hoc sign macOS binaries
+        if: runner.os == 'macOS'
+        run: codesign --sign - --force dist-binaries/studio-darwin-*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}
+          path: dist-binaries/studio-*
+          if-no-files-found: error
