@@ -73,6 +73,16 @@ studio registry update [name]                    # Update installed tools
 
 The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
 
+### Cache
+
+```bash
+studio cache clean                               # Clear the whole map-stage resume cache
+studio cache clean --pipeline my-pipeline        # Only that parent pipeline's entries
+studio cache clean --dry-run                     # Show what would be cleared
+```
+
+The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json` — it's what makes `resume: true` on a `map:` stage skip items already completed in an earlier run. Entries are keyed on the item input, **not** on the provider or model, so a warm re-run under a different provider replays the previous provider's outputs. Clear the cache before any provider or model comparison.
+
 ### Other
 
 ```bash
@@ -153,6 +163,28 @@ Error: /repo/.studio/config.yaml is missing required key:
 A missing `config.yaml` is reported the same way, with the `cp` command to run. Only presence is checked — the value can come from `${VAR}`. Comment a key out to make it optional; a project with no `config.example.yaml` declares no contract and is never blocked.
 
 Secrets belong in `config.yaml` only. In the example, reference them as `${ANTHROPIC_API_KEY}`.
+
+### Pinning the Studio version — `studio_version`
+
+A project declares which Studio versions it works with, the way `package.json` declares `engines`:
+
+```yaml
+# .studio/config.yaml
+studio_version: ">=0.10.0"
+```
+
+`studio run` and `studio api start` compare the installed CLI against that range before touching a stage, and stop when it doesn't satisfy it:
+
+```
+Error: This project requires Studio >=0.10.0, but you have 0.9.0.
+  Upgrade:  npm i -g @studio-foundation/cli@latest
+```
+
+Any semver range works (`>=0.10.0`, `^0.10.0`, `0.10.x`). Without the key, no version check runs.
+
+This exists because a too-old Studio doesn't always fail loudly — a config using a key that version doesn't understand can leave a stage silently no-op'ing while the run still reports success. The guard turns that into a startup error.
+
+`studio registry install` applies the same check to a package's own `studio_version` and refuses to install one that needs a newer CLI.
 
 ---
 

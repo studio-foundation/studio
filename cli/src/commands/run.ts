@@ -8,6 +8,7 @@ import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCP
 import { resolveRepoPath } from '@studio-foundation/engine';
 import { loadConfig } from '../config.js';
 import { checkConfig, formatConfigCheckError } from '../config-validation.js';
+import { checkStudioVersion } from '../version-guard.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
 import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
@@ -254,6 +255,12 @@ export function mergeEvents(
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
   try {
     const config = await loadConfig(options.config);
+
+    const versionError = checkStudioVersion(config.studio_version, 'This project');
+    if (versionError) {
+      console.error(`Error: ${versionError}`);
+      process.exit(1);
+    }
 
     if (config.resolvedStudioDir) {
       const error = formatConfigCheckError(await checkConfig(config.resolvedStudioDir));

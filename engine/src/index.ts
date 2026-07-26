@@ -37,6 +37,7 @@ export {
   InMemoryMapItemCache,
   hashItemInput,
   canonicalize,
+  mapCacheSegment,
 } from './pipeline/map-item-cache.js';
 export type { MapItemCache, CachedMapItem, MapCacheNamespace } from './pipeline/map-item-cache.js';
 

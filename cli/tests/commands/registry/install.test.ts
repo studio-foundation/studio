@@ -13,7 +13,7 @@ const MOCK_METADATA = {
   author: 'studio-core',
   license: 'MIT',
   tags: ['linear'],
-  studio_version: '>=7.0.0',
+  studio_version: '>=0.1.0',
 };
 
 const MOCK_INDEX = {
@@ -72,6 +72,21 @@ describe('installPackage', () => {
     });
     expect(lf.installed['linear'].sha256).toBeTruthy();
   });
+
+  it('refuses a package that requires a newer Studio', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...MOCK_METADATA, studio_version: '>=99.0.0' }),
+    }));
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+
+    await expect(installPackage('linear', { studioDir: STUDIO_DIR, force: true })).rejects.toThrow(
+      /Package 'linear' requires Studio >=99\.0\.0/
+    );
+    await expect(
+      readFile(resolve(STUDIO_DIR, 'integrations', 'linear.integration.yaml'), 'utf8')
+    ).rejects.toThrow();
+  });
 });
 
 // --- ADDITIONAL CONSTANTS for dep resolution tests ---
@@ -84,7 +99,7 @@ const MOCK_TOOL_META = {
   author: 'studio-core',
   license: 'MIT',
   tags: [] as string[],
-  studio_version: '>=7.0.0',
+  studio_version: '>=0.1.0',
 };
 
 const MOCK_INDEX_WITH_DEPS = {
@@ -99,7 +114,7 @@ const MOCK_INDEX_WITH_DEPS = {
       author: 'studio-core',
       license: 'MIT',
       tags: [] as string[],
-      studio_version: '>=7.0.0',
+      studio_version: '>=0.1.0',
       downloads: 0,
     },
     { ...MOCK_TOOL_META, downloads: 0 },

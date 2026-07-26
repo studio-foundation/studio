@@ -8,7 +8,6 @@ process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
 }) as typeof process.emitWarning;
 
 import 'dotenv/config';
-import { createRequire } from 'module';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { runCommand } from './commands/run.js';
@@ -28,18 +27,17 @@ import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/ap
 import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 import { usersCommand } from './commands/users.js';
+import { cacheCleanCommand } from './commands/cache.js';
 import { ollamaCommand } from './commands/ollama.js';
 import { loadConfig } from './config.js';
-
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+import { STUDIO_VERSION } from './version-guard.js';
 
 const program = new Command();
 
 program
   .name('studio')
   .description('Studio — Declarative YAML runtime for AI agents')
-  .version(version);
+  .version(STUDIO_VERSION);
 
 program
   .command('run <project/pipeline>')
@@ -178,6 +176,15 @@ program
   });
 
 program.addCommand(createRegistryCommand());
+
+const cacheCmd = program.command('cache').description('Manage Studio caches');
+
+cacheCmd
+  .command('clean')
+  .description('Clear the map-stage resume cache (.studio/runs/map-cache/) — cached items are keyed on the item input, not on the provider or model, so clear it before re-running under a different provider')
+  .option('--pipeline <name>', 'Only clear entries for this parent pipeline')
+  .option('--dry-run', 'Show what would be cleared without deleting')
+  .action((opts: { pipeline?: string; dryRun?: boolean }) => { void cacheCleanCommand(opts); });
 
 const usersCmd = program.command('users').description('Manage users');
 
