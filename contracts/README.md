@@ -141,9 +141,28 @@ Used by the `studio_run` builtin tool to spawn sub-pipelines from within an agen
 Internal rules that govern this package:
 
 - **Zero dependencies**: no imports from other `@studio-foundation/*` packages, ever.
-- **Zero logic**: types and interfaces only. The one exception: `isStageGroup()` in `pipeline.ts` is a pure type guard function (no side effects, no state).
+- **Zero logic**: types and interfaces only. The exceptions are `StudioError`/`ErrorCode` in `errors.ts` and the pure type guards `isStageGroup()`, `isMapStage()` and `isCallStage()` in `pipeline.ts` (no side effects, no state).
 - If you need to add a type used by two packages, put it here.
 - If you're adding logic, you're in the wrong package.
+
+### Test coverage target
+
+A line-count ratio is meaningless here: almost everything in `src/` is erased at
+compile time, so counting test files against source files measures nothing. The
+package has two distinct surfaces and one target each.
+
+| Surface | Target | Enforced by |
+|---|---|---|
+| Runtime exports (`StudioError`, `ErrorCode`, the three type guards) | **100%** statements, branches, functions, lines | `pnpm test:coverage` thresholds in `vitest.config.ts` — CI fails below |
+| Types and interfaces | Every invariant another package relies on has a compile-time assertion | `tests/types.test-d.ts`, run by `vitest --typecheck` as part of `pnpm test` |
+
+100% on the runtime surface is not an aspiration — it is five exports, so anything
+less means a shipped function nobody ever executed.
+
+For the type surface, "coverage" is not a percentage. The bar is behavioural: a
+type assertion earns its place only if changing the type breaks it. Before adding
+one, mutate the type and confirm the test fails — `expectTypeOf` assertions that
+can't fail are the most convincing kind of dead test.
 
 ## License
 
