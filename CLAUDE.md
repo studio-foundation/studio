@@ -70,6 +70,13 @@ Studio/
 
 **Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus an env-var check `run` doesn't have: a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
 
+**Standalone binary** — `bun build --compile` turns the CLI into a single executable per platform ([scripts/build-binary.mjs](scripts/build-binary.mjs), platform table in [scripts/platforms.mjs](scripts/platforms.mjs)). Two consequences for anything running inside it:
+
+- **Nothing bundled may be read from disk.** There is no `import.meta.dirname` inside the binary, so `cli/templates/` and `runner/templates/` are inlined into `<pkg>/src/generated/bundled-assets.ts` by [scripts/gen-bundled-assets.mjs](scripts/gen-bundled-assets.mjs) (a `prebuild` step, gitignored) and read from `BUNDLED_ASSETS`. Adding a template needs no code change; reading one with `readFile` does — it will pass in dev and fail in the binary. `STUDIO_VERSION` comes from the same module.
+- **SQLite is opened through `openDatabase()`** (`engine/src/state/sqlite.ts`). Bun ships `bun:sqlite` and no `node:sqlite`; the two have the same synchronous API under different module names.
+
+Distribution: GitHub Releases (+ `install.sh` for `curl | sh`) and npm, where per-platform packages (`@studio-foundation/cli-<platform>`) are optional dependencies of `@studio-foundation/cli` and `cli/bin/studio.mjs` runs whichever one installed, falling back to the JS build. See CLI.md.
+
 ## State Machine
 
 ```

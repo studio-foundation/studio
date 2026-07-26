@@ -138,11 +138,20 @@ State machine: `pending → running → success | failed | rejected | skipped`. 
 
 ## Quick start
 
-Requires Node.js >= 22.13. No native compilation — persistence uses the built-in `node:sqlite`.
+Install the standalone binary — no Node.js, no npm, no native compilation:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+```
+
+Or from npm, which installs the same binary through a per-platform optional dependency
+and falls back to the JavaScript build on platforms without one (needs Node.js >= 22.13):
 
 ```bash
 npm install -g @studio-foundation/cli@beta
+```
 
+```bash
 # Create a project directory and initialize from a template
 mkdir my-builder && cd my-builder
 studio init --template software --name my-builder
