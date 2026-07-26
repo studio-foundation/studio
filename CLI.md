@@ -42,6 +42,25 @@ studio config set default.model claude-haiku-4-20250514
 studio config list                               # Show config (API keys masked)
 ```
 
+### Bootstrap — from a fresh machine
+
+Studio can't install itself: an empty machine has no Studio to run the config that would install Studio. The entry point is external and it's one line.
+
+```bash
+npm install -g @studio-foundation/cli && studio doctor
+```
+
+Joining an existing project instead of creating one:
+
+```bash
+git clone <repo> && cd <repo>
+npm install                                       # if the project has a package.json
+cp .studio/config.example.yaml .studio/config.yaml
+studio doctor                                     # fix whatever it prints, then run
+```
+
+`studio init` writes this same sequence into `ONBOARDING.md` at the project root, so a generated project carries its own setup path. The file is written once and never regenerated over — edit it as the project grows.
+
 ## Less frequent commands
 
 ### Tools
@@ -115,10 +134,11 @@ my-project/
 │       └── logs/                # JSONL
 ├── src/
 ├── prisma/
+├── ONBOARDING.md                # Fresh-machine setup path (committed)
 └── .gitignore
 ```
 
-**Committed:** `config.example.yaml`, `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `registry.lock.json`
+**Committed:** `config.example.yaml`, `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `registry.lock.json`, `ONBOARDING.md`
 
 **Gitignored:** `config.yaml` (API keys), `runs/`
 

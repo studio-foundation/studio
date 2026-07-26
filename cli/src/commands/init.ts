@@ -330,6 +330,27 @@ export async function generateAppFiles(
   return generated;
 }
 
+const ONBOARDING_FILE = 'ONBOARDING.md';
+
+/**
+ * Write ONBOARDING.md at the project root — the fresh-machine path for whoever
+ * clones this project next. Never overwrites an existing one.
+ *
+ * @returns true if the file was written, false if one was already there.
+ */
+export async function writeOnboardingDoc(
+  targetDir: string,
+  vars: Record<string, string>
+): Promise<boolean> {
+  const dest = join(targetDir, ONBOARDING_FILE);
+  const exists = await access(dest).then(() => true).catch(() => false);
+  if (exists) return false;
+
+  const template = await readFile(resolve(TEMPLATES_DIR, ONBOARDING_FILE), 'utf-8');
+  await writeFile(dest, applyPlaceholders(template, vars), 'utf-8');
+  return true;
+}
+
 const TEXT_EXTENSIONS = new Set([
   '.ts', '.js', '.json', '.md', '.yaml', '.yml',
   '.prisma', '.txt', '.env', '.gitignore', '.sh',
@@ -393,7 +414,8 @@ interface GenerateFullAppOptions {
  * Generate a complete app from a template:
  * 1. Creates .studio/ workspace and installs the template from the registry to .studio/projects/<name>/
  * 2. Copies app scaffold files (src/, prisma/, package.json, README.md) from the installed template
- * 3. Initializes a git repository (unless skipGit)
+ * 3. Writes ONBOARDING.md — the fresh-machine setup path
+ * 4. Initializes a git repository (unless skipGit)
  *
  * Does NOT write provider config — call writeProviderToConfig separately.
  *
@@ -421,7 +443,12 @@ export async function generateFullApp(
   };
   const generatedFiles = await generateAppFiles(installedTemplateDir, cwd, vars);
 
-  // 3. Initialize git repo (unless already initialized or skipped)
+  // 3. Write the onboarding doc — every template gets one, blank included
+  if (await writeOnboardingDoc(cwd, vars)) {
+    generatedFiles.push(ONBOARDING_FILE);
+  }
+
+  // 4. Initialize git repo (unless already initialized or skipped)
   let gitInitialized = false;
   if (!options.skipGit) {
     gitInitialized = await initGitRepo(cwd);
@@ -613,6 +640,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
       console.log(chalk.bold('Done! Next steps:'));
       console.log(`  ${chalk.cyan('npm install')}`);
+      console.log(`  ${chalk.cyan('studio doctor')}                      # can this machine run it?`);
       console.log(`  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`);
       if (resolvedProvider === 'later') {
         console.log('');
@@ -882,6 +910,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     if (!installNow) {
       console.log(`  ${chalk.cyan(`${pkgManager} install`)}`);
     }
+    console.log(`  ${chalk.cyan('studio doctor')}                      # can this machine run it?`);
     console.log(
       `  ${chalk.cyan(`studio run ${firstPipeline} --input "..."`)}`
     );
