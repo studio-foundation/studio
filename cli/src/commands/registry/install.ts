@@ -7,6 +7,7 @@ import { RegistryCache } from '../../registry/cache.js';
 import { syncRegistry } from './sync.js';
 import { findStudioDir } from '../../studio-dir.js';
 import { resolveDependencies } from '../../registry/resolver.js';
+import { checkBinaries, formatBinaryPreflightError } from '../../binary-preflight.js';
 import type { PackageMetadata, PackageType, RegistryIndex, Lockfile } from '../../registry/types.js';
 import { INSTALL_DIRS } from '../../registry/types.js';
 
@@ -103,13 +104,13 @@ async function doInstallPackage(
   }
 
   if (meta.requires_binaries?.length) {
-    const { spawnSync } = await import('node:child_process');
-    for (const bin of meta.requires_binaries) {
-      const check = spawnSync('which', [bin], { encoding: 'utf8' });
-      if (check.status !== 0) {
-        console.log(chalk.yellow(`⚠ Warning: required binary '${bin}' not found in PATH`));
-      }
-    }
+    // Warning, not a block: a package may legitimately be installed before the
+    // binaries it drives. `studio run` is where the same check is enforced.
+    const failures = checkBinaries(
+      meta.requires_binaries.map((entry) => ({ entry, declaredBy: `package '${name}'` }))
+    );
+    const error = formatBinaryPreflightError(failures);
+    if (error) console.log(chalk.yellow(error.replace(/^Error:/, '⚠ Warning:')));
   }
 
   await lockfile.add(name, {

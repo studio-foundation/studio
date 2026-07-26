@@ -12,6 +12,12 @@
 # Secrets never belong in this file: reference an environment variable
 # (${VAR}, or ${VAR:-default}) and let config.yaml resolve it.
 
+# Binaries this project needs. `studio run` stops before any stage when one is
+# missing from PATH, or falls outside its semver range.
+# requires_binaries:
+#   - git
+#   - "node >=18 <=22"
+
 # providers:
 #   anthropic:
 #     apiKey: ${ANTHROPIC_API_KEY}

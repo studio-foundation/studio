@@ -18,6 +18,7 @@ export interface LoadedPlugin {
   name: string;
   tools: Tool[];
   promptSnippet?: string;
+  requiresBinaries?: string[];
 }
 
 /** Build a map of tool name → Tool from all builtin factories. */
@@ -145,6 +146,7 @@ export async function loadProjectTools(
       name: def.name,
       tools,
       promptSnippet: def.prompt_snippet,
+      requiresBinaries: def.constraints?.requires_binaries,
     });
   }
 

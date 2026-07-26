@@ -7,6 +7,8 @@ import { findStudioDir } from './studio-dir.js';
 export { resolveEnvVars };
 
 export interface StudioConfig {
+  /** Binaries this project needs: `"git"`, or `"node >=18 <=22"` for a range. */
+  requires_binaries?: string[];
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
