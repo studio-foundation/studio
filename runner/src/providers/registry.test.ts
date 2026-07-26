@@ -18,7 +18,35 @@ describe('createDefaultRegistry — claudeCode', () => {
 
   it('passes model from claudeCode config to ClaudeCodeProvider', async () => {
     const { ClaudeCodeProvider } = await import('./claude-code.js');
-    createDefaultRegistry({ claudeCode: { model: 'claude-haiku-4-5' } });
+    createDefaultRegistry({ claudeCode: { model: 'claude-haiku-4-5' } }).get('claude-code');
     expect(ClaudeCodeProvider).toHaveBeenCalledWith({ model: 'claude-haiku-4-5' });
+  });
+});
+
+describe('createDefaultRegistry — lazy construction', () => {
+  it('does not construct a declared provider until it is requested', () => {
+    const registry = createDefaultRegistry({ openai: { apiKey: '' } });
+    expect(registry.has('openai')).toBe(true);
+    expect(registry.list()).toContain('openai');
+  });
+
+  it('reports the missing key when an empty-key provider is requested', () => {
+    const registry = createDefaultRegistry({ openai: { apiKey: '  ' } });
+    expect(() => registry.get('openai')).toThrow(
+      /Provider "openai" failed to initialize: no API key\. Set providers\.openai\.apiKey/
+    );
+  });
+
+  it('lets an unused empty-key block coexist with a usable provider', () => {
+    const registry = createDefaultRegistry({
+      openai: { apiKey: '' },
+      anthropic: { apiKey: 'sk-real' },
+    });
+    expect(registry.get('anthropic').name).toBe('anthropic');
+  });
+
+  it('builds a lazy provider once and caches it', () => {
+    const registry = createDefaultRegistry({ anthropic: { apiKey: 'sk-real' } });
+    expect(registry.get('anthropic')).toBe(registry.get('anthropic'));
   });
 });
