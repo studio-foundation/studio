@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+// node:sqlite is still marked experimental below Node 25.7 — its warning is noise on every command.
+const emitWarning = process.emitWarning.bind(process);
+process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
+  if (String(warning).startsWith('SQLite is an experimental feature')) return;
+  (emitWarning as (...args: unknown[]) => void)(warning, ...rest);
+}) as typeof process.emitWarning;
+
 import 'dotenv/config';
 import { createRequire } from 'module';
 import { Command } from 'commander';

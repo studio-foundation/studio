@@ -138,6 +138,8 @@ State machine: `pending → running → success | failed | rejected | skipped`. 
 
 ## Quick start
 
+Requires Node.js >= 22.13. No native compilation — persistence uses the built-in `node:sqlite`.
+
 ```bash
 npm install -g @studio-foundation/cli@beta
 

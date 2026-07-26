@@ -29,6 +29,9 @@
   ],
   "author": "Ariane Guay",
   "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.13"
+  },
   "devDependencies": {
     "typescript": "^5.3.0",
     "vitest": "^4.0.18"
