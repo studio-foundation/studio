@@ -4,6 +4,9 @@
   "private": true,
   "description": "Studio — Declarative YAML runtime for AI agents (monorepo)",
   "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.13"
+  },
   "author": "Ariane Guay",
   "repository": {
     "type": "git",

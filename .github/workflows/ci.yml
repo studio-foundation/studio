@@ -12,8 +12,11 @@ concurrency:
 
 jobs:
   ci:
-    name: Build, Typecheck & Test
+    name: Build, Typecheck & Test (node ${{ matrix.node }})
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: 'pnpm'
 
       - name: Install dependencies

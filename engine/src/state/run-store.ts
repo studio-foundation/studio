@@ -87,16 +87,16 @@ export class InMemoryRunStore implements RunStore {
 }
 
 // SQLite store for production persistence
-// Uses better-sqlite3 (synchronous, simple, no migrations)
+// Uses node:sqlite (synchronous, no native build, no migrations)
 // Stores the entire PipelineRun as JSON in a single column — simple, queryable by status
 export class SQLiteRunStore implements RunStore {
-  private db: import('better-sqlite3').Database;
+  private db: import('node:sqlite').DatabaseSync;
 
   constructor(dbPath: string) {
     const _require = createRequire(import.meta.url);
-    const Database = _require('better-sqlite3') as new (path: string) => import('better-sqlite3').Database;
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
+    const { DatabaseSync } = _require('node:sqlite') as typeof import('node:sqlite');
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec('PRAGMA journal_mode = WAL');
     this.initSchema();
   }
 
@@ -174,7 +174,7 @@ export class SQLiteRunStore implements RunStore {
 
   listPipelineRuns(options?: { limit?: number; status?: string }): PipelineRun[] {
     let sql = 'SELECT result FROM pipeline_runs';
-    const params: unknown[] = [];
+    const params: (string | number)[] = [];
 
     if (options?.status) {
       sql += ' WHERE status = ?';
@@ -197,7 +197,7 @@ export class SQLiteRunStore implements RunStore {
 
   getLatestRun(pipelineName?: string): PipelineRun | null {
     let sql = 'SELECT result FROM pipeline_runs';
-    const params: unknown[] = [];
+    const params: (string | number)[] = [];
 
     if (pipelineName) {
       sql += ' WHERE pipeline_name = ?';

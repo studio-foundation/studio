@@ -22,13 +22,13 @@ export interface IntegrationTriggerRecord {
 }
 
 export class IntegrationStore {
-  private db: import('better-sqlite3').Database;
+  private db: import('node:sqlite').DatabaseSync;
 
   constructor(dbPath: string) {
     const _require = createRequire(import.meta.url);
-    const Database = _require('better-sqlite3') as new (path: string) => import('better-sqlite3').Database;
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
+    const { DatabaseSync } = _require('node:sqlite') as typeof import('node:sqlite');
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec('PRAGMA journal_mode = WAL');
     this.initSchema();
   }
 
