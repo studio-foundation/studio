@@ -8,6 +8,7 @@ export type { EngineConfig, RunInput } from './engine.js';
 export { PipelineEventEmitter } from './events.js';
 export type {
   EngineEvents,
+  EventContext,
   PipelineEvent,
   PipelineStartEvent,
   PipelineCompleteEvent,

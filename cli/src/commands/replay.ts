@@ -237,6 +237,10 @@ export function parseJsonlForResume(jsonlContent: string): ResumeContext {
       continue; // skip corrupt lines
     }
 
+    // Nested call/map child runs share the file; only the top-level run's
+    // stages can be resumed.
+    if (record.depth) continue;
+
     const event = record.event as string;
 
     if (event === 'pipeline_start') {
