@@ -8,6 +8,7 @@ import { syncRegistry } from './sync.js';
 import { findStudioDir } from '../../studio-dir.js';
 import { resolveDependencies } from '../../registry/resolver.js';
 import { checkBinaries, formatBinaryPreflightError } from '../../binary-preflight.js';
+import { checkStudioVersion } from '../../version-guard.js';
 import type { PackageMetadata, PackageType, RegistryIndex, Lockfile } from '../../registry/types.js';
 import { INSTALL_DIRS } from '../../registry/types.js';
 
@@ -70,6 +71,9 @@ async function doInstallPackage(
     metaCache.set(name, meta);
   }
   const version = requestedVersion ?? meta.version;
+
+  const versionError = checkStudioVersion(meta.studio_version, `Package '${name}'`);
+  if (versionError) throw new Error(versionError);
 
   console.log(`${indent}Installing ${depth > 0 ? 'dependency: ' : ''}${chalk.bold(name)} v${version} [${type}]...`);
 

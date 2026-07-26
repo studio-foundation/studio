@@ -8,5 +8,4 @@ packages:
   - "api"
 
 onlyBuiltDependencies:
-  - better-sqlite3
   - esbuild

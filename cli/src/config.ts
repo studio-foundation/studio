@@ -7,6 +7,8 @@ import { findStudioDir } from './studio-dir.js';
 export { resolveEnvVars };
 
 export interface StudioConfig {
+  /** semver range this project requires of Studio itself, e.g. ">=0.10.0" */
+  studio_version?: string;
   /** Binaries this project needs: `"git"`, or `"node >=18 <=22"` for a range. */
   requires_binaries?: string[];
   providers?: {

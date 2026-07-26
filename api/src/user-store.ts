@@ -21,13 +21,13 @@ export interface DailyUsage {
 }
 
 export class UserStore {
-  private db: import('better-sqlite3').Database;
+  private db: import('node:sqlite').DatabaseSync;
 
   constructor(dbPath: string) {
     const _require = createRequire(import.meta.url);
-    const Database = _require('better-sqlite3') as new (path: string) => import('better-sqlite3').Database;
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
+    const { DatabaseSync } = _require('node:sqlite') as typeof import('node:sqlite');
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec('PRAGMA journal_mode = WAL');
     this.initSchema();
   }
 
@@ -75,7 +75,7 @@ export class UserStore {
   listUsers(): User[] {
     return this.db
       .prepare('SELECT id, email, plan, api_key, created_at FROM users ORDER BY created_at ASC')
-      .all() as User[];
+      .all() as unknown as User[];
   }
 
   saveUser(user: User): void {
