@@ -8,6 +8,8 @@ import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCP
 import { resolveRepoPath } from '@studio-foundation/engine';
 import { loadConfig } from '../config.js';
 import { checkConfig, formatConfigCheckError } from '../config-validation.js';
+import { checkBinaries, formatBinaryPreflightError } from '../binary-preflight.js';
+import type { BinaryRequirement } from '../binary-preflight.js';
 import { checkStudioVersion } from '../version-guard.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
@@ -252,6 +254,16 @@ export function mergeEvents(
   };
 }
 
+/** Each declaration source is checked as soon as it is known — the project's
+ *  before the input wizard, a tool plugin's once the plugins are loaded. */
+function failOnMissingBinaries(requirements: BinaryRequirement[]): void {
+  const error = formatBinaryPreflightError(checkBinaries(requirements));
+  if (error) {
+    console.error(error);
+    process.exit(1);
+  }
+}
+
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
   try {
     const config = await loadConfig(options.config);
@@ -269,6 +281,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         process.exit(1);
       }
     }
+
+    failOnMissingBinaries(
+      (config.requires_binaries ?? []).map((entry) => ({ entry, declaredBy: 'this project' }))
+    );
 
     // Create run store — fail-silent so a broken SQLite never blocks a run
     let runStore: AnyRunStore | null = null;
@@ -399,6 +415,16 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
 
     const toolsDir = resolve(configsDir, 'tools');
     const loadedPlugins = await loadProjectTools(toolsDir, repoPath);
+
+    failOnMissingBinaries(
+      loadedPlugins.flatMap((plugin) =>
+        (plugin.requiresBinaries ?? []).map((entry) => ({
+          entry,
+          declaredBy: `tool plugin '${plugin.name}'`,
+        }))
+      )
+    );
+
     const toolRegistry = new ToolRegistry();
     for (const plugin of loadedPlugins) {
       toolRegistry.registerPlugin(plugin.name, plugin.tools, plugin.promptSnippet);

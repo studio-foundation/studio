@@ -16,6 +16,12 @@
 # any stage when the installed CLI falls outside it.
 # studio_version: ">=0.10.0"
 
+# Binaries this project needs. `studio run` stops before any stage when one is
+# missing from PATH, or falls outside its semver range.
+# requires_binaries:
+#   - git
+#   - "node >=18 <=22"
+
 # providers:
 #   anthropic:
 #     apiKey: ${ANTHROPIC_API_KEY}

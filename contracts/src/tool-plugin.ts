@@ -42,6 +42,7 @@ export interface ToolPluginDef {
   prompt_snippet?: string;
   constraints?: {
     requires_initialized_repo?: boolean;
+    /** `"git"`, or `"node >=18 <=22"` to also constrain the version. */
     requires_binaries?: string[];
   };
 }

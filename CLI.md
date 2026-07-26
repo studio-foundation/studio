@@ -164,6 +164,29 @@ A missing `config.yaml` is reported the same way, with the `cp` command to run. 
 
 Secrets belong in `config.yaml` only. In the example, reference them as `${ANTHROPIC_API_KEY}`.
 
+### Required binaries — `requires_binaries`
+
+A pipeline that shells out to `git` or `gh` used to start and die at the first tool call. `requires_binaries` declares those dependencies up front, and `studio run` checks them before any stage.
+
+```yaml
+# .studio/config.yaml
+requires_binaries:
+  - git
+  - gh
+  - "node >=18 <=22"    # semver range — the version is checked too
+```
+
+An entry is a binary name, optionally followed by a semver range. Presence is checked with `which`; a range additionally runs `<binary> --version` and matches the first version it reports. Tool plugins declare their own under `constraints.requires_binaries` in `.tool.yaml`, and those are checked the same way for every plugin loaded by the run.
+
+```
+Error: required binaries are missing or unsupported:
+  - gh — not found in PATH (required by this project)
+  - node — requires <=22, found 24.3.0 (required by this project)
+  Install them, or relax requires_binaries in the declaring file.
+```
+
+`studio registry install` reports the same failures as a warning rather than a block — a package can legitimately be installed before the binaries it drives.
+
 ### Pinning the Studio version — `studio_version`
 
 A project declares which Studio versions it works with, the way `package.json` declares `engines`:
