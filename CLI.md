@@ -154,6 +154,28 @@ A missing `config.yaml` is reported the same way, with the `cp` command to run. 
 
 Secrets belong in `config.yaml` only. In the example, reference them as `${ANTHROPIC_API_KEY}`.
 
+### Pinning the Studio version — `studio_version`
+
+A project declares which Studio versions it works with, the way `package.json` declares `engines`:
+
+```yaml
+# .studio/config.yaml
+studio_version: ">=0.10.0"
+```
+
+`studio run` and `studio api start` compare the installed CLI against that range before touching a stage, and stop when it doesn't satisfy it:
+
+```
+Error: This project requires Studio >=0.10.0, but you have 0.9.0.
+  Upgrade:  npm i -g @studio-foundation/cli@latest
+```
+
+Any semver range works (`>=0.10.0`, `^0.10.0`, `0.10.x`). Without the key, no version check runs.
+
+This exists because a too-old Studio doesn't always fail loudly — a config using a key that version doesn't understand can leave a stage silently no-op'ing while the run still reports success. The guard turns that into a startup error.
+
+`studio registry install` applies the same check to a package's own `studio_version` and refuses to install one that needs a newer CLI.
+
 ---
 
 ## Debugging

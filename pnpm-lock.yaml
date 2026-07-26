@@ -111,6 +111,9 @@ importers:
       ora:
         specifier: ^9.3.0
         version: 9.3.0
+      semver:
+        specifier: ^7.7.2
+        version: 7.7.4
     devDependencies:
       '@types/js-yaml':
         specifier: ^4.0.9
@@ -118,6 +121,9 @@ importers:
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3
+      '@types/semver':
+        specifier: ^7.7.0
+        version: 7.7.1
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -791,6 +797,9 @@ packages:
 
   '@types/pg@8.18.0':
     resolution: {integrity: sha512-gT+oueVQkqnj6ajGJXblFR4iavIXWsGAFCk3dP4Kki5+a9R4NMt0JARdk6s8cUKcfUoqP5dAtDSLU8xYUTFV+Q==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   '@vitest/coverage-v8@4.0.18':
     resolution: {integrity: sha512-7i+N2i0+ME+2JFZhfuz7Tg/FqKtilHjGyGvoHYQ6iLV0zahbsJ9sljC9OcFcPDbhYKCet+sG8SsVqlyGvPflZg==}
@@ -2384,6 +2393,8 @@ snapshots:
       '@types/node': 25.2.3
       pg-protocol: 1.12.0
       pg-types: 2.2.0
+
+  '@types/semver@7.7.1': {}
 
   '@vitest/coverage-v8@4.0.18(vitest@4.0.18(@types/node@25.2.3)(yaml@2.8.2))':
     dependencies:
