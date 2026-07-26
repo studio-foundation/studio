@@ -8,7 +8,6 @@ import type { IntegrationRuntime } from '../src/integration-runtime.js';
 import type { IntegrationStore } from '../src/integration-store.js';
 import { UserStore, type User } from '../src/user-store.js';
 import { DEFAULT_PLANS } from '../src/plans.js';
-import type { WebhookStore } from '../src/webhook-store.js';
 
 function makeMockLauncher(): RunLauncher {
   return {
@@ -25,8 +24,6 @@ function makeTempUserStore(): UserStore {
   mkdirSync(dir, { recursive: true });
   return new UserStore(resolve(dir, 'runs.db'));
 }
-
-const nullWebhookStore = {} as unknown as WebhookStore;
 
 const proUser: User = {
   id: 'user-pro-1',

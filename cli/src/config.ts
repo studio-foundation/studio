@@ -88,7 +88,8 @@ async function loadFromFile(filePath: string): Promise<StudioConfig> {
     parsed = yaml.load(resolved);
   } catch (err) {
     throw new Error(
-      `Failed to parse config ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      `Failed to parse config ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err }
     );
   }
 

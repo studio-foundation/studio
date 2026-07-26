@@ -39,7 +39,8 @@ export class OllamaProvider implements Provider {
     } catch (err) {
       if (isConnectionRefused(err)) {
         throw new Error(
-          `Ollama is not running at ${this.baseUrl}. Start it with: ollama serve`
+          `Ollama is not running at ${this.baseUrl}. Start it with: ollama serve`,
+          { cause: err }
         );
       }
       throw err;

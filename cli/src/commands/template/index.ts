@@ -46,6 +46,7 @@ export async function templateCommand(action: string, args: string[]): Promise<v
 
         console.log('');
         process.exit(result.valid ? 0 : 1);
+        break;
       }
 
       default:

@@ -214,7 +214,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   }
 
   // --- Standard multi-turn loop (Chat Completions style) ---
-  let currentMessages: Message[] = messages;
+  const currentMessages: Message[] = messages;
   let iterations = 0;
   let lastResponse: LLMResponse | null = null;
 

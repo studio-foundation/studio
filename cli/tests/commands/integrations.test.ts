@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, writeFile, rm, readFile, access, unlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import { installIntegration, getIntegrationStatus, removeIntegration, runIntegrationTest } from '../../src/commands/integrations.js';
-import type { IntegrationTestResult } from '../../src/commands/integrations.js';
 
 let studioDir: string;
 let integrationsDir: string;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
-import { PipelineEngine, type EngineConfig } from '../../src/engine.js';
+import { PipelineEngine } from '../../src/engine.js';
 import { InMemoryRunStore } from '../../src/state/run-store.js';
 import type { EngineEvents } from '../../src/events.js';
 import { mkdirSync, writeFileSync } from 'node:fs';

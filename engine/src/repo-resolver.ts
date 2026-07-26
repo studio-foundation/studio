@@ -33,7 +33,7 @@ export async function cloneRepo(
     execSync(cmd, { stdio: 'pipe' });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to clone ${repoUrl}: ${msg}`);
+    throw new Error(`Failed to clone ${repoUrl}: ${msg}`, { cause: error });
   }
 
   return clonePath;

@@ -20,9 +20,7 @@ export interface ResolvedAgentConfig extends AgentConfig {
   model: string;
 }
 
-export interface AgentProfile extends AgentConfig {
-  // Additional profile-specific fields
-}
+export type AgentProfile = AgentConfig;
 
 export interface ToolCall {
   id: string;

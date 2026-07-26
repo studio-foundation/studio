@@ -43,7 +43,8 @@ export class ProviderRegistry {
         built = factory();
       } catch (err) {
         throw new Error(
-          `Provider "${name}" failed to initialize: ${err instanceof Error ? err.message : String(err)}`
+          `Provider "${name}" failed to initialize: ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err }
         );
       }
       this.providers.set(name, built);
