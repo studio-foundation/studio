@@ -17,6 +17,7 @@ import { logsCommand } from './commands/logs.js';
 import { replayCommand, restartCommand } from './commands/replay.js';
 import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
+import { doctorCommand } from './commands/doctor.js';
 import { configCommand } from './commands/config.js';
 import { toolsCommand } from './commands/tools.js';
 import { integrationsCommand } from './commands/integrations.js';
@@ -112,6 +113,11 @@ program
   .option('--yes', 'Skip confirmation prompts (for CI/CD); auto-selects ollama if available')
   .option('--no-tools', 'Skip tool installation (direct mode only)')
   .action(initCommand);
+
+program
+  .command('doctor')
+  .description('Preflight this machine against the project: Studio version, config contract, required binaries, env vars')
+  .action(doctorCommand);
 
 program
   .command('config <action> [args...]')
