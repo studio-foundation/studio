@@ -149,6 +149,8 @@ export class CallOrchestrator {
         parentRunId: runId,
         depth: depth + 1,
       });
+      // Remember which child run this stage produced so readers can nest it.
+      stageRun.child_run_id = spawn.run_id;
       return finish('success', spawn.output);
     } catch (err) {
       // Cancelled mid-flight → cancelled, not a real failure.

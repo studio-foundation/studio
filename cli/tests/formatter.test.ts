@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { PipelineRun } from '@studio-foundation/contracts';
-import { formatResult, formatJson, formatError, formatDuration } from '../src/output/formatter.js';
+import { formatResult, formatJson, formatError, formatDuration, formatCompactDuration } from '../src/output/formatter.js';
 
 let output: string[];
 const originalLog = console.log;
@@ -103,6 +103,122 @@ describe('formatResult', () => {
     expect(text).not.toContain('attempt');
   });
 
+  it('shows per-child duration next to a call stage', () => {
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'wiki-extraction',
+          status: 'success',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:01.300Z',
+          tasks: [],
+        },
+        {
+          id: 'stage-2',
+          stage_name: 'pages-export',
+          status: 'success',
+          started_at: '2025-01-01T00:00:01.300Z',
+          completed_at: '2025-01-01T00:00:17.600Z',
+          tasks: [],
+        },
+      ],
+    });
+
+    formatResult(run);
+
+    const text = output.join('\n');
+    expect(text).toContain('wiki-extraction');
+    expect(text).toContain('1.3s');
+    expect(text).toContain('pages-export');
+    expect(text).toContain('16.3s');
+  });
+
+  it('nests a child pipeline\'s stages beneath its call stage', () => {
+    const child: PipelineRun = {
+      id: 'child-1',
+      pipeline_name: 'leaf-a',
+      status: 'success',
+      started_at: '2025-01-01T00:00:00.000Z',
+      completed_at: '2025-01-01T00:00:01.300Z',
+      stages: [
+        {
+          id: 'cs-1',
+          stage_name: 'leaf-a-stage',
+          status: 'success',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:01.300Z',
+          tasks: [],
+        },
+      ],
+    };
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'wiki-extraction',
+          status: 'success',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:01.300Z',
+          tasks: [],
+          child_run_id: 'child-1',
+        },
+      ],
+    });
+
+    formatResult(run, new Map([['child-1', child]]));
+
+    const text = output.join('\n');
+    expect(text).toContain('wiki-extraction');
+    expect(text).toContain('leaf-a');       // child pipeline label
+    expect(text).toContain('leaf-a-stage'); // nested child stage
+  });
+
+  it('renders normally when a call stage has no resolvable child run', () => {
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'wiki-extraction',
+          status: 'success',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:01.300Z',
+          tasks: [],
+          child_run_id: 'missing-child',
+        },
+      ],
+    });
+
+    formatResult(run, new Map());
+
+    const text = output.join('\n');
+    expect(text).toContain('wiki-extraction');
+    expect(text).not.toContain('└─');
+  });
+
+  it('omits duration for a zero-length (skipped) stage', () => {
+    const run = makeRun({
+      stages: [
+        {
+          id: 'stage-1',
+          stage_name: 'section-filter-verdict',
+          status: 'skipped',
+          started_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:00:00.000Z',
+          tasks: [],
+          skipped_reason: 'condition not met',
+        },
+      ],
+    });
+
+    formatResult(run);
+
+    const text = output.join('\n');
+    expect(text).toContain('⊘ skipped');
+    expect(text).not.toMatch(/\b0(\.0)?s\b/);
+    expect(text).not.toContain('0ms');
+  });
+
   it('renders a condition-skipped stage as skipped with its reason', () => {
     const run = makeRun({
       stages: [
@@ -199,5 +315,20 @@ describe('formatDuration', () => {
 
   it('should format minutes', () => {
     expect(formatDuration(83000)).toBe('1m23s');
+  });
+});
+
+describe('formatCompactDuration', () => {
+  it('keeps milliseconds under a second', () => {
+    expect(formatCompactDuration(950)).toBe('950ms');
+  });
+
+  it('shows one decimal for sub-minute durations', () => {
+    expect(formatCompactDuration(1300)).toBe('1.3s');
+    expect(formatCompactDuration(16300)).toBe('16.3s');
+  });
+
+  it('rolls over to minutes and seconds past a minute', () => {
+    expect(formatCompactDuration(83000)).toBe('1m23s');
   });
 });

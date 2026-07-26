@@ -30,6 +30,10 @@ export interface StageRun {
   tasks: TaskRun[];
   output?: unknown;  // final output of the stage (populated by engine for observability)
   skipped_reason?: string;  // reason why stage was skipped (populated by resume loop)
+  // For a `call` stage: the run id of the child pipeline it spawned. Lets a
+  // reader (e.g. `studio status`) load and nest the child's own stages instead
+  // of hand-mapping interleaved run logs.
+  child_run_id?: string;
 }
 
 export interface TaskRun {
