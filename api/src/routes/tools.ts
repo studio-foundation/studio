@@ -57,7 +57,7 @@ export async function toolsRoutes(
     const toolsList: { name: string; description: string; is_builtin: boolean }[] = [];
 
     // Builtins from bundled templates (skip if overridden by a custom file)
-    const available = await listAvailableToolTemplates();
+    const available = listAvailableToolTemplates();
     for (const t of available) {
       const overridden = await isCustomTool(configsDir, t.name);
       if (!overridden) {
@@ -106,7 +106,7 @@ export async function toolsRoutes(
     }
 
     // Fall back to bundled builtin template
-    const template = await getBundledToolTemplate(name);
+    const template = getBundledToolTemplate(name);
     if (template) {
       const parsed = yaml.load(template) as Record<string, unknown>;
       return reply.send({ ...parsed, is_builtin: true });
@@ -201,9 +201,9 @@ export async function toolsRoutes(
   }, async (request, reply) => {
     const { name } = request.body;
 
-    const template = await getBundledToolTemplate(name);
+    const template = getBundledToolTemplate(name);
     if (!template) {
-      const available = await listAvailableToolTemplates();
+      const available = listAvailableToolTemplates();
       return reply.status(404).send({
         error: `Tool '${name}' not found in registry. Available: ${available.map(t => t.name).join(', ')}`,
       });

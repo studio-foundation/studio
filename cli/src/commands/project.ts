@@ -1,10 +1,9 @@
-import { mkdir, access, cp } from 'node:fs/promises';
-import { resolve, join, relative, sep } from 'node:path';
+import { mkdir, access, writeFile } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
 import chalk from 'chalk';
 import { input, select } from '@inquirer/prompts';
 import { listTemplates } from './templates.js';
-
-const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
+import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
 export const PROJECT_SUBDIRS = ['pipelines', 'agents', 'contracts', 'tools', 'inputs'];
 
@@ -31,30 +30,24 @@ export async function createProjectDir(
   }
 
   if (templateName) {
-    const templateDir = resolve(TEMPLATES_DIR, 'projects', templateName);
-    const templateExists = await access(templateDir).then(() => true).catch(() => false);
-    if (!templateExists) {
+    const prefix = `projects/${templateName}/`;
+    if (!BUNDLED_ASSETS[`${prefix}metadata.json`]) {
       throw new Error(
         `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
       );
     }
 
     await mkdir(projectDir, { recursive: true });
-    if (withTools) {
-      await cp(templateDir, projectDir, {
-        recursive: true,
-        filter: (src) => !src.endsWith('metadata.json'),
-      });
-    } else {
-      await cp(templateDir, projectDir, {
-        recursive: true,
-        filter: (src) => {
-          const rel = relative(templateDir, src);
-          return !rel.endsWith('metadata.json') && rel !== 'tools' && !rel.startsWith('tools' + sep);
-        },
-      });
-      await mkdir(join(projectDir, 'tools'), { recursive: true });
+    for (const key of Object.keys(BUNDLED_ASSETS)) {
+      if (!key.startsWith(prefix)) continue;
+      const rel = key.slice(prefix.length);
+      if (rel === 'metadata.json') continue;
+      if (!withTools && rel.startsWith('tools/')) continue;
+      const target = join(projectDir, rel);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, BUNDLED_ASSETS[key], 'utf-8');
     }
+    if (!withTools) await mkdir(join(projectDir, 'tools'), { recursive: true });
   } else {
     for (const sub of PROJECT_SUBDIRS) {
       await mkdir(join(projectDir, sub), { recursive: true });

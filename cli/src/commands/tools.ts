@@ -20,9 +20,9 @@ export async function toolsAddDirect(
   const skipped: string[] = [];
 
   for (const name of toolNames) {
-    const templateContent = await getBundledToolTemplate(name);
+    const templateContent = getBundledToolTemplate(name);
     if (!templateContent) {
-      const available = await listAvailableToolTemplates();
+      const available = listAvailableToolTemplates();
       throw new Error(`Unknown tool '${name}'. Available: ${available.map((t) => t.name).join(', ')}`);
     }
 
@@ -124,7 +124,7 @@ export async function toolsCommand(
           }
 
           console.log('');
-          const available = await listAvailableToolTemplates();
+          const available = listAvailableToolTemplates();
           const alreadyInstalled = await listTools(getToolsDir(studioDir));
 
           const choices = available.map((t) => ({
