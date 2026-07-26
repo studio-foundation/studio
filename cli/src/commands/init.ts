@@ -14,6 +14,7 @@ import { getAvailableModels } from '../models-cache.js';
 import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio-foundation/runner';
 import { installPackage } from './registry/install.js';
+import { CONFIG_FILE, CONFIG_EXAMPLE_FILE } from '../config-validation.js';
 
 const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
 
@@ -138,14 +139,17 @@ export async function createStudioStructure(
   // Write registry.lock.json (empty, committed)
   await writeFile(join(studioDir, 'registry.lock.json'), '{"installed":{}}\n', 'utf-8');
 
-  // Copy config template (only if config.yaml doesn't already exist)
-  const configPath = join(studioDir, 'config.yaml');
-  const configExists = await access(configPath)
-    .then(() => true)
-    .catch(() => false);
-  if (!configExists) {
-    const template = await readFile(resolve(TEMPLATES_DIR, 'studio-config.yaml'), 'utf-8');
-    await writeFile(configPath, template, 'utf-8');
+  // Copy config templates (only if the files don't already exist).
+  // config.example.yaml is the committed contract; config.yaml is the gitignored copy.
+  for (const [template, target] of [
+    ['studio-config.example.yaml', CONFIG_EXAMPLE_FILE],
+    ['studio-config.yaml', CONFIG_FILE],
+  ]) {
+    const targetPath = join(studioDir, target);
+    const exists = await access(targetPath).then(() => true).catch(() => false);
+    if (!exists) {
+      await writeFile(targetPath, await readFile(resolve(TEMPLATES_DIR, template), 'utf-8'), 'utf-8');
+    }
   }
 
   // Update .gitignore
@@ -592,6 +596,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       }
 
       console.log(chalk.green(`  ✓ .studio/config.yaml`));
+      console.log(chalk.green(`  ✓ .studio/config.example.yaml`));
       console.log(chalk.green(`  ✓ .studio/pipelines/`));
       for (const f of generatedFiles) {
         console.log(chalk.green(`  ✓ ${f}`));
@@ -856,6 +861,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
 
     // Step 11: Success output
     console.log(chalk.green(`  ✓ .studio/config.yaml`));
+    console.log(chalk.green(`  ✓ .studio/config.example.yaml`));
     console.log(chalk.green(`  ✓ .studio/pipelines/`));
     for (const f of generatedFiles) {
       console.log(chalk.green(`  ✓ ${f}`));

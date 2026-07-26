@@ -2,6 +2,7 @@ import { writeFile, readFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { loadConfig } from '../config.js';
+import { checkConfig, formatConfigCheckError } from '../config-validation.js';
 
 interface ApiOptions {
   port?: string;
@@ -54,6 +55,15 @@ export async function apiStartCommand(options: ApiOptions): Promise<void> {
 
   const { bootstrap, buildServer } = apiModule;
   const config = await loadConfig(options.config);
+
+  if (config.resolvedStudioDir) {
+    const error = formatConfigCheckError(await checkConfig(config.resolvedStudioDir));
+    if (error) {
+      console.error(error);
+      process.exit(1);
+    }
+  }
+
   const cwd = config.resolvedStudioDir
     ? config.resolvedStudioDir.replace(/\/.studio$/, '')
     : process.cwd();

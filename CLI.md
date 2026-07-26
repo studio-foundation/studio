@@ -91,6 +91,7 @@ When you run `studio init`, the project layout looks like this:
 my-project/
 ├── .studio/
 │   ├── config.yaml              # Provider config (gitignored)
+│   ├── config.example.yaml      # Config contract (committed)
 │   ├── pipelines/               # *.pipeline.yaml
 │   ├── agents/                  # *.agent.yaml
 │   ├── contracts/               # *.contract.yaml
@@ -106,7 +107,7 @@ my-project/
 └── .gitignore
 ```
 
-**Committed:** `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `registry.lock.json`
+**Committed:** `config.example.yaml`, `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `registry.lock.json`
 
 **Gitignored:** `config.yaml` (API keys), `runs/`
 
@@ -132,6 +133,26 @@ defaults:
 ```
 
 API keys can reference environment variables via `${VAR_NAME}`. This file is gitignored. Never commit API keys.
+
+### The config contract — `config.example.yaml`
+
+`config.yaml` is gitignored, so a fresh clone has none. `.studio/config.example.yaml` is the committed twin that declares what `config.yaml` must contain:
+
+```bash
+cp .studio/config.example.yaml .studio/config.yaml
+```
+
+**Every key left uncommented in the example is required.** `studio run` and `studio api start` check `config.yaml` against it before doing any work and stop with the missing paths:
+
+```
+Error: /repo/.studio/config.yaml is missing required key:
+  - providers.anthropic.apiKey
+  See /repo/.studio/config.example.yaml for the full contract.
+```
+
+A missing `config.yaml` is reported the same way, with the `cp` command to run. Only presence is checked — the value can come from `${VAR}`. Comment a key out to make it optional; a project with no `config.example.yaml` declares no contract and is never blocked.
+
+Secrets belong in `config.yaml` only. In the example, reference them as `${ANTHROPIC_API_KEY}`.
 
 ---
 
