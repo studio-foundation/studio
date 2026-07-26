@@ -62,6 +62,8 @@ Studio/
 
 **Tool plugin** — A `.tool.yaml` file defining commands available to agents. Creating a tool = just YAML, no code.
 
+**Config contract (.studio/config.example.yaml)** — Committed twin of the gitignored `config.yaml`. Every key left uncommented in the example is required in `config.yaml`; `studio run` and `studio api start` check it first and fail with the missing dotted paths instead of dying mid-run. Presence only — the value may come from `${VAR}`. No example = no contract = never blocked. See CLI.md.
+
 ## State Machine
 
 ```

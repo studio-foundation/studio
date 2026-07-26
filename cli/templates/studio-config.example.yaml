@@ -1,0 +1,25 @@
+# Studio configuration contract — COMMIT this file.
+#
+# config.yaml holds the real values and is gitignored (it contains secrets).
+# To set up a fresh clone:
+#
+#   cp .studio/config.example.yaml .studio/config.yaml
+#
+# Every key left uncommented here is REQUIRED in config.yaml — `studio run`
+# stops with a clear error if one is missing. Comment a key out to make it
+# optional.
+#
+# Secrets never belong in this file: reference an environment variable
+# (${VAR}, or ${VAR:-default}) and let config.yaml resolve it.
+
+# providers:
+#   anthropic:
+#     apiKey: ${ANTHROPIC_API_KEY}
+#   openai:
+#     apiKey: ${OPENAI_API_KEY}
+#   ollama:
+#     baseUrl: ${OLLAMA_BASE_URL:-http://localhost:11434}
+
+defaults:
+  provider: ollama
+  model: llama3.3

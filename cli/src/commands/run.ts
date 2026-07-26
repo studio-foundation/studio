@@ -7,6 +7,7 @@ import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
 import { resolveRepoPath } from '@studio-foundation/engine';
 import { loadConfig } from '../config.js';
+import { checkConfig, formatConfigCheckError } from '../config-validation.js';
 import { ProgressDisplay } from '../output/progress.js';
 import { createRunLogger } from '../run-logger.js';
 import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
@@ -253,6 +254,14 @@ export function mergeEvents(
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
   try {
     const config = await loadConfig(options.config);
+
+    if (config.resolvedStudioDir) {
+      const error = formatConfigCheckError(await checkConfig(config.resolvedStudioDir));
+      if (error) {
+        console.error(error);
+        process.exit(1);
+      }
+    }
 
     // Create run store — fail-silent so a broken SQLite never blocks a run
     let runStore: AnyRunStore | null = null;

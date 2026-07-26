@@ -123,6 +123,7 @@ describe('createStudioStructure', () => {
 
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'config.yaml'))).toBe(true);
+    expect(await exists(resolve(TMP, '.studio', 'config.example.yaml'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'pipelines'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'agents'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'contracts'))).toBe(true);
@@ -130,6 +131,14 @@ describe('createStudioStructure', () => {
     expect(await exists(resolve(TMP, '.studio', 'inputs'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'runs', 'logs'))).toBe(true);
     expect(await exists(resolve(TMP, '.studio', 'registry.lock.json'))).toBe(true);
+  });
+
+  it('scaffolds a config.yaml that satisfies the generated contract', async () => {
+    const { createStudioStructure } = await import('../../src/commands/init.js');
+    const { checkConfig } = await import('../../src/config-validation.js');
+    await createStudioStructure(TMP);
+
+    expect((await checkConfig(resolve(TMP, '.studio'))).status).toBe('ok');
   });
 
   it('adds node_modules/, .studio/config.yaml, .studio/runs/, and *.keymap.json to .gitignore', async () => {
