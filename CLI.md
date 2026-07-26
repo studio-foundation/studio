@@ -73,6 +73,16 @@ studio registry update [name]                    # Update installed tools
 
 The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
 
+### Cache
+
+```bash
+studio cache clean                               # Clear the whole map-stage resume cache
+studio cache clean --pipeline my-pipeline        # Only that parent pipeline's entries
+studio cache clean --dry-run                     # Show what would be cleared
+```
+
+The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json` — it's what makes `resume: true` on a `map:` stage skip items already completed in an earlier run. Entries are keyed on the item input, **not** on the provider or model, so a warm re-run under a different provider replays the previous provider's outputs. Clear the cache before any provider or model comparison.
+
 ### Other
 
 ```bash

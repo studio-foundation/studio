@@ -198,6 +198,8 @@ A fan-out over hundreds of network-bound items is a run measured in hours. Witho
 
 The cache is a JSON file per completed item under `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json`, so it survives a process restart between runs. It is best-effort: a read error is a miss and a write error is swallowed (the item simply re-runs) — resume never fails the stage. Cache-served items are flagged `cached: true` in the `map_item_complete` event and counted in the output's `resumed`.
 
+The key covers the item input and the target pipeline, **not the provider or the model** — so a warm re-run under a different provider replays the first provider's outputs. Clear the cache first when comparing providers: `studio cache clean` (whole cache) or `studio cache clean --pipeline <name>` (one parent pipeline). See [CLI.md](CLI.md).
+
 ### Live progress
 
 Under `--live` (and in the default spinner mode) a fan-out stage renders its own progress instead of a single hanging spinner — essential for real workloads of hundreds of items over runs measured in hours. The CLI surfaces:
