@@ -90,7 +90,9 @@ export async function loadPipeline(path: string): Promise<PipelineDefinition> {
   try {
     content = await readFile(path, 'utf-8');
   } catch (err) {
-    throw new Error(`Failed to load pipeline at ${path}: ${(err as Error).message}`);
+    throw new Error(`Failed to load pipeline at ${path}: ${(err as Error).message}`, {
+      cause: err,
+    });
   }
 
   return parsePipelineYaml(content, path);

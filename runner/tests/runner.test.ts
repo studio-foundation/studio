@@ -19,7 +19,7 @@ class MockProvider implements Provider {
     this.responses = responses;
   }
 
-  async call(request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
+  async call(_request: LLMRequest, _onToken?: (token: string) => void): Promise<LLMResponse> {
     if (this.currentIndex >= this.responses.length) {
       throw new Error('Mock provider ran out of responses');
     }

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Build, Typecheck & Test (node ${{ matrix.node }})
+    name: Lint, Build, Typecheck & Test (node ${{ matrix.node }})
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -31,6 +31,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Build all packages
         run: pnpm build

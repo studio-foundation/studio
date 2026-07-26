@@ -59,7 +59,7 @@ vi.mock('../../src/commands/registry/install.js', async () => {
 
   const KNOWN_TEMPLATES = new Set(['software', 'content', 'document-analysis', 'software-full']);
 
-  async function createSyntheticTemplate(destDir: string, templateName: string): Promise<void> {
+  async function createSyntheticTemplate(destDir: string, _templateName: string): Promise<void> {
     await mkdir(_join(destDir, 'pipelines'), { recursive: true });
     await mkdir(_join(destDir, 'agents'), { recursive: true });
     await mkdir(_join(destDir, 'contracts'), { recursive: true });

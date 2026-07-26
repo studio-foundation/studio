@@ -78,7 +78,7 @@ export class HttpApiSpawner implements RunSpawner {
                 if (line.startsWith('event: ')) {
                   currentEventType = line.slice(7).trim();
                 } else if (line.startsWith('data: ') && currentEventType === 'pipeline_complete') {
-                  reader.cancel();
+                  void reader.cancel();
                   resolve();
                   return;
                 } else if (line === '') {

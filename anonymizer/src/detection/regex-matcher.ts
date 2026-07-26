@@ -28,7 +28,7 @@ type FormatType = Exclude<PIIType, 'person'>;
 const FORMAT_PATTERNS: Record<FormatType, RegExp> = {
   credit_card: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
   ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
-  email: /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
   phone: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g,
 };
 
@@ -59,7 +59,7 @@ const FORMAT_PATTERNS: Record<FormatType, RegExp> = {
 // not fire.
 const SALUTATION_TRIGGER =
   /\b(?:dear|hi|hello|greetings|hey(?:\s+there)?|mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?|bonjour|bonsoir|all[oô]|salut|ch[eè]re?s?|madame|monsieur|mme\.?|m\.)\s+/gi;
-const NAME = /[A-Z][a-zA-ZÀ-ÿ'\-]+(?:\s+[A-Z][a-zA-ZÀ-ÿ'\-]+)*/y;
+const NAME = /[A-Z][a-zA-ZÀ-ÿ'-]+(?:\s+[A-Z][a-zA-ZÀ-ÿ'-]+)*/y;
 
 function gatherPersonCandidates(text: string): RegexMatch[] {
   const out: RegexMatch[] = [];

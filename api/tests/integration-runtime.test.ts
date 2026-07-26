@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import Fastify from 'fastify';

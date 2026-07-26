@@ -16,7 +16,9 @@ export async function loadAgentProfile(
   try {
     content = await readFile(path, 'utf-8');
   } catch (err) {
-    throw new Error(`Failed to load agent profile '${name}' at ${path}: ${(err as Error).message}`);
+    throw new Error(`Failed to load agent profile '${name}' at ${path}: ${(err as Error).message}`, {
+      cause: err,
+    });
   }
 
   return parseAgentYaml(content, path);

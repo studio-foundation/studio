@@ -23,7 +23,6 @@ async function jsonRpc(port: number, method: string, params: unknown, id: number
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return res.json();
 }
 

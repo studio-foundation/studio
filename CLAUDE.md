@@ -291,6 +291,16 @@ stages:
 
 **Substitutions:** `{{output.field}}` (in on_stage_complete), `{{tool.argName}}` (in pre/post_tool_use).
 
+## Linting
+
+`pnpm lint` at the root (blocking in CI). Flat config in [eslint.config.mjs](eslint.config.mjs).
+
+The rule that matters: **INV-10 is enforced mechanically.** `ALLOWED_INTERNAL_IMPORTS` in the config mirrors the DAG, and a `no-restricted-imports` block per package rejects any `@studio-foundation/*` import outside it. Adding an internal dependency means editing that map *and* the package's `package.json` — an upward import can no longer land silently.
+
+`@typescript-eslint/no-explicit-any` is a **warning with a ratchet**: `--max-warnings 226` pins the current count, so the number may only go down. Flip the rule to `error` and drop the flag once it hits zero.
+
+Type-aware rules (`no-floating-promises`, `await-thenable`) run only on `*/src/**` — every package tsconfig excludes `tests/`, so test files get the syntactic rules only.
+
 ## Debugging
 
 ```bash
