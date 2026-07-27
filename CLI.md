@@ -88,10 +88,11 @@ studio config list                               # Show config (API keys masked)
 
 ### Bootstrap — from a fresh machine
 
-Studio can't install itself: an empty machine has no Studio to run the config that would install Studio. The entry point is external and it's one line.
+Studio can't install itself: an empty machine has no Studio to run the config that would install Studio. The entry point is external and it needs no Node.js.
 
 ```bash
-npm install -g @studio-foundation/cli && studio doctor
+curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+studio doctor
 ```
 
 Joining an existing project instead of creating one:

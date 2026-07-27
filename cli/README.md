@@ -26,7 +26,12 @@ npm install -g @studio-foundation/cli
 pnpm add -g @studio-foundation/cli
 ```
 
-This installs a `studio` binary on your `PATH`.
+This installs a `studio` binary on your `PATH`. Without a Node.js toolchain, install the
+same binary straight from GitHub Releases — no npm, no runtime:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+```
 
 ```bash
 studio --version
