@@ -47,8 +47,8 @@ studio init
 studio run feature-builder --input "Add a FAQ section to the About page" --live
 
 # 3. Inspect the result
-studio status
-studio logs
+studio status                 # last run if no ID
+studio logs <run-id>
 ```
 
 No API key yet? Try the mock provider, no network calls, no cost:
@@ -89,29 +89,31 @@ The `studio init` wizard:
 $ studio init
 
 What type of app are you building?
-  ❯ software  — Code generation, git operations
-    finance   — Transaction analysis, budget management
-    analysis  — Content extraction, entity recognition
-    data      — Validation, transformation, compliance
-    conversation — Dialogue management, memory systems
+  ❯ software           — Code generation with repo, shell and search tools
+    software-full      — Software development (full pipeline with QA review)
+    content            — Content creation and editing with search
+    document-analysis  — Document extraction and structured analysis
+    parallel-tasks     — Fan-out parallel task execution with consolidation
+    blank              — Empty project structure
 
-Project name? my-code-builder
+Project name: my-code-builder
 
-Which LLM provider?
+LLM Provider:
   ❯ Anthropic (Claude)
     OpenAI (GPT)
 
 Anthropic API Key: sk-ant-... ✓ Valid
 
-Install default tools for this template?
-  ❯ ☑ repo-manager (file operations)
-    ☑ shell (run commands)
-    ☑ git (version control)
-    ☑ search (codebase search)
+Select tools to install:
+  ❯ ☑ repo-manager — file operations
+    ☑ shell — run commands
+    ☑ git — version control
+    ☑ search — codebase search
 
-✓ Created my-code-builder/.studio/
-✓ Copied software template
-✓ Installed 4 tools
+Install dependencies now? (uses pnpm) No
+
+✓ .studio/pipelines/
+✓ Installed 3 tools and 1 agent
 ✓ Configured Anthropic provider
 ```
 
@@ -131,7 +133,7 @@ studio list pipelines                          # List available pipelines (also:
 
 # Init (interactive wizard)
 studio init                                    # Full interactive wizard
-studio init --template software --name my-app  # Direct mode (CI/CD-friendly)
+studio init my-app --template software         # Direct mode (CI/CD-friendly)
 studio init --force                            # Re-initialize (backup + recreate)
 
 # Config

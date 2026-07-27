@@ -35,6 +35,6 @@ Interface terminal pour Studio. Composition root — câble toutes les dépendan
 ```bash
 studio run <pipeline> --input "..." --live
 studio status
-studio logs
+studio logs <run-id>
 studio registry install git
 ```

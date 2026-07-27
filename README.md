@@ -171,7 +171,7 @@ Update along the channel you installed from: `studio upgrade` for the binary,
 ```bash
 # Create a project directory and initialize from a template
 mkdir my-builder && cd my-builder
-studio init --template software --name my-builder
+studio init my-builder --template software
 ```
 
 `studio init` generates the full project structure: `.studio/` with pipelines, contracts, agents, and tools, plus the app scaffold (`src/`, `package.json`) from the template and an `ONBOARDING.md` describing the fresh-machine path for whoever clones the project next. It initializes git and updates `.gitignore`.
@@ -269,7 +269,7 @@ Both run a hybrid stack: domain logic in external scripts (Python for Wiki Creat
 | Document | Content |
 |----------|---------|
 | [CONCEPTS.md](./CONCEPTS.md) | RALPH loop, output contracts, anti-theatre, groups, hooks, skills, architecture deep dive |
-| [TEMPLATES.md](./TEMPLATES.md) | The 5 architectural templates: software, finance, analysis, data, conversation |
+| [TEMPLATES.md](./TEMPLATES.md) | Architectural templates and how to pick one |
 | [CLI.md](./CLI.md) | All CLI commands, `.studio/` structure, config format |
 | [API.md](./API.md) | HTTP endpoints, SSE streaming, webhooks |
 | [INVARIANTS.md](./INVARIANTS.md) | Non-negotiable kernel rules |
@@ -296,7 +296,7 @@ studio registry publish <path>      # forks the registry repo and opens a PR
 **Current priority:** Code Builder end-to-end, Linear webhook to pipeline run to commit + PR.
 
 **Known limitations:**
-- Only the `software` template is production-ready. `finance`, `analysis`, `data`, and `conversation` are structural starters with stub tools.
+- Only the `software` template is production-ready. `content`, `document-analysis`, `parallel-tasks` and `software-full` are structural starters. Run `studio templates list` for what the registry actually serves — TEMPLATES.md still describes templates that were never published.
 - No template upgrade path yet. Once generated, manual sync only.
 - Error messages are sometimes cryptic. Improving progressively.
 - Documentation may lag behind implementation.

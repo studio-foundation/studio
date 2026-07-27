@@ -31,7 +31,7 @@ A template is not a finished product. It is a structured starter you customize i
 You then `npm install`, configure a provider, and run an included pipeline.
 
 ```bash
-studio init --template software --name code-builder
+studio init code-builder --template software
 cd code-builder
 npm install
 studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
@@ -376,7 +376,7 @@ You can author your own templates for patterns specific to your domain or your t
 To validate a template against the full ruleset:
 
 ```bash
-studio validate template <path>
+studio template validate <path>
 ```
 
 To share a template with the community, submit it to [studio-community](https://github.com/studio-foundation/studio-community) under `templates/` (or run `studio registry publish <path>`). Once merged, anyone can install it with `studio registry install <name>`.

@@ -78,7 +78,7 @@ studio list pipelines                            # List available pipelines (als
 
 ```bash
 studio init                                      # Interactive wizard (template, provider, tools)
-studio init --template <type> --name <project>   # Direct mode (CI/CD-friendly)
+studio init <project> --template <type>          # Direct mode (CI/CD-friendly)
 studio config add-provider                       # Add an LLM provider (wizard)
 studio config set provider anthropic --api-key $KEY
 studio config set defaults.model claude-haiku-4-20250514
