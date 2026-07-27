@@ -19,7 +19,7 @@
 
 **Step 1: Create branch**
 ```bash
-cd /home/arianeguay/dev/src/Studio/contracts
+cd ~/dev/src/Studio/contracts
 git checkout -b feat/stu-13-context-packs
 ```
 Expected: `Switched to a new branch 'feat/stu-13-context-packs'`
@@ -76,20 +76,20 @@ export * from './context-pack.js';
 
 **Step 4: Build**
 ```bash
-cd /home/arianeguay/dev/src/Studio/contracts && npm run build
+cd ~/dev/src/Studio/contracts && npm run build
 ```
 Expected: Build succeeds with no errors.
 
 **Step 5: Commit**
 ```bash
-cd /home/arianeguay/dev/src/Studio/contracts
+cd ~/dev/src/Studio/contracts
 git add src/context-pack.ts src/index.ts src/pipeline.ts
 git commit -m "feat(contracts): add context pack types and extend StageDefinition"
 ```
 
 **Step 6: Push + PR**
 ```bash
-cd /home/arianeguay/dev/src/Studio/contracts
+cd ~/dev/src/Studio/contracts
 git push -u origin feat/stu-13-context-packs
 gh pr create --title "feat(contracts): context pack types for STU-13" --body "$(cat <<'EOF'
 ## Quoi
@@ -116,7 +116,7 @@ EOF
 
 **Step 1: Create branch**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner
+cd ~/dev/src/Studio/runner
 git checkout -b feat/stu-13-context-packs
 ```
 Expected: `Switched to a new branch 'feat/stu-13-context-packs'`
@@ -131,7 +131,7 @@ Expected: `Switched to a new branch 'feat/stu-13-context-packs'`
 
 **Step 1: Find the test file location**
 ```bash
-find /home/arianeguay/dev/src/Studio/runner -name "*.test.ts" | head -20
+find ~/dev/src/Studio/runner -name "*.test.ts" | head -20
 ```
 Note the pattern and either add to an existing prompt-builder test file or create one at that location.
 
@@ -218,7 +218,7 @@ describe('buildPrompt - context_packs', () => {
 
 **Step 3: Run tests to confirm failure**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner && npm test
+cd ~/dev/src/Studio/runner && npm test
 ```
 Expected: Tests fail — `context_packs` does not exist on `AgentContext`.
 
@@ -261,13 +261,13 @@ In `runner/src/prompt-builder.ts`, after the `additional_context` block (after l
 
 **Step 6: Run tests to confirm they pass**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner && npm test
+cd ~/dev/src/Studio/runner && npm test
 ```
 Expected: All tests pass.
 
 **Step 7: Commit**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner
+cd ~/dev/src/Studio/runner
 git add src/prompt-builder.ts
 git add src/__tests__/  # or wherever the test file lives
 git commit -m "feat(runner): extend AgentContext with context_packs and add prompt formatting"
@@ -284,15 +284,15 @@ git commit -m "feat(runner): extend AgentContext with context_packs and add prom
 **Step 1: Check no one imports this file**
 ```bash
 grep -r "context-pack\|buildContextPack\|ContextPackConfig" \
-  /home/arianeguay/dev/src/Studio/runner/src \
-  /home/arianeguay/dev/src/Studio/engine/src \
-  /home/arianeguay/dev/src/Studio/cli/src 2>/dev/null
+  ~/dev/src/Studio/runner/src \
+  ~/dev/src/Studio/engine/src \
+  ~/dev/src/Studio/cli/src 2>/dev/null
 ```
 Expected: Only the files we're about to delete/clean up.
 
 **Step 2: Delete the file**
 ```bash
-rm /home/arianeguay/dev/src/Studio/runner/src/context/context-pack.ts
+rm ~/dev/src/Studio/runner/src/context/context-pack.ts
 ```
 
 **Step 3: Remove the export from runner/src/index.ts**
@@ -306,13 +306,13 @@ export type { ContextPack, ContextPackConfig } from './context/context-pack.js';
 
 **Step 4: Build to confirm clean**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner && npm run build
+cd ~/dev/src/Studio/runner && npm run build
 ```
 Expected: Build succeeds, no broken imports.
 
 **Step 5: Commit + push + PR**
 ```bash
-cd /home/arianeguay/dev/src/Studio/runner
+cd ~/dev/src/Studio/runner
 git add -A
 git commit -m "chore(runner): delete unused context-pack.ts"
 git push -u origin feat/stu-13-context-packs
@@ -340,7 +340,7 @@ EOF
 
 **Step 1: Create branch**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine
+cd ~/dev/src/Studio/engine
 git checkout -b feat/stu-13-context-packs
 ```
 Expected: `Switched to a new branch 'feat/stu-13-context-packs'`
@@ -351,11 +351,11 @@ Expected: `Switched to a new branch 'feat/stu-13-context-packs'`
 
 **Files:**
 - Create: `engine/src/pipeline/context-pack-loader.ts`
-- Test: find existing test patterns first (`find /home/arianeguay/dev/src/Studio/engine -name "*.test.ts" | head -5`), then create test file at that pattern
+- Test: find existing test patterns first (`find ~/dev/src/Studio/engine -name "*.test.ts" | head -5`), then create test file at that pattern
 
 **Step 1: Find existing test file location**
 ```bash
-find /home/arianeguay/dev/src/Studio/engine -name "*.test.ts" | head -10
+find ~/dev/src/Studio/engine -name "*.test.ts" | head -10
 ```
 Note the directory pattern (likely `engine/src/__tests__/` or `engine/src/pipeline/__tests__/`).
 
@@ -481,7 +481,7 @@ describe('loadContextPacks', () => {
 
 **Step 3: Run tests to confirm failure**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine && npm test
+cd ~/dev/src/Studio/engine && npm test
 ```
 Expected: Test file compiles but fails — `loadContextPacks` not found.
 
@@ -557,13 +557,13 @@ export async function loadContextPacks(
 
 **Step 5: Run tests to confirm they pass**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine && npm test
+cd ~/dev/src/Studio/engine && npm test
 ```
 Expected: All tests pass.
 
 **Step 6: Commit**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine
+cd ~/dev/src/Studio/engine
 git add src/pipeline/context-pack-loader.ts
 git add src/pipeline/__tests__/  # adjust path to match actual test location
 git commit -m "feat(engine): add context-pack-loader with tests"
@@ -614,13 +614,13 @@ Add:
 
 **Step 4: Build**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine && npm run build
+cd ~/dev/src/Studio/engine && npm run build
 ```
 Expected: Build succeeds with no type errors.
 
 **Step 5: Commit**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine
+cd ~/dev/src/Studio/engine
 git add src/engine.ts
 git commit -m "feat(engine): wire context pack loading into stage execution"
 ```
@@ -672,7 +672,7 @@ In `engine/configs/software/pipelines/feature-builder.pipeline.yaml`, the code-g
 
 **Step 3: Commit**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine
+cd ~/dev/src/Studio/engine
 git add configs/software/context-packs/example-conventions.yaml
 git add configs/software/pipelines/feature-builder.pipeline.yaml
 git commit -m "feat(configs): add example context pack for software project"
@@ -684,19 +684,19 @@ git commit -m "feat(configs): add example context pack for software project"
 
 **Step 1: Full rebuild**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine && npm run build
+cd ~/dev/src/Studio/engine && npm run build
 ```
 Expected: Clean build.
 
 **Step 2: Run all engine tests**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine && npm test
+cd ~/dev/src/Studio/engine && npm test
 ```
 Expected: All tests pass including the new loader tests.
 
 **Step 3: Push + PR**
 ```bash
-cd /home/arianeguay/dev/src/Studio/engine
+cd ~/dev/src/Studio/engine
 git push -u origin feat/stu-13-context-packs
 gh pr create --title "feat(engine): context pack loading for STU-13" --body "$(cat <<'EOF'
 ## Quoi

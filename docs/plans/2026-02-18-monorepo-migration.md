@@ -12,13 +12,13 @@
 
 ## Contexte critique
 
-- Studio root : `/home/arianeguay/dev/src/Studio`
+- Studio root : `~/dev/src/Studio`
 - Sub-repos imbriqués : `contracts/`, `ralph/`, `runner/`, `engine/`, `cli/` — chacun a son propre `.git/`
 - `.gitignore` root ignore explicitement ces 5 répertoires
 - Deps internes actuelles : `file:../contracts` etc. (npm)
 - `pnpm` pas encore installé (npm@10.9.4, node@22.22.0)
 - Configs de test à migrer : `engine/configs/software/`, `engine/configs/cuisine/`
-- Target code-builder : `/home/arianeguay/dev/src/code-builder`
+- Target code-builder : `~/dev/src/code-builder`
 
 ---
 
@@ -36,11 +36,11 @@ mkdir -p /tmp/studio-migration
 **Step 2: Copier les 5 sub-repos dans le backup (inclut leur .git/)**
 
 ```bash
-cp -r /home/arianeguay/dev/src/Studio/contracts /tmp/studio-migration/contracts
-cp -r /home/arianeguay/dev/src/Studio/ralph /tmp/studio-migration/ralph
-cp -r /home/arianeguay/dev/src/Studio/runner /tmp/studio-migration/runner
-cp -r /home/arianeguay/dev/src/Studio/engine /tmp/studio-migration/engine
-cp -r /home/arianeguay/dev/src/Studio/cli /tmp/studio-migration/cli
+cp -r ~/dev/src/Studio/contracts /tmp/studio-migration/contracts
+cp -r ~/dev/src/Studio/ralph /tmp/studio-migration/ralph
+cp -r ~/dev/src/Studio/runner /tmp/studio-migration/runner
+cp -r ~/dev/src/Studio/engine /tmp/studio-migration/engine
+cp -r ~/dev/src/Studio/cli /tmp/studio-migration/cli
 ```
 
 Vérifier que chaque backup a bien un `.git/` :
@@ -64,7 +64,7 @@ Dans `.gitignore`, supprimer ces lignes :
 **Step 4: Commit la mise à jour du .gitignore**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add .gitignore
 git commit -m "chore: remove sub-repo gitignore entries for monorepo migration"
 ```
@@ -78,13 +78,13 @@ git commit -m "chore: remove sub-repo gitignore entries for monorepo migration"
 **Step 1: Supprimer le répertoire original (physiquement)**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/contracts
+rm -rf ~/dev/src/Studio/contracts
 ```
 
 **Step 2: git subtree add depuis le backup**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git subtree add --prefix=contracts /tmp/studio-migration/contracts HEAD --squash
 ```
 
@@ -98,7 +98,7 @@ Added dir 'contracts'
 **Step 3: Vérifier**
 
 ```bash
-ls /home/arianeguay/dev/src/Studio/contracts/src
+ls ~/dev/src/Studio/contracts/src
 git log --oneline -3
 ```
 
@@ -111,20 +111,20 @@ Expected: Le répertoire `contracts/src/` existe, le log montre 2 nouveaux commi
 **Step 1: Supprimer le répertoire original**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/ralph
+rm -rf ~/dev/src/Studio/ralph
 ```
 
 **Step 2: git subtree add**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git subtree add --prefix=ralph /tmp/studio-migration/ralph HEAD --squash
 ```
 
 **Step 3: Vérifier**
 
 ```bash
-ls /home/arianeguay/dev/src/Studio/ralph/src
+ls ~/dev/src/Studio/ralph/src
 git log --oneline -3
 ```
 
@@ -135,20 +135,20 @@ git log --oneline -3
 **Step 1: Supprimer le répertoire original**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/runner
+rm -rf ~/dev/src/Studio/runner
 ```
 
 **Step 2: git subtree add**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git subtree add --prefix=runner /tmp/studio-migration/runner HEAD --squash
 ```
 
 **Step 3: Vérifier**
 
 ```bash
-ls /home/arianeguay/dev/src/Studio/runner/src
+ls ~/dev/src/Studio/runner/src
 git log --oneline -3
 ```
 
@@ -159,20 +159,20 @@ git log --oneline -3
 **Step 1: Supprimer le répertoire original**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/engine
+rm -rf ~/dev/src/Studio/engine
 ```
 
 **Step 2: git subtree add**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git subtree add --prefix=engine /tmp/studio-migration/engine HEAD --squash
 ```
 
 **Step 3: Vérifier**
 
 ```bash
-ls /home/arianeguay/dev/src/Studio/engine/src
+ls ~/dev/src/Studio/engine/src
 git log --oneline -3
 ```
 
@@ -183,20 +183,20 @@ git log --oneline -3
 **Step 1: Supprimer le répertoire original**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/cli
+rm -rf ~/dev/src/Studio/cli
 ```
 
 **Step 2: git subtree add**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git subtree add --prefix=cli /tmp/studio-migration/cli HEAD --squash
 ```
 
 **Step 3: Vérifier**
 
 ```bash
-ls /home/arianeguay/dev/src/Studio/cli/src
+ls ~/dev/src/Studio/cli/src
 git log --oneline -5
 ```
 
@@ -228,7 +228,7 @@ Expected: Version s'affiche (ex: `9.x.x`).
 
 **Step 2: Créer `pnpm-workspace.yaml` à la racine**
 
-Créer `/home/arianeguay/dev/src/Studio/pnpm-workspace.yaml` :
+Créer `~/dev/src/Studio/pnpm-workspace.yaml` :
 ```yaml
 packages:
   - 'contracts'
@@ -241,7 +241,7 @@ packages:
 **Step 3: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add pnpm-workspace.yaml
 git commit -m "chore: add pnpm-workspace.yaml"
 ```
@@ -272,7 +272,7 @@ git commit -m "chore: add pnpm-workspace.yaml"
 **Step 2: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add package.json
 git commit -m "chore: update root package.json for pnpm workspaces"
 ```
@@ -344,7 +344,7 @@ Par :
 **Step 5: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add ralph/package.json runner/package.json engine/package.json cli/package.json
 git commit -m "chore: replace file:../ deps with workspace:* for pnpm"
 ```
@@ -356,7 +356,7 @@ git commit -m "chore: replace file:../ deps with workspace:* for pnpm"
 **Step 1: Supprimer les node_modules et lockfiles individuels**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 rm -rf contracts/node_modules contracts/package-lock.json
 rm -rf ralph/node_modules ralph/package-lock.json
 rm -rf runner/node_modules runner/package-lock.json
@@ -368,7 +368,7 @@ rm -rf node_modules
 **Step 2: pnpm install depuis la racine**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm install
 ```
 
@@ -379,7 +379,7 @@ Si erreur : vérifier que chaque `package.json` a bien `"name": "@studio/<pkg>"`
 **Step 3: pnpm build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 ```
 
@@ -402,7 +402,7 @@ Si on veut le commiter, ne pas l'ignorer et l'ajouter au commit suivant.
 **Step 5: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add pnpm-lock.yaml .gitignore
 git commit -m "chore: add pnpm-lock.yaml, remove individual lockfiles"
 ```
@@ -414,15 +414,15 @@ git commit -m "chore: add pnpm-lock.yaml, remove individual lockfiles"
 **Step 1: Créer la structure**
 
 ```bash
-mkdir -p /home/arianeguay/dev/src/code-builder/.studio/projects
-mkdir -p /home/arianeguay/dev/src/code-builder/src
-cd /home/arianeguay/dev/src/code-builder
+mkdir -p ~/dev/src/code-builder/.studio/projects
+mkdir -p ~/dev/src/code-builder/src
+cd ~/dev/src/code-builder
 git init
 ```
 
 **Step 2: Créer `.gitignore`**
 
-Créer `/home/arianeguay/dev/src/code-builder/.gitignore` :
+Créer `~/dev/src/code-builder/.gitignore` :
 ```
 # Studio runtime (local only)
 .studio/runs/
@@ -455,7 +455,7 @@ Note : Pour l'instant, `@studio-foundation/cli` sera référencé via un lien lo
 **Step 4: Premier commit**
 
 ```bash
-cd /home/arianeguay/dev/src/code-builder
+cd ~/dev/src/code-builder
 git add .gitignore package.json
 git commit -m "chore: init code-builder repo"
 ```
@@ -467,14 +467,14 @@ git commit -m "chore: init code-builder repo"
 **Step 1: Copier les configs depuis engine/configs/**
 
 ```bash
-cp -r /home/arianeguay/dev/src/Studio/engine/configs/software /home/arianeguay/dev/src/code-builder/.studio/projects/software
-cp -r /home/arianeguay/dev/src/Studio/engine/configs/cuisine /home/arianeguay/dev/src/code-builder/.studio/projects/cuisine
+cp -r ~/dev/src/Studio/engine/configs/software ~/dev/src/code-builder/.studio/projects/software
+cp -r ~/dev/src/Studio/engine/configs/cuisine ~/dev/src/code-builder/.studio/projects/cuisine
 ```
 
 **Step 2: Vérifier la structure**
 
 ```bash
-ls /home/arianeguay/dev/src/code-builder/.studio/projects/software/
+ls ~/dev/src/code-builder/.studio/projects/software/
 ```
 
 Expected: `agents/  contracts/  inputs/  pipelines/` (et `context-packs/` si présent).
@@ -482,7 +482,7 @@ Expected: `agents/  contracts/  inputs/  pipelines/` (et `context-packs/` si pr�
 **Step 3: Commit dans code-builder**
 
 ```bash
-cd /home/arianeguay/dev/src/code-builder
+cd ~/dev/src/code-builder
 git add .studio/projects/
 git commit -m "feat: migrate software and cuisine configs from Studio engine"
 ```
@@ -494,13 +494,13 @@ git commit -m "feat: migrate software and cuisine configs from Studio engine"
 **Step 1: Supprimer engine/configs/**
 
 ```bash
-rm -rf /home/arianeguay/dev/src/Studio/engine/configs
+rm -rf ~/dev/src/Studio/engine/configs
 ```
 
 **Step 2: Vérifier que le code du engine n'a plus de référence hardcodée à ./configs**
 
 ```bash
-grep -r "engine/configs\|./configs" /home/arianeguay/dev/src/Studio/engine/src/ --include="*.ts"
+grep -r "engine/configs\|./configs" ~/dev/src/Studio/engine/src/ --include="*.ts"
 ```
 
 Si des références existent : le engine doit lire le path depuis la config `.studiorc.yaml` ou l'argument `--config`. Vérifier que `findStudioDir()` dans le CLI gère le fallback correctement.
@@ -508,7 +508,7 @@ Si des références existent : le engine doit lire le path depuis la config `.st
 **Step 3: Commit dans Studio**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add engine/configs
 git commit -m "chore: remove engine/configs (migrated to code-builder repo)"
 ```
@@ -519,7 +519,7 @@ git commit -m "chore: remove engine/configs (migrated to code-builder repo)"
 
 **Step 1: Créer `.studiorc.yaml` dans code-builder**
 
-Créer `/home/arianeguay/dev/src/code-builder/.studiorc.yaml` :
+Créer `~/dev/src/code-builder/.studiorc.yaml` :
 ```yaml
 providers:
   anthropic:
@@ -538,12 +538,12 @@ defaults:
 **Step 2: Vérifier que studio CLI est accessible**
 
 ```bash
-which studio || node /home/arianeguay/dev/src/Studio/cli/dist/index.js --version
+which studio || node ~/dev/src/Studio/cli/dist/index.js --version
 ```
 
 Si `studio` n'est pas dans le PATH : installer globalement depuis le monorepo :
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 cd cli && npm link
 ```
@@ -551,7 +551,7 @@ cd cli && npm link
 **Step 3: Lancer un run depuis code-builder**
 
 ```bash
-cd /home/arianeguay/dev/src/code-builder
+cd ~/dev/src/code-builder
 ANTHROPIC_API_KEY=... studio run software/feature-builder --input "Add a simple hello world function"
 ```
 
@@ -560,7 +560,7 @@ Expected: Le pipeline démarre, exécute les stages, produit un résultat.
 **Step 4: Commit .studiorc.yaml dans code-builder**
 
 ```bash
-cd /home/arianeguay/dev/src/code-builder
+cd ~/dev/src/code-builder
 git add .studiorc.yaml
 git commit -m "chore: add .studiorc.yaml for code-builder"
 ```
@@ -574,7 +574,7 @@ git commit -m "chore: add .studiorc.yaml for code-builder"
 - [ ] `pnpm install` à la racine fonctionne sans erreur
 - [ ] `pnpm build` build tous les packages dans le bon ordre
 - [ ] Imports `@studio/*` fonctionnent entre packages
-- [ ] Repo `code-builder` créé à `/home/arianeguay/dev/src/code-builder`
+- [ ] Repo `code-builder` créé à `~/dev/src/code-builder`
 - [ ] Configs `software/` et `cuisine/` dans `code-builder/.studio/projects/`
 - [ ] `engine/configs/` supprimé de Studio
 - [ ] `studio run software/feature-builder` fonctionne depuis `code-builder`

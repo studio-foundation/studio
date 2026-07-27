@@ -70,7 +70,7 @@ describe('applyPlaceholders', () => {
 **Step 2: Run to verify failure**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'placeholders'
 ```
 
@@ -96,7 +96,7 @@ export function applyPlaceholders(content: string, vars: Record<string, string>)
 **Step 4: Run tests to verify pass**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'placeholders'
 ```
 
@@ -274,7 +274,7 @@ The full updated `metadata.json`:
 **Step 8: Verify validate passes**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 node cli/dist/index.js template validate cli/templates/projects/software
 ```
@@ -426,7 +426,7 @@ describe('generateAppFiles', () => {
 **Step 2: Run to verify failure**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'generateAppFiles'
 ```
 
@@ -526,7 +526,7 @@ async function copyDirWithPlaceholders(
 **Step 4: Build and run tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(generateAppFiles|PASS|FAIL|✓|✗)'
 ```
 
@@ -580,7 +580,7 @@ describe('initGitRepo', () => {
 **Step 2: Run to verify failure**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'initGitRepo'
 ```
 
@@ -618,7 +618,7 @@ export async function initGitRepo(cwd: string): Promise<boolean> {
 **Step 4: Build and run tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(initGitRepo|PASS|FAIL|✓|✗)'
 ```
 
@@ -720,7 +720,7 @@ describe('generateFullApp', () => {
 **Step 2: Run to verify failure**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 'generateFullApp'
 ```
 
@@ -796,7 +796,7 @@ The "throws when template fails validation" test passes a `badTemplate` director
 **Step 4: Build and run all tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test
 ```
 
@@ -969,7 +969,7 @@ console.log(
 **Step 3: Build and run all tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm test
 ```
 
@@ -980,7 +980,7 @@ Expected: all tests pass. If `directInit` tests in the existing test suite fail 
 ```bash
 cd /tmp
 mkdir test-stu71 && cd test-stu71
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init \
+node ~/dev/src/Studio/cli/dist/index.js init \
   --template software \
   --project my-app \
   --provider later \
@@ -1013,7 +1013,7 @@ git commit -m "feat(cli): wire generateFullApp into initCommand (STU-71)"
 **Step 1: Run full test suite**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm test
 ```
 

@@ -56,7 +56,7 @@ studio init                                      # Bootstrap a new project (inte
 studio doctor                                    # Can this machine run this project?
 studio config set provider anthropic --api-key $KEY
 studio status [run-id]                           # Check status (last run if no ID)
-studio logs [run-id]                             # View run logs (JSONL)
+studio logs <run-id>                             # View run logs (JSONL)
 ```
 
 ---
@@ -69,20 +69,19 @@ studio run <pipeline> --input-file X.yaml        # Run with input from file
 studio run <pipeline> --live                     # Stream tool calls in real-time
 studio run <pipeline> --provider mock            # Test without API calls
 studio run <pipeline> --anonymize                # Anonymize PII before sending to LLM
-studio replay [run-id]                           # Replay a completed run
+studio replay <run-id>                           # Replay a completed run
 studio validate <contract> <output.json>         # Validate output against contract
-studio list projects                             # List projects
-studio list pipelines                            # List available pipelines
+studio list pipelines                            # List available pipelines (also: agents, runs)
 ```
 
 ## Setup
 
 ```bash
 studio init                                      # Interactive wizard (template, provider, tools)
-studio init --template <type> --name <project>   # Direct mode (CI/CD-friendly)
+studio init <project> --template <type>          # Direct mode (CI/CD-friendly)
 studio config add-provider                       # Add an LLM provider (wizard)
 studio config set provider anthropic --api-key $KEY
-studio config set default.model claude-haiku-4-20250514
+studio config set defaults.model claude-haiku-4-20250514
 studio config list                               # Show config (API keys masked)
 ```
 
@@ -120,7 +119,7 @@ studio tools info git                            # Tool details
 ### Templates
 
 ```bash
-studio templates                                 # List available templates
+studio templates list                            # List available templates
 studio template validate <path>                  # Validate a template structure
 ```
 
@@ -151,9 +150,8 @@ The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<it
 ### Other
 
 ```bash
-studio integrations                              # Manage integrations (Linear, etc.)
-studio project                                   # Project management
-studio api start                                 # Start the HTTP REST API
+studio integrations list                         # Manage integrations (install, list, remove, test, set)
+studio api start                                 # Start the HTTP REST API (also: stop, status)
 ```
 
 ---

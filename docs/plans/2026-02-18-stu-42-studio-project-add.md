@@ -121,7 +121,7 @@ describe('createProjectDir', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test
 ```
 
@@ -659,7 +659,7 @@ Expected: `Build complete.` without errors.
 ```bash
 cd /tmp
 mkdir studio-smoke-42 && cd studio-smoke-42
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init my-first-project \
+node ~/dev/src/Studio/cli/dist/index.js init my-first-project \
   --template software \
   --provider anthropic \
   --api-key sk-ant-fake-key-smoke
@@ -668,7 +668,7 @@ node /home/arianeguay/dev/src/Studio/cli/dist/index.js init my-first-project \
 Then add a second project:
 
 ```bash
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js project add legal-analyzer \
+node ~/dev/src/Studio/cli/dist/index.js project add legal-analyzer \
   --template blank
 ```
 
@@ -688,19 +688,19 @@ Done! Run your first pipeline:
 
 ```bash
 # Already exists
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js project add legal-analyzer --template blank
+node ~/dev/src/Studio/cli/dist/index.js project add legal-analyzer --template blank
 ```
 Expected: `Error: Project 'legal-analyzer' already exists in ...`
 
 ```bash
 # Invalid name
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js project add "Bad Name" --template blank
+node ~/dev/src/Studio/cli/dist/index.js project add "Bad Name" --template blank
 ```
 Expected: `Error: Project name must be lowercase alphanumeric with hyphens ...`
 
 ```bash
 # Not initialized
-cd /tmp && node /home/arianeguay/dev/src/Studio/cli/dist/index.js project add foo --template blank
+cd /tmp && node ~/dev/src/Studio/cli/dist/index.js project add foo --template blank
 ```
 Expected: `Studio is not initialized in this directory.`
 

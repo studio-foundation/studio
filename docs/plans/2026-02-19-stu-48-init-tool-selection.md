@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Node.js `fs.cp` filter API, `@inquirer/prompts`'s `checkbox` (already in use in `tools.ts`), existing `listAvailableTools` + `toolsAddDirect` exports from `tools.ts`
 
-**Working directory:** `/home/arianeguay/dev/src/Studio`
+**Working directory:** `~/dev/src/Studio`
 
 ---
 
@@ -474,7 +474,7 @@ git commit -m "feat(cli): STU-48 — add tool selection step to studio init wiza
 Run in a temp directory:
 ```bash
 mkdir /tmp/stu-48-test && cd /tmp/stu-48-test
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init
+node ~/dev/src/Studio/cli/dist/index.js init
 ```
 
 Walk through the wizard. When the tool selection step appears:
@@ -487,7 +487,7 @@ Walk through the wizard. When the tool selection step appears:
 
 ```bash
 rm -rf /tmp/stu-48-direct && mkdir /tmp/stu-48-direct && cd /tmp/stu-48-direct
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init \
+node ~/dev/src/Studio/cli/dist/index.js init \
   --template software --provider later --no-tools
 ls .studio/projects/stu-48-direct/tools/
 ```
@@ -498,7 +498,7 @@ Expected: `tools/` directory exists but is empty.
 
 ```bash
 rm -rf /tmp/stu-48-default && mkdir /tmp/stu-48-default && cd /tmp/stu-48-default
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init \
+node ~/dev/src/Studio/cli/dist/index.js init \
   --template software --provider later
 ls .studio/projects/stu-48-default/tools/
 ```

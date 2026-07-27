@@ -168,7 +168,7 @@ describe('summarizeOutput', () => {
 **Step 2: Run the test to confirm it fails**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test
 ```
 
@@ -312,7 +312,7 @@ export function summarizeOutput(output: unknown): string | null {
 **Step 2: Run tests to confirm they pass**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test
 ```
 
@@ -530,7 +530,7 @@ export class ProgressDisplay {
 **Step 2: Build to check for type errors**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 ```
 
@@ -565,7 +565,7 @@ git commit -m "feat(cli): use ora spinner and human-readable formatting in Progr
 **Step 1: Full build from workspace root**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 ```
 

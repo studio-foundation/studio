@@ -77,7 +77,7 @@ Keep `ToolCallSummary` in the file if it is used elsewhere (check with grep); ot
 - [ ] **Step 2: Check if `ToolCallSummary` is used anywhere else**
 
 ```bash
-grep -rn "ToolCallSummary" /home/arianeguay/dev/src/Studio --include="*.ts"
+grep -rn "ToolCallSummary" ~/dev/src/Studio --include="*.ts"
 ```
 
 If only `stage-executor.ts` imports it, the import there will be removed in step 3. The type definition itself can be removed from `events.ts` once the import is removed.
@@ -101,7 +101,7 @@ this.config.events?.onStageComplete?.({
 - [ ] **Step 4: Build and check for type errors**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build 2>&1 | head -40
+cd ~/dev/src/Studio && pnpm build 2>&1 | head -40
 ```
 
 Expected: clean build (no type errors).
@@ -142,7 +142,7 @@ export interface StageRun {
 - [ ] **Step 2: Build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build 2>&1 | head -20
+cd ~/dev/src/Studio && pnpm build 2>&1 | head -20
 ```
 
 Expected: clean build.
@@ -293,7 +293,7 @@ describe('engine — resume from stage', () => {
 - [ ] **Step 2: Run test to confirm it fails**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | grep -A 5 "engine.resume"
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | grep -A 5 "engine.resume"
 ```
 
 Expected: FAIL — `RunInput` does not have `resumeFromStage`.
@@ -546,7 +546,7 @@ You will need to examine the `runSequential` inner loop (around line 191) to fin
 - [ ] **Step 9: Run tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/engine test 2>&1 | tail -20
 ```
 
 Expected: all engine tests pass including the new resume tests.
@@ -554,7 +554,7 @@ Expected: all engine tests pass including the new resume tests.
 - [ ] **Step 10: Build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build 2>&1 | head -20
+cd ~/dev/src/Studio && pnpm build 2>&1 | head -20
 ```
 
 - [ ] **Step 11: Commit**
@@ -661,7 +661,7 @@ describe('resolveStageFromPipeline', () => {
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -A 5 "parseJsonlForResume\|resolveStage"
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | grep -A 5 "parseJsonlForResume\|resolveStage"
 ```
 
 Expected: FAIL — functions not exported.
@@ -857,7 +857,7 @@ export async function restartCommand(
 
 Check what's exported from `@studio-foundation/engine`:
 ```bash
-grep -n "export" /home/arianeguay/dev/src/Studio/engine/src/index.ts | head -20
+grep -n "export" ~/dev/src/Studio/engine/src/index.ts | head -20
 ```
 
 If `loadPipeline` is exported, use it. Otherwise, import the pipeline loader directly (it's `engine/src/pipeline/loader.ts`).
@@ -865,7 +865,7 @@ If `loadPipeline` is exported, use it. Otherwise, import the pipeline loader dir
 - [ ] **Step 5: Run CLI tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: `parseJsonlForResume` and `resolveStageFromPipeline` tests pass.
@@ -907,7 +907,7 @@ program
 - [ ] **Step 7: Build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build 2>&1 | head -30
+cd ~/dev/src/Studio && pnpm build 2>&1 | head -30
 ```
 
 - [ ] **Step 8: Commit**
@@ -973,7 +973,7 @@ const stages: StageRun[] = stageCompletes.map((s, i) => ({
 - [ ] **Step 2: Check how `formatResult` renders stages**
 
 ```bash
-cat /home/arianeguay/dev/src/Studio/cli/src/output/formatter.ts | grep -A 20 "skipped\|stage_name\|status"
+cat ~/dev/src/Studio/cli/src/output/formatter.ts | grep -A 20 "skipped\|stage_name\|status"
 ```
 
 If `formatResult` already renders `status: 'skipped'` (it likely does since `'skipped'` is already used for conditional stages), no further changes are needed. If `skipped_reason` should be shown inline, add it to the formatter's stage rendering — but only if it's not already displayed.
@@ -981,7 +981,7 @@ If `formatResult` already renders `status: 'skipped'` (it likely does since `'sk
 - [ ] **Step 3: Build and run CLI tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
+cd ~/dev/src/Studio && pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | tail -10
 ```
 
 - [ ] **Step 4: Commit**
@@ -998,13 +998,13 @@ git commit -m "feat(cli): show skipped_reason in studio status for resumed runs"
 - [ ] **Step 1: Build everything**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build
+cd ~/dev/src/Studio && pnpm build
 ```
 
 - [ ] **Step 2: Run all tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm test 2>&1 | tail -20
 ```
 
 Expected: all tests pass.
@@ -1029,7 +1029,7 @@ Verify:
 - [ ] **Step 4: Final commit if anything adjusted**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add -p
 git commit -m "fix(cli): smoke test adjustments for replay --restart"
 ```

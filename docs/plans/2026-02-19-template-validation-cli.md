@@ -246,7 +246,7 @@ stages:
 **Step 2: Run the test to confirm it fails (no implementation yet)**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | tail -30
 ```
 

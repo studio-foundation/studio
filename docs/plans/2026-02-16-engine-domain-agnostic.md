@@ -28,7 +28,7 @@ export type StageKind = string;
 
 **Step 2: Build contracts**
 
-Run: `cd /home/arianeguay/dev/src/Studio/contracts && npm run build`
+Run: `cd ~/dev/src/Studio/contracts && npm run build`
 Expected: PASS — no code depends on specific StageKind values at compile time.
 
 **Step 3: Commit**
@@ -69,7 +69,7 @@ With:
 
 **Step 2: Build contracts**
 
-Run: `cd /home/arianeguay/dev/src/Studio/contracts && npm run build`
+Run: `cd ~/dev/src/Studio/contracts && npm run build`
 Expected: PASS (consumers haven't been updated yet — they'll fail on their own builds).
 
 **Step 3: Commit**
@@ -191,7 +191,7 @@ With:
 
 **Step 3: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS
 
 **Step 4: Commit**
@@ -236,7 +236,7 @@ With:
 
 **Step 3: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS
 
 **Step 4: Commit**
@@ -270,7 +270,7 @@ function extractToolArgSummary(tc: ToolCall): string {
 
 **Step 2: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS
 
 **Step 3: Commit**
@@ -317,7 +317,7 @@ In the `case 'group_feedback':` block (lines 87-114), replace the `lines` array 
 
 **Step 2: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS
 
 **Step 3: Commit**
@@ -340,7 +340,7 @@ Search for `'Rejected by QA'` in `engine/src/engine.ts` and replace with `'Rejec
 
 **Step 2: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS
 
 **Step 3: Commit**
@@ -441,7 +441,7 @@ post_validation:
 
 **Step 2: Run group-loop tests**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npx vitest run tests/group-loop.test.ts`
+Run: `cd ~/dev/src/Studio/engine && npx vitest run tests/group-loop.test.ts`
 Expected: ALL PASS
 
 **Step 3: Commit**
@@ -482,7 +482,7 @@ With:
 
 **Step 2: Run context propagation tests**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npx vitest run tests/context-propagation.test.ts`
+Run: `cd ~/dev/src/Studio/engine && npx vitest run tests/context-propagation.test.ts`
 Expected: ALL PASS
 
 **Step 3: Commit**
@@ -498,17 +498,17 @@ git commit -m "test: update feedback text assertions for generic wording"
 
 **Step 1: Run all engine tests**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npx vitest run`
+Run: `cd ~/dev/src/Studio/engine && npx vitest run`
 Expected: ALL PASS
 
 **Step 2: Build engine**
 
-Run: `cd /home/arianeguay/dev/src/Studio/engine && npm run build`
+Run: `cd ~/dev/src/Studio/engine && npm run build`
 Expected: PASS with no errors
 
 **Step 3: Build entire workspace**
 
-Run: `cd /home/arianeguay/dev/src/Studio && npm run build:all`
+Run: `cd ~/dev/src/Studio && npm run build:all`
 Expected: PASS
 
 **Step 4: Verify domain-agnostic parsing**

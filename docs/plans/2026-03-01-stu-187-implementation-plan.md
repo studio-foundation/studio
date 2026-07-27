@@ -56,7 +56,7 @@ describe('loadInvariantsFile', () => {
 **Step 2: Run test to verify it fails**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-187
+cd ~/dev/src/Studio/.worktrees/stu-187
 pnpm --filter @studio-foundation/engine test -- --reporter=verbose engine/src/pipeline/invariants-loader.test.ts
 ```
 
@@ -254,7 +254,7 @@ git commit -m "feat(engine): inject invariants.md content into agent system_prom
 The unit tests verify loading. We need a test that verifies the content actually reaches the agent. Look at how the engine tests work — search for existing integration-style tests in `engine/src/`.
 
 ```bash
-find /home/arianeguay/dev/src/Studio/.worktrees/stu-187/engine -name "*.test.ts" | xargs grep -l "MockProvider\|mock.*provider\|provider.*mock" | head -5
+find ~/dev/src/Studio/.worktrees/stu-187/engine -name "*.test.ts" | xargs grep -l "MockProvider\|mock.*provider\|provider.*mock" | head -5
 ```
 
 This tells you which test file to model from.
@@ -321,7 +321,7 @@ git commit -m "test(engine): add integration test for invariants system_prompt i
 **Step 1: Create directory and file**
 
 ```bash
-mkdir -p /home/arianeguay/dev/src/Studio/.worktrees/stu-187/templates/analysis/.studio
+mkdir -p ~/dev/src/Studio/.worktrees/stu-187/templates/analysis/.studio
 ```
 
 Then create `templates/analysis/.studio/invariants.md`:
@@ -355,7 +355,7 @@ These invariants are reinforced by:
 **Step 2: Verify the file was created**
 
 ```bash
-cat /home/arianeguay/dev/src/Studio/.worktrees/stu-187/templates/analysis/.studio/invariants.md
+cat ~/dev/src/Studio/.worktrees/stu-187/templates/analysis/.studio/invariants.md
 ```
 
 **Step 3: Commit**

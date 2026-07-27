@@ -74,5 +74,5 @@ Useful while getting oriented:
 studio run <pipeline> --provider mock    # no API calls, no key needed
 studio run <pipeline> --live             # stream tool calls as they happen
 studio status                            # last run
-studio logs                              # raw JSONL of the last run
+studio logs <run-id>                     # raw JSONL for a run
 ```

@@ -618,7 +618,7 @@ cd cli && npm run build && cd ..
 
 ```bash
 # Ensure STUDIO_PROJECTS_DIR is set
-export STUDIO_PROJECTS_DIR=/home/arianeguay/dev/src/studio-projects
+export STUDIO_PROJECTS_DIR=~/dev/src/studio-projects
 mkdir -p $STUDIO_PROJECTS_DIR
 
 # Run with input file — should clone repo and attempt pipeline

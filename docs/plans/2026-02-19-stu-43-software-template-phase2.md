@@ -6,7 +6,7 @@
 
 **Architecture:** Pure YAML/JSON data — no source code changes. The `listTemplates()` function in `cli/src/commands/templates.ts` already scans `cli/templates/projects/` dynamically, so adding a new subdirectory is enough for the wizard to discover it. TDD: update the templates test first to assert `software-full` exists, then create all files.
 
-**Tech Stack:** YAML, JSON. Working dir: `/home/arianeguay/dev/src/Studio/`
+**Tech Stack:** YAML, JSON. Working dir: `~/dev/src/Studio/`
 
 **Design doc:** `docs/plans/2026-02-19-stu-43-software-template-phase2-design.md`
 

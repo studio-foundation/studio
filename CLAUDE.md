@@ -160,24 +160,27 @@ Tools are YAML plugins (`.tool.yaml`). The runner is a tool plugin runtime.
 | `repo_manager-list_files` | List files |
 | `shell-run_command` | Execute a shell command |
 | `search-search_codebase` | Search code |
-| `patch-apply_patch` | Apply a unified diff |
+| `web_search-search` | Search the web |
+| `repo_manager-apply_patch` | Apply a unified diff |
 | `git-checkout` | Checkout or create a branch |
 | `git-commit` | Create a commit |
 | `git-push` | Push to remote |
 | `git-pull` | Pull from remote |
 | `git-status` | Show working tree status |
 | `git-diff` | Show diffs |
-| `studio_run` | Spawn a sub-pipeline |
+| `studio_run-run_pipeline` | Spawn a sub-pipeline |
 
 **Tool name format:** Dashes (`-`), not dots (`.`). Example: `repo_manager-write_file`.
 
 ## YAML Configs — Source of Truth
 
-**Pipelines:** `pipelines/*.pipeline.yaml`
-**Contracts:** `contracts/*.contract.yaml`
-**Agents:** `agents/*.agent.yaml`
-**Tools:** `tools/*.tool.yaml`
-**Inputs:** `inputs/*.input.yaml`
+All paths are relative to a project's `.studio/` directory — they do not exist at the root of this repo.
+
+**Pipelines:** `.studio/pipelines/*.pipeline.yaml`
+**Contracts:** `.studio/contracts/*.contract.yaml`
+**Agents:** `.studio/agents/*.agent.yaml`
+**Tools:** `.studio/tools/*.tool.yaml`
+**Inputs:** `.studio/inputs/*.input.yaml`
 
 **Never hardcode in code what can be in YAML.**
 
