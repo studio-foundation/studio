@@ -6,8 +6,9 @@
 // unusable for wiki-creator's real workloads (hundreds of items, runs measured
 // in hours). This renderer surfaces, in real time:
 //   - a header line naming the fan-out (item count + concurrency),
-//   - a live status line: completed/failed counts and the identities of the
-//     items currently in flight (works with concurrency > 1),
+//   - a live status line: completed/failed counts, what the last settled item
+//     produced, and the identities of the items currently in flight (works with
+//     concurrency > 1),
 //   - a permanent line the moment an item fails, naming it and its child run ID,
 //   - a final summary line.
 //
@@ -32,10 +33,37 @@ const MAX_INFLIGHT_WIDTH = 60;
 const MAX_LABEL_WIDTH = 32;
 /** Max width of an error message on a per-item failure line. */
 const MAX_ERROR_WIDTH = 160;
+/** Max width of the "last: …" result summary. */
+const MAX_RESULT_WIDTH = 40;
+/** How many scalar fields of an item's output make up its result summary. */
+const RESULT_FIELDS = 3;
 
 function truncate(text: string, max: number): string {
   const t = text.replace(/\s+/g, ' ').trim();
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
+}
+
+/**
+ * What an item *produced*, for the live line. An item's label is derived from
+ * its input, so a value the child computes — a classification, a verdict — is
+ * blank there and only exists in the child's output. Domain-agnostic: the first
+ * few short scalar fields, in declaration order. Long strings are skipped, not
+ * truncated — a summary paragraph would swallow the line.
+ */
+export function summarizeItemOutput(output: unknown): string | undefined {
+  if (typeof output === 'string') return output.trim() || undefined;
+  if (typeof output === 'number' || typeof output === 'boolean') return String(output);
+  if (output === null || typeof output !== 'object' || Array.isArray(output)) return undefined;
+
+  const parts: string[] = [];
+  for (const value of Object.values(output as Record<string, unknown>)) {
+    if (typeof value === 'number' || typeof value === 'boolean') parts.push(String(value));
+    else if (typeof value === 'string' && value.trim() && value.trim().length <= MAX_RESULT_WIDTH) {
+      parts.push(value.trim());
+    }
+    if (parts.length === RESULT_FIELDS) break;
+  }
+  return parts.length ? parts.join(', ') : undefined;
 }
 
 function truncateList(labels: string[], max: number): string {
@@ -51,6 +79,7 @@ export class MapRenderer {
   private total = 0;
   private done = 0;
   private failed = 0;
+  private lastResult: string | null = null;
   private readonly inFlight = new Map<number, InFlight>();
 
   /**
@@ -65,6 +94,7 @@ export class MapRenderer {
     this.total = total;
     this.done = 0;
     this.failed = 0;
+    this.lastResult = null;
     this.inFlight.clear();
 
     console.log(
@@ -87,6 +117,7 @@ export class MapRenderer {
   /**
    * An item settled. Failures are surfaced immediately as a permanent line
    * (naming the item and its child run ID) — not buried in the end aggregate.
+   * A success carries what it produced onto the live line.
    */
   itemComplete(
     index: number,
@@ -94,6 +125,7 @@ export class MapRenderer {
     label: string,
     runId?: string,
     error?: string,
+    output?: unknown,
   ): void {
     this.inFlight.delete(index);
     if (status === 'failed') {
@@ -105,6 +137,10 @@ export class MapRenderer {
       );
     } else {
       this.done++;
+      const result = summarizeItemOutput(output);
+      if (result) {
+        this.lastResult = `${truncate(label, MAX_LABEL_WIDTH)} — ${truncate(result, MAX_RESULT_WIDTH)}`;
+      }
     }
     if (this.spinner) this.spinner.text = this.statusText();
   }
@@ -135,11 +171,12 @@ export class MapRenderer {
     const elapsed = Math.floor((Date.now() - this.startedAt) / 1000);
     const head = chalk.cyan(`${this.done}/${this.total} done`);
     const failStr = this.failed > 0 ? chalk.red(`, ${this.failed} failed`) : '';
+    const lastStr = this.lastResult ? chalk.dim(` · last: ${this.lastResult}`) : '';
     const labels = [...this.inFlight.values()].map((f) => f.label);
     const flightStr = labels.length
       ? chalk.dim(` · ${labels.length} in flight: ${truncateList(labels, MAX_INFLIGHT_WIDTH)}`)
       : '';
-    return `${head}${failStr}${flightStr}${chalk.gray(` (${elapsed}s)`)}`;
+    return `${head}${failStr}${lastStr}${flightStr}${chalk.gray(` (${elapsed}s)`)}`;
   }
 
   /** Print a permanent line above the live status line, then restore it. */
