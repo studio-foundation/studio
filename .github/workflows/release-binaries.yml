@@ -1,19 +1,18 @@
 name: Release binaries
 
-# Attaches the standalone binaries to a GitHub Release. The release is cut last (npm
-# first — see the release procedure in CLAUDE.md), so `published` fires at the right
-# moment; `workflow_dispatch` re-runs it against an existing tag.
+# Attaches the standalone binaries to a GitHub Release. Releases are immutable in this
+# repo — a published release rejects asset uploads with HTTP 422 — so this runs against
+# a *draft* release, which the release procedure publishes afterwards. That is also why
+# there is no `release: published` trigger: by then it is too late to upload.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to attach binaries to (e.g. v0.10.1)
+        description: Draft release tag to attach binaries to (e.g. v0.10.1)
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.event.release.tag_name }}
+  group: ${{ github.workflow }}-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +26,7 @@ jobs:
     permissions:
       contents: write
     env:
-      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      TAG: ${{ inputs.tag }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/download-artifact@v4
