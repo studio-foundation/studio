@@ -11,7 +11,10 @@ export function searchPackages(
   let results = packages;
 
   if (type) {
-    results = results.filter(p => p.type === type);
+    // Matches the packaging type (`plugin`, `template`) or a provided content
+    // kind (`tool`, `agent`…), so `--type tool` keeps meaning what it did.
+    const kind = type.endsWith('s') ? type : `${type}s`;
+    results = results.filter(p => p.type === type || (p.provides?.[kind as keyof typeof p.provides]?.length ?? 0) > 0);
   }
 
   if (query) {
@@ -24,6 +27,15 @@ export function searchPackages(
   }
 
   return results;
+}
+
+/** What a package delivers, for display: a template is one thing, a plugin is its `provides`. */
+function providedKinds(pkg: PackageEntry): string[] {
+  if (pkg.type === 'template') return ['templates'];
+  const kinds = Object.entries(pkg.provides ?? {})
+    .filter(([, names]) => names && names.length > 0)
+    .map(([kind]) => kind);
+  return kinds.length > 0 ? kinds : ['plugins'];
 }
 
 function renderPackage(pkg: PackageEntry): void {
@@ -77,14 +89,17 @@ export async function browseCommand(): Promise<void> {
 
   console.log(chalk.bold(`\nStudio Community Registry — ${sorted.length} packages\n`));
 
-  const byType: Record<string, PackageEntry[]> = {};
+  // Grouped by what a package delivers, not by its packaging type — with two
+  // packaging types, "plugins" and "templates" would be the whole listing.
+  const byKind: Record<string, PackageEntry[]> = {};
   for (const pkg of sorted) {
-    if (!byType[pkg.type]) byType[pkg.type] = [];
-    byType[pkg.type].push(pkg);
+    for (const kind of providedKinds(pkg)) {
+      (byKind[kind] ??= []).push(pkg);
+    }
   }
 
-  for (const [type, pkgs] of Object.entries(byType)) {
-    console.log(chalk.bold.underline(`${type}s`));
+  for (const [kind, pkgs] of Object.entries(byKind).sort(([a], [b]) => a.localeCompare(b))) {
+    console.log(chalk.bold.underline(kind));
     for (const pkg of pkgs) {
       renderPackage(pkg);
       console.log();

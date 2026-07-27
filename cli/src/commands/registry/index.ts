@@ -14,7 +14,7 @@ export function createRegistryCommand(): Command {
   registry
     .command('search <query>')
     .description('Search packages in the registry')
-    .option('--type <type>', 'Filter by type: tool, template, pipeline, integration, agent, plugin, skill')
+    .option('--type <type>', 'Filter by packaging type (template, plugin) or content kind (tool, agent, skill, integration, pipeline, contract, input)')
     .action((query: string, options: { type?: string }) => searchCommand(query, options));
 
   registry
