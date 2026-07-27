@@ -75,6 +75,8 @@ interface InstallOptions {
   force?: boolean;
   cwd?: string;
   requiredBy?: string;
+  /** Range `requiredBy` declared on this package, recorded for later updates. */
+  requiredRange?: string;
   /** Skip interactive prompts (auto-accept). Use when called under a spinner. */
   interactive?: boolean;
   _depth?: number;
@@ -99,7 +101,7 @@ async function doInstallPackage(
   const existing = await lockfile.get(name);
   if (existing && !options.force) {
     if (options.requiredBy) {
-      await lockfile.addRequiredBy(name, options.requiredBy);
+      await lockfile.addRequiredBy(name, options.requiredBy, options.requiredRange);
     }
     if (depth === 0) {
       console.log(chalk.yellow(`${name} v${existing.version} is already installed. Use --force to reinstall.`));
@@ -171,6 +173,9 @@ async function doInstallPackage(
     sha256: installed.sha256,
     files: installed.files,
     required_by: options.requiredBy ? [options.requiredBy] : [],
+    ...(options.requiredBy && options.requiredRange
+      ? { constraints: { [options.requiredBy]: options.requiredRange } }
+      : {}),
   });
 
   console.log(`${indent}${chalk.green(`✓ Installed ${name} v${version}`)}`);
@@ -199,7 +204,13 @@ async function doInstallPackage(
     for (const dep of graph.required) {
       await doInstallPackage(
         `${dep.name}@${dep.version}`,
-        { studioDir, requiredBy: name, interactive: options.interactive, _depth: depth + 1 },
+        {
+          studioDir,
+          requiredBy: name,
+          requiredRange: dep.constraints.find(c => c.requiredBy === name)?.range,
+          interactive: options.interactive,
+          _depth: depth + 1,
+        },
         client,
         lockfile,
         index,

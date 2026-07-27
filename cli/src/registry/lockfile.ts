@@ -25,9 +25,20 @@ export class RegistryLockfile {
     await writeFile(this.lockPath, JSON.stringify(data, null, 2) + '\n');
   }
 
+  /**
+   * Dependents survive a reinstall: `--force` rewrites the payload fields, not the
+   * graph, so `studio registry update` can't orphan an entry it just refreshed.
+   */
   async add(name: string, entry: LockfileEntry): Promise<void> {
     const data = await this.read();
-    data.installed[name] = entry;
+    const previous = data.installed[name];
+    const required_by = [...new Set([...(previous?.required_by ?? []), ...(entry.required_by ?? [])])];
+    const constraints = { ...previous?.constraints, ...entry.constraints };
+    data.installed[name] = {
+      ...entry,
+      required_by,
+      ...(Object.keys(constraints).length > 0 ? { constraints } : {}),
+    };
     await this.write(data);
   }
 
@@ -47,22 +58,31 @@ export class RegistryLockfile {
     return Object.entries(data.installed).map(([name, entry]) => ({ name, ...entry }));
   }
 
-  async addRequiredBy(name: string, requiredBy: string): Promise<void> {
+  async addRequiredBy(name: string, requiredBy: string, range?: string): Promise<void> {
     const data = await this.read();
     const entry = data.installed[name];
     if (!entry) return;
     const existing = entry.required_by ?? [];
-    if (!existing.includes(requiredBy)) {
-      data.installed[name] = { ...entry, required_by: [...existing, requiredBy] };
-      await this.write(data);
-    }
+    if (existing.includes(requiredBy) && entry.constraints?.[requiredBy] === range) return;
+    data.installed[name] = {
+      ...entry,
+      required_by: existing.includes(requiredBy) ? existing : [...existing, requiredBy],
+      ...(range ? { constraints: { ...entry.constraints, [requiredBy]: range } } : {}),
+    };
+    await this.write(data);
   }
 
   async removeRequiredBy(name: string, requiredBy: string): Promise<void> {
     const data = await this.read();
     const entry = data.installed[name];
     if (!entry) return;
-    data.installed[name] = { ...entry, required_by: (entry.required_by ?? []).filter(r => r !== requiredBy) };
+    const constraints = { ...entry.constraints };
+    delete constraints[requiredBy];
+    data.installed[name] = {
+      ...entry,
+      required_by: (entry.required_by ?? []).filter(r => r !== requiredBy),
+      ...(Object.keys(constraints).length > 0 ? { constraints } : { constraints: undefined }),
+    };
     await this.write(data);
   }
 }
