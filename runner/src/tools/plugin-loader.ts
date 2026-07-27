@@ -13,6 +13,7 @@ import { createPatchTools } from './builtin/patch.js';
 import { createGitTools } from './builtin/git.js';
 import { createWebSearchTools } from './builtin/web-search.js';
 import { ToolYamlError } from './errors.js';
+import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
 export interface LoadedPlugin {
   name: string;
@@ -153,10 +154,8 @@ export async function loadProjectTools(
   return plugins;
 }
 
-const BUNDLED_TOOL_TEMPLATES_DIR = resolve(
-  __dirname,
-  '../../templates/tools'
-);
+const TOOL_TEMPLATE_PREFIX = 'tools/';
+const TOOL_TEMPLATE_SUFFIX = '.tool.yaml';
 
 /**
  * Names of built-in tool plugins that have bundled installable templates.
@@ -175,31 +174,20 @@ export const BUILTIN_TOOL_NAMES = new Set([
  * List all tool plugins available for installation from the bundled registry.
  * Returns an array of { name, description } objects.
  */
-export async function listAvailableToolTemplates(): Promise<{ name: string; description: string }[]> {
-  let files: string[];
-  try {
-    files = (await readdir(BUNDLED_TOOL_TEMPLATES_DIR)).filter(f => f.endsWith('.tool.yaml')).sort();
-  } catch {
-    return [];
-  }
-  const result: { name: string; description: string }[] = [];
-  for (const file of files) {
-    const content = await readFile(resolve(BUNDLED_TOOL_TEMPLATES_DIR, file), 'utf-8');
-    const def = yaml.load(content) as ToolPluginDef;
-    result.push({ name: file.replace('.tool.yaml', ''), description: def.description ?? '' });
-  }
-  return result;
+export function listAvailableToolTemplates(): { name: string; description: string }[] {
+  return Object.keys(BUNDLED_ASSETS)
+    .filter(key => key.startsWith(TOOL_TEMPLATE_PREFIX) && key.endsWith(TOOL_TEMPLATE_SUFFIX))
+    .sort()
+    .map(key => ({
+      name: key.slice(TOOL_TEMPLATE_PREFIX.length, -TOOL_TEMPLATE_SUFFIX.length),
+      description: (yaml.load(BUNDLED_ASSETS[key]) as ToolPluginDef).description ?? '',
+    }));
 }
 
 /**
  * Return the raw YAML content of a bundled tool template by name.
  * Returns null if the tool does not exist in the bundled registry.
  */
-export async function getBundledToolTemplate(name: string): Promise<string | null> {
-  const filePath = resolve(BUNDLED_TOOL_TEMPLATES_DIR, `${name}.tool.yaml`);
-  try {
-    return await readFile(filePath, 'utf-8');
-  } catch {
-    return null;
-  }
+export function getBundledToolTemplate(name: string): string | null {
+  return BUNDLED_ASSETS[`${TOOL_TEMPLATE_PREFIX}${name}${TOOL_TEMPLATE_SUFFIX}`] ?? null;
 }

@@ -62,9 +62,9 @@ export async function installIntegration(source: string, integrationsDir: string
 
   if (source.startsWith('@studio-foundation/integration-')) {
     name = source.replace('@studio-foundation/integration-', '');
-    const bundled = await getBundledIntegrationTemplate(name);
+    const bundled = getBundledIntegrationTemplate(name);
     if (!bundled) {
-      const available = await listAvailableIntegrationTemplates();
+      const available = listAvailableIntegrationTemplates();
       throw new Error(
         `Unknown integration '${name}'. Available: ${available.map(t => t.name).join(', ')}`
       );

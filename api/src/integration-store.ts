@@ -2,7 +2,7 @@
 // Partitioned by integration_name — supports any integration (linear, slack, github, etc.)
 // Uses the same DB file as the run store (.studio/runs/runs.db)
 
-import { createRequire } from 'node:module';
+import { openDatabase, type SyncDatabase } from '@studio-foundation/engine';
 
 export interface IntegrationConfig {
   pipeline?: string;
@@ -22,12 +22,10 @@ export interface IntegrationTriggerRecord {
 }
 
 export class IntegrationStore {
-  private db: import('node:sqlite').DatabaseSync;
+  private db: SyncDatabase;
 
   constructor(dbPath: string) {
-    const _require = createRequire(import.meta.url);
-    const { DatabaseSync } = _require('node:sqlite') as typeof import('node:sqlite');
-    this.db = new DatabaseSync(dbPath);
+    this.db = openDatabase(dbPath);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.initSchema();
   }

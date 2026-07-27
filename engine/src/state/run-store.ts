@@ -4,6 +4,7 @@
 import { createRequire } from 'node:module';
 import type { PipelineRun } from '@studio-foundation/contracts';
 import { reconcileOrphan } from './orphan.js';
+import { openDatabase, type SyncDatabase } from './sqlite.js';
 
 export interface RunStore {
   savePipelineRun(run: PipelineRun): void;
@@ -90,12 +91,10 @@ export class InMemoryRunStore implements RunStore {
 // Uses node:sqlite (synchronous, no native build, no migrations)
 // Stores the entire PipelineRun as JSON in a single column — simple, queryable by status
 export class SQLiteRunStore implements RunStore {
-  private db: import('node:sqlite').DatabaseSync;
+  private db: SyncDatabase;
 
   constructor(dbPath: string) {
-    const _require = createRequire(import.meta.url);
-    const { DatabaseSync } = _require('node:sqlite') as typeof import('node:sqlite');
-    this.db = new DatabaseSync(dbPath);
+    this.db = openDatabase(dbPath);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.initSchema();
   }

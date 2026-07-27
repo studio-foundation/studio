@@ -4,6 +4,35 @@ Studio's primary interface for human use. For machine-to-machine usage (webhooks
 
 ---
 
+## Install
+
+Two channels, same binary.
+
+```bash
+# Standalone binary — no Node.js required at runtime
+curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+
+# npm — pulls the binary in as a per-platform optional dependency
+npm install -g @studio-foundation/cli
+```
+
+The installer honours `STUDIO_VERSION` (a release tag, default: latest) and
+`STUDIO_INSTALL_DIR` (default: `$HOME/.local/bin`). It verifies the download against the
+release's `SHA256SUMS` before installing.
+
+Binaries ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glibc and
+musl each), and `win-x64`. On any other platform the npm package falls back to the
+JavaScript build, which needs Node.js >= 22.13.
+
+Building them locally needs [Bun](https://bun.sh):
+
+```bash
+pnpm build && pnpm build:binary          # every platform → dist-binaries/
+pnpm build:binary linux-x64              # or just one
+```
+
+---
+
 ## The commands you'll use daily
 
 ```bash

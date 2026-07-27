@@ -1,10 +1,8 @@
-import { createRequire } from 'node:module';
 import semver from 'semver';
+import { PACKAGE_VERSION } from './generated/bundled-assets.js';
 
-const require = createRequire(import.meta.url);
-
-/** The running Studio version — the single source is cli/package.json. */
-export const STUDIO_VERSION: string = (require('../package.json') as { version: string }).version;
+/** The running Studio version — the single source is cli/package.json, inlined at build time. */
+export const STUDIO_VERSION: string = PACKAGE_VERSION;
 
 export const UPGRADE_HINT = '  Upgrade:  npm i -g @studio-foundation/cli@latest';
 

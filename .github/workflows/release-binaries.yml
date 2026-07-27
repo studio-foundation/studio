@@ -1,0 +1,46 @@
+name: Release binaries
+
+# Attaches the standalone binaries to a GitHub Release. The release is cut last (npm
+# first — see the release procedure in CLAUDE.md), so `published` fires at the right
+# moment; `workflow_dispatch` re-runs it against an existing tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach binaries to (e.g. v0.10.1)
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-binaries.yml
+
+  publish:
+    name: Attach to release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: dist-binaries
+          merge-multiple: true
+
+      - name: Write SHA256SUMS
+        working-directory: dist-binaries
+        run: |
+          sha256sum studio-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload release assets
+        run: gh release upload "$TAG" dist-binaries/* --clobber --repo "$GITHUB_REPOSITORY"

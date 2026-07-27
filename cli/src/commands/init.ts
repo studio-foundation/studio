@@ -15,8 +15,7 @@ import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio-foundation/runner';
 import { installPackage } from './registry/install.js';
 import { CONFIG_FILE, CONFIG_EXAMPLE_FILE } from '../config-validation.js';
-
-const TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates');
+import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
 function formatBackupTimestamp(): string {
   const d = new Date();
@@ -121,9 +120,7 @@ export async function createStudioStructure(
     }
   } else if (templateName === 'blank') {
     // blank has no registry equivalent — validate it still "exists" as a concept
-    const localBlankDir = resolve(TEMPLATES_DIR, 'projects', 'blank');
-    const blankExists = await access(localBlankDir).then(() => true).catch(() => false);
-    if (!blankExists) {
+    if (!BUNDLED_ASSETS['projects/blank/metadata.json']) {
       throw new Error(
         `Template '${templateName}' not found. Run 'studio templates list' to see available templates.`
       );
@@ -148,7 +145,7 @@ export async function createStudioStructure(
     const targetPath = join(studioDir, target);
     const exists = await access(targetPath).then(() => true).catch(() => false);
     if (!exists) {
-      await writeFile(targetPath, await readFile(resolve(TEMPLATES_DIR, template), 'utf-8'), 'utf-8');
+      await writeFile(targetPath, BUNDLED_ASSETS[template], 'utf-8');
     }
   }
 
@@ -816,7 +813,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     }
 
     // Step 6: Tool selection
-    const availableTools = await listAvailableToolTemplates();
+    const availableTools = listAvailableToolTemplates();
     let selectedTools: string[] = [];
 
     if (availableTools.length > 0) {

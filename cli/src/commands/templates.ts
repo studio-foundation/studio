@@ -1,10 +1,7 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { RegistryCache } from '../registry/cache.js';
 import { syncRegistry } from './registry/sync.js';
-
-const PROJECTS_TEMPLATES_DIR = resolve(import.meta.dirname, '../../templates/projects');
+import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
 export interface TemplateMetadata {
   name: string;
@@ -21,24 +18,13 @@ export interface TemplateMetadata {
 export async function listTemplates(): Promise<TemplateMetadata[]> {
   // 1. Load local (bundled) templates
   const localTemplates: TemplateMetadata[] = [];
-  try {
-    const entries = await readdir(PROJECTS_TEMPLATES_DIR, { withFileTypes: true });
-    const dirs = entries
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .sort();
-
-    for (const dir of dirs) {
-      try {
-        const metaPath = join(PROJECTS_TEMPLATES_DIR, dir, 'metadata.json');
-        const meta = JSON.parse(await readFile(metaPath, 'utf-8')) as TemplateMetadata;
-        localTemplates.push(meta);
-      } catch {
-        // Skip malformed or missing metadata
-      }
+  for (const key of Object.keys(BUNDLED_ASSETS).sort()) {
+    if (!key.startsWith('projects/') || !key.endsWith('/metadata.json')) continue;
+    try {
+      localTemplates.push(JSON.parse(BUNDLED_ASSETS[key]) as TemplateMetadata);
+    } catch {
+      // Skip malformed metadata
     }
-  } catch {
-    // templates dir missing — continue
   }
 
   // 2. Merge with registry templates (sync silently if stale, fall back gracefully)

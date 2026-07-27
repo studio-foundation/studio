@@ -20,20 +20,20 @@ afterAll(async () => {
 
 describe('getBundledIntegrationTemplate', () => {
   it('returns YAML content for a known bundled integration', async () => {
-    const content = await getBundledIntegrationTemplate('linear');
+    const content = getBundledIntegrationTemplate('linear');
     expect(content).not.toBeNull();
     expect(content).toContain('name: linear');
   });
 
   it('returns null for unknown integration name', async () => {
-    const content = await getBundledIntegrationTemplate('doesnotexist');
+    const content = getBundledIntegrationTemplate('doesnotexist');
     expect(content).toBeNull();
   });
 });
 
 describe('listAvailableIntegrationTemplates', () => {
   it('returns at least linear, slack, webhook', async () => {
-    const templates = await listAvailableIntegrationTemplates();
+    const templates = listAvailableIntegrationTemplates();
     const names = templates.map(t => t.name);
     expect(names).toContain('linear');
     expect(names).toContain('slack');
@@ -41,7 +41,7 @@ describe('listAvailableIntegrationTemplates', () => {
   });
 
   it('each entry has name and description', async () => {
-    const templates = await listAvailableIntegrationTemplates();
+    const templates = listAvailableIntegrationTemplates();
     for (const t of templates) {
       expect(typeof t.name).toBe('string');
       expect(typeof t.description).toBe('string');

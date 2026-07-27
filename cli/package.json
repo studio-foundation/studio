@@ -6,9 +6,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "studio": "./dist/index.js"
+    "studio": "./bin/studio.mjs"
   },
   "scripts": {
+    "prebuild": "node ../scripts/gen-bundled-assets.mjs",
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
@@ -17,8 +18,8 @@
     "test:watch": "vitest"
   },
   "files": [
-    "dist",
-    "templates"
+    "bin",
+    "dist"
   ],
   "keywords": [
     "studio",
