@@ -1,0 +1,12 @@
+name: consolidated-output
+version: 1
+
+schema:
+  required_fields:
+    - results
+    - summary
+  field_constraints:
+    - field: results
+      type: array
+    - field: summary
+      type: string

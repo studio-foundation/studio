@@ -1,0 +1,137 @@
+name: git
+description: Git version control operations
+version: 1
+
+commands:
+  - name: git-status
+    description: Show working tree status and current branch
+    parameters: {}
+    execute:
+      type: shell
+      command: git status
+      parse_output: text
+
+  - name: git-diff
+    description: Show changes in the working tree
+    parameters:
+      staged:
+        type: boolean
+        required: false
+        description: Show staged changes instead of unstaged
+      file:
+        type: string
+        required: false
+        description: Restrict diff to this file path
+    execute:
+      type: shell
+      command: |
+        git diff {{#if staged}}--cached{{/if}} {{#if file}}{{file}}{{/if}}
+      parse_output: text
+
+  - name: git-checkout
+    description: Checkout an existing branch or create a new one
+    parameters:
+      branch:
+        type: string
+        required: true
+        description: Branch name to checkout or create
+      create:
+        type: boolean
+        required: false
+        description: Create the branch if it does not exist
+    execute:
+      type: shell
+      command: |
+        git checkout {{#if create}}-b{{/if}} {{branch}}
+      parse_output: text
+
+  - name: git-commit
+    description: Stage all changes and commit with a message
+    parameters:
+      message:
+        type: string
+        required: true
+        description: Commit message (use conventional commits format)
+    execute:
+      type: shell
+      command: |
+        git add -A && git commit -m "{{message}}"
+      parse_output: text
+
+  - name: git-push
+    description: Push the current branch to origin
+    parameters:
+      set_upstream:
+        type: boolean
+        required: false
+        description: Set upstream tracking reference (-u flag)
+    execute:
+      type: shell
+      command: |
+        git push {{#if set_upstream}}-u{{/if}} origin HEAD
+      parse_output: text
+
+  - name: git-remote-url
+    description: Get the remote URL for origin
+    parameters: {}
+    execute:
+      type: shell
+      command: git remote get-url origin
+      parse_output: text
+
+  - name: git-create-pr
+    description: Create a pull request on GitHub using the gh CLI
+    parameters:
+      title:
+        type: string
+        required: true
+        description: PR title
+      branch:
+        type: string
+        required: true
+        description: Head branch for the PR
+      body:
+        type: string
+        required: false
+        description: PR description
+      base:
+        type: string
+        required: false
+        description: Base branch to merge into (defaults to main)
+    execute:
+      type: shell
+      command: |
+        gh pr create --title "{{title}}" --head {{branch}} {{#if body}}--body "{{body}}"{{/if}} {{#if base}}--base {{base}}{{/if}}
+      parse_output: text
+
+  - name: git-create-mr
+    description: Create a merge request on GitLab using the glab CLI
+    parameters:
+      title:
+        type: string
+        required: true
+        description: MR title
+      description:
+        type: string
+        required: false
+        description: MR description
+      target_branch:
+        type: string
+        required: false
+        description: Target branch to merge into (defaults to main)
+    execute:
+      type: shell
+      command: |
+        glab mr create --title "{{title}}" {{#if description}}--description "{{description}}"{{/if}} {{#if target_branch}}--target-branch {{target_branch}}{{/if}} --yes
+      parse_output: text
+
+prompt_snippet: |
+  You have access to git tools. Always create a feature branch before making changes.
+  Never commit directly to main or master.
+  Use conventional commit messages: <type>(<scope>): <description>
+  To open a PR/MR: first call git-remote-url to detect the provider, then use
+  git-create-pr for GitHub remotes or git-create-mr for GitLab remotes.
+
+constraints:
+  requires_binaries: [git]
+  optional_binaries: [gh, glab]

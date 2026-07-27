@@ -1,0 +1,13 @@
+name: content-creator
+description: Research a topic and create content
+version: 1
+
+stages:
+  - name: content-generation
+    kind: content
+    agent: writer
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

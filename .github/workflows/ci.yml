@@ -35,6 +35,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check the kernel names no domain tool (INV-11)
+        run: pnpm check:kernel
+
       - name: Build all packages
         run: pnpm build
 

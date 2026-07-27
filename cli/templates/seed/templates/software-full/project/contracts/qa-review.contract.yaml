@@ -1,0 +1,27 @@
+name: qa-review
+version: 1
+schema:
+  required_fields:
+    - status
+    - summary
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager-read_file
+post_validation:
+  rejection_detection:
+    field: status
+    approved_values:
+      - approved
+    rejected_values:
+      - rejected
+      - needs_revision
+      - failed
+      - implementation_incomplete
+      - approved_with_notes
+    details_field: issues
+    summary_field: summary
+  constraints:
+    - if_field: issues
+      operator: array_not_empty
+      then: rejected

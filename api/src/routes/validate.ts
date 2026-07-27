@@ -6,9 +6,7 @@ import type { ServerDeps } from '../server.js';
 import {
   createRepoManagerTools,
   createShellTools,
-  createSearchTools,
   createPatchTools,
-  createGitTools,
 } from '@studio-foundation/runner';
 
 // Derived at module load from the actual factory functions — single source of truth.
@@ -16,9 +14,7 @@ import {
 const BUILTIN_TOOL_ACTIONS: Set<string> = new Set([
   ...createRepoManagerTools('.').map(t => t.name),
   ...createShellTools('.').map(t => t.name),
-  ...createSearchTools('.').map(t => t.name),
   ...createPatchTools('.').map(t => t.name),
-  ...createGitTools('.').map(t => t.name),
 ]);
 
 async function listNames(dir: string, suffix: string): Promise<Set<string>> {

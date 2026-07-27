@@ -269,7 +269,8 @@ export async function installPackage(ref: string, options: InstallOptions = {}):
   const lockfile = new RegistryLockfile(studioDir);
 
   await syncRegistry({ force: false, silent: true });
-  const { packages, marketplaces } = await loadMergedIndex();
+  // `seed: true` — an install with nothing cached is offline, not empty.
+  const { packages, marketplaces } = await loadMergedIndex({ seed: true });
   if (!entryFor(packages, name, undefined, marketplace)) {
     throw new Error(`Package '${name}' not found in registry`);
   }

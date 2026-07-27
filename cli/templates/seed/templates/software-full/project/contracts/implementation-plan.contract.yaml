@@ -1,0 +1,7 @@
+name: implementation-plan
+version: 1
+schema:
+  required_fields:
+    - summary
+    - implementation_steps
+    - files_to_modify

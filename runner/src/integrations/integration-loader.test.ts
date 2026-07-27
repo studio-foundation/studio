@@ -2,11 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import {
-  getBundledIntegrationTemplate,
-  listAvailableIntegrationTemplates,
-  loadProjectIntegrations,
-} from './integration-loader.js';
+import { loadProjectIntegrations } from './integration-loader.js';
 
 let tmpDir: string;
 
@@ -16,37 +12,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await rm(tmpDir, { recursive: true, force: true });
-});
-
-describe('getBundledIntegrationTemplate', () => {
-  it('returns YAML content for a known bundled integration', async () => {
-    const content = getBundledIntegrationTemplate('linear');
-    expect(content).not.toBeNull();
-    expect(content).toContain('name: linear');
-  });
-
-  it('returns null for unknown integration name', async () => {
-    const content = getBundledIntegrationTemplate('doesnotexist');
-    expect(content).toBeNull();
-  });
-});
-
-describe('listAvailableIntegrationTemplates', () => {
-  it('returns at least linear, slack, webhook', async () => {
-    const templates = listAvailableIntegrationTemplates();
-    const names = templates.map(t => t.name);
-    expect(names).toContain('linear');
-    expect(names).toContain('slack');
-    expect(names).toContain('webhook');
-  });
-
-  it('each entry has name and description', async () => {
-    const templates = listAvailableIntegrationTemplates();
-    for (const t of templates) {
-      expect(typeof t.name).toBe('string');
-      expect(typeof t.description).toBe('string');
-    }
-  });
 });
 
 describe('loadProjectIntegrations', () => {

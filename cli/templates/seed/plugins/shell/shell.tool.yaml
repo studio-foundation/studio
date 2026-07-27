@@ -1,0 +1,19 @@
+name: shell
+description: Execute shell commands in the workspace
+version: 1
+
+commands:
+  - name: shell-run_command
+    description: Run a shell command in the workspace directory
+    parameters:
+      command:
+        type: string
+        required: true
+        description: Shell command to execute
+    execute:
+      type: builtin
+      parse_output: text
+
+prompt_snippet: |
+  You have access to a shell tool. Use it to run build, test, or inspection commands.
+  Avoid destructive commands. Prefer targeted commands over broad ones.

@@ -1,0 +1,19 @@
+{
+  "name": "repo-manager",
+  "version": "1.0.0",
+  "description": "Read, write, list, and patch files in the workspace",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "files",
+    "workspace",
+    "builtin"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "repo_manager"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

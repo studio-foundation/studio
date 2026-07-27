@@ -1,0 +1,28 @@
+{
+  "name": "coder",
+  "version": "1.2.0",
+  "description": "Expert software developer agent — implements changes using repo-manager, shell, and search tools",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "software",
+    "code",
+    "development"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "coder"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "code-conventions",
+        "git-workflow",
+        "search"
+      ]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "slack",
+  "version": "1.0.0",
+  "description": "Sends Slack notifications to a configured channel when pipeline events occur, such as completion or failure",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "slack",
+    "notifications",
+    "messaging",
+    "alerts"
+  ],
+  "type": "plugin",
+  "provides": {
+    "integrations": [
+      "slack"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

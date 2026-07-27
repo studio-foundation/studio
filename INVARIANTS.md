@@ -119,6 +119,42 @@ cat cli/package.json         # dependencies: { "@studio-foundation/engine": ...,
 
 ---
 
+## INV-11: The kernel implements only primitives; domain tools are marketplace plugins
+
+**Description:** A tool ships in the kernel only if it satisfies **all three** criteria:
+
+1. **Primitive** — it cannot be built out of the other builtins.
+2. **No domain choice** — no reasonable project would want a substitute.
+3. **Bootstrap-necessary** — without it, `studio run` cannot work at all.
+
+`repo_manager` (including `apply_patch`), `shell` and `studio_run` qualify. `git` fails
+criterion 2 — version control is a project choice, not a law of nature, and a team on
+another VCS or none at all should not inherit one. `search` fails criterion 1 (shell plus
+ripgrep). `web_search` fails criterion 2 (which provider?). Integrations name commercial
+products by definition and fail it too. All of them live in the marketplace.
+
+The kernel carries a **seed cache** of the official marketplace under
+`cli/templates/seed/` so a fresh install works with no network. The difference from a
+builtin is authority, not packaging: a builtin is privileged and unremovable, while a
+seed entry is an ordinary package that happens to be pre-downloaded — removable,
+overridable, pinnable to another version. The kernel carries a blob whose contents it
+does not interpret, which is why the seed is exempt from the check below.
+
+**Enforced by:** [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs),
+run as `pnpm check:kernel` and blocking in CI. It fails when a package bundles a
+`.integration.yaml`, bundles a `.tool.yaml` outside the builtin allowlist, or references
+a tool action that left the kernel.
+
+**Known exception:** `api/src/integrations/` still hardcodes one tracker's webhook and
+failure handling. It predates this invariant and is a behavioural migration rather than a
+packaging one, so the check does not cover `*/src/integrations/` yet.
+
+**What breaks if violated:** the kernel accumulates opinions its users cannot override.
+A bundled `prompt_snippet` dictating a branching model, or a hardcoded search provider,
+can only be changed by editing the kernel — which is exactly what a plugin is for.
+
+---
+
 ## Quick reference
 
 | ID | Invariant | Package(s) | Key file |
@@ -133,3 +169,4 @@ cat cli/package.json         # dependencies: { "@studio-foundation/engine": ...,
 | INV-08 | Binary validation | contracts, runner | `contracts/src/validation.ts` |
 | INV-09 | Projects are self-contained | engine | `engine/src/engine.ts` |
 | INV-10 | Strict dependency DAG | all | `*/package.json` |
+| INV-11 | Kernel implements only primitives | runner, cli | `runner/src/tools/plugin-loader.ts` |

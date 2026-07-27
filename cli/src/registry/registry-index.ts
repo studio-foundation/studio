@@ -1,5 +1,7 @@
 import { RegistryCache } from './cache.js';
 import { loadMarketplaces, type Marketplace } from './marketplaces.js';
+import { DEFAULT_MARKETPLACE } from './dependency-spec.js';
+import { seedIndex } from './seed.js';
 import type { PackageEntry } from './types.js';
 
 /** An index entry knows which marketplace served it — names are unique per marketplace, not globally. */
@@ -15,6 +17,8 @@ export interface MergedIndex {
 interface LoadOptions {
   cacheDir?: string;
   marketplacesFile?: string;
+  /** Stand in for an uncached default marketplace with the bundled snapshot. */
+  seed?: boolean;
 }
 
 /** Every registered marketplace's cached index, merged. Assumes `syncRegistry` ran. */
@@ -22,7 +26,10 @@ export async function loadMergedIndex(options: LoadOptions = {}): Promise<Merged
   const marketplaces = await loadMarketplaces(options.marketplacesFile);
   const packages: IndexedPackage[] = [];
   for (const marketplace of marketplaces) {
-    const index = await new RegistryCache(options.cacheDir, marketplace.name).read();
+    // The snapshot only ever stands in for the marketplace it was bundled from,
+    // and only where an empty listing would be a failure rather than a fact.
+    const seeded = options.seed && marketplace.name === DEFAULT_MARKETPLACE ? seedIndex() : null;
+    const index = await new RegistryCache(options.cacheDir, marketplace.name).read() ?? seeded;
     if (!index) continue;
     packages.push(...index.packages.map((p) => ({ ...p, marketplace: marketplace.name })));
   }
