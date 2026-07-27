@@ -177,7 +177,7 @@ Five operational principles:
 
 ## Cadence
 
-- A single public product at a time
+- Several products may run on the kernel at once — each one is a real-world test of it. Only one is promoted publicly at a time, so attention stays on one thing
 - Refusal of artificial urgencies
 - Any new idea passes through a latency period
 - Human pace takes precedence over the roadmap
