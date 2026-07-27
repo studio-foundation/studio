@@ -20,6 +20,9 @@ The installer honours `STUDIO_VERSION` (a release tag, default: latest) and
 `STUDIO_INSTALL_DIR` (default: `$HOME/.local/bin`). It verifies the download against the
 release's `SHA256SUMS` before installing.
 
+Updating follows the channel it came from: `studio upgrade` for the binary,
+`npm i -g @studio-foundation/cli@latest` for npm. See [Updating](#updating--studio-upgrade).
+
 Binaries ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glibc and
 musl each), and `win-x64`. On any other platform the npm package falls back to the
 JavaScript build, which needs Node.js >= 22.13.
@@ -250,8 +253,11 @@ studio_version: ">=0.10.0"
 
 ```
 Error: This project requires Studio >=0.10.0, but you have 0.9.0.
-  Upgrade:  npm i -g @studio-foundation/cli@latest
+  Upgrade:  studio upgrade
 ```
+
+The upgrade line names the channel this install came from — `studio upgrade` for a
+standalone binary, `npm i -g @studio-foundation/cli@latest` for an npm install.
 
 Any semver range works (`>=0.10.0`, `^0.10.0`, `0.10.x`). Without the key, no version check runs.
 
@@ -288,6 +294,36 @@ studio doctor
 The env var check is the one `studio run` doesn't have: `${VAR}` with nothing behind it resolves to an **empty string**, so the key is present and the contract passes while the value is blank. It's a `⚠`, not a `✗` — a project can legitimately reference a key for a provider it isn't using.
 
 Exit code is `1` when any `✗` check fails (a `⚠` alone exits `0`), so `studio doctor` works as a CI or bootstrap gate.
+
+---
+
+## Updating — `studio upgrade`
+
+```bash
+studio upgrade           # move to the latest release
+studio upgrade v0.11.1   # install a specific release tag
+```
+
+Resolves the latest release, downloads the binary for this platform along with the
+release's `SHA256SUMS`, verifies the checksum, and swaps the binary in place — the same
+steps `install.sh` performs, without needing to remember where `install.sh` lives. It
+says so and changes nothing when already on the target version.
+
+The swap goes through a rename rather than an overwrite, because a running executable
+cannot be overwritten on every platform.
+
+**An npm install is not upgraded here.** npm owns those files and overwriting one breaks
+the next `npm i -g`, so the command detects that install and prints the npm command
+instead:
+
+```
+Studio 0.11.1 was installed through npm — npm owns the update.
+
+Run:  npm i -g @studio-foundation/cli@latest
+```
+
+The `studio_version` mismatch error names whichever of the two applies to the running
+install.
 
 ---
 
