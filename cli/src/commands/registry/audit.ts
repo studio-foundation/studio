@@ -5,22 +5,13 @@ import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { RegistryLockfile } from '../../registry/lockfile.js';
 import { findStudioDir } from '../../studio-dir.js';
-import { INSTALL_DIRS } from '../../registry/types.js';
-import type { PackageType } from '../../registry/types.js';
+import { legacyInstallPaths } from '../../registry/legacy-paths.js';
 
 interface AuditResult {
   name: string;
   ok: boolean;
   status: 'ok' | 'tampered' | 'missing';
 }
-
-const FILE_EXTENSIONS: Partial<Record<PackageType, string>> = {
-  tool: '.tool.yaml',
-  pipeline: '.pipeline.yaml',
-  integration: '.integration.yaml',
-  agent: '.agent.yaml',
-  skill: '.skill.md',
-};
 
 interface AuditOptions {
   studioDir?: string;
@@ -35,26 +26,29 @@ export async function auditPackages(options: AuditOptions = {}): Promise<AuditRe
   const results: AuditResult[] = [];
 
   for (const entry of installed) {
-    const type = entry.type as PackageType;
-    const destDir = resolve(studioDir, INSTALL_DIRS[type]);
-
-    if (type === 'template' || type === 'plugin') {
-      // Directory packages: skip SHA check (would need to hash the full tree)
+    // A template's payload is a whole tree hashed against remote paths at download
+    // time — not reconstructible from disk. Only plugins are verifiable here.
+    const legacy = entry.files === undefined;
+    const files = entry.type === 'template'
+      ? []
+      : entry.files ?? legacyInstallPaths(entry.name, entry.type);
+    if (files.length === 0) {
       results.push({ name: entry.name, ok: true, status: 'ok' });
       continue;
     }
 
-    const ext = FILE_EXTENSIONS[type] ?? '.yaml';
-    const filePath = resolve(destDir, `${entry.name}${ext}`);
-
-    if (!existsSync(filePath)) {
+    if (files.some((f) => !existsSync(resolve(studioDir, f)))) {
       results.push({ name: entry.name, ok: false, status: 'missing' });
       continue;
     }
 
-    const content = await readFile(filePath, 'utf8');
-    const actual = createHash('sha256').update(content).digest('hex');
-    const ok = actual === entry.sha256;
+    // Pre-`files` entries were hashed over content alone; the path went in later.
+    const hash = createHash('sha256');
+    for (const relPath of files) {
+      const content = await readFile(resolve(studioDir, relPath), 'utf8');
+      hash.update(legacy ? content : relPath + content);
+    }
+    const ok = hash.digest('hex') === entry.sha256;
     results.push({ name: entry.name, ok, status: ok ? 'ok' : 'tampered' });
   }
 

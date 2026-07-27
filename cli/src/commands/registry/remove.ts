@@ -4,31 +4,18 @@ import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { RegistryLockfile } from '../../registry/lockfile.js';
 import { findStudioDir } from '../../studio-dir.js';
-import { INSTALL_DIRS } from '../../registry/types.js';
-import type { PackageType } from '../../registry/types.js';
+import { legacyInstallPaths } from '../../registry/legacy-paths.js';
+import type { LockfileEntry } from '../../registry/types.js';
 
 interface RemoveOptions {
   studioDir?: string;
   cwd?: string;
 }
 
-const FILE_EXTENSIONS: Partial<Record<PackageType, string>> = {
-  tool: '.tool.yaml',
-  pipeline: '.pipeline.yaml',
-  integration: '.integration.yaml',
-  agent: '.agent.yaml',
-  skill: '.skill.md',
-};
-
-async function deletePackageFiles(studioDir: string, name: string, type: PackageType): Promise<void> {
-  const destDir = resolve(studioDir, INSTALL_DIRS[type]);
-  if (type === 'template' || type === 'plugin') {
-    const dirPath = resolve(destDir, name);
-    if (existsSync(dirPath)) await rm(dirPath, { recursive: true });
-  } else {
-    const ext = FILE_EXTENSIONS[type] ?? '.yaml';
-    const filePath = resolve(destDir, `${name}${ext}`);
-    if (existsSync(filePath)) await rm(filePath);
+async function deletePackageFiles(studioDir: string, name: string, entry: LockfileEntry): Promise<void> {
+  for (const relPath of entry.files ?? legacyInstallPaths(name, entry.type)) {
+    const path = resolve(studioDir, relPath);
+    if (existsSync(path)) await rm(path, { recursive: true });
   }
 }
 
@@ -46,8 +33,7 @@ export async function removePackage(name: string, options: RemoveOptions = {}): 
     console.log(chalk.yellow(`⚠ '${name}' is required by: ${dependents.join(', ')} — those references will break.`));
   }
 
-  const type = entry.type as PackageType;
-  await deletePackageFiles(studioDir, name, type);
+  await deletePackageFiles(studioDir, name, entry);
   await lockfile.remove(name);
   console.log(chalk.green(`✓ Removed ${name}`));
 
