@@ -37,7 +37,13 @@ export interface RegistryIndex {
   packages: PackageEntry[];
 }
 
+/**
+ * Every category resolves identically — by name, through the same index. `plugins`
+ * is the form ADR 0002 settles on; the others are the pre-migration spelling and
+ * keep working. Entries are `[marketplace:]name[@range]`.
+ */
 export interface PackageDependencies {
+  plugins?:   { required?: string[]; recommended?: string[] };
   tools?:     { required?: string[]; recommended?: string[] };
   agents?:    { required?: string[]; recommended?: string[] };
   skills?:    { required?: string[]; recommended?: string[] };

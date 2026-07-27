@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { RegistryIndex, PackageMetadata, Lockfile } from '../../src/registry/types.js';
 
 // Build a minimal index entry
-function indexEntry(name: string, type: string) {
-  return { name, type, version: '1.0.0', description: '', author: '', license: 'MIT', tags: [], studio_version: null, downloads: 0 };
+function indexEntry(name: string, type: string, version = '1.0.0') {
+  return { name, type, version, description: '', author: '', license: 'MIT', tags: [], studio_version: null, downloads: 0 };
 }
 
 function meta(name: string, deps?: PackageMetadata['dependencies']): PackageMetadata {
@@ -141,6 +141,71 @@ describe('resolveDependencies', () => {
     const pkgMeta = meta('A', { tools: { required: ['B'] } });
     await expect(resolveDependencies('A', pkgMeta, index, EMPTY_LOCKFILE, fetchMeta))
       .rejects.toThrow(/circular/i);
+  });
+
+  it('resolves the plugins category like any other (STU-693)', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('git', 'plugin'), indexEntry('github', 'plugin')],
+    };
+    const pkgMeta = meta('software', {
+      plugins: { required: ['git'], recommended: ['github'] },
+    });
+    const result = await resolveDependencies('software', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH);
+    expect(result.required.map(d => d.name)).toEqual(['git']);
+    expect(result.recommended.map(d => d.name)).toEqual(['github']);
+  });
+
+  it('picks the highest version satisfying every constraint', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [
+        indexEntry('git', 'plugin', '1.0.0'),
+        indexEntry('git', 'plugin', '1.4.0'),
+        indexEntry('git', 'plugin', '2.0.0'),
+      ],
+    };
+    const pkgMeta = meta('software', { plugins: { required: ['git@>=1.2.0 <2.0.0'] } });
+    const result = await resolveDependencies('software', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH);
+    expect(result.required[0].version).toBe('1.4.0');
+  });
+
+  it('reports both constraints when ranges conflict', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('B', 'plugin'), indexEntry('git', 'plugin', '1.0.0')],
+    };
+    // Root wants git >=2.0.0; B wants git <1.5.0 — nothing satisfies both.
+    const fetchMeta = async (name: string): Promise<PackageMetadata> =>
+      name === 'B' ? meta('B', { plugins: { required: ['git@<1.5.0'] } }) : meta(name);
+    const pkgMeta = meta('A', { plugins: { required: ['git@>=2.0.0', 'B'] } });
+    await expect(resolveDependencies('A', pkgMeta, index, EMPTY_LOCKFILE, fetchMeta))
+      .rejects.toThrow(/'>=2\.0\.0' \(required by A\).*'<1\.5\.0' \(required by B\)/s);
+  });
+
+  it('resolves a name qualified with the default marketplace', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('git', 'plugin')],
+    };
+    const pkgMeta = meta('software', { plugins: { required: ['studio-community:git'] } });
+    const result = await resolveDependencies('software', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH);
+    expect(result.required.map(d => d.name)).toEqual(['git']);
+  });
+
+  it('refuses a dependency from an unregistered marketplace instead of adding it', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('internal-deploy', 'plugin')],
+    };
+    const pkgMeta = meta('software', { plugins: { required: ['acme-corp:internal-deploy'] } });
+    await expect(resolveDependencies('software', pkgMeta, index, EMPTY_LOCKFILE, MOCK_FETCH))
+      .rejects.toThrow(/'acme-corp', which is not registered/);
   });
 
   it('includes already-installed packages in required list (caller handles required_by update)', async () => {
