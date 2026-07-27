@@ -220,9 +220,14 @@ Three ways to participate now:
 
 ## Status
 
-Studio is in pre-launch. The kernel is installable (npm, `curl | sh`, `irm | iex`), the registry is open, but there is no public promotion, no hosted API, and no version 1.0.
+Studio is in pre-launch. The kernel is installable (npm, `curl | sh`, `irm | iex`) and the registry is open, but there is no public promotion, no hosted API, and no version 1.0.
 
-The move to "first public release" mode happens once a real product validates the kernel in production. Until then, interested users can install it and test locally. Bugs and incompatibilities are expected: in `0.x`, a config-breaking change costs a minor bump, not a major one.
+Two products already run on it and are the kernel's real-world test:
+
+- [wiki-creator](https://github.com/studio-foundation/wiki-creator) — generates structured wiki pages from EPUB books. Runs its pipelines in CI.
+- [little-chef-by-studio](https://github.com/studio-foundation/little-chef-by-studio) — pipelines working end to end, app still rough.
+
+Both are improved continuously, which is the point: the kernel is exercised by things that keep changing. Interested users can install Studio and test locally. Bugs and incompatibilities are expected — in `0.x`, a config-breaking change costs a minor bump, not a major one.
 
 ---
 
