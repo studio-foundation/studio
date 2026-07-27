@@ -76,19 +76,23 @@ As GitHub, GitLab, and Bitbucket are to `git`: products built on a free tool wit
 
 ## Technical architecture
 
-Studio is a monorepo of five packages, plus a template system.
+Studio is a monorepo of seven packages, plus a template system. All packages share one version, bumped in lockstep.
 
 ```
-@studio/cli          Terminal interface
+@studio-foundation/cli          Terminal interface
     │
-@studio/engine       Pipeline orchestration, state machine, persistence
+    ├── @studio-foundation/api          HTTP REST API (Fastify)
     │
-    ├── @studio/ralph    RALPH loop: execute → validate → retry if fail
+@studio-foundation/engine       Pipeline orchestration, state machine, persistence
     │
-    └── @studio/runner   Tool plugin runtime, LLM calls, multi-provider
+    ├── @studio-foundation/ralph        RALPH loop: execute → validate → retry if fail
     │
-@studio/contracts    Shared types (zero internal dependencies)
-Templates/           Architectural patterns (software, finance, analysis, data, conversation)
+    ├── @studio-foundation/runner       Tool plugin runtime, LLM calls, multi-provider
+    │
+    └── @studio-foundation/anonymizer   PII anonymization before LLM calls
+    │
+@studio-foundation/contracts    Shared types (zero internal dependencies)
+Templates/                      Architectural patterns, distributed through the registry
 ```
 
 Five concepts differentiate Studio from other orchestrators:
@@ -103,14 +107,18 @@ Five concepts differentiate Studio from other orchestrators:
 
 **Tool plugins.** `.tool.yaml` files that define capabilities for agents. Self-documenting (the prompt snippet is auto-injected into the agent's system prompt), project-scoped (each project has its tools), double-gated (the project authorizes the tools, the agent authorizes which it calls). Creating a tool requires no code.
 
-Six architectural invariants ensure the system remains coherent:
+Ten architectural invariants ensure the system remains coherent. They are the constitution of the kernel, written down in [INVARIANTS.md](./INVARIANTS.md) and enforced mechanically by the linter for the ones that can be:
 
-1. The engine is domain-agnostic. All domain comes from YAML.
-2. ralph does not know runner. The executor is generic.
-3. runner does not validate, does not retry. That is ralph's job.
-4. contracts is a leaf package. Zero internal dependencies.
-5. Tools are in runner, not in engine.
-6. Prompts are in runner, not in engine.
+1. `contracts` is a leaf package. Zero internal dependencies.
+2. `ralph` does not know `runner`. The executor is generic.
+3. `runner` only executes. It does not validate, does not retry.
+4. The engine is domain-agnostic. All domain comes from YAML.
+5. Tools are in `runner`, not in `engine`.
+6. Prompts are in `runner`, not in `engine`.
+7. The state machine is deterministic. Stage status derives from the RALPH result, never from output content.
+8. Validation is binary: pass or fail. No score, no threshold.
+9. A project is fully self-contained in its `.studio/` directory.
+10. The dependency graph is a strict DAG. No upward imports.
 
 If a feature can be configured in YAML rather than coded, it is in YAML. This is not a stylistic preference, it is a constitutional rule of the kernel.
 
@@ -120,36 +128,16 @@ If a feature can be configured in YAML rather than coded, it is in YAML. This is
 
 Templates are not finished products. They are architectural patterns that generate complete applications, like `create-react-app` or `create-next-app`, but for AI-orchestrated apps.
 
-Five official templates are planned:
-
-| Template | Use cases | Examples |
-|---|---|---|
-| `software/` | Code generation, refactoring, git operations | Code Builder, Git Butler |
-| `finance/` | Transaction analysis, budget management | ADHD Finance |
-| `analysis/` | Content extraction, entity recognition | Wiki Creator, Voice Training |
-| `data/` | Validation, transformation, compliance | ETL Auditors |
-| `conversation/` | Dialogue, memory, context management | Specialized assistants |
-
-A template generates a functional out-of-the-box app: base pipelines for the domain, adapted tools (`.tool.yaml`), configured contracts and agents, starter DB schema (Prisma), minimal but functional application code.
+A template packages base pipelines for a domain, adapted tools (`.tool.yaml`), configured contracts and agents, and a workspace skeleton. `blank` ships inside the CLI; every other template is a registry package, installed on demand:
 
 ```bash
-studio init --template analysis --name wiki-creator
-cd wiki-creator
-npm install
-studio run analysis/content-extraction --input "..."
+studio templates                 # bundled + registry templates
+studio init --template <name> --name my-project
 ```
 
-The app works immediately. Then you customize it according to your needs (specific pipelines, schema extensions, business code).
+Templates are designed to be reusable. Several products can start from the same template and diverge completely — one analyzes books, another processes voice, both from a content-extraction template. It's the architectural pattern that is shared, not the domain.
 
-Templates are designed to be reusable. Several products can start from the same template and diverge completely: Wiki Creator and Voice Training both use the `analysis/` template, but one analyzes books and the other processes voice. It's the architectural pattern that is shared, not the domain.
-
-Eventually, a community registry will allow publishing and installing custom templates:
-
-```bash
-studio init --template @user/legal-analysis --name my-tool
-```
-
-But this phase comes after validation of the official templates by real products.
+Distribution through the registry is deliberate: it keeps the kernel small, and it makes a community template indistinguishable from an official one. The kernel governs the format, not the catalogue. See [TEMPLATES.md](./TEMPLATES.md).
 
 ---
 
@@ -218,7 +206,7 @@ Money is a means of sustainability, never an end.
 
 ## How to contribute
 
-Studio is in active development. The kernel reaches its v7 version. Code Builder, the first product built with Studio, is being validated as proof of concept.
+Studio is in active development, published on npm as `@studio-foundation/cli` and as standalone binaries. The version line is `0.x`: the YAML surface still moves, and `1.0` will only mean that an existing `.studio/` config keeps working until a major bump.
 
 Three ways to participate now:
 
@@ -226,15 +214,15 @@ Three ways to participate now:
 
 **Code contributions.** PRs are welcome, respecting the architectural invariants. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details (forthcoming).
 
-**Tool plugins.** `.tool.yaml` files are the main extension point of Studio. If you build a tool useful to others, it can be published in the community registry when it opens.
+**Tool plugins and templates.** `.tool.yaml` files are the main extension point of Studio. The community registry is open — publishing is a PR, with no review gate: `studio registry publish <path>`.
 
 ---
 
 ## Status
 
-Studio is in pre-launch. No public promotion yet. No hosted API yet. No version 1.0 yet.
+Studio is in pre-launch. The kernel is installable (npm, `curl | sh`, `irm | iex`), the registry is open, but there is no public promotion, no hosted API, and no version 1.0.
 
-Once Code Builder is validated in production, Studio will move into "first public release" mode. Until then, interested users can follow the repo and test locally. Bugs and incompatibilities are expected.
+The move to "first public release" mode happens once a real product validates the kernel in production. Until then, interested users can install it and test locally. Bugs and incompatibilities are expected: in `0.x`, a config-breaking change costs a minor bump, not a major one.
 
 ---
 
