@@ -127,6 +127,7 @@ Use the `bump-version` skill. Two rules it exists to protect, both learned by br
 
 - **The baseline is npm, not git tags.** `npm view @studio-foundation/cli version` is the last version that actually shipped. Tags exist for versions that never published (`v0.5.0`, `v0.5.1`), so diffing from the last tag gives the wrong commit range.
 - **Publish, then release.** `gh workflow run npm-publish.yml -f version=X.Y.Z`, verify all 7 packages on npm, and only then cut the GitHub release. Releases are immutable here — a tag name is reserved permanently, so a release cut before npm accepts destroys that version number.
+- **Draft the release, attach the binaries, then publish it.** Immutability also means a published release rejects asset uploads, so `release-binaries.yml` has to run against a draft. Publishing first leaves `install.sh` broken for that version.
 
 ### Recommending a bump
 

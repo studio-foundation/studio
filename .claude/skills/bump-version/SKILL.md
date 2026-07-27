@@ -64,18 +64,36 @@ for p in contracts anonymizer ralph runner engine api cli; do
 done
 ```
 
-## 5. Cut the release
+## 5. Cut the release — draft, attach binaries, then publish
 
-Only once npm shows all 7. Write the notes grouped by package area (Engine, Contracts, Anonymizer, Providers, CLI, Fixes, Docs), not as a commit dump:
+Only once npm shows all 7. Releases are **immutable** in this repo: a published release
+rejects asset uploads with `HTTP 422: Cannot upload assets to an immutable release`, and
+the tag can never be reused. So the standalone binaries must land while the release is
+still a draft.
+
+Write the notes grouped by area (Distribution, Preflight, CLI, Engine, Fixes, Docs), not
+as a commit dump, then:
 
 ```bash
-gh release create vX.Y.Z --target main --title "vX.Y.Z" --latest --notes-file notes.md
+gh release create vX.Y.Z --target main --title "vX.Y.Z" --draft --notes-file notes.md
+gh workflow run release-binaries.yml -f tag=vX.Y.Z
+gh run watch <run-id> --exit-status
+gh release view vX.Y.Z --json assets --jq '.assets[].name'   # 7 binaries + SHA256SUMS
+gh release edit vX.Y.Z --draft=false --latest
 ```
+
+`install.sh` downloads `studio-<platform>` and `SHA256SUMS` from the release, so a
+release published without assets leaves that install path broken for that version.
 
 ## Common mistakes
 
 - **Reading the baseline from `git tag`.** Tags exist for versions that never published. Ask npm.
 - **Cutting the release first.** Burns the version if publish fails. Publish is the gate.
+- **Publishing the release before the binaries are attached.** Immutable releases reject
+  asset uploads once published, and the tag is spent. Draft first.
+- **Third-party actions blocked at startup.** The repo allows GitHub-owned actions plus an
+  explicit pattern list; a workflow using anything else dies with `startup_failure` and no
+  job logs. Check `gh api repos/studio-foundation/studio/actions/permissions/selected-actions`.
 - **Calling a breaking change MAJOR.** Pre-1.0, breaking is MINOR.
 - **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 8 move together.
 - **Bumping inside a feature PR.** Bumps are their own commit, at release time.
