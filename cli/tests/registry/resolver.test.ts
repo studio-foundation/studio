@@ -172,6 +172,22 @@ describe('resolveDependencies', () => {
     expect(result.required[0].version).toBe('1.4.0');
   });
 
+  it('carries every declared range on the node so the caller can record it (STU-203)', async () => {
+    const { resolveDependencies } = await import('../../src/registry/resolver.js');
+    const index: RegistryIndex = {
+      generated_at: '', version: '1',
+      packages: [indexEntry('B', 'plugin'), indexEntry('git', 'plugin', '1.0.0')],
+    };
+    const fetchMeta = async (name: string): Promise<PackageMetadata> =>
+      name === 'B' ? meta('B', { plugins: { required: ['git@>=1.0.0'] } }) : meta(name);
+    const pkgMeta = meta('A', { plugins: { required: ['git@<2.0.0', 'B'] } });
+    const result = await resolveDependencies('A', pkgMeta, index, EMPTY_LOCKFILE, fetchMeta);
+    expect(result.required.find(d => d.name === 'git')!.constraints).toEqual([
+      { range: '<2.0.0', requiredBy: 'A' },
+      { range: '>=1.0.0', requiredBy: 'B' },
+    ]);
+  });
+
   it('reports both constraints when ranges conflict', async () => {
     const { resolveDependencies } = await import('../../src/registry/resolver.js');
     const index: RegistryIndex = {

@@ -425,6 +425,8 @@ Cycles are detected and reported. A required name missing from the index aborts 
 
 `plugins` is the category ADR 0002 settles on. `tools`, `agents`, `skills`, `templates` and `pipelines` are the pre-migration spelling and resolve identically — resolution is by name, never by category.
 
+**Ranges outlive the install.** `registry.lock.json` records the range each dependent declared (`constraints`), so `studio registry update` moves to the highest version those ranges accept rather than to `latest`, `studio registry outdated` separates "newer exists" from "newer I can take", and `studio registry audit` flags an installed graph that drifted out of range. See [CLI.md](CLI.md#updates-and-ranges).
+
 ---
 
 ## PII anonymization

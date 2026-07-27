@@ -1,11 +1,13 @@
-import semver from 'semver';
-import type { PackageMetadata, PackageType, RegistryIndex, Lockfile, PackageDependencies, PackageEntry } from './types.js';
+import type { PackageMetadata, PackageType, RegistryIndex, Lockfile, PackageDependencies } from './types.js';
 import { parseDependencySpec, DEFAULT_MARKETPLACE, type DependencySpec } from './dependency-spec.js';
+import { selectVersion, type Constraint } from './constraints.js';
 
 export interface DependencyNode {
   name: string;
   type: PackageType;
   version: string;
+  /** Every range declared on this node, so the caller can record its own. */
+  constraints: Constraint[];
 }
 
 export interface ResolvedGraph {
@@ -14,11 +16,6 @@ export interface ResolvedGraph {
 }
 
 type MetadataFetcher = (name: string) => Promise<PackageMetadata>;
-
-interface Constraint {
-  range?: string;
-  requiredBy: string;
-}
 
 /** Parsed dependency entries of one kind, tagged with the category they came from. */
 function specsOf(
@@ -43,29 +40,6 @@ function assertRegisteredMarketplace(spec: DependencySpec, requiredBy: string): 
     `Dependency '${spec.raw}' of package '${requiredBy}' names marketplace ` +
     `'${spec.marketplace}', which is not registered.`
   );
-}
-
-/**
- * Greedy range resolution: the highest indexed version satisfying every
- * constraint. No backtracking — a conflict is reported, not worked around.
- */
-function selectVersion(name: string, constraints: Constraint[], candidates: PackageEntry[]): string {
-  const ranged = constraints.filter((c) => c.range);
-  if (ranged.length === 0) return candidates[0].version;
-
-  const satisfying = candidates.filter((p) =>
-    ranged.every((c) => semver.valid(p.version) !== null && semver.satisfies(p.version, c.range!))
-  );
-
-  if (satisfying.length === 0) {
-    const listed = ranged.map((c) => `'${c.range}' (required by ${c.requiredBy})`).join(', ');
-    const available = candidates.map((p) => p.version).join(', ');
-    throw new Error(
-      `No version of '${name}' satisfies every constraint: ${listed}. Available: ${available}.`
-    );
-  }
-
-  return satisfying.map((p) => p.version).sort(semver.rcompare)[0];
 }
 
 export async function resolveDependencies(
@@ -114,10 +88,12 @@ export async function resolveDependencies(
 
   const required: DependencyNode[] = order.map((name) => {
     const candidates = index.packages.filter((p) => p.name === name);
+    const nodeConstraints = constraints.get(name)!;
     return {
       name,
       type: candidates[0].type as PackageType,
-      version: selectVersion(name, constraints.get(name)!, candidates),
+      version: selectVersion(name, nodeConstraints, candidates),
+      constraints: nodeConstraints,
     };
   });
 
@@ -127,10 +103,12 @@ export async function resolveDependencies(
     const candidates = index.packages.filter((p) => p.name === spec.name);
     // A missing recommended dependency is optional — skipped, not fatal.
     if (candidates.length === 0) continue;
+    const nodeConstraints = [{ range: spec.range, requiredBy: rootPackageName }];
     recommended.push({
       name: spec.name,
       type: candidates[0].type as PackageType,
-      version: selectVersion(spec.name, [{ range: spec.range, requiredBy: rootPackageName }], candidates),
+      version: selectVersion(spec.name, nodeConstraints, candidates),
+      constraints: nodeConstraints,
     });
   }
 

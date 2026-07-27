@@ -35,8 +35,9 @@ export function createRegistryCommand(): Command {
 
   registry
     .command('update <name>')
-    .description('Update an installed package to latest')
-    .action((name: string) => updateCommand(name));
+    .description('Update an installed package to the highest version its dependents accept')
+    .option('--latest', 'Update to the latest published version, even if it breaks a declared range')
+    .action((name: string, options: { latest?: boolean }) => updateCommand(name, options));
 
   registry
     .command('outdated')
