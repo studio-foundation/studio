@@ -163,7 +163,7 @@ describe('DELETE /api/skills/:name', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-142-api-crud-skills
+cd ~/dev/src/Studio/.worktrees/stu-142-api-crud-skills
 pnpm --filter @studio-foundation/api test 2>&1 | grep -E "FAIL|skills|passed|failed"
 ```
 
@@ -331,7 +331,7 @@ Expected: no errors.
 **Step 4: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-142-api-crud-skills
+cd ~/dev/src/Studio/.worktrees/stu-142-api-crud-skills
 git add api/src/routes/skills.ts api/src/server.ts api/tests/skills.test.ts
 git commit -m "feat(api): CRUD skills endpoints (STU-142)"
 ```

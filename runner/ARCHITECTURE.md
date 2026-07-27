@@ -32,8 +32,9 @@ Agent runner multi-provider. Parle aux LLMs, exécute les tools, streame les tok
 - `tools/builtin/shell.ts` — `shell-run_command`
 - `tools/builtin/search.ts` — `search-search_codebase`
 - `tools/builtin/git.ts` — `git-checkout`, `git-commit`, `git-push`, `git-pull`, `git-status`, `git-diff`
-- `tools/builtin/patch.ts` — `patch-apply_patch`
-- `tools/builtin/studio-run.ts` — `studio_run` (spawn sous-pipeline, requiert `RunSpawner`)
+- `tools/builtin/patch.ts` — `repo_manager-apply_patch`
+- `tools/builtin/web-search.ts` — `web_search-search`
+- `tools/builtin/studio-run.ts` — `studio_run-run_pipeline` (spawn sous-pipeline, requiert `RunSpawner`)
 - `tools/skills/skill-loader.ts` — charge les `.skill.md` files
 - `middleware/anonymization.ts` — `AnonymizationMiddleware` (wraps `@studio-foundation/anonymizer`)
 - `plugins/plugin-loader.ts` — charge les plugins Claude Code (`.mcp.json` + `skills/`)

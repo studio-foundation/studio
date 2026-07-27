@@ -68,7 +68,7 @@ studio run feature-builder --input-file ./inputs/faq.input.yaml --repo /tmp/my-r
 Set via env variable or `.studiorc.yaml`:
 
 ```bash
-STUDIO_PROJECTS_DIR=/home/arianeguay/dev/src/studio-projects
+STUDIO_PROJECTS_DIR=~/dev/src/studio-projects
 ```
 
 ```yaml

@@ -66,7 +66,7 @@ Add to `engine/src/pipeline/hook-executor.test.ts`, inside the existing `describ
 **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/engine test -- --reporter=verbose 2>&1 | grep -A3 "output"
 ```
 

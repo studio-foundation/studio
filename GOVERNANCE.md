@@ -122,8 +122,8 @@ Templates are not finished products. They are architectural patterns that genera
 A template packages base pipelines for a domain, adapted tools (`.tool.yaml`), configured contracts and agents, and a workspace skeleton. `blank` ships inside the CLI; every other template is a registry package, installed on demand:
 
 ```bash
-studio templates                 # bundled + registry templates
-studio init --template <name> --name my-project
+studio templates list            # bundled + registry templates
+studio init my-project --template <name>
 ```
 
 Templates are designed to be reusable. Several products can start from the same template and diverge completely — one analyzes books, another processes voice, both from a content-extraction template. It's the architectural pattern that is shared, not the domain.

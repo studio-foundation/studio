@@ -18,7 +18,7 @@ The test file is `cli/tests/commands/init.test.ts`. It already:
 - Uses dynamic imports inside each `it()`: `const { fn } = await import('../../src/commands/init.js')`
 - Uses `/tmp/.studio-init-test-<unique>` as TMP dir (NEVER a subdir of the Studio repo — `findStudioDir` walks up and would find `.studio/` in the repo root)
 
-All commands run from the worktree: `/home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default/`
+All commands run from the worktree: `~/dev/src/Studio/.worktrees/stu-88-ollama-default/`
 
 ---
 
@@ -121,7 +121,7 @@ describe('hasAdequateRam', () => {
 **Step 3: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default
+cd ~/dev/src/Studio/.worktrees/stu-88-ollama-default
 pnpm --filter @studio-foundation/cli test 2>&1 | grep -A 3 "detectOllamaInstalled\|hasAdequateRam"
 ```
 
@@ -172,7 +172,7 @@ Expected: all new tests PASS
 **Step 6: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default
+cd ~/dev/src/Studio/.worktrees/stu-88-ollama-default
 git add cli/src/commands/init.ts cli/tests/commands/init.test.ts
 git commit -m "$(cat <<'EOF'
 feat(cli): add detectOllamaInstalled and hasAdequateRam helpers [STU-88]
@@ -709,7 +709,7 @@ defaults:
 **Step 2: Full build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default
+cd ~/dev/src/Studio/.worktrees/stu-88-ollama-default
 pnpm build 2>&1 | tail -10
 ```
 
@@ -750,7 +750,7 @@ EOF
 **Step 1: Run full test suite one more time**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-88-ollama-default
+cd ~/dev/src/Studio/.worktrees/stu-88-ollama-default
 pnpm test 2>&1 | tail -15
 ```
 

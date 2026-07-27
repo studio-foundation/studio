@@ -74,16 +74,17 @@ Use `createDefaultRegistry()` to get all providers wired up. Use `--provider moc
 | `repo_manager-list_files` | `createRepoManagerTools()` | List files and directories |
 | `shell-run_command` | `createShellTools()` | Execute shell commands |
 | `search-search_codebase` | `createSearchTools()` | Search code with ripgrep |
-| `patch-apply_patch` | `createPatchTools()` | Apply unified diffs |
+| `web_search-search` | `createWebSearchTools()` | Search the web |
+| `repo_manager-apply_patch` | `createPatchTools()` | Apply unified diffs |
 | `git-checkout` | `createGitTools()` | Checkout or create branches |
 | `git-commit` | `createGitTools()` | Create commits |
 | `git-push` | `createGitTools()` | Push to remote |
 | `git-pull` | `createGitTools()` | Pull from remote |
 | `git-status` | `createGitTools()` | Show working tree status |
 | `git-diff` | `createGitTools()` | Show diffs |
-| `studio_run` | `createStudioRunTool()` | Spawn and await a sub-pipeline run |
+| `studio_run-run_pipeline` | `createStudioRunTool()` | Spawn and await a sub-pipeline run |
 
-`studio_run` is only registered when a `RunSpawner` is injected into the engine (via `EngineConfig.spawner`). Agents use it to trigger nested pipelines and receive their output.
+`studio_run-run_pipeline` is only registered when a `RunSpawner` is injected into the engine (via `EngineConfig.spawner`). Agents use it to trigger nested pipelines and receive their output.
 
 Tools are registered into a `ToolRegistry` and passed to `runAgent`. The runner injects tool descriptions into the system prompt automatically.
 

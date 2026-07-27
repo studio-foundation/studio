@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, `node:fs/promises` (`cp` for recursive copy, already used in `init.ts`), chalk (already in cli).
 
-**Working directory for all commands:** repo root (`/home/arianeguay/dev/src/Studio/`)
+**Working directory for all commands:** repo root (`~/dev/src/Studio/`)
 
 ---
 

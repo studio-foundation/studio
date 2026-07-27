@@ -101,7 +101,7 @@ describe('POST /api/runs/:id/cancel', () => {
 **Step 2: Run the tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 pnpm --filter @studio-foundation/api test -- --reporter=verbose 2>&1 | grep -A3 "cancel"
 ```
 
@@ -110,7 +110,7 @@ Expected: 4 test failures with `404` (route doesn't exist yet → Fastify return
 **Step 3: Commit the failing tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 git add api/tests/cancel.test.ts
 git commit -m "test(api): failing tests for POST /runs/:id/cancel (STU-145)"
 ```
@@ -179,7 +179,7 @@ Note: `store` is already declared at the top of `runsRoutes` as `const { store, 
 **Step 3: Run the tests to confirm they pass**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 pnpm --filter @studio-foundation/api test -- --reporter=verbose 2>&1 | grep -E "cancel|✓|×"
 ```
 
@@ -196,7 +196,7 @@ Expected: same pass/fail count as before (5 pre-existing failures unrelated to t
 **Step 5: Build to confirm TypeScript compiles**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 pnpm build 2>&1 | tail -5
 ```
 
@@ -205,7 +205,7 @@ Expected: clean build, no errors.
 **Step 6: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 git add api/src/routes/runs.ts
 git commit -m "feat(api): POST /runs/:id/cancel — cancel a running pipeline (STU-145)"
 ```
@@ -215,7 +215,7 @@ git commit -m "feat(api): POST /runs/:id/cancel — cancel a running pipeline (S
 ### Task 3: Open the PR
 
 ```bash
-cd /home/arianeguay/dev/src/Studio/.worktrees/stu-145-cancel
+cd ~/dev/src/Studio/.worktrees/stu-145-cancel
 git push -u origin arianedguay/stu-145-api-post-runsidcancel-arreter-un-run-en-cours
 gh pr create \
   --title "feat(api): POST /runs/:id/cancel — arrêter un run en cours (STU-145)" \

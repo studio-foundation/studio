@@ -92,7 +92,7 @@ describe('FileChangeCollector', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — module not found
 
 **Step 3: Write minimal implementation**
@@ -123,7 +123,7 @@ export class FileChangeCollector {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS (4 tests)
 
 **Step 5: Commit**
@@ -223,7 +223,7 @@ describe('FileChangeCollector.computeSummary', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — `computeSummary` is not a function
 
 **Step 3: Write minimal implementation**
@@ -313,7 +313,7 @@ export class FileChangeCollector {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS (all tests)
 
 **Step 5: Commit**
@@ -380,7 +380,7 @@ describe('formatFileChanges', () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: FAIL — `formatFileChanges` is not exported
 
 **Step 3: Write minimal implementation**
@@ -412,7 +412,7 @@ export function formatFileChanges(changes: FileChange[]): string {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- cli/tests/output/file-changes.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -495,12 +495,12 @@ In `runCommand()`, after `formatResult(result)` (line 391), add:
 
 **Step 4: Build and typecheck**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm build`
+Run: `cd ~/dev/src/Studio && pnpm build`
 Expected: SUCCESS — no type errors
 
 **Step 5: Run all CLI tests**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test`
 Expected: PASS
 
 **Step 6: Commit**
@@ -516,16 +516,16 @@ git commit -m "feat(cli): wire FileChangeCollector into studio run output (STU-9
 
 **Step 1: Full build**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm build`
+Run: `cd ~/dev/src/Studio && pnpm build`
 Expected: SUCCESS
 
 **Step 2: Run all tests across all packages**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm test`
+Run: `cd ~/dev/src/Studio && pnpm test`
 Expected: PASS
 
 **Step 3: Manual smoke test (optional, if mock provider is set up)**
 
-Run: `cd /home/arianeguay/dev/src/Studio && studio run feature-builder --provider mock --input "test"`
+Run: `cd ~/dev/src/Studio && studio run feature-builder --provider mock --input "test"`
 
 Check that the "Changes:" block appears at the bottom if `repo_manager-write_file` was called, or is absent if not.

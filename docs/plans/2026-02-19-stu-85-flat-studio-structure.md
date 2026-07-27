@@ -1059,7 +1059,7 @@ Expected: exits 0, no TypeScript errors.
 cd /tmp && mkdir -p studio-stu85-test && cd studio-stu85-test
 
 # Init with flat structure
-node /home/arianeguay/dev/src/Studio/.worktrees/stu-85-flat-structure/cli/dist/index.js init \
+node ~/dev/src/Studio/.worktrees/stu-85-flat-structure/cli/dist/index.js init \
   --template software \
   --provider later \
   --yes
@@ -1073,7 +1073,7 @@ ls .studio/pipelines/
 # Expected: feature-builder.pipeline.yaml
 
 # List (no project prefix)
-node /home/arianeguay/dev/src/Studio/.worktrees/stu-85-flat-structure/cli/dist/index.js list pipelines
+node ~/dev/src/Studio/.worktrees/stu-85-flat-structure/cli/dist/index.js list pipelines
 # Expected: "  - feature-builder"  (not "software/feature-builder")
 
 # Cleanup

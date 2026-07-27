@@ -38,8 +38,11 @@ DELETE /api/runs/:id            → Delete a run record
 ### Projects
 
 ```
-GET    /api/projects            → Current project (name, id, pipelines_dir)
-GET    /api/projects/:id/pipelines → Project pipelines
+GET    /api/project             → Introspect the current Studio project
+GET    /api/projects            → List projects served by this API instance
+GET    /api/projects/:id/pipelines    → Project pipelines
+GET    /api/projects/:id/inputs       → Project input templates
+GET    /api/projects/:id/inputs/:name → One input file
 ```
 
 ### Pipelines CRUD
@@ -67,6 +70,7 @@ GET    /api/contracts           → List all contracts
 GET    /api/contracts/:name     → Parsed contract (YAML → JSON)
 PUT    /api/contracts/:name     → Create or update (body: JSON)
 DELETE /api/contracts/:name     → Delete
+POST   /api/contracts/:name/validate → Validate an output against this contract
 ```
 
 ### Skills CRUD
@@ -82,6 +86,20 @@ DELETE /api/skills/:name        → Delete
 
 ```
 GET    /api/tools               → List available tools (plugins + builtins)
+GET    /api/tools/:name         → Tool definition
+PUT    /api/tools/:name         → Create or update a custom tool (YAML text or JSON)
+DELETE /api/tools/:name         → Delete a custom tool
+POST   /api/tools/install       → Install a tool from the bundled registry (body: name)
+```
+
+### Users
+
+```
+POST   /api/users               → Create a user (body: email, plan?)
+GET    /api/users               → List users
+GET    /api/users/me            → Current authenticated user
+GET    /api/users/:id           → User details
+DELETE /api/users/:id           → Delete a user
 ```
 
 ### Validation
@@ -94,7 +112,8 @@ POST   /api/validate            → Validate JSON output against a contract
 
 ```
 GET    /api/config              → Current config (API keys masked)
-PUT    /api/config              → Update config
+PATCH  /api/config              → Merge into config (defaults, providers)
+POST   /api/config/providers    → Add or update a provider
 ```
 
 ### Webhooks
