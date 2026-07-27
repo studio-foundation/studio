@@ -1,21 +1,23 @@
-export type PackageType =
-  | 'tool'
-  | 'template'
-  | 'pipeline'
-  | 'integration'
-  | 'agent'
-  | 'plugin'
-  | 'skill';
+/**
+ * Two packaging types, each defined by its install verb (ADR 0002). What used to
+ * be a type — tool, agent, skill… — is a content kind carried inside a plugin.
+ */
+export type PackageType = 'template' | 'plugin';
+
+/** What a plugin delivers into `.studio/`. */
+export type ContentKind = 'tool' | 'agent' | 'skill' | 'integration' | 'pipeline' | 'contract' | 'input';
+
+/** A plugin's declared contents, by kind. Search reads it; install verifies nothing against it. */
+export type PackageProvides = Partial<Record<`${ContentKind}s`, string[]>>;
 
 /**
- * Where a package's payload lives. `path` is the package directory in the
- * marketplace repo; `file` is the payload filename for single-file types.
- * Neither is derived from `name` — the two are allowed to diverge.
+ * Where a package's payload lives: `path` is the package directory in the
+ * marketplace repo, never derived from `name` — the two may diverge. Payload
+ * filenames are discovered by listing that directory.
  */
 export interface PackageSource {
   type: 'local';
   path: string;
-  file?: string;
 }
 
 export interface PackageEntry {
@@ -28,6 +30,7 @@ export interface PackageEntry {
   tags: string[];
   studio_version: string | null;
   downloads: number;
+  provides?: PackageProvides;
   source: PackageSource;
 }
 
@@ -57,10 +60,13 @@ export interface PackageMetadata extends Omit<PackageEntry, 'source'> {
 }
 
 export interface LockfileEntry {
+  /** `template` or `plugin`, or one of the pre-migration types on an older lockfile. */
+  type: string;
   version: string;
-  type: PackageType;
   installed_at: string;
   sha256: string;
+  /** What the package wrote, relative to `.studio/`. Absent on pre-migration entries. */
+  files?: string[];
   required_by?: string[];
 }
 
@@ -68,16 +74,40 @@ export interface Lockfile {
   installed: Record<string, LockfileEntry>;
 }
 
-/** Where packages get installed relative to the project's .studio/ dir */
-export const INSTALL_DIRS: Record<PackageType, string> = {
+/** Where each content kind lands, relative to the project's `.studio/` dir. */
+export const CONTENT_DIRS: Record<ContentKind, string> = {
   tool: 'tools',
-  template: 'projects',
-  pipeline: 'pipelines',
-  integration: 'integrations',
   agent: 'agents',
-  plugin: 'plugins',
   skill: 'skills',
+  integration: 'integrations',
+  pipeline: 'pipelines',
+  contract: 'contracts',
+  input: 'inputs',
 };
+
+/**
+ * Payload filename suffix → content kind. The suffix is the only thing that
+ * decides where a plugin's file lands; `provides` is a declaration, not authority.
+ */
+export const CONTENT_EXTENSIONS: Record<string, ContentKind> = {
+  '.tool.yaml': 'tool',
+  '.agent.yaml': 'agent',
+  '.skill.md': 'skill',
+  '.integration.yaml': 'integration',
+  '.pipeline.yaml': 'pipeline',
+  '.contract.yaml': 'contract',
+  '.input.yaml': 'input',
+};
+
+export function contentKindOf(filename: string): ContentKind | null {
+  for (const [ext, kind] of Object.entries(CONTENT_EXTENSIONS)) {
+    if (filename.endsWith(ext)) return kind;
+  }
+  return null;
+}
+
+/** Where an installed template's payload lands, relative to `.studio/`. */
+export const TEMPLATE_DIR = 'projects';
 
 export const REGISTRY_REPO = 'studio-foundation/studio-community';
 export const REGISTRY_RAW_BASE = `https://raw.githubusercontent.com/${REGISTRY_REPO}/main`;

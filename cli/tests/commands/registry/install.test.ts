@@ -5,15 +5,41 @@ import { resolve, join } from 'node:path';
 const TMP = resolve(import.meta.dirname, '.tmp-install');
 const STUDIO_DIR = join(TMP, '.studio');
 
+/** A GitHub contents listing for a package directory holding a single payload file. */
+function dirListing(dir: string, filename: string) {
+  return [
+    { name: filename, path: `${dir}/${filename}`, type: 'file', download_url: `https://x/${filename}` },
+    { name: 'metadata.json', path: `${dir}/metadata.json`, type: 'file', download_url: 'https://x/metadata.json' },
+  ];
+}
+
+/**
+ * A fetch routed by URL rather than by call order — a plugin's files are fetched
+ * in the order GitHub lists them, which is not the order a test declares them.
+ */
+function routedFetch(routes: Array<[RegExp, unknown]>) {
+  return vi.fn(async (url: string) => {
+    for (const [pattern, body] of routes) {
+      if (pattern.test(String(url))) {
+        return typeof body === 'string'
+          ? { ok: true, text: async () => body }
+          : { ok: true, json: async () => body };
+      }
+    }
+    return { ok: false, status: 404 };
+  });
+}
+
 const MOCK_METADATA = {
   name: 'linear',
-  type: 'integration',
+  type: 'plugin',
   version: '1.0.0',
   description: 'Linear integration',
   author: 'studio-core',
   license: 'MIT',
   tags: ['linear'],
   studio_version: '>=0.1.0',
+  provides: { integrations: ['linear'] },
 };
 
 const MOCK_INDEX = {
@@ -22,7 +48,7 @@ const MOCK_INDEX = {
   packages: [{
     ...MOCK_METADATA,
     downloads: 0,
-    source: { type: 'local', path: 'integrations/linear', file: 'linear.integration.yaml' },
+    source: { type: 'local', path: 'plugins/linear' },
   }],
 };
 
@@ -43,10 +69,12 @@ vi.mock('../../../src/registry/cache.js', () => {
 
 beforeEach(async () => {
   await mkdir(STUDIO_DIR, { recursive: true });
-  vi.stubGlobal('fetch', vi.fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => MOCK_METADATA })
-    .mockResolvedValueOnce({ ok: true, text: async () => FAKE_INTEGRATION_CONTENT }),
-  );
+  vi.stubGlobal('fetch', routedFetch([
+    [/\/plugins\/linear\/metadata\.json$/, MOCK_METADATA],
+    [/\/contents\/plugins\/linear$/, dirListing('plugins/linear', 'linear.integration.yaml')],
+    [/x\/linear\.integration\.yaml$/, FAKE_INTEGRATION_CONTENT],
+    [/x\/metadata\.json$/, JSON.stringify(MOCK_METADATA)],
+  ]));
 });
 afterEach(async () => {
   await rm(TMP, { recursive: true, force: true });
@@ -56,7 +84,7 @@ afterEach(async () => {
 });
 
 describe('installPackage', () => {
-  it('installs an integration to .studio/integrations/', async () => {
+  it('dispatches a plugin payload to the .studio/ dir of its content kind', async () => {
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
 
@@ -65,14 +93,15 @@ describe('installPackage', () => {
     expect(content).toBe(FAKE_INTEGRATION_CONTENT);
   });
 
-  it('writes lockfile entry after install', async () => {
+  it('records the written files in the lockfile', async () => {
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
 
     const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
     expect(lf.installed['linear']).toMatchObject({
       version: '1.0.0',
-      type: 'integration',
+      type: 'plugin',
+      files: ['integrations/linear.integration.yaml'],
     });
     expect(lf.installed['linear'].sha256).toBeTruthy();
   });
@@ -97,13 +126,14 @@ describe('installPackage', () => {
 
 const MOCK_DIVERGENT_META = {
   name: 'studio-run',
-  type: 'tool',
+  type: 'plugin',
   version: '1.0.0',
   description: 'Launch a Studio pipeline run',
   author: 'studio-core',
   license: 'MIT',
   tags: [] as string[],
   studio_version: '>=0.1.0',
+  provides: { tools: ['studio-run'] },
 };
 
 const MOCK_DIVERGENT_INDEX = {
@@ -112,7 +142,7 @@ const MOCK_DIVERGENT_INDEX = {
   packages: [{
     ...MOCK_DIVERGENT_META,
     downloads: 0,
-    source: { type: 'local', path: 'tools/studio', file: 'run-pipeline.tool.yaml' },
+    source: { type: 'local', path: 'plugins/studio' },
   }],
 };
 
@@ -129,7 +159,7 @@ describe('installPackage — directory name diverges from package name', () => {
     vi.restoreAllMocks();
   });
 
-  it('resolves both URLs from source, and installs under the package name', async () => {
+  it('lists source.path and keeps the published filename', async () => {
     vi.doMock('../../../src/registry/cache.js', () => {
       class RegistryCache {
         read() { return Promise.resolve(MOCK_DIVERGENT_INDEX); }
@@ -142,18 +172,22 @@ describe('installPackage — directory name diverges from package name', () => {
       syncRegistry: vi.fn().mockResolvedValue(undefined),
     }));
 
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_DIVERGENT_META })
-      .mockResolvedValueOnce({ ok: true, text: async () => 'name: studio_run\n' });
+    const mockFetch = routedFetch([
+      [/\/plugins\/studio\/metadata\.json$/, MOCK_DIVERGENT_META],
+      [/\/contents\/plugins\/studio$/, dirListing('plugins/studio', 'run-pipeline.tool.yaml')],
+      [/x\/run-pipeline\.tool\.yaml$/, 'name: studio_run\n'],
+      [/x\/metadata\.json$/, JSON.stringify(MOCK_DIVERGENT_META)],
+    ]);
     vi.stubGlobal('fetch', mockFetch);
 
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('studio-run', { studioDir: STUDIO_DIR, force: true });
 
-    expect(mockFetch.mock.calls[0][0]).toMatch(/\/tools\/studio\/metadata\.json$/);
-    expect(mockFetch.mock.calls[1][0]).toMatch(/\/tools\/studio\/run-pipeline\.tool\.yaml$/);
+    expect(mockFetch.mock.calls[0][0]).toMatch(/\/plugins\/studio\/metadata\.json$/);
+    expect(mockFetch.mock.calls[1][0]).toMatch(/\/contents\/plugins\/studio$/);
 
-    const dest = resolve(STUDIO_DIR, 'tools', 'studio-run.tool.yaml');
+    // The agent and skill loaders resolve by filename, so payload names are kept as published.
+    const dest = resolve(STUDIO_DIR, 'tools', 'run-pipeline.tool.yaml');
     expect(await readFile(dest, 'utf8')).toBe('name: studio_run\n');
   });
 });
@@ -162,13 +196,14 @@ describe('installPackage — directory name diverges from package name', () => {
 
 const MOCK_TOOL_META = {
   name: 'repo-manager',
-  type: 'tool',
+  type: 'plugin',
   version: '1.0.0',
   description: 'File manager',
   author: 'studio-core',
   license: 'MIT',
   tags: [] as string[],
   studio_version: '>=0.1.0',
+  provides: { tools: ['repo_manager'] },
 };
 
 const MOCK_INDEX_WITH_DEPS = {
@@ -190,7 +225,7 @@ const MOCK_INDEX_WITH_DEPS = {
     {
       ...MOCK_TOOL_META,
       downloads: 0,
-      source: { type: 'local', path: 'tools/repo-manager', file: 'repo-manager.tool.yaml' },
+      source: { type: 'local', path: 'plugins/repo-manager' },
     },
   ],
 };
@@ -198,7 +233,7 @@ const MOCK_INDEX_WITH_DEPS = {
 const MOCK_TEMPLATE_META_WITH_DEPS = {
   ...MOCK_INDEX_WITH_DEPS.packages[0],
   dependencies: {
-    tools: { required: ['repo-manager'] as string[] },
+    plugins: { required: ['repo-manager'] as string[] },
   },
 };
 
@@ -210,7 +245,7 @@ const MOCK_INDEX_WITH_RECOMMENDED = {
       ...MOCK_TOOL_META,
       name: 'shell',
       downloads: 0,
-      source: { type: 'local', path: 'tools/shell', file: 'shell.tool.yaml' },
+      source: { type: 'local', path: 'plugins/shell' },
     },
   ],
 };
@@ -248,23 +283,21 @@ describe('installPackage — with required dependencies', () => {
       syncRegistry: vi.fn().mockResolvedValue(undefined),
     }));
 
-    vi.stubGlobal('fetch', vi.fn()
-      // 1. fetch template metadata (has dependencies)
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TEMPLATE_META_WITH_DEPS })
-      // 2. download template dir (GitHub API — empty dir for simplicity)
-      .mockResolvedValueOnce({ ok: true, json: async () => [] })
-      // 3. fetch repo-manager metadata (dep)
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TOOL_META })
-      // 4. download repo-manager file
-      .mockResolvedValueOnce({ ok: true, text: async () => 'name: repo_manager\n' }),
-    );
+    vi.stubGlobal('fetch', routedFetch([
+      [/\/templates\/software-full\/metadata\.json$/, MOCK_TEMPLATE_META_WITH_DEPS],
+      [/\/contents\/templates\/software-full\/project$/, []],
+      [/\/plugins\/repo-manager\/metadata\.json$/, MOCK_TOOL_META],
+      [/\/contents\/plugins\/repo-manager$/, dirListing('plugins/repo-manager', 'repo-manager.tool.yaml')],
+      [/x\/repo-manager\.tool\.yaml$/, 'name: repo_manager\n'],
+      [/x\/metadata\.json$/, JSON.stringify(MOCK_TOOL_META)],
+    ]));
 
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('software-full', { studioDir: STUDIO_DIR, force: true });
 
     const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
-    expect(lf.installed['software-full']).toBeDefined();
-    expect(lf.installed['repo-manager']).toBeDefined();
+    expect(lf.installed['software-full']).toMatchObject({ files: ['projects/software-full'] });
+    expect(lf.installed['repo-manager']).toMatchObject({ files: ['tools/repo-manager.tool.yaml'] });
     expect(lf.installed['repo-manager'].required_by).toEqual(['software-full']);
   });
 
@@ -285,12 +318,14 @@ describe('installPackage — with required dependencies', () => {
       .mockResolvedValueOnce(false);  // shell
     vi.doMock('@inquirer/prompts', () => ({ confirm }));
 
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TEMPLATE_META_RECOMMENDED })
-      .mockResolvedValueOnce({ ok: true, json: async () => [] })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TOOL_META })
-      .mockResolvedValueOnce({ ok: true, text: async () => 'name: repo_manager\n' }),
-    );
+    vi.stubGlobal('fetch', routedFetch([
+      [/\/templates\/software-full\/metadata\.json$/, MOCK_TEMPLATE_META_RECOMMENDED],
+      [/\/contents\/templates\/software-full\/project$/, []],
+      [/\/plugins\/repo-manager\/metadata\.json$/, MOCK_TOOL_META],
+      [/\/contents\/plugins\/repo-manager$/, dirListing('plugins/repo-manager', 'repo-manager.tool.yaml')],
+      [/x\/repo-manager\.tool\.yaml$/, 'name: repo_manager\n'],
+      [/x\/metadata\.json$/, JSON.stringify(MOCK_TOOL_META)],
+    ]));
 
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('software-full', { studioDir: STUDIO_DIR, force: true });
@@ -307,7 +342,7 @@ describe('installPackage — with required dependencies', () => {
     await writeFile(resolve(STUDIO_DIR, 'tools', 'repo-manager.tool.yaml'), 'name: repo_manager\n');
     await writeFile(resolve(STUDIO_DIR, 'registry.lock.json'), JSON.stringify({
       installed: {
-        'repo-manager': { version: '1.0.0', type: 'tool', installed_at: '2026-02-28', sha256: 'abc' },
+        'repo-manager': { version: '1.0.0', type: 'plugin', installed_at: '2026-02-28', sha256: 'abc' },
       },
     }));
 
@@ -323,14 +358,11 @@ describe('installPackage — with required dependencies', () => {
       syncRegistry: vi.fn().mockResolvedValue(undefined),
     }));
 
-    vi.stubGlobal('fetch', vi.fn()
-      // 1. fetch template metadata
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TEMPLATE_META_WITH_DEPS })
-      // 2. download template dir
-      .mockResolvedValueOnce({ ok: true, json: async () => [] })
-      // 3. fetch repo-manager metadata for resolver
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TOOL_META }),
-    );
+    vi.stubGlobal('fetch', routedFetch([
+      [/\/templates\/software-full\/metadata\.json$/, MOCK_TEMPLATE_META_WITH_DEPS],
+      [/\/contents\/templates\/software-full\/project$/, []],
+      [/\/plugins\/repo-manager\/metadata\.json$/, MOCK_TOOL_META],
+    ]));
 
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('software-full', { studioDir: STUDIO_DIR, force: true });

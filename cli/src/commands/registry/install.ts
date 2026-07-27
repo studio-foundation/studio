@@ -1,6 +1,7 @@
 import chalk from 'chalk';
-import { resolve } from 'node:path';
-import { mkdir, readFile } from 'node:fs/promises';
+import { resolve, dirname, basename } from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { RegistryClient } from '../../registry/client.js';
 import { RegistryLockfile } from '../../registry/lockfile.js';
 import { RegistryCache } from '../../registry/cache.js';
@@ -9,18 +10,64 @@ import { findStudioDir } from '../../studio-dir.js';
 import { resolveDependencies } from '../../registry/resolver.js';
 import { checkBinaries, formatBinaryPreflightError } from '../../binary-preflight.js';
 import { checkStudioVersion } from '../../version-guard.js';
-import type { PackageMetadata, PackageType, RegistryIndex, Lockfile } from '../../registry/types.js';
-import { INSTALL_DIRS } from '../../registry/types.js';
-
-const SINGLE_FILE_EXTENSIONS: Partial<Record<PackageType, string>> = {
-  tool: '.tool.yaml',
-  pipeline: '.pipeline.yaml',
-  integration: '.integration.yaml',
-  agent: '.agent.yaml',
-  skill: '.skill.md',
-};
+import type { PackageMetadata, PackageSource, RegistryIndex, Lockfile } from '../../registry/types.js';
+import { CONTENT_DIRS, TEMPLATE_DIR, contentKindOf } from '../../registry/types.js';
 
 const SHELL_EXEC_PATTERN = /execute:\s*\n\s+type:\s*shell/;
+
+/**
+ * Write a plugin's payload into `.studio/`, one destination per content kind —
+ * `coder.agent.yaml` lands in `agents/`, `git.tool.yaml` in `tools/`. Filenames
+ * are kept as published: the agent and skill loaders resolve by filename.
+ * Returns the written paths (relative to `.studio/`) and a hash over them.
+ */
+async function writePluginPayload(
+  files: Array<{ path: string; content: string }>,
+  studioDir: string,
+  name: string,
+): Promise<{ files: string[]; sha256: string }> {
+  const hash = createHash('sha256');
+  const written: string[] = [];
+
+  for (const file of files) {
+    const filename = basename(file.path);
+    if (filename === 'metadata.json') continue;
+    const kind = contentKindOf(filename);
+    if (!kind) {
+      console.log(chalk.yellow(`  ⚠ Skipped ${file.path} — no content kind for this filename`));
+      continue;
+    }
+    const relPath = `${CONTENT_DIRS[kind]}/${filename}`;
+    const destPath = resolve(studioDir, relPath);
+    await mkdir(dirname(destPath), { recursive: true });
+    await writeFile(destPath, file.content);
+    written.push(relPath);
+    hash.update(relPath + file.content);
+  }
+
+  if (written.length === 0) {
+    throw new Error(`Plugin '${name}' delivered no installable content.`);
+  }
+  return { files: written, sha256: hash.digest('hex') };
+}
+
+/** True if any tool the plugin ships runs shell commands. */
+function shellsOut(files: Array<{ path: string; content: string }>): boolean {
+  return files.some(f => f.path.endsWith('.tool.yaml') && SHELL_EXEC_PATTERN.test(f.content));
+}
+
+async function installTemplate(
+  client: RegistryClient,
+  source: PackageSource,
+  studioDir: string,
+  name: string,
+): Promise<{ files: string[]; sha256: string }> {
+  const relPath = `${TEMPLATE_DIR}/${name}`;
+  const destDir = resolve(studioDir, relPath);
+  await mkdir(destDir, { recursive: true });
+  const sha256 = await client.downloadDirectory(source, 'project', destDir);
+  return { files: [relPath], sha256 };
+}
 
 interface InstallOptions {
   studioDir?: string;
@@ -67,7 +114,7 @@ async function doInstallPackage(
     );
   }
 
-  const type = indexEntry.type as PackageType;
+  const type = indexEntry.type;
 
   // Use cached metadata if available (populated by resolver's fetcher)
   let meta = metaCache.get(name);
@@ -82,33 +129,28 @@ async function doInstallPackage(
 
   console.log(`${indent}Installing ${depth > 0 ? 'dependency: ' : ''}${chalk.bold(name)} v${version} [${type}]...`);
 
-  let sha256: string;
-  const destBaseDir = resolve(studioDir, INSTALL_DIRS[type]);
-  await mkdir(destBaseDir, { recursive: true });
-
-  if (type === 'template' || type === 'plugin') {
-    const destDir = resolve(destBaseDir, name);
-    await mkdir(destDir, { recursive: true });
-    sha256 = await client.downloadDirectory(indexEntry.source, 'project', destDir);
+  let installed: { files: string[]; sha256: string };
+  if (type === 'template') {
+    installed = await installTemplate(client, indexEntry.source, studioDir, name);
   } else {
-    const ext = SINGLE_FILE_EXTENSIONS[type] ?? '.yaml';
-    const result = await client.downloadFile(indexEntry.source, `${name}${ext}`, destBaseDir);
-    sha256 = result.sha256;
+    // Anything that isn't a template is a plugin — including a pre-migration
+    // single-file package, whose directory holds exactly one payload file.
+    const payload = await client.fetchDirectoryFiles(indexEntry.source);
 
-    const content = await readFile(result.destPath, 'utf8');
-    if (SHELL_EXEC_PATTERN.test(content) && options.interactive !== false) {
+    // Ask before writing, not after: nothing to clean up when the answer is no.
+    if (shellsOut(payload) && options.interactive !== false) {
       const { confirm } = await import('@inquirer/prompts');
       const proceed = await confirm({
-        message: chalk.yellow(`⚠ This package executes shell commands. Review ${result.destPath} before use. Install anyway?`),
+        message: chalk.yellow(`⚠ '${name}' ships a tool that executes shell commands. Install anyway?`),
         default: false,
       });
       if (!proceed) {
-        const { unlink } = await import('node:fs/promises');
-        await unlink(result.destPath);
         console.log('Installation cancelled.');
         return;
       }
     }
+
+    installed = await writePluginPayload(payload, studioDir, name);
   }
 
   if (meta.requires_binaries?.length) {
@@ -125,7 +167,8 @@ async function doInstallPackage(
     version,
     type,
     installed_at: new Date().toISOString().split('T')[0],
-    sha256,
+    sha256: installed.sha256,
+    files: installed.files,
     required_by: options.requiredBy ? [options.requiredBy] : [],
   });
 

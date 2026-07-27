@@ -123,19 +123,33 @@ studio templates list                            # List available templates
 studio template validate <path>                  # Validate a template structure
 ```
 
+### Plugins
+
+```bash
+studio plugin add <name>                         # Install a plugin into this project
+studio plugin remove <name>                      # Uninstall a plugin
+studio plugin list                               # List installed plugins
+```
+
+A marketplace publishes two kinds of package: a **template**, which starts a project (`studio init --template X`), and a **plugin**, which adds to one that exists (`studio plugin add X`). Everything else — tools, agents, skills, integrations, pipelines, contracts, inputs — is a *content kind* carried inside a plugin, dispatched on install to its `.studio/` subdirectory by filename suffix. Payload filenames are kept as published, because the agent and skill loaders resolve by filename.
+
 ### Registry
 
 ```bash
-studio registry install <name>                   # Install from registry
-studio registry remove <name>                    # Remove a registry tool
+studio registry install <name>                   # Install a package (same as plugin add)
+studio registry remove <name>                    # Uninstall a package
 studio registry search <query>                   # Search the registry
-studio registry publish <path>                   # Publish a tool
-studio registry audit                            # Audit installed tools
+studio registry publish <path>                   # Publish a package
+studio registry audit                            # Verify installed packages
 studio registry sync                             # Sync registry.lock.json
-studio registry update [name]                    # Update installed tools
+studio registry update [name]                    # Update installed packages
 ```
 
 The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
+
+`studio registry install` resolves by name, not by type, so it installs templates and plugins alike — `studio plugin add` is the documented verb, `install` is the one muscle memory reaches for.
+
+`--type` on `search` filters by packaging type (`template`, `plugin`) or by provided content kind (`--type tool` still means "packages that give me a tool"). `browse` groups by what packages deliver rather than by packaging type, which would otherwise be a two-item listing.
 
 #### Dependency resolution
 

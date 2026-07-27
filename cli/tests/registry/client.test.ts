@@ -69,21 +69,31 @@ describe('RegistryClient.fetchMetadata', () => {
   });
 });
 
-describe('RegistryClient.downloadFile', () => {
-  it('downloads source.file and writes it under the destination filename', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      text: async () => 'name: studio_run\n',
-    } as Response);
-    const { RegistryClient } = await import('../../src/registry/client.js');
-    const client = new RegistryClient();
-    const { destPath } = await client.downloadFile(
-      { type: 'local', path: 'tools/studio', file: 'run-pipeline.tool.yaml' },
-      'studio-run.tool.yaml',
-      TMP,
-    );
+describe('RegistryClient.fetchDirectoryFiles', () => {
+  it('reads every payload file of the package directory, recursively', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { name: 'metadata.json', path: 'plugins/git/metadata.json', type: 'file', download_url: 'https://x/meta' },
+          { name: 'nested', path: 'plugins/git/nested', type: 'dir', download_url: null },
+        ],
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, text: async () => '{"name":"git"}' } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { name: 'git.tool.yaml', path: 'plugins/git/nested/git.tool.yaml', type: 'file', download_url: 'https://x/tool' },
+        ],
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, text: async () => 'name: git\n' } as Response);
 
-    expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/tools\/studio\/run-pipeline\.tool\.yaml$/);
-    expect(destPath).toBe(resolve(TMP, 'studio-run.tool.yaml'));
+    const { RegistryClient } = await import('../../src/registry/client.js');
+    const files = await new RegistryClient().fetchDirectoryFiles({ type: 'local', path: 'plugins/git' });
+
+    expect(files).toEqual([
+      { path: 'metadata.json', content: '{"name":"git"}' },
+      { path: 'nested/git.tool.yaml', content: 'name: git\n' },
+    ]);
   });
 });

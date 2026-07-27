@@ -378,6 +378,28 @@ Tools live in runner, not engine. The engine passes configs to the runner. The r
 
 ---
 
+## Packages: templates and plugins
+
+A marketplace publishes two kinds of package, each defined by its install verb:
+
+| | `template` | `plugin` |
+|---|---|---|
+| Target | no `.studio/` yet | an existing `.studio/` |
+| Verb | `studio init --template X` | `studio plugin add X` |
+| Cardinality | one per project, at creation | many, at any time |
+
+Tools, agents, skills, integrations, pipelines, contracts and inputs are not package types. They are **content kinds** carried inside a plugin, declared in its `metadata.json`:
+
+```json
+{ "name": "git", "type": "plugin", "provides": { "tools": ["git"] } }
+```
+
+On install, each payload file is dispatched to the `.studio/` subdirectory of its kind by filename suffix — `coder.agent.yaml` to `agents/`, `git.tool.yaml` to `tools/`. Filenames are kept as published: the agent and skill loaders resolve by filename, so renaming would break `agent: coder`. `provides` is what search reads; the suffix is what install obeys.
+
+The lockfile records the exact paths a package wrote, so removal and `audit` act on what was installed rather than on a path re-derived from a type.
+
+---
+
 ## Package dependencies
 
 A registry package declares what it needs in its `metadata.json`. A template supplies pipelines and contracts; the plugins it depends on supply the tools and agents those pipelines reference.
