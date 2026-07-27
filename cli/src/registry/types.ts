@@ -68,6 +68,12 @@ export interface LockfileEntry {
   /** What the package wrote, relative to `.studio/`. Absent on pre-migration entries. */
   files?: string[];
   required_by?: string[];
+  /**
+   * Range declared by each dependent, e.g. `{ "software": ">=1.2.0" }`. Without it
+   * an update has no way to tell "newest" from "newest my dependents accept".
+   * Only dependents that declared a range appear.
+   */
+  constraints?: Record<string, string>;
 }
 
 export interface Lockfile {

@@ -85,3 +85,49 @@ describe('RegistryLockfile.addRequiredBy', () => {
     expect(entry?.required_by).toEqual(['other-pkg']);
   });
 });
+
+describe('RegistryLockfile constraints (STU-203)', () => {
+  it('records the range a dependent declared', async () => {
+    const lf = new RegistryLockfile(STUDIO);
+    await lf.add('git', { version: '1.4.0', type: 'plugin', installed_at: '2026-07-27', sha256: 'abc' });
+
+    await lf.addRequiredBy('git', 'software', '>=1.0.0 <2.0.0');
+
+    expect((await lf.get('git'))?.constraints).toEqual({ software: '>=1.0.0 <2.0.0' });
+  });
+
+  it('leaves no constraint when the dependent declared no range', async () => {
+    const lf = new RegistryLockfile(STUDIO);
+    await lf.add('git', { version: '1.4.0', type: 'plugin', installed_at: '2026-07-27', sha256: 'abc' });
+
+    await lf.addRequiredBy('git', 'software');
+
+    expect((await lf.get('git'))?.constraints).toBeUndefined();
+  });
+
+  it('drops the constraint along with the dependent', async () => {
+    const lf = new RegistryLockfile(STUDIO);
+    await lf.add('git', {
+      version: '1.4.0', type: 'plugin', installed_at: '2026-07-27', sha256: 'abc',
+      required_by: ['software', 'deploy-kit'], constraints: { software: '<2.0.0', 'deploy-kit': '>=1.0.0' },
+    });
+
+    await lf.removeRequiredBy('git', 'software');
+
+    expect((await lf.get('git'))?.constraints).toEqual({ 'deploy-kit': '>=1.0.0' });
+  });
+
+  it('keeps dependents and constraints across a --force reinstall', async () => {
+    const lf = new RegistryLockfile(STUDIO);
+    await lf.add('git', {
+      version: '1.0.0', type: 'plugin', installed_at: '2026-07-27', sha256: 'abc',
+      required_by: ['software'], constraints: { software: '<2.0.0' },
+    });
+
+    await lf.add('git', { version: '1.4.0', type: 'plugin', installed_at: '2026-07-28', sha256: 'def' });
+
+    const entry = await lf.get('git');
+    expect(entry).toMatchObject({ version: '1.4.0', sha256: 'def', required_by: ['software'] });
+    expect(entry?.constraints).toEqual({ software: '<2.0.0' });
+  });
+});
