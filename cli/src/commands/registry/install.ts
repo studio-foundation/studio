@@ -61,13 +61,18 @@ async function doInstallPackage(
 
   const indexEntry = index.packages.find(p => p.name === name);
   if (!indexEntry) throw new Error(`Package '${name}' not found in registry`);
+  if (!indexEntry.source) {
+    throw new Error(
+      `Package '${name}' has no source in the registry index. Run 'studio registry sync --force'.`,
+    );
+  }
 
   const type = indexEntry.type as PackageType;
 
   // Use cached metadata if available (populated by resolver's fetcher)
   let meta = metaCache.get(name);
   if (!meta) {
-    meta = await client.fetchMetadata(type, name) as PackageMetadata;
+    meta = await client.fetchMetadata(indexEntry.source, name) as PackageMetadata;
     metaCache.set(name, meta);
   }
   const version = requestedVersion ?? meta.version;
@@ -84,11 +89,10 @@ async function doInstallPackage(
   if (type === 'template' || type === 'plugin') {
     const destDir = resolve(destBaseDir, name);
     await mkdir(destDir, { recursive: true });
-    sha256 = await client.downloadDirectory(type, name, 'project', destDir);
+    sha256 = await client.downloadDirectory(indexEntry.source, 'project', destDir);
   } else {
     const ext = SINGLE_FILE_EXTENSIONS[type] ?? '.yaml';
-    const filename = `${name}${ext}`;
-    const result = await client.downloadFile(type, name, filename, destBaseDir);
+    const result = await client.downloadFile(indexEntry.source, `${name}${ext}`, destBaseDir);
     sha256 = result.sha256;
 
     const content = await readFile(result.destPath, 'utf8');
@@ -135,11 +139,13 @@ async function doInstallPackage(
       index,
       lockfileData,
       (depName) => {
-        const depEntry = index.packages.find(p => p.name === depName);
-        const depType = (depEntry?.type ?? 'tool') as PackageType;
         const cached = metaCache.get(depName);
         if (cached) return Promise.resolve(cached);
-        return client.fetchMetadata(depType, depName).then(m => {
+        const depEntry = index.packages.find(p => p.name === depName);
+        if (!depEntry?.source) {
+          return Promise.reject(new Error(`Package '${depName}' not found in registry`));
+        }
+        return client.fetchMetadata(depEntry.source, depName).then(m => {
           metaCache.set(depName, m as PackageMetadata);
           return m as PackageMetadata;
         });

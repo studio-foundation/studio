@@ -19,7 +19,11 @@ const MOCK_METADATA = {
 const MOCK_INDEX = {
   generated_at: '2026-02-28T00:00:00Z',
   version: '1',
-  packages: [{ ...MOCK_METADATA, downloads: 0 }],
+  packages: [{
+    ...MOCK_METADATA,
+    downloads: 0,
+    source: { type: 'local', path: 'integrations/linear', file: 'linear.integration.yaml' },
+  }],
 };
 
 const FAKE_INTEGRATION_CONTENT = 'name: linear\ntype: integration\n';
@@ -89,6 +93,71 @@ describe('installPackage', () => {
   });
 });
 
+// --- Package whose directory and payload filename both diverge from its name ---
+
+const MOCK_DIVERGENT_META = {
+  name: 'studio-run',
+  type: 'tool',
+  version: '1.0.0',
+  description: 'Launch a Studio pipeline run',
+  author: 'studio-core',
+  license: 'MIT',
+  tags: [] as string[],
+  studio_version: '>=0.1.0',
+};
+
+const MOCK_DIVERGENT_INDEX = {
+  generated_at: '2026-02-28T00:00:00Z',
+  version: '1',
+  packages: [{
+    ...MOCK_DIVERGENT_META,
+    downloads: 0,
+    source: { type: 'local', path: 'tools/studio', file: 'run-pipeline.tool.yaml' },
+  }],
+};
+
+describe('installPackage — directory name diverges from package name', () => {
+  beforeEach(async () => {
+    await mkdir(STUDIO_DIR, { recursive: true });
+    vi.resetModules();
+  });
+
+  afterEach(async () => {
+    await rm(TMP, { recursive: true, force: true });
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    vi.restoreAllMocks();
+  });
+
+  it('resolves both URLs from source, and installs under the package name', async () => {
+    vi.doMock('../../../src/registry/cache.js', () => {
+      class RegistryCache {
+        read() { return Promise.resolve(MOCK_DIVERGENT_INDEX); }
+        write() { return Promise.resolve(undefined); }
+        isFresh() { return Promise.resolve(true); }
+      }
+      return { RegistryCache };
+    });
+    vi.doMock('../../../src/commands/registry/sync.js', () => ({
+      syncRegistry: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_DIVERGENT_META })
+      .mockResolvedValueOnce({ ok: true, text: async () => 'name: studio_run\n' });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await installPackage('studio-run', { studioDir: STUDIO_DIR, force: true });
+
+    expect(mockFetch.mock.calls[0][0]).toMatch(/\/tools\/studio\/metadata\.json$/);
+    expect(mockFetch.mock.calls[1][0]).toMatch(/\/tools\/studio\/run-pipeline\.tool\.yaml$/);
+
+    const dest = resolve(STUDIO_DIR, 'tools', 'studio-run.tool.yaml');
+    expect(await readFile(dest, 'utf8')).toBe('name: studio_run\n');
+  });
+});
+
 // --- ADDITIONAL CONSTANTS for dep resolution tests ---
 
 const MOCK_TOOL_META = {
@@ -116,8 +185,13 @@ const MOCK_INDEX_WITH_DEPS = {
       tags: [] as string[],
       studio_version: '>=0.1.0',
       downloads: 0,
+      source: { type: 'local', path: 'templates/software-full' },
     },
-    { ...MOCK_TOOL_META, downloads: 0 },
+    {
+      ...MOCK_TOOL_META,
+      downloads: 0,
+      source: { type: 'local', path: 'tools/repo-manager', file: 'repo-manager.tool.yaml' },
+    },
   ],
 };
 

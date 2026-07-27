@@ -7,6 +7,17 @@ export type PackageType =
   | 'plugin'
   | 'skill';
 
+/**
+ * Where a package's payload lives. `path` is the package directory in the
+ * marketplace repo; `file` is the payload filename for single-file types.
+ * Neither is derived from `name` — the two are allowed to diverge.
+ */
+export interface PackageSource {
+  type: 'local';
+  path: string;
+  file?: string;
+}
+
 export interface PackageEntry {
   name: string;
   type: PackageType;
@@ -17,6 +28,7 @@ export interface PackageEntry {
   tags: string[];
   studio_version: string | null;
   downloads: number;
+  source: PackageSource;
 }
 
 export interface RegistryIndex {
@@ -33,7 +45,7 @@ export interface PackageDependencies {
   pipelines?: { required?: string[]; recommended?: string[] };
 }
 
-export interface PackageMetadata extends PackageEntry {
+export interface PackageMetadata extends Omit<PackageEntry, 'source'> {
   requires_binaries?: string[];
   dependencies?: PackageDependencies;
 }
