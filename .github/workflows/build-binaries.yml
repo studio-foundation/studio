@@ -4,6 +4,7 @@ name: Build binaries
 # in `binaries-*` artifacts for the calling workflow to publish.
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   compile:
@@ -44,9 +45,52 @@ jobs:
       - name: Compile binaries
         run: node scripts/build-binary.mjs ${{ matrix.platforms }}
 
+      # Decision: staying ad-hoc, not moving to a paid Developer ID + notarization.
+      # install.sh (the only documented install path) never sets com.apple.quarantine,
+      # so Gatekeeper never runs and this is enough. A browser download from this repo's
+      # Releases page *does* get quarantined and Gatekeeper hard-blocks it (verified on a
+      # real Mac: SIGKILL on direct exec, "cannot be opened" dialog with no Open Anyway on
+      # GUI open, only Trash-or-OK) — but that path isn't documented or linked anywhere,
+      # so we're accepting the risk rather than paying for notarization. Revisit if this CLI
+      # ever grows an audience that reaches Releases directly instead of through install.sh.
       - name: Ad-hoc sign macOS binaries
         if: runner.os == 'macOS'
         run: codesign --sign - --force dist-binaries/studio-darwin-*
+
+      # `bun build --compile` exiting 0 does not mean the bundle starts: a missing
+      # bundled asset or a `require` Bun could not statically resolve only fails at
+      # load time. Run every binary the runner can execute natively, and compare the
+      # printed version against cli/package.json — a stale inlined version starts fine.
+      #
+      # Unverified, no runner here can execute them: linux-arm64, linux-arm64-musl,
+      # win-x64 (cross-compiled from Linux) and darwin-x64 (macos-14 is Apple Silicon,
+      # without Rosetta).
+      - name: Smoke-test compiled binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(node -p "require('./cli/package.json').version")
+
+          assert_version() {
+            local label=$1; shift
+            local actual
+            actual=$("$@" | tr -d '\r')
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::$label printed version '$actual', expected '$expected'"
+              exit 1
+            fi
+            echo "$label -> $actual"
+          }
+
+          if [ "$RUNNER_OS" = macOS ]; then
+            assert_version darwin-arm64 dist-binaries/studio-darwin-arm64 --version
+          else
+            assert_version linux-x64 dist-binaries/studio-linux-x64 --version
+            # Bun links the musl build against libstdc++, which a bare Alpine lacks.
+            assert_version linux-x64-musl \
+              docker run --rm -v "$PWD/dist-binaries:/b" alpine:3.20 \
+              sh -c 'apk add --no-cache libstdc++ >/dev/null && /b/studio-linux-x64-musl --version'
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
