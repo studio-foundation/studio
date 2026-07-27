@@ -142,7 +142,9 @@ studio registry search <query>                   # Search the registry
 studio registry publish <path>                   # Publish a package
 studio registry audit                            # Verify installed packages
 studio registry sync                             # Sync registry.lock.json
-studio registry update [name]                    # Update installed packages
+studio registry outdated                         # List packages with an update available
+studio registry update <name>                    # Update to the highest version dependents accept
+studio registry update <name> --latest           # Update to the newest published version
 ```
 
 The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
@@ -156,6 +158,22 @@ The registry is hosted at [studio-community](https://github.com/studio-foundatio
 `studio registry install` and `studio init` resolve a package's declared dependencies before it lands. Required ones install transitively and unconditionally; a required name absent from the index aborts the install with that name, rather than producing a project that dies at its first tool call. Recommended ones are prompted one by one, and skipped entirely when there is nothing to prompt (`--yes`, no TTY). Cycles are reported, not looped on. See [CONCEPTS.md](CONCEPTS.md#package-dependencies) for the declaration format.
 
 `studio registry remove <name>` warns when another installed package required the one being removed, then removes it anyway. Studio validates tool availability at run time; a second gate here would be enforcement without authority.
+
+#### Updates and ranges
+
+Resolution doesn't end at install time. `registry.lock.json` records the range each dependent declared, so a package installed under `git@<2.0.0` stays known as constrained rather than as "whatever version happened to land":
+
+```json
+"git": { "version": "1.4.0", "required_by": ["software"], "constraints": { "software": "<2.0.0" } }
+```
+
+- **`studio registry update <name>`** moves to the highest published version satisfying every recorded range — not to `latest`. When nothing satisfies them, it names the conflicting pair instead of installing. `--latest` overrides the ranges, warning which dependents it breaks.
+- **`studio registry outdated`** separates the two questions the same row used to conflate: `wanted` is the highest version the constraints accept, `latest` is the newest published. When they differ, the row says which range holds the package back.
+- **`studio registry audit`** checks the installed graph, not just checksums: a version that no longer satisfies a recorded range reports `CONFLICT`. Both sides live in the lockfile, so the check is offline.
+
+A `--force` reinstall rewrites the payload fields only — dependents and their ranges survive it.
+
+Entries written before this existed carry no `constraints`, which reads as unconstrained: `update` behaves as it always did until the package is reinstalled through a dependent that declares a range.
 
 ### Cache
 
