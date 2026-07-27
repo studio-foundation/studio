@@ -686,6 +686,46 @@ describe('generateFullApp', () => {
     expect(await exists(resolve(TMP, '.git'))).toBe(false);
     expect(await exists(resolve(TMP, '.studio'))).toBe(true);
   });
+
+  it('writes ONBOARDING.md and lists it as generated', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    const result = await generateFullApp(TMP, 'my-app', 'software', { skipGit: true });
+
+    expect(result.generatedFiles).toContain('ONBOARDING.md');
+    const onboarding = await readFile(resolve(TMP, 'ONBOARDING.md'), 'utf-8');
+    expect(onboarding).toContain('my-app');
+    expect(onboarding).toContain('studio doctor');
+  });
+
+  it('writes ONBOARDING.md for the blank template too', async () => {
+    const { generateFullApp } = await import('../../src/commands/init.js');
+    await generateFullApp(TMP, 'bare-app', 'blank', { skipGit: true });
+
+    expect(await exists(resolve(TMP, 'ONBOARDING.md'))).toBe(true);
+  });
+});
+
+describe('writeOnboardingDoc', () => {
+  const vars = { PROJECT_NAME: 'my-app', TEMPLATE_NAME: 'software', YEAR: '2026' };
+
+  it('substitutes PROJECT_NAME', async () => {
+    const { writeOnboardingDoc } = await import('../../src/commands/init.js');
+    await writeOnboardingDoc(TMP, vars);
+
+    const content = await readFile(resolve(TMP, 'ONBOARDING.md'), 'utf-8');
+    expect(content).toContain('my-app');
+    expect(content).not.toContain('{{PROJECT_NAME}}');
+  });
+
+  it('does not overwrite an existing ONBOARDING.md', async () => {
+    const { writeOnboardingDoc } = await import('../../src/commands/init.js');
+    await writeFile(resolve(TMP, 'ONBOARDING.md'), 'hand-written\n', 'utf-8');
+
+    const written = await writeOnboardingDoc(TMP, vars);
+
+    expect(written).toBe(false);
+    expect(await readFile(resolve(TMP, 'ONBOARDING.md'), 'utf-8')).toBe('hand-written\n');
+  });
 });
 
 describe('validateProjectName', () => {
