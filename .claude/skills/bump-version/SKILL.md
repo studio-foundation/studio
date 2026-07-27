@@ -82,8 +82,9 @@ gh release view vX.Y.Z --json assets --jq '.assets[].name'   # 7 binaries + SHA2
 gh release edit vX.Y.Z --draft=false --latest
 ```
 
-`install.sh` downloads `studio-<platform>` and `SHA256SUMS` from the release, so a
-release published without assets leaves that install path broken for that version.
+`install.sh` and `install.ps1` download `studio-<platform>` and `SHA256SUMS` from the
+release, so a release published without assets leaves those install paths broken for that
+version.
 
 ## Common mistakes
 

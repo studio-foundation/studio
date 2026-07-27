@@ -16,9 +16,21 @@ curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/insta
 npm install -g @studio-foundation/cli
 ```
 
-The installer honours `STUDIO_VERSION` (a release tag, default: latest) and
-`STUDIO_INSTALL_DIR` (default: `$HOME/.local/bin`). It verifies the download against the
-release's `SHA256SUMS` before installing.
+On Windows, PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/studio-foundation/studio/main/install.ps1 | iex
+```
+
+Both installers honour `STUDIO_VERSION` (a release tag, default: latest) and
+`STUDIO_INSTALL_DIR` (default: `$HOME/.local/bin`, or `%LOCALAPPDATA%\Programs\studio` on
+Windows). They verify the download against the release's `SHA256SUMS` before installing.
+The Windows installer adds its install directory to your user `PATH`, which takes effect
+in the next terminal you open.
+
+Windows binaries are unsigned, so SmartScreen may warn the first time you run `studio`.
+Choose "More info" → "Run anyway"; the checksum the installer verified is the integrity
+guarantee.
 
 Binaries ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glibc and
 musl each), and `win-x64`. On any other platform the npm package falls back to the

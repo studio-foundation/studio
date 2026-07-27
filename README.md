@@ -144,6 +144,13 @@ Install the standalone binary — no Node.js, no npm, no native compilation:
 curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
 ```
 
+On Windows, PowerShell — the binary is unsigned, so SmartScreen may warn on first run
+("More info" → "Run anyway"):
+
+```powershell
+irm https://raw.githubusercontent.com/studio-foundation/studio/main/install.ps1 | iex
+```
+
 Or from npm, which installs the same binary through a per-platform optional dependency
 and falls back to the JavaScript build on platforms without one (needs Node.js >= 22.13):
 
