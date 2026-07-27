@@ -1,0 +1,19 @@
+{
+  "name": "git-workflow",
+  "version": "1.0.0",
+  "description": "Git branching, conventional commits, and PR conventions",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "git",
+    "commits",
+    "workflow"
+  ],
+  "type": "plugin",
+  "provides": {
+    "skills": [
+      "git-workflow"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

@@ -111,10 +111,14 @@ studio doctor                                     # fix whatever it prints, then
 
 ```bash
 studio tools list                                # Tools in the active project
-studio tools add git                             # Install a tool (wizard)
+studio tools add shell                           # Install a tool (wizard)
 studio tools remove nutrition                    # Remove a tool
-studio tools info git                            # Tool details
+studio tools info shell                          # Tool details
 ```
+
+`repo-manager` and `shell` are the only tools the kernel bundles (INV-11). Any other
+name — `git`, `search`, `web-search` — is a marketplace plugin, and `tools add` installs
+it through the registry, falling back to the bundled seed when there is no network.
 
 ### Templates
 

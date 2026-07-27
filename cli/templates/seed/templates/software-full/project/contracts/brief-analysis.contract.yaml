@@ -1,0 +1,7 @@
+name: brief-analysis
+version: 1
+schema:
+  required_fields:
+    - summary
+    - requirements
+    - acceptance_criteria

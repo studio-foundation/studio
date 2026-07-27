@@ -1,0 +1,27 @@
+{
+  "name": "git",
+  "version": "1.0.0",
+  "description": "Git version control operations: status, diff, checkout, commit, push, PR/MR creation",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "git",
+    "vcs",
+    "github",
+    "gitlab"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "git"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "requires_binaries": [
+    "git"
+  ],
+  "optional_binaries": [
+    "gh",
+    "glab"
+  ]
+}

@@ -1,0 +1,21 @@
+name: studio-run
+commands:
+  - name: run-pipeline
+    description: Launch a Studio pipeline run and wait for completion
+    parameters:
+      pipeline:
+        type: string
+        required: true
+      input:
+        type: object
+        required: true
+      wait:
+        type: boolean
+        default: true  # attend la completion avant de retourner
+    execute:
+      type: shell
+      command: |
+        curl -X POST http://localhost:3700/api/runs \
+          -H "Content-Type: application/json" \
+          -d '{"pipeline": "{{pipeline}}", "input": {{input | json}}, "wait": {{wait}}}'
+      parse_output: json

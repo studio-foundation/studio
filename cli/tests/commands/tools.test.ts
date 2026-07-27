@@ -48,35 +48,36 @@ describe('toolsAddDirect', () => {
   });
 
   it('installs a single valid tool', async () => {
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git']);
-    expect(result.installed).toEqual(['git']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['shell']);
+    expect(result.installed).toEqual(['shell']);
     expect(result.skipped).toEqual([]);
-    const toolPath = resolve(TOOLS_STUDIO_DIR, 'tools', 'git.tool.yaml');
+    const toolPath = resolve(TOOLS_STUDIO_DIR, 'tools', 'shell.tool.yaml');
     expect(await fileExists(toolPath)).toBe(true);
   });
 
   it('installs multiple tools in one call', async () => {
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git', 'shell']);
-    expect(result.installed).toContain('git');
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['repo-manager', 'shell']);
+    expect(result.installed).toContain('repo-manager');
     expect(result.installed).toContain('shell');
     expect(result.skipped).toEqual([]);
   });
 
   it('skips already-installed tool and returns it in skipped list', async () => {
-    await toolsAddDirect(TOOLS_STUDIO_DIR, ['git']);
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['git', 'shell']);
-    expect(result.installed).toEqual(['shell']);
-    expect(result.skipped).toEqual(['git']);
+    await toolsAddDirect(TOOLS_STUDIO_DIR, ['shell']);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['shell', 'repo-manager']);
+    expect(result.installed).toEqual(['repo-manager']);
+    expect(result.skipped).toEqual(['shell']);
   });
 
-  it('throws on unknown tool name', async () => {
-    await expect(toolsAddDirect(TOOLS_STUDIO_DIR, ['nonexistent'])).rejects.toThrow("Unknown tool 'nonexistent'");
+  it('sends a name the kernel does not own to the registry', async () => {
+    await expect(toolsAddDirect(TOOLS_STUDIO_DIR, ['nonexistent']))
+      .rejects.toThrow(/not found in registry/);
   });
 
   it('creates tools dir if it does not exist', async () => {
-    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['search']);
-    expect(result.installed).toEqual(['search']);
-    expect(await fileExists(resolve(TOOLS_STUDIO_DIR, 'tools', 'search.tool.yaml'))).toBe(true);
+    const result = await toolsAddDirect(TOOLS_STUDIO_DIR, ['repo-manager']);
+    expect(result.installed).toEqual(['repo-manager']);
+    expect(await fileExists(resolve(TOOLS_STUDIO_DIR, 'tools', 'repo-manager.tool.yaml'))).toBe(true);
   });
 });
 
@@ -84,10 +85,7 @@ describe('listAvailableTools', () => {
   it('returns all available tool templates', async () => {
     const tools = await listAvailableTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('git');
-    expect(names).toContain('repo-manager');
-    expect(names).toContain('shell');
-    expect(names).toContain('search');
+    expect(names).toEqual(['repo-manager', 'shell']);
   });
 
   it('returns description for each tool', async () => {

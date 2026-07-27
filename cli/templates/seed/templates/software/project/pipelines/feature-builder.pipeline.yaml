@@ -1,0 +1,35 @@
+name: feature-builder
+description: Analyze a request and generate code changes
+version: 1
+
+input_schema:
+  type: structured
+  fields:
+    - name: brief_summary
+      type: text
+      required: true
+      prompt: "Brief summary"
+    - name: target_page
+      type: text
+      required: false
+      prompt: "Target page (optional)"
+    - name: acceptance_criteria
+      type: array
+      items: text
+      prompt: "Acceptance criteria"
+
+stages:
+  - name: code-generation
+    kind: code
+    agent: coder
+    hooks:
+      on_stage_complete:
+        - command: "npx tsc --noEmit"
+          on_failure: reject
+        - command: "npx eslint --rule 'no-empty: error' --rule 'no-unused-vars: warn' {{output.files_changed}}"
+          on_failure: reject
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

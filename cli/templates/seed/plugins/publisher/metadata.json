@@ -1,0 +1,27 @@
+{
+  "name": "publisher",
+  "version": "1.2.0",
+  "description": "Git workflow specialist — creates branch, commits, pushes, and opens PR/MR",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "git",
+    "github",
+    "gitlab",
+    "publish"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "publisher"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "git"
+      ]
+    }
+  }
+}

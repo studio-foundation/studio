@@ -1,0 +1,19 @@
+{
+  "name": "reviewer",
+  "version": "1.1.0",
+  "description": "Strict QA engineer — verifies implementation against acceptance criteria, returns approved or rejected",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "qa",
+    "review",
+    "testing"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "reviewer"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

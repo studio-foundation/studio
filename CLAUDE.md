@@ -66,6 +66,8 @@ Studio/
 
 **Package dependencies** — A registry package declares what it needs in `metadata.json` (`dependencies.plugins.{required,recommended}`); `studio init` and `studio registry install` resolve the graph before the package lands, so `init` is a resolver rather than a file copier. Entries are `[marketplace:]name[@range]`: unqualified names resolve in the package's own marketplace, an unregistered one is refused rather than added silently, and ranges resolve greedily to the highest satisfying version (conflicts report both constraints). Required entries install transitively and abort init when unresolvable; recommended ones are prompted individually. `tools`/`agents`/`skills`/`templates`/`pipelines` are the pre-migration category spelling and still resolve — resolution is by name, never by category. Removal warns about broken references and proceeds. The lockfile records the range each dependent declared (`constraints`), so resolution survives the install: `registry update` targets the highest version those ranges accept (`--latest` overrides, naming what it breaks), `registry outdated` reports `wanted` and `latest` separately, and `registry audit` flags an installed version that no longer satisfies a recorded range — offline, since both sides are in the lockfile. Entries without `constraints` read as unconstrained. See [ADR 0002](docs/adr/0002-packaging-model.md), CONCEPTS.md.
 
+**Seed cache** — `cli/templates/seed/` is a pre-fetched snapshot of the official marketplace, bundled through the same `BUNDLED_ASSETS` step as the templates. It mirrors the marketplace layout verbatim (`index.json` plus each package's `source.path` tree), so every lookup is a path lookup and no kernel code names a package. `studio init` and `studio registry install` fall back to it when the network is unreachable, which is what lets `git`, `search` and the integrations leave the kernel without making a fresh install require connectivity (INV-11). A seeded package is an ordinary package — removable, overridable, superseded by the live registry the moment one answers. The seeded index is deliberately never written to the 24-hour cache, or the next online run would skip its sync. Refresh with `pnpm seed:refresh` ([scripts/refresh-seed.mjs](scripts/refresh-seed.mjs)).
+
 **Runtime version guard (`studio_version`)** — A semver range in `.studio/config.yaml` (`studio_version: ">=0.10.0"`), analogous to `package.json`'s `engines`. `studio run` and `studio api start` compare the installed CLI against it and fail-fast before any stage; `studio registry install` applies the same check to a package's `studio_version`. Absent key = no check. See CLI.md.
 
 **Config contract (.studio/config.example.yaml)** — Committed twin of the gitignored `config.yaml`. Every key left uncommented in the example is required in `config.yaml`; `studio run` and `studio api start` check it first and fail with the missing dotted paths instead of dying mid-run. Presence only — the value may come from `${VAR}`. No example = no contract = never blocked. See CLI.md.
@@ -94,9 +96,9 @@ pending → running → success
 
 ## Non-Negotiable Rules
 
-> The 6 you hit daily. Formal list of all 10: **[INVARIANTS.md](INVARIANTS.md)** — the source.
+> The 6 you hit daily. Formal list of all 11: **[INVARIANTS.md](INVARIANTS.md)** — the source.
 
-1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine.
+1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine — and the kernel at large ships no tool it does not implement (INV-11, `pnpm check:kernel`).
 2. **ralph doesn't know runner.** ralph takes a generic `executor: () => Promise<T>`.
 3. **runner doesn't validate or retry.** It executes and returns an AgentRun.
 4. **contracts is a leaf package.** Zero internal dependencies.
@@ -163,16 +165,13 @@ Tools are YAML plugins (`.tool.yaml`). The runner is a tool plugin runtime.
 | `repo_manager-write_file` | Write/create a file |
 | `repo_manager-list_files` | List files |
 | `shell-run_command` | Execute a shell command |
-| `search-search_codebase` | Search code |
-| `web_search-search` | Search the web |
 | `repo_manager-apply_patch` | Apply a unified diff |
-| `git-checkout` | Checkout or create a branch |
-| `git-commit` | Create a commit |
-| `git-push` | Push to remote |
-| `git-pull` | Pull from remote |
-| `git-status` | Show working tree status |
-| `git-diff` | Show diffs |
 | `studio_run-run_pipeline` | Spawn a sub-pipeline |
+
+That is the whole list. `git`, `search`, `web-search` and every integration are
+marketplace plugins, not builtins — see INV-11 for the three criteria a tool must meet
+to live in the kernel, and the **Seed cache** entry below for how they still install
+with no network.
 
 **Tool name format:** Dashes (`-`), not dots (`.`). Example: `repo_manager-write_file`.
 
@@ -339,6 +338,7 @@ Same PR as the code, not a later cleanup pass:
 | New YAML key a config author can write | [CONCEPTS.md](CONCEPTS.md) + CLAUDE.md key concepts |
 | New API route | [API.md](API.md) + its Swagger schema |
 | Template or distribution change | [TEMPLATES.md](TEMPLATES.md), [GOVERNANCE.md](GOVERNANCE.md) |
+| Builtin tool added or removed | [INVARIANTS.md](INVARIANTS.md) INV-11, `BUILTIN_TOOLS` in [check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs), CLAUDE.md builtin table |
 | What Studio *is* — positioning, cadence, status, licensing | [GOVERNANCE.md](GOVERNANCE.md) |
 
 [GOVERNANCE.md](GOVERNANCE.md) is the doc a contributor reads first and the one nobody opens while coding, so it rots silently — it went a long stretch describing 5 packages and 6 invariants. It duplicates as little as possible on purpose: invariants live in INVARIANTS.md, templates in TEMPLATES.md. Don't reintroduce copies there; link instead.

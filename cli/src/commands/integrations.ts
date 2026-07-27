@@ -3,10 +3,11 @@ import { resolve, join, dirname } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as yaml from 'js-yaml';
-import { getBundledIntegrationTemplate, listAvailableIntegrationTemplates, loadProjectIntegrations } from '@studio-foundation/runner';
+import { loadProjectIntegrations } from '@studio-foundation/runner';
 import type { IntegrationPluginDef } from '@studio-foundation/contracts';
 import { loadConfig, resolveEnvVars } from '../config.js';
 import { setConfigValue } from './config.js';
+import { installPackage } from './registry/install.js';
 
 export function getIntegrationsDir(studioDir: string): string {
   return resolve(studioDir, 'integrations');
@@ -32,16 +33,14 @@ async function loadRawIntegrationsConfig(studioDir: string): Promise<Record<stri
   }
 }
 
+/** The plugin's optional settings that carry a value, for the list view. */
 function formatExtras(plugin: IntegrationPluginDef, config: Record<string, unknown>): string {
-  if (plugin.name === 'linear') {
-    const autoTrigger = config['autoTrigger'] ?? plugin.config?.optional?.['autoTrigger'] ?? false;
-    return `auto-trigger: ${autoTrigger ? 'on' : 'off'}`;
-  }
-  if (plugin.name === 'slack') {
-    const channel = config['channel'] ?? plugin.config?.optional?.['channel'] ?? '';
-    return channel ? `channel: ${String(channel)}` : '';
-  }
-  return '';
+  const optional = plugin.config?.optional ?? {};
+  return Object.keys(optional)
+    .map(key => [key, config[key] ?? optional[key]] as const)
+    .filter(([, value]) => value !== '' && value !== undefined && value !== null)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(', ');
 }
 
 async function resolveStudioDir(): Promise<string> {
@@ -55,30 +54,22 @@ async function resolveStudioDir(): Promise<string> {
 }
 
 export async function installIntegration(source: string, integrationsDir: string): Promise<string> {
+  // Integrations are ordinary marketplace plugins; only a local file is installed
+  // by hand, and then it is the caller's own YAML.
+  if (!source.includes('/') && !source.endsWith('.yaml')) {
+    await installPackage(source, { studioDir: dirname(integrationsDir) });
+    return source;
+  }
+
   await mkdir(integrationsDir, { recursive: true });
 
-  let name: string;
   let content: string;
-
-  if (source.startsWith('@studio-foundation/integration-')) {
-    name = source.replace('@studio-foundation/integration-', '');
-    const bundled = getBundledIntegrationTemplate(name);
-    if (!bundled) {
-      const available = listAvailableIntegrationTemplates();
-      throw new Error(
-        `Unknown integration '${name}'. Available: ${available.map(t => t.name).join(', ')}`
-      );
-    }
-    content = bundled;
-  } else {
-    try {
-      content = await readFile(source, 'utf-8');
-    } catch {
-      throw new Error(`File not found: ${source}`);
-    }
-    const def = yaml.load(content) as IntegrationPluginDef;
-    name = def.name;
+  try {
+    content = await readFile(source, 'utf-8');
+  } catch {
+    throw new Error(`File not found: ${source}`);
   }
+  const name = (yaml.load(content) as IntegrationPluginDef).name;
 
   const destPath = join(integrationsDir, `${name}.integration.yaml`);
   const alreadyExists = await access(destPath).then(() => true).catch(() => false);

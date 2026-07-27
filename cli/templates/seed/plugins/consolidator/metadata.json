@@ -1,0 +1,19 @@
+{
+  "name": "consolidator",
+  "version": "1.0.0",
+  "description": "Aggregation specialist — merges parallel worker outputs into a single coherent result",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "parallel",
+    "aggregation",
+    "orchestration"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "consolidator"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

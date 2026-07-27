@@ -1,0 +1,13 @@
+name: analyzer
+description: Extract insights from a document or codebase
+version: 1
+
+stages:
+  - name: analysis
+    kind: analysis
+    agent: analyst
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

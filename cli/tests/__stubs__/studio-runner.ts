@@ -37,7 +37,7 @@ export async function getBundledToolTemplate(name: string): Promise<string | nul
   }
 }
 
-export const BUILTIN_TOOL_NAMES = new Set(['repo-manager', 'shell', 'search', 'git']);
+export const BUILTIN_TOOL_NAMES = new Set(['repo-manager', 'shell']);
 
 // ── Integration functions ─────────────────────────────────────────────────────
 

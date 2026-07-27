@@ -1,0 +1,33 @@
+{
+  "name": "software-full",
+  "version": "2.2.0",
+  "description": "Software development (full pipeline with QA review)",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "software",
+    "code",
+    "development",
+    "qa"
+  ],
+  "type": "template",
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "repo-manager",
+        "shell",
+        "search",
+        "git",
+        "coder",
+        "analyst",
+        "publisher",
+        "reviewer"
+      ],
+      "recommended": [
+        "code-conventions",
+        "git-workflow"
+      ]
+    }
+  }
+}

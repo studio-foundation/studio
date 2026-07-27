@@ -1,0 +1,4 @@
+brief_summary: "Add a hello world function to src/utils.ts"
+target_file: "src/utils.ts"
+acceptance_criteria:
+  - "Function is exported and returns 'Hello, World!'"

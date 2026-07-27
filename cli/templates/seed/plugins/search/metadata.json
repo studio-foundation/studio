@@ -1,0 +1,21 @@
+{
+  "name": "search",
+  "version": "2.0.0",
+  "description": "Search the codebase by content pattern or file name",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "search",
+    "codebase"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "search"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "requires_binaries": [
+    "rg"
+  ]
+}

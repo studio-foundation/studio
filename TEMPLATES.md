@@ -56,12 +56,9 @@ Production-ready.
 - `bug-fixer`: analyze and fix bugs
 - `refactor`: restructure code while preserving behavior
 
-**Included tools:**
-- `repo_manager-read_file`
-- `repo_manager-write_file`
-- `repo_manager-list_files`
-- `shell-run_command`
-- `search-search_codebase`
+**Required plugins** (installed by `studio init`, see `dependencies.plugins`):
+- `repo-manager`, `shell` — kernel builtins
+- `search`, `git`, `coder` — marketplace plugins
 
 **Contracts include:**
 - Anti-theatre validation (must actually call write tools)
