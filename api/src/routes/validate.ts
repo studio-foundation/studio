@@ -6,7 +6,6 @@ import type { ServerDeps } from '../server.js';
 import {
   createRepoManagerTools,
   createShellTools,
-  createSearchTools,
   createPatchTools,
 } from '@studio-foundation/runner';
 
@@ -15,7 +14,6 @@ import {
 const BUILTIN_TOOL_ACTIONS: Set<string> = new Set([
   ...createRepoManagerTools('.').map(t => t.name),
   ...createShellTools('.').map(t => t.name),
-  ...createSearchTools('.').map(t => t.name),
   ...createPatchTools('.').map(t => t.name),
 ]);
 

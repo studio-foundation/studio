@@ -1,0 +1,26 @@
+{
+  "name": "analyst",
+  "version": "1.2.0",
+  "description": "Senior software analyst — reads code, analyzes requests, produces implementation plans",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "software",
+    "analysis",
+    "planning"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "analyst"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "search"
+      ]
+    }
+  }
+}

@@ -211,11 +211,11 @@ describe('POST /api/tools/install', () => {
 
   it('returns 409 if tool is already installed', async () => {
     const server = makeServer();
-    await server.inject({ method: 'POST', url: '/api/tools/install', payload: { name: 'git' } });
+    await server.inject({ method: 'POST', url: '/api/tools/install', payload: { name: 'repo-manager' } });
     const res = await server.inject({
       method: 'POST',
       url: '/api/tools/install',
-      payload: { name: 'git' },
+      payload: { name: 'repo-manager' },
     });
     expect(res.statusCode).toBe(409);
   });

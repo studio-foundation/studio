@@ -1,0 +1,19 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "description": "Task execution specialist — executes the planned task matching its own stage name",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "parallel",
+    "execution",
+    "orchestration"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "worker"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

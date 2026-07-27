@@ -40,10 +40,8 @@ export type { Tool, ToolResult } from './tools/tool-registry.js';
 // Builtin tools
 export { createRepoManagerTools } from './tools/builtin/repo-manager.js';
 export { createShellTools } from './tools/builtin/shell.js';
-export { createSearchTools } from './tools/builtin/search.js';
 export { createPatchTools } from './tools/builtin/patch.js';
 export { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from './tools/builtin/studio-run.js';
-export { createWebSearchTools, WEB_SEARCH_PROMPT_SNIPPET } from './tools/builtin/web-search.js';
 
 export { loadProjectTools, listAvailableToolTemplates, getBundledToolTemplate, BUILTIN_TOOL_NAMES } from './tools/plugin-loader.js';
 export type { LoadedPlugin } from './tools/plugin-loader.js';
@@ -61,8 +59,4 @@ export { loadSkills, loadSkill, validateSkillManifest } from './tools/skills/ski
 export type { SkillManifest } from './tools/skills/skill-loader.js';
 
 // Integration plugin system
-export {
-  getBundledIntegrationTemplate,
-  listAvailableIntegrationTemplates,
-  loadProjectIntegrations,
-} from './integrations/integration-loader.js';
+export { loadProjectIntegrations } from './integrations/integration-loader.js';

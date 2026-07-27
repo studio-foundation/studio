@@ -1,0 +1,21 @@
+{
+  "name": "linear",
+  "version": "1.0.0",
+  "description": "Triggers pipelines from Linear webhook events and syncs issue status on pipeline completion or failure",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "linear",
+    "issues",
+    "project-management",
+    "webhooks",
+    "triggers"
+  ],
+  "type": "plugin",
+  "provides": {
+    "integrations": [
+      "linear"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

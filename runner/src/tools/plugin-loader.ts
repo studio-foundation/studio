@@ -8,9 +8,7 @@ import type { Tool } from './tool-registry.js';
 import { renderTemplate, executeShellCommand } from './yaml-executor.js';
 import { createRepoManagerTools } from './builtin/repo-manager.js';
 import { createShellTools } from './builtin/shell.js';
-import { createSearchTools } from './builtin/search.js';
 import { createPatchTools } from './builtin/patch.js';
-import { createWebSearchTools } from './builtin/web-search.js';
 import { ToolYamlError } from './errors.js';
 import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
@@ -27,9 +25,7 @@ function buildBuiltinMap(repoPath: string): Map<string, Tool> {
   const add = (tools: Tool[]) => tools.forEach(t => map.set(t.name, t));
   add(createRepoManagerTools(repoPath));
   add(createShellTools(repoPath));
-  add(createSearchTools(repoPath));
   add(createPatchTools(repoPath));
-  add(createWebSearchTools());
   return map;
 }
 
@@ -156,16 +152,14 @@ const TOOL_TEMPLATE_PREFIX = 'tools/';
 const TOOL_TEMPLATE_SUFFIX = '.tool.yaml';
 
 /**
- * Names of built-in tool plugins that have bundled installable templates.
- * Mirrors runner/templates/tools/*.tool.yaml.
- * Note: 'patch' is a TypeScript-only builtin with no installable template and is intentionally excluded.
+ * The tool plugins the kernel owns. A tool stays here only if it is primitive,
+ * carries no domain choice, and `studio run` cannot work without it — everything
+ * else is a marketplace plugin (INV-11). Mirrors runner/templates/tools/*.tool.yaml.
+ * `patch` ships inside repo-manager; `studio_run` is wired by the engine.
  */
 export const BUILTIN_TOOL_NAMES = new Set([
   'repo-manager',
   'shell',
-  'search',
-  'git',
-  'web-search',
 ]);
 
 /**

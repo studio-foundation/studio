@@ -1,0 +1,19 @@
+{
+  "name": "shell",
+  "version": "1.0.0",
+  "description": "Execute shell commands in the workspace",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "shell",
+    "commands",
+    "builtin"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "shell"
+    ]
+  },
+  "studio_version": ">=0.2.0"
+}

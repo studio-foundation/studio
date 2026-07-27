@@ -1,0 +1,85 @@
+name: parallel-tasks
+description: Decompose input into 5 parallel tasks, execute them, then consolidate
+version: 1
+
+stages:
+  - name: task-selection
+    kind: planning
+    agent: planner
+    contract: task-selection
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+
+  - group: task-execution
+    mode: parallel
+    max_iterations: 1
+    on_failure: collect-all
+    stages:
+      - name: task-1
+        kind: execution
+        agent: worker
+        contract: task-output
+        ralph:
+          max_attempts: 2
+        context:
+          include:
+            - previous_stage_output
+            - stage_name
+
+      - name: task-2
+        kind: execution
+        agent: worker
+        contract: task-output
+        ralph:
+          max_attempts: 2
+        context:
+          include:
+            - previous_stage_output
+            - stage_name
+
+      - name: task-3
+        kind: execution
+        agent: worker
+        contract: task-output
+        ralph:
+          max_attempts: 2
+        context:
+          include:
+            - previous_stage_output
+            - stage_name
+
+      - name: task-4
+        kind: execution
+        agent: worker
+        contract: task-output
+        ralph:
+          max_attempts: 2
+        context:
+          include:
+            - previous_stage_output
+            - stage_name
+
+      - name: task-5
+        kind: execution
+        agent: worker
+        contract: task-output
+        ralph:
+          max_attempts: 2
+        context:
+          include:
+            - previous_stage_output
+            - stage_name
+
+  - name: consolidation
+    kind: aggregation
+    agent: consolidator
+    contract: consolidated-output
+    ralph:
+      max_attempts: 2
+    context:
+      include:
+        - input
+        - all_stage_outputs

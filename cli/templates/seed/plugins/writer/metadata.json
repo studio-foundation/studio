@@ -1,0 +1,26 @@
+{
+  "name": "writer",
+  "version": "1.2.0",
+  "description": "Expert content writer — researches topics and creates high-quality structured content",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "content",
+    "writing",
+    "research"
+  ],
+  "type": "plugin",
+  "provides": {
+    "agents": [
+      "writer"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "search"
+      ]
+    }
+  }
+}

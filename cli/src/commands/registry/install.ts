@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { RegistryClient } from '../../registry/client.js';
 import { RegistryLockfile } from '../../registry/lockfile.js';
 import { RegistryCache } from '../../registry/cache.js';
+import { seedIndex } from '../../registry/seed.js';
 import { syncRegistry } from './sync.js';
 import { findStudioDir } from '../../studio-dir.js';
 import { resolveDependencies } from '../../registry/resolver.js';
@@ -241,7 +242,7 @@ export async function installPackage(nameAtVersion: string, options: InstallOpti
   // Sync cache and resolve package type
   await syncRegistry({ force: false, silent: true });
   const cache = new RegistryCache();
-  const index = await cache.read();
+  const index = (await cache.read()) ?? seedIndex();
   if (!index?.packages.find(p => p.name === name)) {
     throw new Error(`Package '${name}' not found in registry`);
   }

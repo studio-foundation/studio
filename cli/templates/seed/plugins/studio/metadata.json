@@ -1,0 +1,22 @@
+{
+  "name": "studio-run",
+  "version": "1.0.0",
+  "description": "Launch a Studio pipeline run and wait for completion",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "studio",
+    "pipeline",
+    "run"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "studio-run"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "requires_binaries": [
+    "curl"
+  ]
+}

@@ -1,0 +1,11 @@
+name: publish-changes
+version: 2
+schema:
+  required_fields:
+    - summary
+    - branch_name
+tool_calls:
+  minimum: 2
+  required_tools:
+    - git-checkout
+    - git-commit

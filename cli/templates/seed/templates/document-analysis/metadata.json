@@ -1,0 +1,22 @@
+{
+  "name": "document-analysis",
+  "version": "1.2.0",
+  "description": "Document extraction and structured analysis",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "analysis",
+    "documents",
+    "extraction"
+  ],
+  "type": "template",
+  "studio_version": ">=0.2.0",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "search",
+        "analyst"
+      ]
+    }
+  }
+}

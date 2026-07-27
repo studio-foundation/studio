@@ -1,0 +1,22 @@
+{
+  "name": "web-search",
+  "version": "1.0.0",
+  "description": "Search the web using the Tavily API",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "search",
+    "web",
+    "tavily"
+  ],
+  "type": "plugin",
+  "provides": {
+    "tools": [
+      "web-search"
+    ]
+  },
+  "studio_version": ">=0.2.0",
+  "requires_binaries": [
+    "curl"
+  ]
+}

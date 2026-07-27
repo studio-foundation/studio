@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { checkbox } from '@inquirer/prompts';
 import { loadConfig } from '../config.js';
 import { listAvailableToolTemplates, getBundledToolTemplate } from '@studio-foundation/runner';
+import { installPackage } from './registry/install.js';
 
 export function getToolsDir(studioDir: string): string {
   return resolve(studioDir, 'tools');
@@ -22,8 +23,11 @@ export async function toolsAddDirect(
   for (const name of toolNames) {
     const templateContent = getBundledToolTemplate(name);
     if (!templateContent) {
-      const available = listAvailableToolTemplates();
-      throw new Error(`Unknown tool '${name}'. Available: ${available.map((t) => t.name).join(', ')}`);
+      // Not a kernel tool — it comes from the marketplace, which reaches the
+      // bundled seed when there is no network.
+      await installPackage(name, { studioDir });
+      installed.push(name);
+      continue;
     }
 
     const destPath = resolve(toolsDir, `${name}.tool.yaml`);

@@ -15,10 +15,22 @@ commands:
         required: false
         description: "Maximum number of results to return (default: 5)"
     execute:
-      type: builtin
+      type: shell
+      # The body goes through a quoted heredoc so a query containing quotes
+      # cannot break out of the command.
+      command: |
+        curl -sS -X POST https://api.tavily.com/search \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TAVILY_API_KEY" \
+          --data-binary @- <<'TAVILY_REQUEST'
+        {"query": {{query | json}}, "max_results": {{#if max_results}}{{max_results}}{{else}}5{{/if}}}
+        TAVILY_REQUEST
       parse_output: json
 
 prompt_snippet: |
   You have access to a web search tool. Use it to find up-to-date information from the web.
-  Search in the language most relevant to the query (English for technical docs, French for local content).
+  Search in the language most relevant to the query.
   Prefer specific, targeted queries over broad ones for better results.
+
+constraints:
+  requires_binaries: [curl]
