@@ -343,8 +343,7 @@ export async function writeOnboardingDoc(
   const exists = await access(dest).then(() => true).catch(() => false);
   if (exists) return false;
 
-  const template = await readFile(resolve(TEMPLATES_DIR, ONBOARDING_FILE), 'utf-8');
-  await writeFile(dest, applyPlaceholders(template, vars), 'utf-8');
+  await writeFile(dest, applyPlaceholders(BUNDLED_ASSETS[ONBOARDING_FILE], vars), 'utf-8');
   return true;
 }
 
