@@ -151,12 +151,22 @@ On Windows, PowerShell — the binary is unsigned, so SmartScreen may warn on fi
 irm https://raw.githubusercontent.com/studio-foundation/studio/main/install.ps1 | iex
 ```
 
-Or from npm, which installs the same binary through a per-platform optional dependency
-and falls back to the JavaScript build on platforms without one (needs Node.js >= 22.13):
+Both installers read `STUDIO_VERSION` (a release tag, default: latest) and
+`STUDIO_INSTALL_DIR` (default `$HOME/.local/bin`, or `%LOCALAPPDATA%\Programs\studio` on
+Windows), and verify the download against the release's `SHA256SUMS` before installing.
+Binaries ship for linux x64 and arm64 (glibc and musl each), macOS arm64 and x64, and
+Windows x64.
+
+If you already live in a JS toolchain, npm installs the same binary through a per-platform
+optional dependency, and falls back to the JavaScript build on platforms without one
+(needs Node.js >= 22.13):
 
 ```bash
 npm install -g @studio-foundation/cli@beta
 ```
+
+Update along the channel you installed from: `studio upgrade` for the binary,
+`npm i -g @studio-foundation/cli@latest` for npm.
 
 ```bash
 # Create a project directory and initialize from a template
@@ -179,10 +189,11 @@ studio run software/feature-builder --input "Add dark mode support"
 
 ## Bootstrap a fresh machine
 
-Studio can't install itself — an empty machine has no Studio to run the config that would install Studio. The way in is a global npm install, and one command that tells you whether the machine is actually ready:
+Studio can't install itself — an empty machine has no Studio to run the config that would install Studio. The way in is the standalone binary, and one command that tells you whether the machine is actually ready:
 
 ```bash
-npm install -g @studio-foundation/cli && studio doctor
+curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+studio doctor
 ```
 
 For an existing project, from its root:
