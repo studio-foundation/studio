@@ -147,7 +147,57 @@ studio registry update <name>                    # Update to the highest version
 studio registry update <name> --latest           # Update to the newest published version
 ```
 
-The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
+The default marketplace is [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
+
+### Marketplaces
+
+```bash
+studio marketplace add <url>                     # Register a marketplace repository
+studio marketplace add <url> --name acme-corp    # …under an explicit name
+studio marketplace list                          # List registered marketplaces
+studio marketplace remove <name>                 # Unregister one
+studio marketplace validate [index.json]         # Check git-sourced entries against their payloads
+```
+
+A marketplace is a git repository with an `index.json` at its root. `studio-community` is the default and needs no registration; any other is registered per machine in `~/.studio/marketplaces.json` — never per project, so a checkout cannot point its own installs at an unreviewed source. `add` fetches the index first and shows the origin and what it serves before asking for confirmation.
+
+Registering one is all a private company marketplace needs — no hosted service, no fork:
+
+```bash
+studio marketplace add https://gitlab.internal/platform/studio-marketplace.git --name acme-corp
+studio registry install acme-corp:internal-deploy
+```
+
+A GitHub marketplace is read over raw HTTP; anything else is shallow-cloned, so self-hosted GitLab, Gitea and plain SSH remotes work without a code change.
+
+**Name collisions.** A package name is unique within a marketplace, not across them. When the same name exists in several, an unqualified `install` refuses to pick and names the qualified forms — `acme-corp:deploy` versus `studio-community:deploy`. Qualification also works in `dependencies`, where an *unqualified* name resolves in the dependent's own marketplace, and a marketplace the user has not registered is refused rather than added silently. `studio registry sync` refreshes every registered marketplace; one unreachable private marketplace warns instead of blocking the others.
+
+#### Payloads hosted outside a marketplace
+
+An index entry may point at another repository:
+
+```json
+{
+  "name": "legal-analysis", "type": "template", "version": "2.1.0", "license": "AGPL-3.0",
+  "source": {
+    "type": "git",
+    "url": "https://github.com/someone/studio-legal.git",
+    "path": "template",
+    "ref": "v2.1.0",
+    "sha": "9f3c1a…"
+  }
+}
+```
+
+Review sees the entry, never the files, so three checks run at fetch and fail the install rather than warn:
+
+- the `sha` is checked against the `ref` before anything is read — a tag moved upstream fails instead of resolving to either commit;
+- the payload must ship a LICENSE matching the declared `license`;
+- the payload must match `provides` exactly: nothing declared but missing, nothing shipped but undeclared.
+
+Checkouts are cached at `~/.cache/studio/git/<sha>` — content-addressed, so the same pin is fetched once.
+
+`studio marketplace validate` runs those same checks over a whole index and exits non-zero on any failure — it is what a marketplace's CI runs on a PR, since a `git` entry is merged as a URL and nothing else ever compares what it claims with what it serves. See [ADR 0001](docs/adr/0001-distribution-model.md).
 
 `studio registry install` resolves by name, not by type, so it installs templates and plugins alike — `studio plugin add` is the documented verb, `install` is the one muscle memory reaches for.
 

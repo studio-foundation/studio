@@ -120,13 +120,13 @@ Additive. `scripts/generate-index.mjs` emits `source: {type: "local", path: "<ty
 for every existing package; the CLI reads `source` instead of constructing a URL from
 `name`. Nothing breaks. `type: "git"` is a later branch in the same switch.
 
-Implementation of `git` sources is not scheduled by date. Trigger conditions:
+`git` sources and `studio marketplace add` shipped in STU-694. What the CLI enforces at
+fetch, since review only ever sees the entry:
 
-- a first external contributor wants to publish while keeping their repository, or
-- a first concrete need for a private marketplace.
-
-Per *"Governance before execution — not-acting is a valid decision"*, the decision is
-recorded now and built when triggered.
+- a pinned `sha` is checked against its `ref` before anything is read — a moved tag fails
+  the install instead of resolving to either commit;
+- the payload must ship a LICENSE matching the declared `license`;
+- the payload must match `provides` exactly, in both directions.
 
 ## References
 
