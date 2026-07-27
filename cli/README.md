@@ -125,10 +125,9 @@ studio run <pipeline> --live                   # Stream tool calls in real time
 studio run <pipeline> --provider mock          # Run with the mock provider (no API calls)
 studio run <pipeline> --anonymize              # Anonymize PII before sending to LLM
 studio status [run-id]                         # Check run status (latest if no ID)
-studio logs [run-id]                           # View JSONL logs for a run
-studio replay [run-id]                         # Replay a completed run
-studio list projects                           # List available projects
-studio list pipelines                          # List available pipelines
+studio logs <run-id>                           # View JSONL logs for a run
+studio replay <run-id>                         # Replay a completed run
+studio list pipelines                          # List available pipelines (also: agents, runs)
 
 # Init (interactive wizard)
 studio init                                    # Full interactive wizard
@@ -138,7 +137,7 @@ studio init --force                            # Re-initialize (backup + recreat
 # Config
 studio config add-provider                     # Add an LLM provider (wizard)
 studio config set provider anthropic --api-key $KEY
-studio config set default.model claude-haiku-4-20250514
+studio config set defaults.model claude-haiku-4-20250514
 studio config list                             # Show config (API keys masked)
 
 # Tools
@@ -158,17 +157,14 @@ studio registry sync                           # Sync registry.lock.json with in
 studio registry update [name]                  # Update installed tools (all or specific)
 
 # Templates
-studio templates                               # List available templates
+studio templates list                          # List available templates
 studio template validate <path>                # Validate a template structure
 
 # Integrations
-studio integrations                            # Manage integrations (Linear, etc.)
-
-# Project
-studio project                                 # Project management
+studio integrations list                       # Manage integrations (install, list, remove, test, set)
 
 # API server
-studio api start                               # Start the HTTP REST API server
+studio api start                               # Start the HTTP REST API server (also: stop, status)
 
 # Validation
 studio validate <contract> <output.json>       # Validate output against a contract (no LLM)

@@ -15,7 +15,7 @@ Interface terminal pour Studio. Composition root — câble toutes les dépendan
 - `index.ts` — entry point Commander, registre de toutes les commandes
 - `commands/run.ts` — `studio run` (commande principale)
 - `commands/status.ts`, `logs.ts`, `replay.ts` — inspection des runs
-- `commands/list.ts` — `studio list projects|pipelines`
+- `commands/list.ts` — `studio list pipelines|agents|runs`
 - `commands/init.ts` — `studio init` (wizard interactif + mode direct)
 - `commands/config.ts` — `studio config set|list|add-provider`
 - `commands/tools.ts` — `studio tools list|add|remove|info`
