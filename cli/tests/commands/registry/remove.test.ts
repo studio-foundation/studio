@@ -30,7 +30,7 @@ describe('removePackage', () => {
   });
 });
 
-describe('removePackage — required_by protection', () => {
+describe('removePackage — dependents warning', () => {
   beforeEach(async () => {
     await mkdir(resolve(STUDIO, 'tools'), { recursive: true });
     await writeFile(resolve(STUDIO, 'tools', 'repo-manager.tool.yaml'), 'name: repo_manager\n');
@@ -46,12 +46,18 @@ describe('removePackage — required_by protection', () => {
   afterEach(async () => {
     await rm(TMP, { recursive: true, force: true });
     vi.resetModules();
+    vi.restoreAllMocks();
   });
 
-  it('throws if package is required by another installed package', async () => {
+  it('warns about the broken references and removes anyway', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     const { removePackage } = await import('../../../src/commands/registry/remove.js');
-    await expect(removePackage('repo-manager', { studioDir: STUDIO }))
-      .rejects.toThrow(/required by.*software-full/i);
+    await removePackage('repo-manager', { studioDir: STUDIO });
+
+    const printed = log.mock.calls.map(c => String(c[0])).join('\n');
+    expect(printed).toMatch(/required by.*software-full/i);
+    const lf = JSON.parse(await readFile(resolve(STUDIO, 'registry.lock.json'), 'utf8'));
+    expect(lf.installed['repo-manager']).toBeUndefined();
   });
 });
 
