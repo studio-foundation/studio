@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { checkStudioVersion, STUDIO_VERSION } from '../src/version-guard.js';
+import { checkStudioVersion, upgradeHint, STUDIO_VERSION } from '../src/version-guard.js';
+
+describe('upgradeHint', () => {
+  it('points a binary install at the self-update command', () => {
+    expect(upgradeHint({ kind: 'binary', path: '/usr/local/bin/studio' })).toBe(
+      '  Upgrade:  studio upgrade'
+    );
+  });
+
+  it('points an npm install at npm', () => {
+    expect(upgradeHint({ kind: 'npm' })).toBe('  Upgrade:  npm i -g @studio-foundation/cli@latest');
+  });
+});
 
 describe('checkStudioVersion', () => {
   it('passes when nothing is declared', () => {

@@ -1,10 +1,17 @@
 import semver from 'semver';
 import { PACKAGE_VERSION } from './generated/bundled-assets.js';
+import { detectInstall } from './upgrade.js';
+import type { Install } from './upgrade.js';
 
 /** The running Studio version — the single source is cli/package.json, inlined at build time. */
 export const STUDIO_VERSION: string = PACKAGE_VERSION;
 
-export const UPGRADE_HINT = '  Upgrade:  npm i -g @studio-foundation/cli@latest';
+/** The update command for the channel this install came from — the two are not interchangeable. */
+export function upgradeHint(install: Install = detectInstall()): string {
+  return install.kind === 'binary'
+    ? '  Upgrade:  studio upgrade'
+    : '  Upgrade:  npm i -g @studio-foundation/cli@latest';
+}
 
 /**
  * Compare a declared `studio_version` range against the running version.
@@ -26,5 +33,5 @@ export function checkStudioVersion(
 
   if (semver.satisfies(current, required, { includePrerelease: true })) return null;
 
-  return `${requiredBy} requires Studio ${required}, but you have ${current}.\n${UPGRADE_HINT}`;
+  return `${requiredBy} requires Studio ${required}, but you have ${current}.\n${upgradeHint()}`;
 }

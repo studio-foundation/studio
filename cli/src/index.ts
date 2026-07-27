@@ -18,6 +18,7 @@ import { replayCommand, restartCommand } from './commands/replay.js';
 import { validateCommand } from './commands/validate.js';
 import { initCommand } from './commands/init.js';
 import { doctorCommand } from './commands/doctor.js';
+import { upgradeCommand } from './commands/upgrade.js';
 import { configCommand } from './commands/config.js';
 import { toolsCommand } from './commands/tools.js';
 import { integrationsCommand } from './commands/integrations.js';
@@ -118,6 +119,11 @@ program
   .command('doctor')
   .description('Preflight this machine against the project: Studio version, config contract, required binaries, env vars')
   .action(doctorCommand);
+
+program
+  .command('upgrade [tag]')
+  .description('Replace the standalone binary with a release (default: latest; npm installs update through npm)')
+  .action(upgradeCommand);
 
 program
   .command('config <action> [args...]')
