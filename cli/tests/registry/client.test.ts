@@ -8,7 +8,7 @@ const MOCK_INDEX = {
   generated_at: '2026-02-28T00:00:00Z',
   version: '1',
   packages: [
-    { name: 'software', type: 'template', version: '1.0.0', description: 'Test', author: 'studio-core', license: 'MIT', tags: [], studio_version: null, downloads: 0 },
+    { name: 'software', type: 'template', version: '1.0.0', description: 'Test', author: 'studio-core', license: 'MIT', tags: [], studio_version: null, downloads: 0, source: { type: 'local', path: 'templates/software' } },
   ],
 };
 
@@ -56,15 +56,34 @@ describe('RegistryClient.fetchIndex', () => {
 });
 
 describe('RegistryClient.fetchMetadata', () => {
-  it('fetches package metadata', async () => {
+  it('fetches package metadata from source.path', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => MOCK_METADATA,
     } as Response);
     const { RegistryClient } = await import('../../src/registry/client.js');
     const client = new RegistryClient();
-    const meta = await client.fetchMetadata('template', 'software');
+    const meta = await client.fetchMetadata({ type: 'local', path: 'templates/software' }, 'software');
     expect(meta.name).toBe('software');
-    expect(meta.type).toBe('template');
+    expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/templates\/software\/metadata\.json$/);
+  });
+});
+
+describe('RegistryClient.downloadFile', () => {
+  it('downloads source.file and writes it under the destination filename', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      text: async () => 'name: studio_run\n',
+    } as Response);
+    const { RegistryClient } = await import('../../src/registry/client.js');
+    const client = new RegistryClient();
+    const { destPath } = await client.downloadFile(
+      { type: 'local', path: 'tools/studio', file: 'run-pipeline.tool.yaml' },
+      'studio-run.tool.yaml',
+      TMP,
+    );
+
+    expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/tools\/studio\/run-pipeline\.tool\.yaml$/);
+    expect(destPath).toBe(resolve(TMP, 'studio-run.tool.yaml'));
   });
 });

@@ -1,7 +1,7 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import type { RegistryIndex, PackageMetadata, PackageType } from './types.js';
+import type { RegistryIndex, PackageMetadata, PackageSource } from './types.js';
 import { REGISTRY_RAW_BASE, REGISTRY_API_BASE } from './types.js';
 
 interface GitHubContentItem {
@@ -18,27 +18,28 @@ export class RegistryClient {
     return res.json() as Promise<RegistryIndex>;
   }
 
-  async fetchMetadata(type: PackageType, name: string): Promise<PackageMetadata> {
-    const res = await fetch(`${REGISTRY_RAW_BASE}/${type}s/${name}/metadata.json`);
+  async fetchMetadata(source: PackageSource, name: string): Promise<PackageMetadata> {
+    const res = await fetch(`${REGISTRY_RAW_BASE}/${source.path}/metadata.json`);
     if (!res.ok) throw new Error(`Package '${name}' not found in registry`);
     return res.json() as Promise<PackageMetadata>;
   }
 
   /**
    * Download a single-file package (tool, pipeline, integration, agent, skill).
+   * The payload is named by `source.file`; it lands under `destFilename`, which
+   * follows the package name so the installed tree stays predictable.
    * Returns { destPath, sha256 }.
    */
   async downloadFile(
-    type: PackageType,
-    name: string,
-    filename: string,
+    source: PackageSource,
+    destFilename: string,
     destDir: string,
   ): Promise<{ destPath: string; sha256: string }> {
-    const url = `${REGISTRY_RAW_BASE}/${type}s/${name}/${filename}`;
+    const url = `${REGISTRY_RAW_BASE}/${source.path}/${source.file}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to download ${filename}: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Failed to download ${source.file}: HTTP ${res.status}`);
     const content = await res.text();
-    const destPath = resolve(destDir, filename);
+    const destPath = resolve(destDir, destFilename);
     await mkdir(destDir, { recursive: true });
     await writeFile(destPath, content);
     const sha256 = createHash('sha256').update(content).digest('hex');
@@ -50,13 +51,12 @@ export class RegistryClient {
    * Returns SHA256 of all file contents concatenated (sorted by path).
    */
   async downloadDirectory(
-    type: PackageType,
-    name: string,
+    source: PackageSource,
     remotePath: string,
     localDestDir: string,
   ): Promise<string> {
     const res = await fetch(
-      `${REGISTRY_API_BASE}/contents/${type}s/${name}/${remotePath}`,
+      `${REGISTRY_API_BASE}/contents/${source.path}/${remotePath}`,
       { headers: { Accept: 'application/vnd.github+json' } },
     );
     if (!res.ok) throw new Error(`Failed to list directory: HTTP ${res.status}`);
@@ -68,7 +68,7 @@ export class RegistryClient {
     for (const item of sortedItems) {
       const localPath = resolve(localDestDir, item.name);
       if (item.type === 'dir') {
-        await this.downloadDirectory(type, name, `${remotePath}/${item.name}`, localPath);
+        await this.downloadDirectory(source, `${remotePath}/${item.name}`, localPath);
       } else if (item.download_url) {
         const fileRes = await fetch(item.download_url);
         if (!fileRes.ok) throw new Error(`Failed to download ${item.path}`);
