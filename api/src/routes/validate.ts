@@ -8,7 +8,6 @@ import {
   createShellTools,
   createSearchTools,
   createPatchTools,
-  createGitTools,
 } from '@studio-foundation/runner';
 
 // Derived at module load from the actual factory functions — single source of truth.
@@ -18,7 +17,6 @@ const BUILTIN_TOOL_ACTIONS: Set<string> = new Set([
   ...createShellTools('.').map(t => t.name),
   ...createSearchTools('.').map(t => t.name),
   ...createPatchTools('.').map(t => t.name),
-  ...createGitTools('.').map(t => t.name),
 ]);
 
 async function listNames(dir: string, suffix: string): Promise<Set<string>> {

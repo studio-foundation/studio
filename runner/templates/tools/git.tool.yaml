@@ -71,6 +71,19 @@ commands:
         git push {{#if set_upstream}}-u{{/if}} origin HEAD
       parse_output: text
 
+  - name: git-pull
+    description: Pull the latest changes from origin
+    parameters:
+      branch:
+        type: string
+        required: false
+        description: Branch to pull. Defaults to the current branch
+    execute:
+      type: shell
+      command: |
+        git pull origin {{#if branch}}{{branch}}{{/if}}
+      parse_output: text
+
 prompt_snippet: |
   You have access to git tools. Always create a feature branch before making changes.
   Never commit directly to main or master.

@@ -42,7 +42,6 @@ export { createRepoManagerTools } from './tools/builtin/repo-manager.js';
 export { createShellTools } from './tools/builtin/shell.js';
 export { createSearchTools } from './tools/builtin/search.js';
 export { createPatchTools } from './tools/builtin/patch.js';
-export { createGitTools } from './tools/builtin/git.js';
 export { createStudioRunTool, STUDIO_RUN_PROMPT_SNIPPET } from './tools/builtin/studio-run.js';
 export { createWebSearchTools, WEB_SEARCH_PROMPT_SNIPPET } from './tools/builtin/web-search.js';
 
