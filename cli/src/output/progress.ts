@@ -446,6 +446,7 @@ export class ProgressDisplay {
           event.label ?? `#${event.index}`,
           event.run_id,
           event.error,
+          event.output,
         );
       },
 

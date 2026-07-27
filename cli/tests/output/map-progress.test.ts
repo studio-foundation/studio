@@ -13,6 +13,7 @@ const mockOraInstance: Record<string, any> = {
 vi.mock('ora', () => ({ default: vi.fn(() => mockOraInstance) }));
 
 import { ProgressDisplay } from '../../src/output/progress.js';
+import { summarizeItemOutput } from '../../src/output/map-progress.js';
 
 function mapStart(overrides: Record<string, unknown> = {}) {
   return { map_name: 'generate', total_items: 20, concurrency: 4, ...overrides };
@@ -64,6 +65,37 @@ describe('ProgressDisplay — fan-out (map) progress', () => {
     expect(mockOraInstance.text).not.toContain('Napoléon');
 
     e.onMapComplete!({ map_name: 'generate', total: 3, succeeded: 3, failed: 0, status: 'success' });
+  });
+
+  it('shows what the last settled item produced, not just its input label', () => {
+    const d = new ProgressDisplay(false, 'live');
+    const e = d.getEvents();
+    e.onStageStart!({ stage_name: 'classify', stage_index: 0, total_stages: 1, max_attempts: 1 });
+    e.onMapStart!(mapStart({ map_name: 'classify', total_items: 2, concurrency: 1 }));
+
+    // The label comes from the item input, where the type is still unknown —
+    // only the child's output carries it.
+    e.onMapItemComplete!({
+      map_name: 'classify', index: 0, total_items: 2, status: 'success',
+      label: 'King <=> Queen', run_id: 'run-0',
+      output: { type: 'family', direction: 'mutual' },
+    });
+
+    expect(mockOraInstance.text).toContain('last: King <=> Queen — family, mutual');
+  });
+
+  it('leaves the live line unchanged when an item output has nothing short to show', () => {
+    const d = new ProgressDisplay(false, 'live');
+    const e = d.getEvents();
+    e.onStageStart!({ stage_name: 'classify', stage_index: 0, total_stages: 1, max_attempts: 1 });
+    e.onMapStart!(mapStart({ map_name: 'classify', total_items: 1, concurrency: 1 }));
+
+    e.onMapItemComplete!({
+      map_name: 'classify', index: 0, total_items: 1, status: 'success',
+      label: 'King <=> Queen', output: { pages: [{ title: 'x' }] },
+    });
+
+    expect(mockOraInstance.text).not.toContain('last:');
   });
 
   it('names a failed item with its child run ID the moment it fails', () => {
@@ -129,5 +161,30 @@ describe('ProgressDisplay — fan-out (map) progress', () => {
     e.onMapItemComplete!({ map_name: 'generate', index: 0, total_items: 20, status: 'failed', label: 'x', run_id: 'r', error: 'boom' });
     e.onMapComplete!({ map_name: 'generate', total: 20, succeeded: 19, failed: 1, status: 'success' });
     expect(out()).toBe('');
+  });
+});
+
+describe('summarizeItemOutput', () => {
+  it('joins the first short scalar fields of an object output', () => {
+    expect(summarizeItemOutput({ type: 'friend', direction: 'mutual', confidence: 0.9 }))
+      .toBe('friend, mutual, 0.9');
+  });
+
+  it('caps the summary at three fields', () => {
+    expect(summarizeItemOutput({ a: 'one', b: 'two', c: 'three', d: 'four' }))
+      .toBe('one, two, three');
+  });
+
+  it('skips long strings so a paragraph never swallows the line', () => {
+    expect(summarizeItemOutput({ reasoning: 'x'.repeat(200), type: 'enemy' })).toBe('enemy');
+  });
+
+  it('passes scalar outputs through and gives up on the rest', () => {
+    expect(summarizeItemOutput('approved')).toBe('approved');
+    expect(summarizeItemOutput(42)).toBe('42');
+    expect(summarizeItemOutput(undefined)).toBeUndefined();
+    expect(summarizeItemOutput(null)).toBeUndefined();
+    expect(summarizeItemOutput(['a', 'b'])).toBeUndefined();
+    expect(summarizeItemOutput({ nested: { a: 1 } })).toBeUndefined();
   });
 });
