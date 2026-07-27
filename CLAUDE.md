@@ -90,7 +90,7 @@ pending → running → success
 
 ## Non-Negotiable Rules
 
-> Formal list: **[INVARIANTS.md](INVARIANTS.md)**
+> The 6 you hit daily. Formal list of all 10: **[INVARIANTS.md](INVARIANTS.md)** — the source.
 
 1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine.
 2. **ralph doesn't know runner.** ralph takes a generic `executor: () => Promise<T>`.
@@ -319,6 +319,22 @@ studio run feature-builder --input "..." --live           # Real-time tool calls
 studio run feature-builder --provider mock                 # No API keys needed
 studio validate software/code-generation output.json       # Validate without LLM
 ```
+
+## Docs to Keep in Sync
+
+Same PR as the code, not a later cleanup pass:
+
+| Change | Doc to update |
+|--------|---------------|
+| Package added/removed, dependency edge changed | CLAUDE.md graph, [INVARIANTS.md](INVARIANTS.md) INV-10, [GOVERNANCE.md](GOVERNANCE.md) architecture |
+| Invariant added/changed | [INVARIANTS.md](INVARIANTS.md) (source of truth) |
+| New CLI command or flag | [CLI.md](CLI.md) |
+| New YAML key a config author can write | [CONCEPTS.md](CONCEPTS.md) + CLAUDE.md key concepts |
+| New API route | [API.md](API.md) + its Swagger schema |
+| Template or distribution change | [TEMPLATES.md](TEMPLATES.md), [GOVERNANCE.md](GOVERNANCE.md) |
+| What Studio *is* — positioning, cadence, status, licensing | [GOVERNANCE.md](GOVERNANCE.md) |
+
+[GOVERNANCE.md](GOVERNANCE.md) is the doc a contributor reads first and the one nobody opens while coding, so it rots silently — it went a long stretch describing 5 packages and 6 invariants. It duplicates as little as possible on purpose: invariants live in INVARIANTS.md, templates in TEMPLATES.md. Don't reintroduce copies there; link instead.
 
 ---
 

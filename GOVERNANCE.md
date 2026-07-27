@@ -107,18 +107,9 @@ Five concepts differentiate Studio from other orchestrators:
 
 **Tool plugins.** `.tool.yaml` files that define capabilities for agents. Self-documenting (the prompt snippet is auto-injected into the agent's system prompt), project-scoped (each project has its tools), double-gated (the project authorizes the tools, the agent authorizes which it calls). Creating a tool requires no code.
 
-Ten architectural invariants ensure the system remains coherent. They are the constitution of the kernel, written down in [INVARIANTS.md](./INVARIANTS.md) and enforced mechanically by the linter for the ones that can be:
+A set of architectural invariants keeps the system coherent: a domain-agnostic engine, a strict dependency DAG, binary validation, a deterministic state machine. They are the constitution of the kernel — non-negotiable, and enforced mechanically by the linter wherever a rule can be checked by a machine.
 
-1. `contracts` is a leaf package. Zero internal dependencies.
-2. `ralph` does not know `runner`. The executor is generic.
-3. `runner` only executes. It does not validate, does not retry.
-4. The engine is domain-agnostic. All domain comes from YAML.
-5. Tools are in `runner`, not in `engine`.
-6. Prompts are in `runner`, not in `engine`.
-7. The state machine is deterministic. Stage status derives from the RALPH result, never from output content.
-8. Validation is binary: pass or fail. No score, no threshold.
-9. A project is fully self-contained in its `.studio/` directory.
-10. The dependency graph is a strict DAG. No upward imports.
+The formal list lives in **[INVARIANTS.md](./INVARIANTS.md)**, its single source. This charter deliberately does not restate it, so it cannot fall out of sync with it.
 
 If a feature can be configured in YAML rather than coded, it is in YAML. This is not a stylistic preference, it is a constitutional rule of the kernel.
 
