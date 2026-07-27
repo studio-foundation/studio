@@ -22,11 +22,14 @@ A template is not a finished product. It is a structured starter you customize i
 
 ## What `studio init --template <name>` does
 
-1. Copies the template directory into your project.
-2. Replaces template placeholders (`{{PROJECT_NAME}}`, `{{TEMPLATE_NAME}}`, etc.) with your values.
-3. Initializes a git repository.
-4. Writes `.studio/config.yaml` with provider settings (gitignored).
-5. Generates `README.md` with getting started instructions.
+1. Installs the template and the plugins it declares as dependencies — a template ships pipelines and contracts, and depends on plugins for the tools and agents those pipelines reference. Required plugins install before anything is written; an unresolved one aborts init.
+2. Copies the template directory into your project.
+3. Replaces template placeholders (`{{PROJECT_NAME}}`, `{{TEMPLATE_NAME}}`, etc.) with your values.
+4. Initializes a git repository.
+5. Writes `.studio/config.yaml` with provider settings (gitignored).
+6. Generates `README.md` with getting started instructions.
+
+Dependencies are declared in the template's `metadata.json` — see [CONCEPTS.md](CONCEPTS.md#package-dependencies) for the format.
 
 You then `npm install`, configure a provider, and run an included pipeline.
 
