@@ -59,7 +59,7 @@ describe('RegistryClient.fetchMetadata', () => {
   it('fetches package metadata from source.path', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => MOCK_METADATA,
+      text: async () => JSON.stringify(MOCK_METADATA),
     } as Response);
     const { RegistryClient } = await import('../../src/registry/client.js');
     const client = new RegistryClient();

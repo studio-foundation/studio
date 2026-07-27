@@ -3,6 +3,7 @@ import { rm, mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const TMP = resolve(import.meta.dirname, '.tmp-sync');
+const NO_MARKETPLACES = resolve(TMP, 'no-marketplaces.json');
 const MOCK_INDEX = { generated_at: '2026-02-28T00:00:00Z', version: '1', packages: [] };
 
 beforeEach(async () => {
@@ -15,10 +16,10 @@ afterEach(async () => {
 });
 
 describe('syncRegistry', () => {
-  it('writes index.json to cache dir when forced', async () => {
+  it('writes the marketplace index to the cache dir when forced', async () => {
     const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
-    await syncRegistry({ cacheDir: TMP, force: true });
-    const raw = await readFile(resolve(TMP, 'index.json'), 'utf8');
+    await syncRegistry({ cacheDir: TMP, marketplacesFile: NO_MARKETPLACES, force: true });
+    const raw = await readFile(resolve(TMP, 'studio-community.json'), 'utf8');
     const data = JSON.parse(raw);
     expect(data.version).toBe('1');
   });
@@ -31,7 +32,7 @@ describe('syncRegistry', () => {
     vi.mocked(fetch).mockClear();
 
     const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
-    await syncRegistry({ cacheDir: TMP, force: false });
+    await syncRegistry({ cacheDir: TMP, marketplacesFile: NO_MARKETPLACES, force: false });
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 });

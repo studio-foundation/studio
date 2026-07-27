@@ -21,9 +21,8 @@ function routedFetch(routes: Array<[RegExp, unknown]>) {
   return vi.fn(async (url: string) => {
     for (const [pattern, body] of routes) {
       if (pattern.test(String(url))) {
-        return typeof body === 'string'
-          ? { ok: true, text: async () => body }
-          : { ok: true, json: async () => body };
+        const text = typeof body === 'string' ? body : JSON.stringify(body);
+        return { ok: true, text: async () => text, json: async () => JSON.parse(text) };
       }
     }
     return { ok: false, status: 404 };
@@ -109,7 +108,7 @@ describe('installPackage', () => {
   it('refuses a package that requires a newer Studio', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ...MOCK_METADATA, studio_version: '>=99.0.0' }),
+      text: async () => JSON.stringify({ ...MOCK_METADATA, studio_version: '>=99.0.0' }),
     }));
     const { installPackage } = await import('../../../src/commands/registry/install.js');
 
@@ -370,5 +369,115 @@ describe('installPackage — with required dependencies', () => {
     const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
     // repo-manager was not reinstalled but required_by updated
     expect(lf.installed['repo-manager'].required_by).toContain('software-full');
+  });
+});
+
+// --- Payload hosted outside the marketplace repo (STU-694) ---
+
+const GIT_CHECKOUT = resolve(TMP, 'git-checkout');
+
+const MOCK_GIT_META = {
+  name: 'legal-analysis',
+  type: 'plugin',
+  version: '2.1.0',
+  description: 'Legal analysis plugin',
+  author: 'someone',
+  license: 'MIT',
+  tags: [] as string[],
+  studio_version: '>=0.1.0',
+  provides: { agents: ['legal'] },
+};
+
+const MOCK_GIT_INDEX = {
+  generated_at: '2026-02-28T00:00:00Z',
+  version: '1',
+  packages: [{
+    ...MOCK_GIT_META,
+    downloads: 0,
+    source: {
+      type: 'git',
+      url: 'https://github.com/someone/studio-legal.git',
+      path: 'plugin',
+      ref: 'v2.1.0',
+      sha: '9f3c1a',
+    },
+  }],
+};
+
+const MIT_TEXT = 'MIT License\n\nPermission is hereby granted, free of charge…\n';
+
+async function writeGitPayload(files: Record<string, string>): Promise<void> {
+  await mkdir(resolve(GIT_CHECKOUT, 'plugin'), { recursive: true });
+  for (const [name, content] of Object.entries(files)) {
+    await writeFile(resolve(GIT_CHECKOUT, 'plugin', name), content);
+  }
+  vi.doMock('../../../src/registry/git-source.js', () => ({
+    materializeGit: vi.fn().mockResolvedValue(GIT_CHECKOUT),
+  }));
+  vi.doMock('../../../src/registry/cache.js', () => {
+    class RegistryCache {
+      read() { return Promise.resolve(MOCK_GIT_INDEX); }
+      write() { return Promise.resolve(undefined); }
+      isFresh() { return Promise.resolve(true); }
+    }
+    return { RegistryCache };
+  });
+  vi.doMock('../../../src/commands/registry/sync.js', () => ({
+    syncRegistry: vi.fn().mockResolvedValue(undefined),
+  }));
+}
+
+describe('installPackage — git source', () => {
+  beforeEach(async () => {
+    await mkdir(STUDIO_DIR, { recursive: true });
+    vi.resetModules();
+  });
+
+  afterEach(async () => {
+    await rm(TMP, { recursive: true, force: true });
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    vi.restoreAllMocks();
+  });
+
+  it('installs the payload fetched at the pinned commit', async () => {
+    await writeGitPayload({
+      'metadata.json': JSON.stringify(MOCK_GIT_META),
+      'LICENSE': MIT_TEXT,
+      'legal.agent.yaml': 'name: legal\n',
+    });
+
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await installPackage('legal-analysis', { studioDir: STUDIO_DIR, force: true });
+
+    expect(await readFile(resolve(STUDIO_DIR, 'agents', 'legal.agent.yaml'), 'utf8')).toBe('name: legal\n');
+    // The LICENSE is proof, not content: it is verified and then left behind.
+    const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
+    expect(lf.installed['legal-analysis'].files).toEqual(['agents/legal.agent.yaml']);
+  });
+
+  it('refuses a payload whose LICENSE does not match the entry', async () => {
+    await writeGitPayload({
+      'metadata.json': JSON.stringify(MOCK_GIT_META),
+      'LICENSE': 'GNU AFFERO GENERAL PUBLIC LICENSE\nVersion 3, 19 November 2007\n',
+      'legal.agent.yaml': 'name: legal\n',
+    });
+
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await expect(installPackage('legal-analysis', { studioDir: STUDIO_DIR, force: true }))
+      .rejects.toThrow(/LICENSE file that is not 'MIT'/);
+  });
+
+  it('refuses a payload shipping content its entry does not declare', async () => {
+    await writeGitPayload({
+      'metadata.json': JSON.stringify(MOCK_GIT_META),
+      'LICENSE': MIT_TEXT,
+      'legal.agent.yaml': 'name: legal\n',
+      'exfiltrate.tool.yaml': 'name: exfiltrate\n',
+    });
+
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await expect(installPackage('legal-analysis', { studioDir: STUDIO_DIR, force: true }))
+      .rejects.toThrow(/ships undeclared tool 'exfiltrate'/);
   });
 });

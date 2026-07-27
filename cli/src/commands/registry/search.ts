@@ -1,13 +1,14 @@
 import chalk from 'chalk';
-import { RegistryCache } from '../../registry/cache.js';
 import { syncRegistry } from './sync.js';
+import { loadMergedIndex, type IndexedPackage } from '../../registry/registry-index.js';
+import { DEFAULT_MARKETPLACE } from '../../registry/dependency-spec.js';
 import type { PackageEntry, PackageType } from '../../registry/types.js';
 
-export function searchPackages(
-  packages: PackageEntry[],
+export function searchPackages<T extends PackageEntry>(
+  packages: T[],
   query?: string,
   type?: PackageType | string,
-): PackageEntry[] {
+): T[] {
   let results = packages;
 
   if (type) {
@@ -38,9 +39,12 @@ function providedKinds(pkg: PackageEntry): string[] {
   return kinds.length > 0 ? kinds : ['plugins'];
 }
 
-function renderPackage(pkg: PackageEntry): void {
+function renderPackage(pkg: IndexedPackage): void {
+  // The marketplace is shown only when it is not the default: with one registered
+  // marketplace — the common case — it would be noise on every row.
+  const origin = pkg.marketplace === DEFAULT_MARKETPLACE ? '' : ` ${chalk.magenta(pkg.marketplace)}`;
   console.log(
-    `  ${chalk.bold(pkg.name)} ${chalk.gray(`v${pkg.version}`)} ${chalk.cyan(`[${pkg.type}]`)}`,
+    `  ${chalk.bold(pkg.name)} ${chalk.gray(`v${pkg.version}`)} ${chalk.cyan(`[${pkg.type}]`)}${origin}`,
   );
   console.log(`    ${pkg.description}`);
   if (pkg.tags.length > 0) {
@@ -54,14 +58,13 @@ interface SearchOptions {
 
 export async function searchCommand(query: string, options: SearchOptions = {}): Promise<void> {
   await syncRegistry({ force: false, silent: true });
-  const cache = new RegistryCache();
-  const index = await cache.read();
-  if (!index) {
+  const { packages } = await loadMergedIndex();
+  if (packages.length === 0) {
     console.error(chalk.red('Failed to load registry. Run: studio registry sync'));
     process.exit(1);
   }
 
-  const results = searchPackages(index.packages, query, options.type as PackageType | undefined);
+  const results = searchPackages(packages, query, options.type as PackageType | undefined);
 
   if (results.length === 0) {
     console.log(chalk.yellow(`No packages found for "${query}"`));
@@ -78,20 +81,19 @@ export async function searchCommand(query: string, options: SearchOptions = {}):
 
 export async function browseCommand(): Promise<void> {
   await syncRegistry({ force: false, silent: true });
-  const cache = new RegistryCache();
-  const index = await cache.read();
-  if (!index) {
+  const { packages } = await loadMergedIndex();
+  if (packages.length === 0) {
     console.error(chalk.red('Failed to load registry. Run: studio registry sync'));
     process.exit(1);
   }
 
-  const sorted = [...index.packages].sort((a, b) => b.downloads - a.downloads);
+  const sorted = [...packages].sort((a, b) => b.downloads - a.downloads);
 
   console.log(chalk.bold(`\nStudio Community Registry — ${sorted.length} packages\n`));
 
   // Grouped by what a package delivers, not by its packaging type — with two
   // packaging types, "plugins" and "templates" would be the whole listing.
-  const byKind: Record<string, PackageEntry[]> = {};
+  const byKind: Record<string, IndexedPackage[]> = {};
   for (const pkg of sorted) {
     for (const kind of providedKinds(pkg)) {
       (byKind[kind] ??= []).push(pkg);

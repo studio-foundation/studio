@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { RegistryLockfile } from '../../registry/lockfile.js';
-import { RegistryCache } from '../../registry/cache.js';
+import { candidatesFor, loadMergedIndex } from '../../registry/registry-index.js';
 import { syncRegistry } from './sync.js';
 import { installPackage } from './install.js';
 import { findStudioDir } from '../../studio-dir.js';
@@ -29,8 +29,8 @@ async function loadIndexAndLockfile(options: UpdateOptions) {
   const studioDir = options.studioDir ??
     (await findStudioDir(options.cwd ?? process.cwd()) ?? resolve(process.cwd(), '.studio'));
   await syncRegistry({ force: false, silent: true });
-  const index = await new RegistryCache().read();
-  return { studioDir, index, lockfile: new RegistryLockfile(studioDir) };
+  const { packages } = await loadMergedIndex();
+  return { studioDir, packages, lockfile: new RegistryLockfile(studioDir) };
 }
 
 /** The outdated row for one installed package, or null when it has nowhere to move. */
@@ -64,11 +64,10 @@ export function outdatedEntry(
 }
 
 export async function outdatedPackages(options: UpdateOptions = {}): Promise<OutdatedEntry[]> {
-  const { index, lockfile } = await loadIndexAndLockfile(options);
-  if (!index) return [];
+  const { packages, lockfile } = await loadIndexAndLockfile(options);
 
   return (await lockfile.list())
-    .map(entry => outdatedEntry(entry, index.packages.filter(p => p.name === entry.name)))
+    .map(entry => outdatedEntry(entry, candidatesFor(packages, entry.name, entry.marketplace)))
     .filter((row): row is OutdatedEntry => row !== null);
 }
 
@@ -114,11 +113,11 @@ export async function updateCommand(
   options: { latest?: boolean } & UpdateOptions = {},
 ): Promise<void> {
   try {
-    const { studioDir, index, lockfile } = await loadIndexAndLockfile(options);
+    const { studioDir, packages, lockfile } = await loadIndexAndLockfile(options);
     const entry = await lockfile.get(name);
     if (!entry) throw new Error(`'${name}' is not installed`);
 
-    const candidates = index?.packages.filter(p => p.name === name) ?? [];
+    const candidates = candidatesFor(packages, name, entry.marketplace);
     if (candidates.length === 0) throw new Error(`Package '${name}' not found in registry`);
 
     const constraints = constraintsOf(entry);
@@ -130,7 +129,8 @@ export async function updateCommand(
       return;
     }
 
-    await installPackage(`${name}@${target}`, { force: true, studioDir });
+    const qualified = entry.marketplace ? `${entry.marketplace}:${name}` : name;
+    await installPackage(`${qualified}@${target}`, { force: true, studioDir });
   } catch (err) {
     console.error(chalk.red(err instanceof Error ? err.message : String(err)));
     process.exit(1);

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { RegistryCache } from '../registry/cache.js';
+import { loadMergedIndex } from '../registry/registry-index.js';
 import { syncRegistry } from './registry/sync.js';
 import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
@@ -31,21 +31,18 @@ export async function listTemplates(): Promise<TemplateMetadata[]> {
   const registryTemplates: TemplateMetadata[] = [];
   try {
     await syncRegistry({ force: false, silent: true });
-    const cache = new RegistryCache();
-    const index = await cache.read();
-    if (index) {
-      const localNames = new Set(localTemplates.map((t) => t.name));
-      for (const pkg of index.packages) {
-        if (pkg.type === 'template' && !localNames.has(pkg.name)) {
-          registryTemplates.push({
-            name: pkg.name,
-            version: pkg.version,
-            description: pkg.description,
-            author: pkg.author,
-            tags: pkg.tags,
-            studio_version: pkg.studio_version ?? undefined,
-          });
-        }
+    const { packages } = await loadMergedIndex();
+    const localNames = new Set(localTemplates.map((t) => t.name));
+    for (const pkg of packages) {
+      if (pkg.type === 'template' && !localNames.has(pkg.name)) {
+        registryTemplates.push({
+          name: pkg.name,
+          version: pkg.version,
+          description: pkg.description,
+          author: pkg.author,
+          tags: pkg.tags,
+          studio_version: pkg.studio_version ?? undefined,
+        });
       }
     }
   } catch {
