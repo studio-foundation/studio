@@ -154,7 +154,7 @@ async function doInstallPackage(
 
     for (const dep of graph.required) {
       await doInstallPackage(
-        dep.name,
+        `${dep.name}@${dep.version}`,
         { studioDir, requiredBy: name, interactive: options.interactive, _depth: depth + 1 },
         client,
         lockfile,
@@ -164,28 +164,23 @@ async function doInstallPackage(
       );
     }
 
-    if (depth === 0 && graph.recommended.length > 0) {
-      let install = options.interactive !== false;
-      if (options.interactive !== false) {
-        const names = graph.recommended.map(d => d.name).join(', ');
-        const { confirm } = await import('@inquirer/prompts');
-        install = await confirm({
-          message: `Install recommended packages? [${names}]`,
+    if (depth === 0 && graph.recommended.length > 0 && options.interactive !== false) {
+      const { confirm } = await import('@inquirer/prompts');
+      for (const dep of graph.recommended) {
+        const wanted = await confirm({
+          message: `Install recommended package ${dep.name} v${dep.version}?`,
           default: true,
         });
-      }
-      if (install) {
-        for (const dep of graph.recommended) {
-          await doInstallPackage(
-            dep.name,
-            { studioDir, interactive: options.interactive, _depth: depth + 1 },
-            client,
-            lockfile,
-            index,
-            lockfileData,
-            metaCache,
-          );
-        }
+        if (!wanted) continue;
+        await doInstallPackage(
+          `${dep.name}@${dep.version}`,
+          { studioDir, interactive: options.interactive, _depth: depth + 1 },
+          client,
+          lockfile,
+          index,
+          lockfileData,
+          metaCache,
+        );
       }
     }
   }

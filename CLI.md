@@ -137,6 +137,12 @@ studio registry update [name]                    # Update installed tools
 
 The registry is hosted at [studio-community](https://github.com/studio-foundation/studio-community). Open publish, no review gate — submit a PR to add a package.
 
+#### Dependency resolution
+
+`studio registry install` and `studio init` resolve a package's declared dependencies before it lands. Required ones install transitively and unconditionally; a required name absent from the index aborts the install with that name, rather than producing a project that dies at its first tool call. Recommended ones are prompted one by one, and skipped entirely when there is nothing to prompt (`--yes`, no TTY). Cycles are reported, not looped on. See [CONCEPTS.md](CONCEPTS.md#package-dependencies) for the declaration format.
+
+`studio registry remove <name>` warns when another installed package required the one being removed, then removes it anyway. Studio validates tool availability at run time; a second gate here would be enforcement without authority.
+
 ### Cache
 
 ```bash

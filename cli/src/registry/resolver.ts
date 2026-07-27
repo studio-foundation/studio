@@ -1,8 +1,11 @@
-import type { PackageMetadata, PackageType, RegistryIndex, Lockfile, PackageDependencies } from './types.js';
+import semver from 'semver';
+import type { PackageMetadata, PackageType, RegistryIndex, Lockfile, PackageDependencies, PackageEntry } from './types.js';
+import { parseDependencySpec, DEFAULT_MARKETPLACE, type DependencySpec } from './dependency-spec.js';
 
 export interface DependencyNode {
   name: string;
   type: PackageType;
+  version: string;
 }
 
 export interface ResolvedGraph {
@@ -12,41 +15,57 @@ export interface ResolvedGraph {
 
 type MetadataFetcher = (name: string) => Promise<PackageMetadata>;
 
-/** Extract all dependency names (regardless of whether they're in the index) for cycle detection. */
-function depNames(deps: PackageDependencies, kind: 'required' | 'recommended'): string[] {
-  const names: string[] = [];
-  for (const [, spec] of Object.entries(deps)) {
-    const arr: string[] = (spec as Record<string, string[]>)[kind] ?? [];
-    names.push(...arr);
-  }
-  return names;
+interface Constraint {
+  range?: string;
+  requiredBy: string;
 }
 
-function flattenDeps(
+/** Parsed dependency entries of one kind, tagged with the category they came from. */
+function specsOf(
   deps: PackageDependencies,
   kind: 'required' | 'recommended',
-  index: RegistryIndex,
-  requiredBy: string,
-): DependencyNode[] {
-  const nodes: DependencyNode[] = [];
-  for (const [category, spec] of Object.entries(deps)) {
-    const names: string[] = (spec as Record<string, string[]>)[kind] ?? [];
-    for (const name of names) {
-      const entry = index.packages.find(p => p.name === name);
-      if (entry) {
-        nodes.push({ name, type: entry.type as PackageType });
-      } else if (kind === 'required') {
-        // Fail loud, before install: a required dep absent from the index would
-        // otherwise install "successfully" and then crash at run time.
-        throw new Error(
-          `Missing required dependency '${name}' (${category}) of package '${requiredBy}': ` +
-          `not found in the registry index. Run 'studio registry sync' or check the package name.`
-        );
-      }
-      // A missing recommended dependency is optional — skipped, not fatal.
+): Array<{ spec: DependencySpec; category: string }> {
+  const out: Array<{ spec: DependencySpec; category: string }> = [];
+  for (const [category, entry] of Object.entries(deps)) {
+    const names: string[] = (entry as Record<string, string[]>)[kind] ?? [];
+    for (const raw of names) {
+      out.push({ spec: parseDependencySpec(raw), category });
     }
   }
-  return nodes;
+  return out;
+}
+
+function assertRegisteredMarketplace(spec: DependencySpec, requiredBy: string): void {
+  if (spec.marketplace === DEFAULT_MARKETPLACE) return;
+  // Never resolve against a marketplace the user has not registered, and never
+  // add one silently. `studio marketplace add` is the missing half (ADR 0001).
+  throw new Error(
+    `Dependency '${spec.raw}' of package '${requiredBy}' names marketplace ` +
+    `'${spec.marketplace}', which is not registered.`
+  );
+}
+
+/**
+ * Greedy range resolution: the highest indexed version satisfying every
+ * constraint. No backtracking — a conflict is reported, not worked around.
+ */
+function selectVersion(name: string, constraints: Constraint[], candidates: PackageEntry[]): string {
+  const ranged = constraints.filter((c) => c.range);
+  if (ranged.length === 0) return candidates[0].version;
+
+  const satisfying = candidates.filter((p) =>
+    ranged.every((c) => semver.valid(p.version) !== null && semver.satisfies(p.version, c.range!))
+  );
+
+  if (satisfying.length === 0) {
+    const listed = ranged.map((c) => `'${c.range}' (required by ${c.requiredBy})`).join(', ');
+    const available = candidates.map((p) => p.version).join(', ');
+    throw new Error(
+      `No version of '${name}' satisfies every constraint: ${listed}. Available: ${available}.`
+    );
+  }
+
+  return satisfying.map((p) => p.version).sort(semver.rcompare)[0];
 }
 
 export async function resolveDependencies(
@@ -56,67 +75,64 @@ export async function resolveDependencies(
   _lockfile: Lockfile,
   fetchMeta: MetadataFetcher,
 ): Promise<ResolvedGraph> {
-  const resolved = new Map<string, DependencyNode>();
+  const constraints = new Map<string, Constraint[]>();
+  const order: string[] = [];
   const visiting = new Set<string>();
 
-  // Track the root package so cycles back to it are detected
-  visiting.add(rootPackageName);
-
   async function visit(name: string, pkgMeta: PackageMetadata): Promise<void> {
-    if (visiting.has(name)) {
-      throw new Error(`Circular dependency detected: ${name} is part of a cycle`);
-    }
-    if (resolved.has(name)) return;
-
+    if (!pkgMeta.dependencies) return;
     visiting.add(name);
 
-    if (pkgMeta.dependencies) {
-      // Check for cycles on all required names (even those not in index)
-      for (const depName of depNames(pkgMeta.dependencies, 'required')) {
-        if (visiting.has(depName)) {
-          throw new Error(`Circular dependency detected: ${depName} is part of a cycle`);
-        }
+    for (const { spec, category } of specsOf(pkgMeta.dependencies, 'required')) {
+      assertRegisteredMarketplace(spec, name);
+      if (visiting.has(spec.name)) {
+        throw new Error(`Circular dependency detected: ${spec.name} is part of a cycle`);
+      }
+      if (!index.packages.some((p) => p.name === spec.name)) {
+        // Fail loud, before install: a required dep absent from the index would
+        // otherwise install "successfully" and then crash at run time.
+        throw new Error(
+          `Missing required dependency '${spec.name}' (${category}) of package '${name}': ` +
+          `not found in the registry index. Run 'studio registry sync' or check the package name.`
+        );
       }
 
-      const requiredNodes = flattenDeps(pkgMeta.dependencies, 'required', index, name);
-      for (const node of requiredNodes) {
-        if (!resolved.has(node.name)) {
-          const subMeta = await fetchMeta(node.name);
-          await visit(node.name, subMeta);
-          if (!resolved.has(node.name)) {
-            resolved.set(node.name, node);
-          }
-        }
+      const known = constraints.get(spec.name);
+      if (known) {
+        known.push({ range: spec.range, requiredBy: name });
+      } else {
+        constraints.set(spec.name, [{ range: spec.range, requiredBy: name }]);
+        order.push(spec.name);
+        await visit(spec.name, await fetchMeta(spec.name));
       }
     }
 
     visiting.delete(name);
   }
 
-  if (meta.dependencies) {
-    // Check for cycles at the first level too (root → dep that cycles back to root)
-    for (const depName of depNames(meta.dependencies, 'required')) {
-      if (visiting.has(depName)) {
-        throw new Error(`Circular dependency detected: ${depName} is part of a cycle`);
-      }
-    }
+  await visit(rootPackageName, meta);
 
-    const firstLevelRequired = flattenDeps(meta.dependencies, 'required', index, rootPackageName);
-    for (const node of firstLevelRequired) {
-      const subMeta = await fetchMeta(node.name);
-      await visit(node.name, subMeta);
-      if (!resolved.has(node.name)) {
-        resolved.set(node.name, node);
-      }
-    }
+  const required: DependencyNode[] = order.map((name) => {
+    const candidates = index.packages.filter((p) => p.name === name);
+    return {
+      name,
+      type: candidates[0].type as PackageType,
+      version: selectVersion(name, constraints.get(name)!, candidates),
+    };
+  });
+
+  const recommended: DependencyNode[] = [];
+  for (const { spec } of meta.dependencies ? specsOf(meta.dependencies, 'recommended') : []) {
+    assertRegisteredMarketplace(spec, rootPackageName);
+    const candidates = index.packages.filter((p) => p.name === spec.name);
+    // A missing recommended dependency is optional — skipped, not fatal.
+    if (candidates.length === 0) continue;
+    recommended.push({
+      name: spec.name,
+      type: candidates[0].type as PackageType,
+      version: selectVersion(spec.name, [{ range: spec.range, requiredBy: rootPackageName }], candidates),
+    });
   }
 
-  const recommended: DependencyNode[] = meta.dependencies
-    ? flattenDeps(meta.dependencies, 'recommended', index, rootPackageName)
-    : [];
-
-  return {
-    required: Array.from(resolved.values()),
-    recommended,
-  };
+  return { required, recommended };
 }

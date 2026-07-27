@@ -83,14 +83,17 @@ async function copyTemplateToStudio(
 /**
  * Create the full .studio/ directory structure in `cwd`.
  * If templateName is provided and is not 'blank', installs the template from the registry
- * to .studio/projects/<name>/ and copies studio-specific subdirs (pipelines, agents, etc.)
- * from the installed location into .studio/.
+ * to .studio/projects/<name>/ — with the plugins it declares as dependencies — and copies
+ * studio-specific subdirs (pipelines, agents, etc.) from the installed location into .studio/.
+ * `interactive` decides whether the template's recommended plugins are prompted; when false
+ * they are skipped.
  * Throws if .studio/ already exists anywhere in the directory tree.
  */
 export async function createStudioStructure(
   cwd: string,
   templateName?: string,
-  withTools = true
+  withTools = true,
+  interactive = false
 ): Promise<void> {
   // Only check cwd — don't walk up.  A parent .studio/ (e.g. ~/.studio)
   // should NOT prevent initializing a new project in a subdirectory.
@@ -107,9 +110,11 @@ export async function createStudioStructure(
 
   let installedTemplateDir: string | undefined;
   if (templateName && templateName !== 'blank') {
-    // Install template from registry to .studio/projects/<name>/
-    // interactive: false — we're under a spinner, prompts would hang
-    await installPackage(templateName, { studioDir, interactive: false });
+    // Install template from registry to .studio/projects/<name>/, plus every plugin
+    // it declares — required ones unconditionally, recommended ones only when prompting
+    // is possible. This runs before the project is written; an unresolved dependency
+    // aborts init rather than producing a project that cannot run.
+    await installPackage(templateName, { studioDir, interactive });
     installedTemplateDir = resolve(studioDir, 'projects', templateName);
     // Verify the install actually placed files (guards against mock/network failures)
     const installed = await access(installedTemplateDir).then(() => true).catch(() => false);
@@ -404,6 +409,8 @@ export async function initGitRepo(cwd: string): Promise<boolean> {
 interface GenerateFullAppOptions {
   noTools?: boolean;
   skipGit?: boolean;
+  /** Prompt for the template's recommended plugins. Requires a TTY and no active spinner. */
+  interactive?: boolean;
 }
 
 /**
@@ -428,7 +435,7 @@ export async function generateFullApp(
 
   // 1. Create .studio/ workspace and install template from registry to .studio/projects/<name>/
   //    createStudioStructure handles both the directory creation and registry install.
-  await createStudioStructure(cwd, templateName, !options.noTools);
+  await createStudioStructure(cwd, templateName, !options.noTools, options.interactive);
 
   // 2. Copy app scaffold files from installed template to project root with placeholder replacement
   const installedTemplateDir = resolve(studioDir, 'projects', templateName);
@@ -838,30 +845,24 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
       default: false,
     });
 
-    // Step 8: Generate app (without tools — we install them below)
+    // Step 8: Generate app (without tools — we install them below).
+    // No spinner: dependency resolution prompts for the template's recommended plugins.
     console.log('');
-    const spinner = ora('Creating project...').start();
+    console.log('Creating project...');
 
     const studioDir = resolve(cwd, '.studio');
 
-    let gitInitialized = false;
-    let generatedFiles: string[] = [];
-    try {
-      ({ gitInitialized, generatedFiles } = await generateFullApp(cwd, projectName, templateName, { noTools: true }));
+    const { gitInitialized, generatedFiles } = await generateFullApp(
+      cwd, projectName, templateName, { noTools: true, interactive: true }
+    );
 
-      if (provider !== 'later') {
-        await writeProviderToConfig(
-          studioDir,
-          provider,
-          provider === 'ollama' ? {} : { apiKey },
-          selectedModel
-        );
-      }
-
-      spinner.stop();
-    } catch (err) {
-      spinner.fail('Failed');
-      throw err;
+    if (provider !== 'later') {
+      await writeProviderToConfig(
+        studioDir,
+        provider,
+        provider === 'ollama' ? {} : { apiKey },
+        selectedModel
+      );
     }
 
     // Step 9: Install selected tools

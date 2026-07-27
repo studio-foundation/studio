@@ -202,6 +202,26 @@ const MOCK_TEMPLATE_META_WITH_DEPS = {
   },
 };
 
+const MOCK_INDEX_WITH_RECOMMENDED = {
+  ...MOCK_INDEX_WITH_DEPS,
+  packages: [
+    ...MOCK_INDEX_WITH_DEPS.packages,
+    {
+      ...MOCK_TOOL_META,
+      name: 'shell',
+      downloads: 0,
+      source: { type: 'local', path: 'tools/shell', file: 'shell.tool.yaml' },
+    },
+  ],
+};
+
+const MOCK_TEMPLATE_META_RECOMMENDED = {
+  ...MOCK_INDEX_WITH_DEPS.packages[0],
+  dependencies: {
+    plugins: { recommended: ['repo-manager', 'shell'] as string[] },
+  },
+};
+
 describe('installPackage — with required dependencies', () => {
   beforeEach(async () => {
     await mkdir(STUDIO_DIR, { recursive: true });
@@ -246,6 +266,39 @@ describe('installPackage — with required dependencies', () => {
     expect(lf.installed['software-full']).toBeDefined();
     expect(lf.installed['repo-manager']).toBeDefined();
     expect(lf.installed['repo-manager'].required_by).toEqual(['software-full']);
+  });
+
+  it('prompts for each recommended plugin and installs only the accepted ones (STU-693)', async () => {
+    vi.doMock('../../../src/registry/cache.js', () => {
+      class RegistryCache {
+        read() { return Promise.resolve(MOCK_INDEX_WITH_RECOMMENDED); }
+        write() { return Promise.resolve(undefined); }
+        isFresh() { return Promise.resolve(true); }
+      }
+      return { RegistryCache };
+    });
+    vi.doMock('../../../src/commands/registry/sync.js', () => ({
+      syncRegistry: vi.fn().mockResolvedValue(undefined),
+    }));
+    const confirm = vi.fn()
+      .mockResolvedValueOnce(true)    // repo-manager
+      .mockResolvedValueOnce(false);  // shell
+    vi.doMock('@inquirer/prompts', () => ({ confirm }));
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TEMPLATE_META_RECOMMENDED })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_TOOL_META })
+      .mockResolvedValueOnce({ ok: true, text: async () => 'name: repo_manager\n' }),
+    );
+
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await installPackage('software-full', { studioDir: STUDIO_DIR, force: true });
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
+    expect(lf.installed['repo-manager']).toBeDefined();
+    expect(lf.installed['shell']).toBeUndefined();
   });
 
   it('updates required_by if dep already installed', async () => {

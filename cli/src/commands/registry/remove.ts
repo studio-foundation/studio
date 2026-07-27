@@ -39,10 +39,11 @@ export async function removePackage(name: string, options: RemoveOptions = {}): 
   const entry = await lockfile.get(name);
   if (!entry) throw new Error(`'${name}' is not installed`);
 
-  // Block removal if another package depends on this one
+  // Warn, don't block: Studio validates tool availability at run time, so a second
+  // gate here would be enforcement without authority and would make cleanup hostile.
   const dependents = (entry.required_by ?? []).filter(d => d !== '');
   if (dependents.length > 0) {
-    throw new Error(`'${name}' is required by: ${dependents.join(', ')}. Remove them first.`);
+    console.log(chalk.yellow(`⚠ '${name}' is required by: ${dependents.join(', ')} — those references will break.`));
   }
 
   const type = entry.type as PackageType;
@@ -69,7 +70,7 @@ export async function removePackage(name: string, options: RemoveOptions = {}): 
     });
     if (cleanup) {
       for (const orphan of orphans) {
-        // Strip the requirer reference so the protection check passes
+        // Strip the requirer reference so the orphan isn't warned about
         await lockfile.removeRequiredBy(orphan, name);
         await removePackage(orphan, { studioDir });
       }

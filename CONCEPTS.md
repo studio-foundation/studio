@@ -378,6 +378,33 @@ Tools live in runner, not engine. The engine passes configs to the runner. The r
 
 ---
 
+## Package dependencies
+
+A registry package declares what it needs in its `metadata.json`. A template supplies pipelines and contracts; the plugins it depends on supply the tools and agents those pipelines reference.
+
+```json
+"dependencies": {
+  "plugins": {
+    "required": ["git", "coder@>=1.2.0"],
+    "recommended": ["github"]
+  }
+}
+```
+
+`studio init --template <name>` and `studio registry install <name>` resolve this graph before the package lands. Required entries install transitively; recommended ones are prompted individually and skipped when prompting isn't possible.
+
+**Entry syntax:** `[marketplace:]name[@range]`.
+
+- **Unqualified** — resolves within the package's own marketplace. `acme-corp:internal-deploy` names another one; a marketplace the user hasn't registered is refused, never added silently.
+- **`@range`** — a semver range. The resolver takes the highest indexed version satisfying every constraint on that package, and fails naming both when none does. Greedy: no backtracking, no SAT solving.
+- **No range** — whatever the index carries.
+
+Cycles are detected and reported. A required name missing from the index aborts the install; a recommended one is skipped.
+
+`plugins` is the category ADR 0002 settles on. `tools`, `agents`, `skills`, `templates` and `pipelines` are the pre-migration spelling and resolve identically — resolution is by name, never by category.
+
+---
+
 ## PII anonymization
 
 Transparent middleware that replaces sensitive data with tokens before sending to the LLM:
