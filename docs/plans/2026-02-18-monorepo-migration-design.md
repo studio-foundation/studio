@@ -23,11 +23,11 @@ Résultat : 1 squash commit + 1 merge commit par package (10 commits au total), 
 
 ```bash
 # 1. Backup du sub-repo hors du répertoire Studio
-cp -r /home/arianeguay/dev/src/Studio/contracts /tmp/studio-migration/contracts
+cp -r ~/dev/src/Studio/contracts /tmp/studio-migration/contracts
 # Répéter pour ralph, runner, engine, cli
 
 # 2. Supprimer le répertoire original (temporairement)
-rm -rf /home/arianeguay/dev/src/Studio/contracts
+rm -rf ~/dev/src/Studio/contracts
 
 # 3. git subtree add depuis le backup
 git subtree add --prefix=contracts /tmp/studio-migration/contracts HEAD --squash
@@ -87,7 +87,7 @@ pnpm build     # build tous les packages dans le bon ordre
 
 ## Section 3 : Repo `code-builder`
 
-**Créer `/home/arianeguay/dev/src/code-builder/`** comme nouveau repo git :
+**Créer `~/dev/src/code-builder/`** comme nouveau repo git :
 
 ```
 code-builder/
@@ -111,7 +111,7 @@ code-builder/
 
 **Vérification end-to-end :**
 ```bash
-cd /home/arianeguay/dev/src/code-builder
+cd ~/dev/src/code-builder
 studio run software/feature-builder --input "Add dark mode"
 ```
 

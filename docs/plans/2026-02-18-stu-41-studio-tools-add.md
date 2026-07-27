@@ -52,7 +52,7 @@ describe('listAvailableTools', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test 2>&1 | grep -A3 "listAvailableTools"
 ```
 

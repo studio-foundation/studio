@@ -76,7 +76,7 @@ describe('validateProjectName', () => {
 **Step 2: Run to verify failure**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test 2>&1 | grep -A5 'validateProjectName'
 ```
 
@@ -103,7 +103,7 @@ export function validateProjectName(name: string): true | string {
 **Step 4: Build and run tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build && pnpm --filter @studio-foundation/cli test 2>&1 | grep -E '(validateProjectName|PASS|FAIL)'
 ```
 
@@ -405,7 +405,7 @@ Replace the entire wizard block with:
 **Step 5: Build and verify TypeScript compiles**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build 2>&1
 ```
 
@@ -414,7 +414,7 @@ Expected: exits 0, no TypeScript errors.
 **Step 6: Run the full test suite**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test 2>&1
 ```
 
@@ -425,7 +425,7 @@ Expected: all tests pass. The wizard change doesn't affect any existing unit tes
 ```bash
 cd /tmp
 mkdir stu72-test && cd stu72-test
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init
+node ~/dev/src/Studio/cli/dist/index.js init
 ```
 
 Walk through the wizard:
@@ -451,7 +451,7 @@ rm -rf /tmp/stu72-test
 
 ```bash
 cd /tmp
-echo "" | node /home/arianeguay/dev/src/Studio/cli/dist/index.js init
+echo "" | node ~/dev/src/Studio/cli/dist/index.js init
 ```
 
 Expected output contains:
@@ -464,7 +464,7 @@ Expected exit code: 1.
 **Step 9: Commit**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git add cli/src/commands/init.ts
 git commit -m "feat(cli): add template selection as first wizard step (STU-72)"
 ```
@@ -476,7 +476,7 @@ git commit -m "feat(cli): add template selection as first wizard step (STU-72)"
 **Step 1: Run full monorepo test suite**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm test 2>&1
 ```
 

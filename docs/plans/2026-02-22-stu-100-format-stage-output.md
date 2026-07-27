@@ -156,7 +156,7 @@ describe('formatStageOutput', () => {
 
 **Step 2: Run the tests to verify they fail**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
 Expected: Compilation error — `formatStageOutput` is not exported from formatters.
 
 ---
@@ -280,7 +280,7 @@ export function formatStageOutput(output: Record<string, unknown>, maxDepth = 4)
 
 **Step 2: Run the tests to verify they pass**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
 Expected: All `formatStageOutput` tests pass. If any fail, adjust the implementation to match expectations.
 
 **Step 3: Commit**
@@ -326,12 +326,12 @@ This removes the `summarizeOutput` one-liner and the verbose-only JSON block. Th
 
 **Step 3: Run the full test suite**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run`
 Expected: All tests pass.
 
 **Step 4: Build the project**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm build`
+Run: `cd ~/dev/src/Studio && pnpm build`
 Expected: Build succeeds with no errors.
 
 **Step 5: Commit**
@@ -370,7 +370,7 @@ Remove `summarizeOutput` from the import and the entire `describe('summarizeOutp
 
 **Step 5: Run tests and build**
 
-Run: `cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run && pnpm build`
+Run: `cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test -- --run && pnpm build`
 Expected: All pass.
 
 **Step 6: Commit**

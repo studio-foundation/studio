@@ -275,7 +275,7 @@ describe('getAvailableModels', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test -- --reporter=verbose 2>&1 | head -30
 ```
 
@@ -949,7 +949,7 @@ In the `add-provider` direct mode case, after the format validation block (aroun
 **Step 5: Build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build 2>&1 | tail -15
 ```
 
@@ -1221,7 +1221,7 @@ git commit -m "feat(cli): STU-49 — interactive model select for studio config 
 **Step 1: Full monorepo build**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build 2>&1 | tail -10
 ```
 

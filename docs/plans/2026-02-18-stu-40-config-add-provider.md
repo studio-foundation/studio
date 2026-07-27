@@ -107,7 +107,7 @@ describe('validateApiKeyForProvider', () => {
 ### Step 2: Run to verify tests fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL — `PROVIDERS` and `validateApiKeyForProvider` not exported yet.
@@ -142,7 +142,7 @@ export function validateApiKeyForProvider(provider: string, key: string): true |
 ### Step 4: Run tests to verify they pass
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All new tests PASS, existing tests still PASS.
@@ -259,7 +259,7 @@ describe('addProviderConfig', () => {
 ### Step 2: Run to verify tests fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL — `addProviderConfig` not exported yet.
@@ -297,7 +297,7 @@ export async function addProviderConfig(
 ### Step 4: Run tests to verify they pass
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: All tests PASS.
@@ -344,7 +344,7 @@ describe('isProviderConfigured', () => {
 ### Step 2: Run to verify test fails
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: FAIL.
@@ -362,7 +362,7 @@ export async function isProviderConfigured(configFile: string, provider: string)
 ### Step 4: Run tests
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -20
 ```
 
 Expected: PASS.
@@ -556,7 +556,7 @@ program
 ### Step 6: Run all CLI tests
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -30
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/cli test 2>&1 | tail -30
 ```
 
 Expected: All tests PASS (existing + new).
@@ -575,7 +575,7 @@ git commit -m "feat(cli): STU-40 — wire add-provider wizard and direct mode in
 ### Step 1: Build the full monorepo
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build 2>&1 | tail -20
+cd ~/dev/src/Studio && pnpm build 2>&1 | tail -20
 ```
 
 Expected: Build succeeds with no TypeScript errors.
@@ -583,7 +583,7 @@ Expected: Build succeeds with no TypeScript errors.
 ### Step 2: Run all tests
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm test 2>&1 | tail -30
+cd ~/dev/src/Studio && pnpm test 2>&1 | tail -30
 ```
 
 Expected: All tests pass.
@@ -593,11 +593,11 @@ Expected: All tests pass.
 ```bash
 # Create a temp project to test against
 mkdir -p /tmp/studio-smoke-test && cd /tmp/studio-smoke-test
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init --template blank --project smoke --provider later
+node ~/dev/src/Studio/cli/dist/index.js init --template blank --project smoke --provider later
 # Direct mode:
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js config add-provider anthropic --api-key sk-ant-test123 --set-default
+node ~/dev/src/Studio/cli/dist/index.js config add-provider anthropic --api-key sk-ant-test123 --set-default
 # Verify config
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js config list
+node ~/dev/src/Studio/cli/dist/index.js config list
 # Cleanup
 rm -rf /tmp/studio-smoke-test
 ```
@@ -609,7 +609,7 @@ Expected:
 ### Step 4: Final commit and push
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 git status
 ```
 

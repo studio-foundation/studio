@@ -14,7 +14,7 @@
 - **Three-state scope semantics (verbatim):** `undefined` → anonymize **all** fields (fail-safe); `[]` → anonymize **none**; `['a','c']` → only those fields.
 - **Correctness property (non-negotiable):** out-of-scope fields are copied byte-for-byte and are **NEVER** passed to the detector — not "detected but replacement skipped". This keeps their PII out of the tokenizer's inverse map so it cannot collide with a value tokenized in an in-scope field.
 - **Backward compatibility:** the `description` (flat) path and existing `anonymizeFields(fields)` callers must keep working. `hasFields()` stays the single source of truth for the structured-vs-flat branch.
-- **Build/test:** run from worktree root `/home/arianeguay/dev/src/Studio/.worktrees/feat/stu-399-field-scoping`. Per-package test: `pnpm --filter @studio-foundation/<pkg> test`. Conventional commits, `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer.
+- **Build/test:** run from worktree root `~/dev/src/Studio/.worktrees/feat/stu-399-field-scoping`. Per-package test: `pnpm --filter @studio-foundation/<pkg> test`. Conventional commits, `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer.
 
 ---
 

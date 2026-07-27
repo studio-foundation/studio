@@ -82,7 +82,7 @@ describe('getContextForStage — all_stage_tool_results', () => {
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm --filter @studio-foundation/engine test
+cd ~/dev/src/Studio && pnpm --filter @studio-foundation/engine test
 ```
 
 Expected: FAIL — `addStageToolResults is not a function`, `ctx.stageToolResults is not a Map`
@@ -453,7 +453,7 @@ Add after it:
 **Step 6: Build and run all tests**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build && pnpm test
+cd ~/dev/src/Studio && pnpm build && pnpm test
 ```
 
 Expected: build succeeds, all tests pass
@@ -472,7 +472,7 @@ git commit -m "feat(engine): store stage tool results in PipelineContext after e
 **Files:**
 - Modify: `cli/templates/projects/software-full/pipelines/feature-builder.pipeline.yaml`
 - Modify: `cli/templates/projects/software/pipelines/feature-builder.pipeline.yaml`
-- Modify: `/home/arianeguay/dev/src/studio-sandbox/code-builder/.studio/pipelines/feature-builder.pipeline.yaml`
+- Modify: `~/dev/src/studio-sandbox/code-builder/.studio/pipelines/feature-builder.pipeline.yaml`
 
 **Step 1: Update `implementation-plan` stage in all three files**
 
@@ -521,7 +521,7 @@ To:
 **Step 3: Build and confirm no errors**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio && pnpm build
+cd ~/dev/src/Studio && pnpm build
 ```
 
 Expected: PASS
@@ -531,7 +531,7 @@ Expected: PASS
 ```bash
 git add cli/templates/projects/software-full/pipelines/feature-builder.pipeline.yaml
 git add cli/templates/projects/software/pipelines/feature-builder.pipeline.yaml
-git add /home/arianeguay/dev/src/studio-sandbox/code-builder/.studio/pipelines/feature-builder.pipeline.yaml
+git add ~/dev/src/studio-sandbox/code-builder/.studio/pipelines/feature-builder.pipeline.yaml
 git commit -m "feat(templates): enable tool result context propagation in feature-builder pipeline"
 ```
 
@@ -542,7 +542,7 @@ git commit -m "feat(templates): enable tool result context propagation in featur
 **Step 1: Run the sandbox pipeline and observe no redundant searches**
 
 ```bash
-cd /home/arianeguay/dev/src/studio-sandbox/code-builder
+cd ~/dev/src/studio-sandbox/code-builder
 studio run feature-builder --input-file .studio/inputs/faq-about.input.yaml --live
 ```
 

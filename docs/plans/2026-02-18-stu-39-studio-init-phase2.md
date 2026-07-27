@@ -112,7 +112,7 @@ describe('backupStudioDir', () => {
 ### Step 2: Run tests to verify they fail
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test
 ```
 
@@ -570,7 +570,7 @@ Attendu : tous les tests passent dans tous les packages.
 ```bash
 cd /tmp
 mkdir studio-test-direct && cd studio-test-direct
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init my-project \
+node ~/dev/src/Studio/cli/dist/index.js init my-project \
   --template software \
   --provider anthropic \
   --api-key sk-ant-fake-key-for-smoke-test
@@ -590,7 +590,7 @@ Done! Run your first pipeline:
 **Step 4: Manual smoke test (exists detection)**
 
 ```bash
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init
+node ~/dev/src/Studio/cli/dist/index.js init
 ```
 
 Attendu :
@@ -608,7 +608,7 @@ To start fresh:
 **Step 5: Manual smoke test (--force --yes)**
 
 ```bash
-node /home/arianeguay/dev/src/Studio/cli/dist/index.js init my-project \
+node ~/dev/src/Studio/cli/dist/index.js init my-project \
   --template software \
   --provider anthropic \
   --api-key sk-ant-fake-key-for-smoke-test \

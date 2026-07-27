@@ -33,7 +33,7 @@ This design covers the initial setup of the Studio v7 workspace with all 6 repos
 ## Workspace Structure
 
 ```
-studio-workspace/                  (current dir: /home/arianeguay/dev/src/Studio)
+studio-workspace/                  (current dir: ~/dev/src/Studio)
 ├── .gitignore                    (ignores all sub-repos)
 ├── README.md                     (overview + quick start)
 ├── setup.sh                      (executable setup script)

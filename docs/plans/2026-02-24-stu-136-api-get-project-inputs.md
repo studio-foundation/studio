@@ -75,7 +75,7 @@ describe('GET /api/projects/:id/inputs', () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/api test
 ```
 
@@ -141,7 +141,7 @@ In `api/src/routes/projects.ts`, add the following block immediately after the c
 **Step 2: Run tests to verify they pass**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/api test
 ```
 

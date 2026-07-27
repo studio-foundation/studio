@@ -58,7 +58,7 @@ export interface PipelineDefinition {
 **Step 3: Build and typecheck**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm build
 ```
 
@@ -173,7 +173,7 @@ describe('validateInputSchema', () => {
 **Step 2: Run the tests to confirm they fail**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/cli test
 ```
 

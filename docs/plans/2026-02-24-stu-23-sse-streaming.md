@@ -24,7 +24,7 @@ git checkout -b feat/stu-23-sse
 **Step 2: Verify existing tests pass**
 
 ```bash
-cd /home/arianeguay/dev/src/Studio
+cd ~/dev/src/Studio
 pnpm --filter @studio-foundation/api test
 ```
 
