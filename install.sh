@@ -31,9 +31,11 @@ case "$(uname -m)" in
   *)             fail "unsupported architecture: $(uname -m)" ;;
 esac
 
-# glibc and musl are not interchangeable; ldd names the one in use.
+# glibc and musl are not interchangeable; ldd names the one in use. Match musl
+# positively — glibc calls itself "GLIBC" on Debian but "GNU libc" on Fedora, so a
+# negative match on "glibc" hands every Fedora host the musl binary.
 libc=""
-if [ "$os" = linux ] && ! (ldd --version 2>&1 | grep -qi glibc); then
+if [ "$os" = linux ] && ldd --version 2>&1 | grep -qi musl; then
   libc="-musl"
 fi
 
