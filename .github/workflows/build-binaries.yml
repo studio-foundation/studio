@@ -44,6 +44,14 @@ jobs:
       - name: Compile binaries
         run: node scripts/build-binary.mjs ${{ matrix.platforms }}
 
+      # Decision: staying ad-hoc, not moving to a paid Developer ID + notarization.
+      # install.sh (the only documented install path) never sets com.apple.quarantine,
+      # so Gatekeeper never runs and this is enough. A browser download from this repo's
+      # Releases page *does* get quarantined and Gatekeeper hard-blocks it (verified on a
+      # real Mac: SIGKILL on direct exec, "cannot be opened" dialog with no Open Anyway on
+      # GUI open, only Trash-or-OK) — but that path isn't documented or linked anywhere,
+      # so we're accepting the risk rather than paying for notarization. Revisit if this CLI
+      # ever grows an audience that reaches Releases directly instead of through install.sh.
       - name: Ad-hoc sign macOS binaries
         if: runner.os == 'macOS'
         run: codesign --sign - --force dist-binaries/studio-darwin-*
