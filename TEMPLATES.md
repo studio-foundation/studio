@@ -1,389 +1,166 @@
 # Templates
 
-Templates are starting points for common pipeline patterns. They package proven configurations — pipelines, contracts, agents, and a workspace skeleton — so you don't start from a blank `.studio/`.
+A template is a starting point for a project: pipelines, contracts, and — for some of
+them — an app scaffold (`src/`, `prisma/`, `package.json`). It is not a finished product;
+it is a structure you customize.
 
-A template is not a finished product. It is a structured starter you customize into your own pipeline.
+Templates are **registry packages**, not files carried by the kernel. The only exception is
+`blank`, which is bundled because it has nothing to fetch.
 
 ---
 
-## Status
+## Available templates
 
-| Template | Status | Notes |
-|----------|--------|-------|
-| `software` | ✅ Functional | Complete pipelines, tools, and DB schema. Run end-to-end. |
-| `finance` | 🚧 Starter | Structure and pipelines defined. Domain tools (bank-api, etc.) are stubs, wire to your own integrations. |
-| `analysis` | 🚧 Starter | Structure and pipelines defined. Domain tools (text-processor, etc.) are stubs. |
-| `data` | 🚧 Starter | Structure only. |
-| `conversation` | 🚧 Starter | Structure only. |
+`studio templates list` prints the live list. As of Studio 0.13.0 the official marketplace
+publishes five, plus the bundled `blank`:
 
-> Only the `software` template is production-ready. The others are structural starters: structure, pipelines, and contracts are defined, but the domain tools are stubs. Expect to wire your own integrations.
+| Template | Ships | Required plugins |
+|----------|-------|------------------|
+| `blank` | Empty `.studio/` subdirectories | — (bundled, no install) |
+| `software` | 3 pipelines, 2 contracts, `src/`, `prisma/`, `package.json`, `README.md` | `repo-manager`, `shell`, `search`, `coder`, `git` |
+| `software-full` | 1 pipeline (5 stages incl. a QA group), 5 contracts | `repo-manager`, `shell`, `search`, `git`, `coder`, `analyst`, `publisher`, `reviewer` (recommended: `code-conventions`, `git-workflow`) |
+| `content` | 1 pipeline, 1 contract, `src/`, `prisma/`, `package.json`, `README.md` | `search`, `writer` |
+| `document-analysis` | 1 pipeline, 1 contract | `search`, `analyst` |
+| `parallel-tasks` | 1 pipeline (fan-out group of 5 + consolidation), 3 contracts | `planner`, `worker`, `consolidator` |
+
+No template ships its own agents or tools — every agent and tool comes from the plugins
+listed above, installed as dependencies. See
+[CONCEPTS.md](CONCEPTS.md#package-dependencies) for the dependency format.
 
 ---
 
 ## What `studio init --template <name>` does
 
-1. Installs the template and the plugins it declares as dependencies — a template ships pipelines and contracts, and depends on plugins for the tools and agents those pipelines reference. Required plugins install before anything is written; an unresolved one aborts init.
-2. Copies the template directory into your project.
-3. Replaces template placeholders (`{{PROJECT_NAME}}`, `{{TEMPLATE_NAME}}`, etc.) with your values.
-4. Initializes a git repository.
-5. Writes `.studio/config.yaml` with provider settings (gitignored).
-6. Generates `README.md` with getting started instructions.
+1. **Installs the template from the registry** into `.studio/projects/<name>/`, together
+   with the plugins it declares as dependencies. Required plugins install unconditionally;
+   recommended ones are prompted in the wizard and skipped otherwise. An unresolved
+   required dependency aborts init rather than producing a project that cannot run.
+2. Copies `pipelines/`, `contracts/`, `agents/`, `tools/`, `inputs/` from there into
+   `.studio/`, creating any the template omits as empty directories.
+3. Copies the app scaffold — `src/`, `prisma/`, `package.json`, `README.md` — to the
+   project root, substituting `{{PROJECT_NAME}}`, `{{TEMPLATE_NAME}}` and `{{YEAR}}`.
+   Templates without those files skip this step.
+4. Writes `.studio/config.yaml` (gitignored) and `.studio/config.example.yaml`.
+5. Writes `ONBOARDING.md` at the project root, never overwriting an existing one.
+6. Runs `git init` unless the directory is already a repo.
 
-Dependencies are declared in the template's `metadata.json` — see [CONCEPTS.md](CONCEPTS.md#package-dependencies) for the format.
-
-You then `npm install`, configure a provider, and run an included pipeline.
+**Network:** step 1 fetches over HTTP. When the network is unreachable, the default
+marketplace falls back to the seed — a snapshot of that marketplace bundled with the CLI —
+so every template and plugin listed above still installs offline. A marketplace you
+registered yourself has no seed and needs connectivity.
 
 ```bash
-studio init code-builder --template software
-cd code-builder
+mkdir code-builder && cd code-builder
+studio init code-builder --template software --provider later
 npm install
 studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
-studio run software/feature-builder --input "Add dark mode support"
+studio doctor
+studio run feature-builder --input "Add dark mode support"
 ```
+
+`studio init` refuses to run where a `.studio/` already exists and has no flag to write
+elsewhere — start from an empty directory.
 
 ---
 
-## Official templates
+## The templates in detail
 
-### `software` — code generation and modification
+### `software` — code generation
 
-Production-ready.
+**Pipelines:** `feature-builder` (structured input; one `code-generation` stage gated by
+`tsc --noEmit` and `eslint` hooks that reject on failure), `quick-edit` (single-file edit,
+contract `quick-edit-output`, `tool_calls.minimum: 1`), `quick-fix` (targeted fix).
 
-**Use cases:** code generators, feature builders, bug fixers, refactoring tools, API scaffolders.
+**Scaffold:** `src/index.ts`, `prisma/schema.prisma`, `package.json`, `README.md`.
 
-**Included pipelines:**
-- `feature-builder`: generate new features from descriptions
-- `bug-fixer`: analyze and fix bugs
-- `refactor`: restructure code while preserving behavior
+### `software-full` — code generation with QA review
 
-**Required plugins** (installed by `studio init`, see `dependencies.plugins`):
-- `repo-manager`, `shell` — kernel builtins
-- `search`, `git`, `coder` — marketplace plugins
+**Pipeline:** `feature-builder` — `brief-analysis` → `implementation-plan` →
+group `implementation-review` (`code-generation` ↔ `qa-review`, bounded by
+`max_iterations`) → `publish-changes`.
 
-**Contracts include:**
-- Anti-theatre validation (must actually call write tools)
-- Required tool calls enforcement
-- Code quality checks via QA stages
+The template that exercises the most kernel surface: anti-theatre (`code-generation`
+requires a write or patch call, `publish-changes` requires `git-checkout` + `git-commit`),
+rejection detection on `qa-review`, and a group feedback loop.
 
-**DB schema starter:**
+**Scaffold:** none — `.studio/` configs only.
 
-```prisma
-model Repo {
-  id          String   @id @default(uuid())
-  path        String
-  branch      String
-  lastSync    DateTime
-}
+### `content` — research and content creation
 
-model Feature {
-  id          String   @id @default(uuid())
-  repoId      String
-  description String
-  status      String
-  createdAt   DateTime @default(now())
-}
-```
+**Pipeline:** `content-creator` — one `content-generation` stage on the `writer` agent.
 
-Used by [Little Chef](https://github.com/studio-foundation/little-chef-by-studio).
+**Scaffold:** `src/index.ts`, `prisma/schema.prisma`, `package.json`, `README.md`.
 
----
+### `document-analysis` — extraction and structured analysis
 
-### `finance` — transaction analysis and budget management
+**Pipeline:** `analyzer` — one `analysis` stage on the `analyst` agent.
 
-Structural starter. Domain tools are stubs — wire your own integrations.
+**Scaffold:** none.
 
-**Use cases:** personal finance managers, expense trackers, budget planners, invoicing tools.
+### `parallel-tasks` — fan-out execution
 
-**Included pipelines:**
-- `transaction-analysis`: categorize and analyze transactions
-- `budget-planning`: generate budget recommendations
-- `account-splitting`: auto-split income across accounts
+**Pipeline:** `parallel-tasks` — `task-selection` (its contract requires exactly 5 tasks) →
+group `task-execution` (`task-1`…`task-5`, all on the `worker` agent) → `consolidation`.
 
-**Included tools (stubs):**
-- `bank-api` (intended for Plaid or similar)
-- `categorization` (intended for ML-based transaction categorization)
-- `budget-calculator`
-- `notification-sender`
+**Scaffold:** none.
 
-**Contracts include:**
-- Transaction validation (amount, date, merchant)
-- Budget constraint checking
-- Compliance with financial rules
-
-**DB schema starter:**
-
-```prisma
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  accounts  Account[]
-}
-
-model Account {
-  id            String   @id @default(uuid())
-  userId        String
-  plaidId       String
-  balance       Float
-  transactions  Transaction[]
-}
-
-model Transaction {
-  id          String   @id @default(uuid())
-  accountId   String
-  amount      Float
-  merchant    String
-  category    String
-  date        DateTime
-}
-
-model Budget {
-  id          String   @id @default(uuid())
-  userId      String
-  category    String
-  amount      Float
-  period      String   // monthly, weekly
-}
-```
-
----
-
-### `analysis` — content extraction and structuring
-
-Structural starter. Domain tools are stubs — wire your own integrations.
-
-**Use cases:** document analyzers, entity extractors, text structurers, content parsers.
-
-**Included pipelines:**
-- `content-extraction`: extract structured content from unstructured input
-- `entity-recognition`: identify and classify entities
-- `structure-generation`: generate hierarchical structures
-
-**Included tools (stubs):**
-- `text-processor` (parsing, tokenization, NLP)
-- `entity-extractor`
-- `relationship-mapper`
-- `schema-validator`
-
-**Contracts include:**
-- Required entity types detected
-- Minimum confidence thresholds
-- Structure completeness validation
-
-**DB schema starter:**
-
-```prisma
-model Analysis {
-  id          String   @id @default(uuid())
-  input       String
-  status      String
-  result      Json
-  entities    Entity[]
-  createdAt   DateTime @default(now())
-}
-
-model Entity {
-  id            String   @id @default(uuid())
-  analysisId    String
-  type          String
-  name          String
-  confidence    Float
-  relationships Relationship[]
-}
-
-model Relationship {
-  id          String   @id @default(uuid())
-  fromId      String
-  toId        String
-  type        String
-}
-```
-
-Used by [Wiki Creator](https://github.com/studio-foundation/wiki-creator). The same pattern works for text, audio, video, or any content that needs analysis and structuring.
-
----
-
-### `data` — validation, transformation, and compliance
-
-Structural starter. Domain tools are stubs — wire your own integrations.
-
-**Use cases:** data validators, ETL pipeline auditors, schema migrators, compliance checkers.
-
-**Included pipelines:**
-- `schema-validation`: validate data against schemas
-- `transformation`: transform data between formats
-- `compliance-check`: check regulatory compliance
-
-**Included tools (stubs):**
-- `schema-validator`
-- `data-transformer`
-- `compliance-rules`
-- `audit-logger`
-
-**Contracts include:**
-- Schema conformance validation
-- Regulatory rule checking
-- Data integrity constraints
-
-**DB schema starter:**
-
-```prisma
-model ValidationRun {
-  id          String   @id @default(uuid())
-  datasetId   String
-  schema      Json
-  status      String
-  errors      ValidationError[]
-  createdAt   DateTime @default(now())
-}
-
-model ValidationError {
-  id          String   @id @default(uuid())
-  runId       String
-  field       String
-  rule        String
-  message     String
-  severity    String
-}
-
-model ComplianceCheck {
-  id          String   @id @default(uuid())
-  type        String   // GDPR, HIPAA, SOC2, etc.
-  status      String
-  findings    Json
-}
-```
-
----
-
-### `conversation` — dialogue management and memory
-
-Structural starter. Domain tools are stubs — wire your own integrations.
-
-**Use cases:** chatbots, virtual assistants, support bots.
-
-**Included pipelines:**
-- `dialogue-management`: handle multi-turn conversations
-- `memory-storage`: store and retrieve conversation context
-- `intent-classification`: classify user intents
-- `response-generation`: generate contextual responses
-
-**Included tools (stubs):**
-- `memory-store`
-- `intent-classifier`
-- `context-retriever`
-- `response-generator`
-
-**Contracts include:**
-- Intent classification confidence
-- Response relevance validation
-- Memory consistency checks
-
-**DB schema starter:**
-
-```prisma
-model Conversation {
-  id          String   @id @default(uuid())
-  userId      String
-  messages    Message[]
-  context     Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Message {
-  id              String   @id @default(uuid())
-  conversationId  String
-  role            String   // user, assistant
-  content         String
-  intent          String
-  createdAt       DateTime @default(now())
-}
-
-model Memory {
-  id          String   @id @default(uuid())
-  userId      String
-  key         String
-  value       Json
-  importance  Float
-  lastAccess  DateTime
-}
-```
-
----
-
-## Template structure
-
-Every template follows this layout:
-
-```
-templates/<template-name>/
-├── README.md                   # Template documentation
-├── template.yaml               # Template metadata
-├── .studio/
-│   └── projects/<template-name>/
-│       ├── pipelines/          # *.pipeline.yaml
-│       ├── contracts/          # *.contract.yaml
-│       ├── agents/             # *.agent.yaml
-│       ├── tools/              # *.tool.yaml
-│       └── inputs/             # fixture inputs
-├── prisma/
-│   └── schema.prisma           # Database schema starter
-├── src/
-│   ├── index.ts                # Entry point
-│   └── lib/                    # Helper functions
-├── package.json
-└── tsconfig.json
-```
+> **Known gap.** In `software`, `content` and `document-analysis`, some stages declare no
+> `contract:`, so contract files those templates ship are never applied. `contract` is
+> optional in a pipeline and an absent one means no validation at all — wire it yourself if
+> you want the guarantee. `software-full` and `parallel-tasks` reference a contract on
+> every stage.
 
 ---
 
 ## Customization workflow
 
-1. **Run the defaults.** Execute the included pipelines first to understand the pattern.
-2. **Extend pipelines.** Add stages or modify existing ones.
-3. **Add tools.** Create `.tool.yaml` files for your specific needs.
-4. **Extend the schema.** Add tables/fields to `prisma/schema.prisma`.
-5. **Build your application layer.** UI, CLI, or API on top of the engine.
+1. **Run the defaults** with `--provider mock` first, to see the shape without spending tokens.
+2. **Extend the pipelines** — add stages, or add a `contract:` where one is missing.
+3. **Add tools** — `studio registry install <plugin>`, or write your own `.tool.yaml`.
+4. **Extend the schema** if the template shipped a `prisma/`.
 
-Once generated, the code is yours. Modify anything.
+Once generated, the files are yours.
 
 ---
 
 ## Frequently asked questions
 
-### Do I need to use a template?
+### Do I need a template?
 
-No. You can create `.studio/` manually and define everything yourself. Templates just save time.
+No. `studio init --template blank` gives you the directory structure and nothing else, and
+you can also create `.studio/` by hand.
 
-### Can I combine multiple templates?
+### Can I combine two templates?
 
-Not directly. Generate from the closest template, then copy specific pipelines or tools from another template and merge manually.
+Not in one command. Generate from the closest one, then copy the pipelines and contracts
+you want out of another — they are plain YAML files.
 
-### What if my use case doesn't fit any template?
+### Can a generated project be upgraded to a newer template version?
 
-Start with the closest template and customize heavily. Or author your own template (see below).
-
-### Can templates be upgraded after generation?
-
-Not yet. `studio template update` is on the roadmap. For now, manually copy updated pipeline/contract files from the template source. Always commit before pulling updates.
+Not programmatically; `studio template update` does not exist. `studio registry update`
+updates installed *plugins*, not the files a template copied into `.studio/`. Copy revised
+pipeline and contract files by hand, after committing.
 
 ---
 
-## Custom templates
+## Authoring your own
 
-You can author your own templates for patterns specific to your domain or your team. The full specification — required files, `template.yaml` format, placeholder system, validation rules, and the test workflow — lives in [docs/TEMPLATE_AUTHORING.md](./docs/TEMPLATE_AUTHORING.md).
-
-To validate a template against the full ruleset:
+The full specification — layout, `metadata.json` format, placeholders, validation rules,
+testing workflow — is in [docs/TEMPLATE_AUTHORING.md](./docs/TEMPLATE_AUTHORING.md).
 
 ```bash
 studio template validate <path>
 ```
 
-To share a template with the community, submit it to [studio-community](https://github.com/studio-foundation/studio-community) under `templates/` (or run `studio registry publish <path>`). Once merged, anyone can install it with `studio registry install <name>`.
+To publish, submit the template to
+[studio-community](https://github.com/studio-foundation/studio-community) or run
+`studio registry publish <path>`. Once merged, anyone installs it with
+`studio init --template <name>`.
 
 ---
 
 **See also:**
 - [README.md](./README.md): public-facing overview
-- [PHILOSOPHY.md](./PHILOSOPHY.md): design principles
-- [docs/TEMPLATE_AUTHORING.md](./docs/TEMPLATE_AUTHORING.md): full template specification for authors
+- [CLI.md](./CLI.md): `studio init`, `studio templates`, `studio registry` reference
+- [docs/TEMPLATE_AUTHORING.md](./docs/TEMPLATE_AUTHORING.md): specification for template authors
+- [docs/adr/0002-packaging-model.md](./docs/adr/0002-packaging-model.md): why `template` and `plugin` are the only two package types

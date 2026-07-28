@@ -269,7 +269,7 @@ Both run a hybrid stack: domain logic in external scripts (Python for Wiki Creat
 | Document | Content |
 |----------|---------|
 | [CONCEPTS.md](./CONCEPTS.md) | RALPH loop, output contracts, anti-theatre, groups, hooks, skills, architecture deep dive |
-| [TEMPLATES.md](./TEMPLATES.md) | Architectural templates and how to pick one |
+| [TEMPLATES.md](./TEMPLATES.md) | Available project templates, what each ships, and how `studio init` installs one |
 | [CLI.md](./CLI.md) | All CLI commands, `.studio/` structure, config format |
 | [API.md](./API.md) | HTTP endpoints, SSE streaming, webhooks |
 | [INVARIANTS.md](./INVARIANTS.md) | Non-negotiable kernel rules |
