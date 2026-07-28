@@ -106,6 +106,27 @@ describe('loadContextPacks', () => {
     expect(result[1].name).toBe('Pack B');
   });
 
+  it.each(['../../etc/passwd', '/etc/passwd', '~/secrets'])(
+    'rejects a pack name escaping the project directory (%s)',
+    async (packName) => {
+      await expect(loadContextPacks([packName], tmpDir)).rejects.toThrow(/escapes/);
+    }
+  );
+
+  it.each(['../../etc/passwd', '/etc/passwd', '~/secrets'])(
+    'rejects a file path escaping the workspace (%s)',
+    async (filePath) => {
+      await fs.writeFile(
+        path.join(tmpDir, 'context-packs', 'escaping.yaml'),
+        `name: Escaping\nversion: 1\nfiles:\n  - path: "${filePath}"`
+      );
+
+      await expect(
+        loadContextPacks(['escaping'], tmpDir, workspaceDir)
+      ).rejects.toThrow(/escapes/);
+    }
+  );
+
   it('returns empty array when packNames is empty', async () => {
     const result = await loadContextPacks([], tmpDir);
     expect(result).toEqual([]);

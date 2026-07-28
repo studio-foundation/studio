@@ -90,7 +90,11 @@ Non-negotiable contracts on system behavior. These invariants are enforced by co
 
 **Description:** Everything for a project (pipelines, agents, contracts, tools) lives in `.studio/`. No project references configs from another project. All loaders are scoped to the project directory.
 
-**Enforced by:** [`engine/src/pipeline/types.ts`](engine/src/pipeline/types.ts): `resolveProjectPaths(configsDir)` derives all paths from `configsDir` (the project's `.studio/`): `pipelines/`, `agents/`, `contracts/`. [`engine/src/engine.ts`](engine/src/engine.ts): `configsDir` is passed to the engine as the project root; all loaders are scoped to that directory and never escape it.
+**Enforced by:** [`engine/src/pipeline/types.ts`](engine/src/pipeline/types.ts): `resolveProjectPaths(configsDir)` derives all paths from `configsDir` (the project's `.studio/`): `pipelines/`, `agents/`, `contracts/`, `skills/`. [`engine/src/engine.ts`](engine/src/engine.ts): `configsDir` is passed to the engine as the project root.
+
+Deriving the directories is not enough — a name written in a YAML file is joined onto them, so `skills: ["../../x"]` would escape a project that only derives its paths correctly. [`engine/src/pipeline/safe-path.ts`](engine/src/pipeline/safe-path.ts): `resolveWithin(baseDir, segment, label)` resolves a config-supplied path segment and throws if it leaves `baseDir`, refusing `..`, absolute paths and `~`. Applied to every segment a config author controls: skill names ([`skill-loader.ts`](engine/src/pipeline/skill-loader.ts)), context pack names and their `files[].path` entries ([`context-pack-loader.ts`](engine/src/pipeline/context-pack-loader.ts)).
+
+**Not covered:** the workspace (`repoPath` / `--repo-path`, [`engine/src/repo-resolver.ts`](engine/src/repo-resolver.ts)) is deliberately outside the project directory — it is the repository the pipeline operates on, chosen by whoever launches the run, not by a config a project may have installed from a registry.
 
 **What breaks if violated:** Projects bleed into each other. Modifying one project's configs can affect another. The concept of a project as an isolated, deployable unit disappears, making it impossible to share a project between teams without sharing all configs.
 

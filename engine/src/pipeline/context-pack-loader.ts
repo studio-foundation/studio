@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import type { ContextPackDefinition, ResolvedContextPack } from '@studio-foundation/contracts';
+import { resolveWithin } from './safe-path.js';
 
 export async function loadContextPacks(
   packNames: string[],
@@ -14,7 +15,7 @@ export async function loadContextPacks(
   const results: ResolvedContextPack[] = [];
 
   for (const packName of packNames) {
-    const packFile = path.join(packsDir, `${packName}.yaml`);
+    const packFile = resolveWithin(packsDir, `${packName}.yaml`, 'Context pack');
 
     let rawContent: string;
     try {
@@ -34,7 +35,11 @@ export async function loadContextPacks(
         );
       }
       for (const fileRef of definition.files) {
-        const filePath = path.join(workspacePath, fileRef.path);
+        const filePath = resolveWithin(
+          workspacePath,
+          fileRef.path,
+          `Context pack "${packName}" file`,
+        );
         let content: string;
         try {
           content = await fs.readFile(filePath, 'utf-8');

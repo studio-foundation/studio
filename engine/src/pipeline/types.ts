@@ -11,6 +11,7 @@ export interface ProjectPaths {
   pipelinesDir: string;
   agentsDir: string;
   contractsDir: string;
+  skillsDir: string;
 }
 
 export function resolveProjectPaths(configsDir: string): ProjectPaths {
@@ -19,6 +20,7 @@ export function resolveProjectPaths(configsDir: string): ProjectPaths {
     pipelinesDir: join(configsDir, 'pipelines'),
     agentsDir: join(configsDir, 'agents'),
     contractsDir: join(configsDir, 'contracts'),
+    skillsDir: join(configsDir, 'skills'),
   };
 }
 
