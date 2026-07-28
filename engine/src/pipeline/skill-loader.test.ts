@@ -41,4 +41,19 @@ describe('loadSkillFiles', () => {
     const skills = await loadSkillFiles(['git-workflow'], '/tmp/nonexistent-skills-dir-xyz-abc');
     expect(skills).toHaveLength(0);
   });
+
+  it.each([
+    ['relative traversal', '../../etc/passwd'],
+    ['absolute path', '/etc/passwd'],
+    ['home expansion', '~/secrets'],
+    ['sibling directory', '../other-project/git-workflow'],
+  ])('rejects a skill name escaping the skills directory (%s)', async (_label, name) => {
+    await expect(loadSkillFiles([name], TMP)).rejects.toThrow(/escapes/);
+  });
+
+  it('rejects an escaping name even when the skills directory is missing', async () => {
+    await expect(
+      loadSkillFiles(['../../etc/passwd'], '/tmp/nonexistent-skills-dir-xyz-abc'),
+    ).rejects.toThrow(/escapes/);
+  });
 });
