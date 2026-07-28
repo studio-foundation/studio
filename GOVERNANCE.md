@@ -60,6 +60,8 @@ The kernel is intended to be owned by a non-profit, non-transferable foundation.
 
 The foundation's governance is designed to give decision-making power to the people directly affected by the inequalities the project seeks to reduce. Diversity is not symbolic, it is decision-making.
 
+What the foundation receives is stewardship — the founder's own copyright, the name, the GitHub organization, the npm scope — not the codebase itself. Contributors keep the copyright on what they write, so no owner, present or future, can relicense Studio. See [ADR 0003](./docs/adr/0003-contribution-rights.md).
+
 ### Mechanism 3: Three strictly separated layers
 
 Studio is structured in three layers whose authorities are watertight:
@@ -203,7 +205,7 @@ Three ways to participate now:
 
 **Issues and discussions.** The repo welcomes questions, bug reports, improvement proposals, usage feedback. Topics that might interest others go on GitHub, the rest by email.
 
-**Code contributions.** PRs are welcome, respecting the architectural invariants. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details (forthcoming).
+**Code contributions.** PRs are welcome, respecting the architectural invariants. Commits are signed off under the [DCO](./DCO): contributors keep the copyright on what they write, nothing is assigned, and Studio is never relicensed ([ADR 0003](./docs/adr/0003-contribution-rights.md)). See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **Tool plugins and templates.** `.tool.yaml` files are the main extension point of Studio. The community registry is open — publishing is a PR, with no review gate: `studio registry publish <path>`.
 
