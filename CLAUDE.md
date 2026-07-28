@@ -12,9 +12,10 @@ Studio/
 ├── runner/       # @studio-foundation/runner — tool plugin runtime, LLM providers
 ├── engine/       # @studio-foundation/engine — pipeline orchestration, state machine
 ├── api/          # @studio-foundation/api — HTTP REST API (Fastify)
-├── cli/          # @studio-foundation/cli — terminal interface
-└── templates/    # Architectural templates (see TEMPLATES.md)
+└── cli/          # @studio-foundation/cli — terminal interface
 ```
+
+Project templates are registry packages, not files in this repo — see [TEMPLATES.md](TEMPLATES.md).
 
 ```
 @studio-foundation/cli → @studio-foundation/api → @studio-foundation/engine
@@ -351,6 +352,6 @@ Same PR as the code, not a later cleanup pass:
 - **[CONCEPTS.md](CONCEPTS.md)** — Core concepts explained
 - **[CLI.md](CLI.md)** — CLI reference
 - **[API.md](API.md)** — REST API reference
-- **[TEMPLATES.md](TEMPLATES.md)** — Architectural templates
+- **[TEMPLATES.md](TEMPLATES.md)** — Project templates and what each one ships
 - **[INVARIANTS.md](INVARIANTS.md)** — Non-negotiable kernel rules
 - **[PHILOSOPHY.md](PHILOSOPHY.md)** — Design principles
