@@ -162,7 +162,7 @@ optional dependency, and falls back to the JavaScript build on platforms without
 (needs Node.js >= 22.13):
 
 ```bash
-npm install -g @studio-foundation/cli@beta
+npm install -g @studio-foundation/cli
 ```
 
 Update along the channel you installed from: `studio upgrade` for the binary,

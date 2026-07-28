@@ -43,7 +43,13 @@ pnpm version:bump X.Y.Z    # rewrites all 8 package.json — never hand-edit one
 pnpm build
 ```
 
-Commit as `chore: bump version to X.Y.Z`, open the PR, wait for merge. Version bumps ride alone — no source changes in the same PR.
+Add the version's section to `CHANGELOG.md` in the same commit — grouped by area, same
+grouping the release notes will use, newest first, dated with the day it publishes. The
+changelog is the record for anyone who isn't browsing GitHub releases; written at bump
+time it stays a one-minute job, deferred it never happens.
+
+Commit as `chore: bump version to X.Y.Z`, open the PR, wait for merge. The bump and its
+changelog entry ride alone — no source changes in the same PR.
 
 ## 4. Publish, then verify
 
@@ -71,8 +77,8 @@ rejects asset uploads with `HTTP 422: Cannot upload assets to an immutable relea
 the tag can never be reused. So the standalone binaries must land while the release is
 still a draft.
 
-Write the notes grouped by area (Distribution, Preflight, CLI, Engine, Fixes, Docs), not
-as a commit dump, then:
+The notes are the `CHANGELOG.md` section written at step 3, expanded — grouped by area
+(Distribution, Preflight, CLI, Engine, Fixes, Docs), not a commit dump. Then:
 
 ```bash
 gh release create vX.Y.Z --target main --title "vX.Y.Z" --draft --notes-file notes.md
@@ -98,4 +104,5 @@ version.
 - **Calling a breaking change MAJOR.** Pre-1.0, breaking is MINOR.
 - **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 8 move together.
 - **Bumping inside a feature PR.** Bumps are their own commit, at release time.
+- **Shipping a version with no `CHANGELOG.md` entry.** Write it in the bump commit; after the release is cut nobody comes back for it.
 - **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.
