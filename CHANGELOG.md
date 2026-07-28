@@ -7,6 +7,17 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.13.0] — 2026-07-28
+
+### Breaking
+
+- Paths a config supplies must stay inside the directory they are resolved against — `..`, absolute paths and `~` are refused (INV-09). Applies to skill names, context pack names, and a context pack's `files[].path` entries. A config reaching outside its project this way now fails with an error naming the offending value instead of silently reading the file. The workspace is unaffected: `--repo-path` is chosen by whoever launches the run, not by an installed config.
+
+### Docs
+
+- CONTRIBUTING.md, DCO sign-off on every commit, and ADR 0003 on contribution rights.
+- CHANGELOG.md, backfilled to 0.5.0.
+
 ## [0.12.0] — 2026-07-28
 
 ### Breaking
