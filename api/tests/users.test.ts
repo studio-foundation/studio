@@ -5,16 +5,16 @@ import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
-import type { IntegrationRuntime } from '../src/integration-runtime.js';
-import type { IntegrationStore } from '../src/integration-store.js';
+import type { TriggerRuntime } from '../src/trigger-runtime.js';
+import type { TriggerStore } from '../src/trigger-store.js';
 import { UserStore } from '../src/user-store.js';
 import { DEFAULT_PLANS } from '../src/plans.js';
 
 function makeMockLauncher(): RunLauncher {
   return { launch: async () => ({ run_id: 'mock-run-id' }), cancel: async () => {}, subscribe: () => () => {} };
 }
-const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
-const nullIntegrationStore = {} as unknown as IntegrationStore;
+const nullTriggerRuntime = { registerRoutes: () => {} } as unknown as TriggerRuntime;
+const nullTriggerStore = {} as unknown as TriggerStore;
 
 function makeTempUserStore() {
   const dir = resolve('/tmp', `.studio-users-route-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -29,8 +29,8 @@ function buildTestServer(userStore: UserStore, apiKey?: string) {
     configsDir: '/tmp/.studio',
     projectName: 'test',
     apiConfig: apiKey ? { key: apiKey } : {},
-    integrationRuntime: nullIntegrationRuntime,
-    integrationStore: nullIntegrationStore,
+    triggerRuntime: nullTriggerRuntime,
+    triggerStore: nullTriggerStore,
     userStore,
     plans: DEFAULT_PLANS,
     hasUsers: userStore.listUsers().length > 0,

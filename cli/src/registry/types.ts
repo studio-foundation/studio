@@ -5,7 +5,7 @@
 export type PackageType = 'template' | 'plugin';
 
 /** What a plugin delivers into `.studio/`. */
-export type ContentKind = 'tool' | 'agent' | 'skill' | 'integration' | 'pipeline' | 'contract' | 'input';
+export type ContentKind = 'tool' | 'agent' | 'skill' | 'trigger' | 'pipeline' | 'contract' | 'input';
 
 /** A plugin's declared contents, by kind. Search reads it; install verifies nothing against it. */
 export type PackageProvides = Partial<Record<`${ContentKind}s`, string[]>>;
@@ -103,7 +103,7 @@ export const CONTENT_DIRS: Record<ContentKind, string> = {
   tool: 'tools',
   agent: 'agents',
   skill: 'skills',
-  integration: 'integrations',
+  trigger: 'triggers',
   pipeline: 'pipelines',
   contract: 'contracts',
   input: 'inputs',
@@ -117,7 +117,7 @@ export const CONTENT_EXTENSIONS: Record<string, ContentKind> = {
   '.tool.yaml': 'tool',
   '.agent.yaml': 'agent',
   '.skill.md': 'skill',
-  '.integration.yaml': 'integration',
+  '.trigger.yaml': 'trigger',
   '.pipeline.yaml': 'pipeline',
   '.contract.yaml': 'contract',
   '.input.yaml': 'input',

@@ -30,7 +30,6 @@ export interface StudioConfig {
     key?: string;
     port?: number;
   };
-  integrations?: Record<string, Record<string, unknown>>;
   db?: {
     type?: 'sqlite' | 'postgres' | 'inmemory';
     url?: string;   // required when type is 'postgres'

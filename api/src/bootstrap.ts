@@ -17,7 +17,6 @@ import {
   ToolRegistry,
   loadProjectTools,
   loadPlugins,
-  loadProjectIntegrations,
   MCPClient,
   type SkillContent,
 } from '@studio-foundation/runner';
@@ -26,8 +25,9 @@ import { RunEventBus } from './event-bus.js';
 import type { MaskedConfig } from './server.js';
 import { WebhookStore } from './webhook-store.js';
 import { WebhookDispatcher } from './webhook-dispatcher.js';
-import { IntegrationStore } from './integration-store.js';
-import { IntegrationRuntime } from './integration-runtime.js';
+import { TriggerStore } from './trigger-store.js';
+import { TriggerRuntime } from './trigger-runtime.js';
+import { loadProjectTriggers } from './triggers/trigger-loader.js';
 import { HttpApiSpawner } from './spawners/http-api-spawner.js';
 import { resolvePlans, type PlansConfig } from './plans.js';
 import { UserStore } from './user-store.js';
@@ -42,7 +42,6 @@ export interface StudioApiConfig {
   paths?: { projects_dir?: string };
   defaults?: { provider?: string; model?: string };
   api?: { key?: string; port?: number };
-  integrations?: Record<string, Record<string, unknown>>;
   db?: {
     type?: 'sqlite' | 'postgres' | 'inmemory';
     url?: string;
@@ -67,8 +66,8 @@ export interface BootstrapResult {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
-  integrationStore: IntegrationStore;
-  integrationRuntime: IntegrationRuntime;
+  triggerStore: TriggerStore;
+  triggerRuntime: TriggerRuntime;
   userStore: UserStore | PgUserStore;
   plans: PlansConfig;
 }
@@ -121,7 +120,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
 
   const dbType = config.db?.type ?? 'sqlite';
 
-  // WebhookStore and IntegrationStore are always SQLite — they are separate from RunStore
+  // WebhookStore and TriggerStore are always SQLite — they are separate from RunStore
   const dbPath = join(studioDir, 'runs', 'runs.db');
 
   let store: AnyRunStore;
@@ -209,20 +208,17 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
   const projectName = studioDir.split('/').slice(-2, -1)[0] ?? 'studio-project';
 
   const webhookStore = new WebhookStore(dbPath);
-  const integrationStore = new IntegrationStore(dbPath);
-  const integrationsDir = join(studioDir, 'integrations');
-  const loadedIntegrations = await loadProjectIntegrations(integrationsDir);
-  const integrationConfigs = (config.integrations ?? {}) as Record<string, Record<string, unknown>>;
-  const integrationRuntime = new IntegrationRuntime({
-    integrations: loadedIntegrations,
-    store: integrationStore,
+  const triggerStore = new TriggerStore(dbPath);
+  const triggersDir = join(studioDir, 'triggers');
+  const triggerRuntime = new TriggerRuntime({
+    triggers: await loadProjectTriggers(triggersDir),
+    store: triggerStore,
     launcher,
     configsDir: studioDir,
-    projectsDir: config.paths?.projects_dir,
-    apiConfig: config.api ?? {},
-    integrationConfigs,
+    triggersDir,
+    ...(config.paths?.projects_dir ? { projectsDir: config.paths.projects_dir } : {}),
   });
-  integrationRuntime.setupEventBus(bus);
+  triggerRuntime.setupEventBus(bus);
   const webhookDispatcher = new WebhookDispatcher(webhookStore, projectName);
   bus.subscribeAll((runId, event) => {
     void webhookDispatcher.handleBusEvent(runId, event.type, event.data);
@@ -238,8 +234,8 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     studioVersion,
     maskedConfig,
     webhookStore,
-    integrationStore,
-    integrationRuntime,
+    triggerStore,
+    triggerRuntime,
     userStore,
     plans,
     cleanup: async () => {
@@ -253,7 +249,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
         await userStore.close();
       }
       webhookStore.close();
-      integrationStore.close();
+      triggerStore.close();
     },
   };
 }

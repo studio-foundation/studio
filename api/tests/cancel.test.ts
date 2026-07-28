@@ -3,8 +3,8 @@ import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from '../src/launcher.js';
 import type { PipelineRun } from '@studio-foundation/contracts';
-import type { IntegrationRuntime } from '../src/integration-runtime.js';
-import type { IntegrationStore } from '../src/integration-store.js';
+import type { TriggerRuntime } from '../src/trigger-runtime.js';
+import type { TriggerStore } from '../src/trigger-store.js';
 
 function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   return {
@@ -17,8 +17,8 @@ function makeRun(overrides: Partial<PipelineRun> = {}): PipelineRun {
   } as PipelineRun;
 }
 
-const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
-const nullIntegrationStore = {} as unknown as IntegrationStore;
+const nullTriggerRuntime = { registerRoutes: () => {} } as unknown as TriggerRuntime;
+const nullTriggerStore = {} as unknown as TriggerStore;
 
 function makeServer(store = new InMemoryRunStore(), launcher?: Partial<RunLauncher>) {
   return buildServer({
@@ -32,8 +32,8 @@ function makeServer(store = new InMemoryRunStore(), launcher?: Partial<RunLaunch
     configsDir: '/tmp/.studio',
     projectName: 'test',
     apiConfig: {},
-    integrationRuntime: nullIntegrationRuntime,
-    integrationStore: nullIntegrationStore,
+    triggerRuntime: nullTriggerRuntime,
+    triggerStore: nullTriggerStore,
   } as any);
 }
 

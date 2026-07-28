@@ -9,8 +9,8 @@ import swaggerUi from '@fastify/swagger-ui';
 import type { AnyRunStore } from '@studio-foundation/engine';
 import type { RunLauncher } from './launcher.js';
 import type { WebhookStore } from './webhook-store.js';
-import type { IntegrationStore } from './integration-store.js';
-import type { IntegrationRuntime } from './integration-runtime.js';
+import type { TriggerStore } from './trigger-store.js';
+import type { TriggerRuntime } from './trigger-runtime.js';
 import type { UserStore } from './user-store.js';
 import type { PgUserStore } from './user-store-pg.js';
 import { getPlanLimits, DEFAULT_PLANS, type PlansConfig } from './plans.js';
@@ -47,8 +47,8 @@ export interface ServerDeps {
   studioVersion: string;
   maskedConfig: MaskedConfig;
   webhookStore: WebhookStore;
-  integrationStore: IntegrationStore;
-  integrationRuntime: IntegrationRuntime;
+  triggerStore: TriggerStore;
+  triggerRuntime: TriggerRuntime;
   userStore?: UserStore | PgUserStore;
   plans?: PlansConfig;
   /** true when at least one user exists in the DB — computed at bootstrap time to avoid per-request DB calls */
@@ -87,7 +87,7 @@ export function buildServer(deps: ServerDeps) {
       'x-ratelimit-remaining': true,
       'x-ratelimit-reset': true,
     },
-    allowList: (req: FastifyRequest) => req.url.startsWith('/api/integrations/'),
+    allowList: (req: FastifyRequest) => req.url.startsWith('/api/triggers/'),
   });
 
   if (process.env['NODE_ENV'] !== 'production') {
@@ -111,7 +111,7 @@ export function buildServer(deps: ServerDeps) {
   //   3. Open/dev: no users, no api.key → allow all (local dev only)
   fastify.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?')[0];
-    if (path.startsWith('/api/integrations/')) return;
+    if (path.startsWith('/api/triggers/')) return;
 
     const auth = request.headers['authorization'];
     const token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
@@ -149,7 +149,7 @@ export function buildServer(deps: ServerDeps) {
   void fastify.register(validateRoutes, { prefix: '/api', deps });
   void fastify.register(webhooksRoutes, { prefix: '/api', deps });
   void fastify.register(usersRoutes, { prefix: '/api', deps });
-  deps.integrationRuntime.registerRoutes(fastify, '/api');
+  deps.triggerRuntime.registerRoutes(fastify, '/api');
 
   return fastify;
 }

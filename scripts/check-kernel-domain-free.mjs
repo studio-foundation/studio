@@ -21,6 +21,15 @@ const MARKETPLACE_ACTIONS =
   /\b(?:git-(?:checkout|commit|push|pull|status|diff)|search-search_codebase|web_search-search)\b/g;
 const MARKETPLACE_FACTORIES = /\bcreate(?:Git|Search|WebSearch)Tools\b/g;
 
+/**
+ * Source paths that would mean a vendor's behaviour came back into the kernel
+ * (STU-698). Checked against the path, not the contents: "linear" is an ordinary
+ * English adjective in prose and a fixture name in MCP tests, but nobody names a
+ * directory after a product by accident. `src/integrations/` is listed because that
+ * is exactly where the handlers this invariant removed used to live.
+ */
+const DOMAIN_PATHS = /(?:^|\/)(?:integrations|linear|jira|slack|notion)(?:\/|\.[a-z]+$)/;
+
 const violations = [];
 
 async function walk(dir, exempt = []) {
@@ -43,12 +52,12 @@ const listing = async (dir) => {
   }
 };
 
-// --- Bundled templates: only the builtins, and never an integration ---
+// --- Bundled templates: only the builtins, and never a trigger ---
 for (const pkg of PACKAGES) {
   for (const file of await listing(join(ROOT, pkg, 'templates'))) {
     const rel = relative(ROOT, file);
-    if (file.endsWith('.integration.yaml')) {
-      violations.push(`${rel} — the kernel bundles no integration`);
+    if (file.endsWith('.trigger.yaml') || file.endsWith('.integration.yaml')) {
+      violations.push(`${rel} — the kernel bundles no trigger`);
     } else if (file.endsWith('.tool.yaml')) {
       const name = file.slice(file.lastIndexOf('/') + 1, -'.tool.yaml'.length);
       if (!BUILTIN_TOOLS.includes(name)) {
@@ -71,6 +80,17 @@ for (const pkg of PACKAGES) {
           violations.push(`${relative(ROOT, file)}:${i + 1} — "${match[0]}" left the kernel`);
         }
       });
+    }
+  }
+}
+
+// --- Source layout: no directory or file named after a product ---
+for (const pkg of PACKAGES) {
+  for (const file of await listing(join(ROOT, pkg, 'src'))) {
+    const rel = relative(ROOT, file);
+    const match = rel.slice(`${pkg}/src/`.length).match(DOMAIN_PATHS);
+    if (match) {
+      violations.push(`${rel} — "${match[0].replace(/[/.]/g, '')}" is a product the kernel must not implement`);
     }
   }
 }
