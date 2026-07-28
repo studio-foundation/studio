@@ -135,7 +135,7 @@ studio plugin remove <name>                      # Uninstall a plugin
 studio plugin list                               # List installed plugins
 ```
 
-A marketplace publishes two kinds of package: a **template**, which starts a project (`studio init --template X`), and a **plugin**, which adds to one that exists (`studio plugin add X`). Everything else — tools, agents, skills, integrations, pipelines, contracts, inputs — is a *content kind* carried inside a plugin, dispatched on install to its `.studio/` subdirectory by filename suffix. Payload filenames are kept as published, because the agent and skill loaders resolve by filename.
+A marketplace publishes two kinds of package: a **template**, which starts a project (`studio init --template X`), and a **plugin**, which adds to one that exists (`studio plugin add X`). Everything else — tools, agents, skills, triggers, pipelines, contracts, inputs — is a *content kind* carried inside a plugin, dispatched on install to its `.studio/` subdirectory by filename suffix. Payload filenames are kept as published, because the agent and skill loaders resolve by filename.
 
 ### Registry
 
@@ -242,7 +242,6 @@ The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<it
 ### Other
 
 ```bash
-studio integrations list                         # Manage integrations (install, list, remove, test, set)
 studio api start                                 # Start the HTTP REST API (also: stop, status)
 ```
 
@@ -263,6 +262,7 @@ my-project/
 │   ├── tools/                   # *.tool.yaml
 │   ├── skills/                  # *.skill.md (optional, user-created)
 │   ├── inputs/                  # *.input.yaml
+│   ├── triggers/                # *.trigger.yaml (optional, from a plugin)
 │   ├── registry.lock.json       # Tool versions (committed)
 │   └── runs/                    # Runtime data (gitignored)
 │       ├── runs.db              # SQLite
@@ -273,7 +273,7 @@ my-project/
 └── .gitignore
 ```
 
-**Committed:** `config.example.yaml`, `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `registry.lock.json`, `ONBOARDING.md`
+**Committed:** `config.example.yaml`, `pipelines/`, `agents/`, `contracts/`, `tools/`, `skills/`, `inputs/`, `triggers/`, `registry.lock.json`, `ONBOARDING.md`
 
 **Gitignored:** `config.yaml` (API keys), `runs/`
 

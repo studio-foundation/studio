@@ -21,6 +21,7 @@ import type { PackageMetadata, PackageSource, Lockfile } from '../../registry/ty
 import { CONTENT_DIRS, TEMPLATE_DIR, contentKindOf } from '../../registry/types.js';
 
 const SHELL_EXEC_PATTERN = /execute:\s*\n\s+type:\s*shell/;
+const TRIGGER_COMMAND_PATTERN = /on_failure:\s*\n\s+command:/;
 
 /** Shipped alongside the payload, installed nowhere: not content, not a mistake. */
 const NON_PAYLOAD = /^(metadata\.json|LICEN[SC]E(\.[\w-]+)?|README(\.[\w-]+)?|CHANGELOG(\.[\w-]+)?)$/i;
@@ -61,9 +62,12 @@ async function writePluginPayload(
   return { files: written, sha256: hash.digest('hex') };
 }
 
-/** True if any tool the plugin ships runs shell commands. */
+/** True if anything the plugin ships runs shell commands — a tool, or a trigger's on_failure. */
 function shellsOut(files: PayloadFile[]): boolean {
-  return files.some(f => f.path.endsWith('.tool.yaml') && SHELL_EXEC_PATTERN.test(f.content));
+  return files.some(f =>
+    (f.path.endsWith('.tool.yaml') && SHELL_EXEC_PATTERN.test(f.content)) ||
+    (f.path.endsWith('.trigger.yaml') && TRIGGER_COMMAND_PATTERN.test(f.content))
+  );
 }
 
 async function installTemplate(
@@ -170,7 +174,7 @@ async function doInstallPackage(
     if (shellsOut(payload) && options.interactive !== false) {
       const { confirm } = await import('@inquirer/prompts');
       const proceed = await confirm({
-        message: chalk.yellow(`⚠ '${name}' ships a tool that executes shell commands. Install anyway?`),
+        message: chalk.yellow(`⚠ '${name}' ships content that executes shell commands. Install anyway?`),
         default: false,
       });
       if (!proceed) {

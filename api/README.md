@@ -2,7 +2,7 @@
 
 **Studio** is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. This package is the **HTTP REST API**: the machine-to-machine interface over the same engine the CLI uses. Like GitHub is to `git`.
 
-It wraps the engine in a Fastify server and handles fire-and-forget pipeline launches, real-time SSE streaming, webhook dispatch (Linear, Slack, CI/CD), and integration lifecycle. Use it to drive Studio from anything that can make an HTTP call.
+It wraps the engine in a Fastify server and handles fire-and-forget pipeline launches, real-time SSE streaming, outbound webhook dispatch, and inbound webhook triggers. Use it to drive Studio from anything that can make an HTTP call.
 
 - Homepage: https://github.com/studio-foundation/studio
 - Full docs: [README](https://github.com/studio-foundation/studio#readme) · [API reference](https://github.com/studio-foundation/studio/blob/main/API.md)
@@ -147,11 +147,11 @@ es.addEventListener('pipeline_complete', (e) => { es.close(); });
 // GET /api/runs/:id/stream?events=stage_complete,tool_call_complete
 ```
 
-## Integrations
+## Triggers
 
-The API manages integration lifecycle (webhook routing, failure handling). Integrations are configured via `.studio/config.yaml` and declared via `.integration.yaml` files in `.studio/integrations/`.
+Each `.trigger.yaml` in `.studio/triggers/` gets an inbound endpoint: `POST /api/triggers/<name>/webhook`. The API verifies the HMAC signature, matches the payload against the trigger's `when:` conditions, maps it into pipeline input, and launches the run — 202 with the run id on a match, 200 `{ignored: true}` when it does not match, 401 on a bad signature.
 
-**Linear integration**: drag an issue to "In Progress" → Studio receives the webhook → auto-launches the matching pipeline → posts results as a comment → moves the issue to "Done" on success.
+No product is named in this package. Which events count, which field becomes which input, and what runs on failure are the trigger file's own opinions, so serving a new external system is a marketplace package rather than a release of this one. See [ADR 0004](https://github.com/studio-foundation/studio/blob/main/docs/adr/0004-triggers-over-integrations.md).
 
 ## Sub-pipeline spawning
 
@@ -167,7 +167,7 @@ Bootstrap internals — `bootstrap(cwd)` is the composition root:
 4. Creates `ProviderRegistry`, `ToolRegistry` (loads `.tool.yaml` plugins)
 5. Loads Claude Code plugins (`MCPClient` per server)
 6. Creates `HttpApiSpawner`, `PipelineEngine`, `InProcessLauncher`
-7. Creates `WebhookStore`, `IntegrationStore`, `IntegrationRuntime`
+7. Creates `WebhookStore`, `TriggerStore`, `TriggerRuntime`
 8. Returns `BootstrapResult` passed to `buildServer()`
 
 Internal rules that govern this package:

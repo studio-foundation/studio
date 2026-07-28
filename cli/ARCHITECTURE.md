@@ -22,7 +22,6 @@ Interface terminal pour Studio. Composition root — câble toutes les dépendan
 - `commands/registry/` — `studio registry install|remove|search|publish|audit|sync|update`
 - `commands/templates.ts` — `studio templates`
 - `commands/template/` — `studio template validate`
-- `commands/integrations.ts` — `studio integrations`
 - `commands/project.ts` — `studio project`
 - `commands/api.ts` — `studio api start`
 - `commands/validate.ts` — `studio validate <contract> <output.json>`

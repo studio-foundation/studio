@@ -1,0 +1,61 @@
+name: linear
+version: 1
+description: "Launch a pipeline when an issue moves to In Progress, and report back if the run fails"
+
+pipeline: feature-builder
+
+webhook:
+  hmac:
+    header: linear-signature
+    secret: ${LINEAR_WEBHOOK_SECRET}
+  when:
+    - payload.type == "Issue"
+    - payload.action == "update"
+    - payload.data.state.name == "In Progress"
+
+input:
+  brief_summary: "{{payload.data.identifier}} — {{payload.data.title}}"
+  description: "{{payload.data.description}}"
+  acceptance_criteria: []
+
+meta:
+  issue_id: "{{payload.data.id}}"
+  issue_identifier: "{{payload.data.identifier}}"
+  issue_url: "{{payload.data.url}}"
+
+log:
+  external_id: "{{payload.data.id}}"
+  external_label: "{{payload.data.identifier}} — {{payload.data.title}}"
+  external_url: "{{payload.data.url}}"
+
+# Comments the failure on the issue and moves it back to Backlog. Both the target
+# state and the comment wording are this file's opinion — edit them, they are not
+# enforced anywhere. Values arrive through the environment, never interpolated
+# into this command: the payload that produced them comes from outside.
+on_failure:
+  timeout_ms: 20000
+  command: |
+    set -eu
+    api=https://api.linear.app/graphql
+    auth="Authorization: $LINEAR_API_KEY"
+    json='Content-Type: application/json'
+
+    issue=$(printf '%s' "$STUDIO_META" | jq -r '.issue_id // empty')
+    [ -n "$issue" ] || exit 0
+
+    body=$(jq -rn --arg run "$STUDIO_RUN_ID" --arg status "$STUDIO_RUN_STATUS" --arg reason "$STUDIO_REJECTION_REASON" \
+      '"Studio run \($status)." + (if $reason == "" then "" else "\n\nLast rejection: \($reason)" end) + "\n\nRun ID: \($run)"')
+
+    jq -n --arg id "$issue" --arg body "$body" \
+      '{query:"mutation($id:String!,$body:String!){commentCreate(input:{issueId:$id,body:$body}){success}}",variables:{id:$id,body:$body}}' \
+      | curl -sS -X POST "$api" -H "$auth" -H "$json" -d @- > /dev/null
+
+    state=$(jq -n --arg id "$issue" \
+      '{query:"query($id:String!){issue(id:$id){team{states{nodes{id name}}}}}",variables:{id:$id}}' \
+      | curl -sS -X POST "$api" -H "$auth" -H "$json" -d @- \
+      | jq -r '.data.issue.team.states.nodes[] | select(.name == "Backlog") | .id')
+    [ -n "$state" ] || exit 0
+
+    jq -n --arg id "$issue" --arg state "$state" \
+      '{query:"mutation($id:String!,$state:String!){issueUpdate(id:$id,input:{stateId:$state}){success}}",variables:{id:$id,state:$state}}' \
+      | curl -sS -X POST "$api" -H "$auth" -H "$json" -d @- > /dev/null

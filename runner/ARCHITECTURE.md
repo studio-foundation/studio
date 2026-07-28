@@ -39,7 +39,6 @@ Agent runner multi-provider. Parle aux LLMs, exécute les tools, streame les tok
 - `middleware/anonymization.ts` — `AnonymizationMiddleware` (wraps `@studio-foundation/anonymizer`)
 - `plugins/plugin-loader.ts` — charge les plugins Claude Code (`.mcp.json` + `skills/`)
 - `plugins/mcp-client.ts` — `MCPClient` (connexion aux serveurs MCP)
-- `integrations/integration-loader.ts` — charge les `.integration.yaml`
 
 ## Hooks callbacks
 

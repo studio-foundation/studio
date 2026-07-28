@@ -279,7 +279,7 @@ Both run a hybrid stack: domain logic in external scripts (Python for Wiki Creat
 
 ## Community registry
 
-[studio-community](https://github.com/studio-foundation/studio-community) is the shared registry for tools, templates, pipelines, integrations, agents, plugins, and skills. Open publish, no review gate.
+[studio-community](https://github.com/studio-foundation/studio-community) is the shared registry for tools, templates, pipelines, triggers, agents, plugins, and skills. Open publish, no review gate.
 
 ```bash
 studio registry search <query>

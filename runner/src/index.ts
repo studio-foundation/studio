@@ -58,5 +58,3 @@ export type { PluginManifest, MCPServerDef, SkillContent } from './plugins/index
 export { loadSkills, loadSkill, validateSkillManifest } from './tools/skills/skill-loader.js';
 export type { SkillManifest } from './tools/skills/skill-loader.js';
 
-// Integration plugin system
-export { loadProjectIntegrations } from './integrations/integration-loader.js';

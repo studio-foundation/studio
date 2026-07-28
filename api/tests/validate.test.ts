@@ -3,13 +3,13 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildServer } from '../src/server.js';
 import { InMemoryRunStore } from '@studio-foundation/engine';
-import type { IntegrationRuntime } from '../src/integration-runtime.js';
-import type { IntegrationStore } from '../src/integration-store.js';
+import type { TriggerRuntime } from '../src/trigger-runtime.js';
+import type { TriggerStore } from '../src/trigger-store.js';
 
 const TMP = resolve('/tmp', `.studio-validate-test-${Date.now()}`);
 
-const nullIntegrationRuntime = { registerRoutes: () => {} } as unknown as IntegrationRuntime;
-const nullIntegrationStore = {} as unknown as IntegrationStore;
+const nullTriggerRuntime = { registerRoutes: () => {} } as unknown as TriggerRuntime;
+const nullTriggerStore = {} as unknown as TriggerStore;
 
 function makeServer() {
   return buildServer({
@@ -20,8 +20,8 @@ function makeServer() {
     apiConfig: {},
     studioVersion: '0.0.0-test',
     maskedConfig: { providers: [] },
-    integrationRuntime: nullIntegrationRuntime,
-    integrationStore: nullIntegrationStore,
+    triggerRuntime: nullTriggerRuntime,
+    triggerStore: nullTriggerStore,
   });
 }
 

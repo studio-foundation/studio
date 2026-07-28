@@ -83,9 +83,9 @@ export async function apiStartCommand(options: ApiOptions): Promise<void> {
     process.exit(1);
   }
 
-  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime } = result;
+  const { store, launcher, configsDir, projectName, apiConfig, cleanup, studioVersion, maskedConfig, webhookStore, triggerStore, triggerRuntime } = result;
   const port = options.port ? parseInt(options.port, 10) : (apiConfig.port ?? 3700);
-  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore, integrationStore, integrationRuntime });
+  const server = buildServer({ store, launcher, configsDir, projectName, apiConfig, studioVersion, maskedConfig, webhookStore, triggerStore, triggerRuntime });
 
   await writePid(port);
 

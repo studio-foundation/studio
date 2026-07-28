@@ -2,7 +2,7 @@
 
 HTTP REST API for machine-to-machine usage.
 
-The API serves workflows where there's no human at the terminal — webhook-triggered runs from Linear, GitHub Actions, Slack bots, dashboards. Same engine as the CLI, different interface.
+The API serves workflows where there's no human at the terminal — webhook-triggered runs from an issue tracker, a CI job, a chat bot, a dashboard. Same engine as the CLI, different interface.
 
 Start the server:
 
@@ -142,21 +142,38 @@ Raw OpenAPI spec at `/api/docs/json` for client generation.
 
 ---
 
-## Integrations
+## Triggers
 
-**Linear:** webhook handler auto-launches pipelines on issue status changes. Drag an issue to "In Progress" → Studio runs the matching pipeline → results posted as comment → issue moves to "Done".
+A trigger is an inbound webhook that launches a run, declared in
+`.studio/triggers/<name>.trigger.yaml`. The API serves one endpoint per file; everything
+specific to the sending system — which deliveries count, how the payload becomes pipeline
+input, what to run if the pipeline fails — is written in that YAML, not in Studio.
 
-**CI/CD:** trigger pipelines from GitHub Actions via `POST /api/runs`.
+```
+GET    /api/triggers/:name           — the trigger, its pipeline, and its recent deliveries
+POST   /api/triggers/:name/webhook   — receive a delivery
+```
 
-**Webhooks:** register HTTP callbacks for pipeline events (start, complete, reject, fail).
+`POST` verifies the `webhook.hmac` signature, evaluates every `webhook.when` condition
+against `payload.<path>`, and either launches the run (`202`, with `run_id` and
+`stream_url`) or reports why it did not (`200` with `ignored: true`, `401` on a bad
+signature, `400` on a malformed body). Triggers are unauthenticated by design — the HMAC
+signature is what authenticates the sender, so the API key is not required on these routes.
+
+See CONCEPTS.md for the file format.
+
+**Other ways in:** `POST /api/runs` for a caller that can hold an API key (CI, a script),
+and outbound webhooks (`/api/webhooks`) for HTTP callbacks on pipeline events.
 
 ---
 
-## Example: Linear webhook to PR
+## Example: an issue tracker webhook to a PR
 
-The current priority workflow: a Linear issue moves to "In Progress" and Studio runs `feature-builder`, commits the result, and opens a PR.
+An issue moves to "In Progress", Studio runs `feature-builder`, commits the result, and
+opens a PR. A trigger file does step 1; the example below shows the equivalent done by
+hand through `POST /api/runs`.
 
-**1. Linear posts to Studio when an issue changes status:**
+**1. The tracker posts to Studio when an issue changes status:**
 
 ```http
 POST /api/runs HTTP/1.1
@@ -169,7 +186,7 @@ Content-Type: application/json
   "input": {
     "title": "Add dark mode toggle",
     "description": "Toggle in the settings page, persisted to localStorage.",
-    "linear_issue_id": "ENG-1234"
+    "issue_id": "ENG-1234"
   }
 }
 ```
@@ -187,9 +204,9 @@ curl -N -H "Authorization: Bearer $STUDIO_API_KEY" \
   "https://studio.example.internal/api/runs/run_01HXY.../stream?events=onStageComplete,onPipelineComplete"
 ```
 
-**4. On `onPipelineComplete`, the registered webhook fires** with the final status, files changed, and any artifacts produced by the pipeline. The webhook handler creates the commit and PR, and posts the link back to the Linear issue.
+**4. On `onPipelineComplete`, the registered webhook fires** with the final status, files changed, and any artifacts produced by the pipeline. The receiving handler creates the commit and PR, and posts the link back to the issue.
 
-The hand-off between Studio and the surrounding system is the webhook contract. Studio runs the pipeline; what happens around it (PR creation, Slack notification, issue update) lives in the integration layer.
+The hand-off between Studio and the surrounding system is the webhook contract in both directions: a trigger brings work in, an outbound webhook or a tool reports it back out. Studio runs the pipeline; what happens around it lives outside the kernel.
 
 ---
 
