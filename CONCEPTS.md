@@ -378,6 +378,51 @@ Tools live in runner, not engine. The engine passes configs to the runner. The r
 
 ---
 
+## Triggers
+
+A `.trigger.yaml` in `.studio/triggers/` is an **inbound** webhook: an external system POSTs to Studio and a run starts. It is the one direction tools and MCP servers do not cover — those are outbound, Studio calling out. Anything a trigger needs to *say back* to that system is a tool call, not part of the trigger.
+
+Serving one is `studio api start`; each trigger gets `POST /api/triggers/<name>/webhook`.
+
+```yaml
+name: tracker
+version: 1
+pipeline: feature-builder
+
+webhook:
+  hmac:
+    header: x-tracker-signature      # hex sha256 of the raw body
+    secret: ${TRACKER_WEBHOOK_SECRET}
+  when:                              # same syntax as a stage `when:`, over `payload.`
+    - payload.type == "Issue"
+    - payload.data.state.name == "In Progress"
+
+input:                               # pipeline input, `{{payload.<path>}}` resolved
+  brief_summary: "{{payload.data.title}}"
+
+meta:                                # recorded on the run, not sent to the agent
+  issue_id: "{{payload.data.id}}"
+
+log:                                 # what `GET /api/triggers/<name>` shows per delivery
+  external_id: "{{payload.data.id}}"
+  external_label: "{{payload.data.title}}"
+  external_url: "{{payload.data.url}}"
+
+on_failure:                          # runs when the launched run does not succeed
+  timeout_ms: 20000
+  command: ./notify.sh
+```
+
+**No `when:` means every delivery matches** — the file's existence is the opt-in. A delivery that does not match answers `200 {ignored: true}`; a bad signature answers `401`; a match answers `202` with the run id.
+
+**`hmac` fails loud.** A secret written as `${VAR}` with nothing behind it resolves to nothing, and the loader refuses the trigger rather than serve an endpoint that quietly stopped verifying.
+
+**`on_failure` receives its values through the environment** — `STUDIO_TRIGGER`, `STUDIO_RUN_ID`, `STUDIO_RUN_STATUS`, `STUDIO_META` (JSON), `STUDIO_REJECTION_REASON`, `STUDIO_REJECTION_DETAILS` (JSON) — never interpolated into the command string. The payload that produced them came from outside; interpolating it would let the sender run anything.
+
+The kernel names no product here. Which events count, which field becomes which input, and what failure does are all the trigger file's opinions, so publishing one for a new system is a marketplace package, not a Studio release.
+
+---
+
 ## Packages: templates and plugins
 
 A marketplace publishes two kinds of package, each defined by its install verb:
@@ -388,7 +433,7 @@ A marketplace publishes two kinds of package, each defined by its install verb:
 | Verb | `studio init --template X` | `studio plugin add X` |
 | Cardinality | one per project, at creation | many, at any time |
 
-Tools, agents, skills, integrations, pipelines, contracts and inputs are not package types. They are **content kinds** carried inside a plugin, declared in its `metadata.json`:
+Tools, agents, skills, triggers, pipelines, contracts and inputs are not package types. They are **content kinds** carried inside a plugin, declared in its `metadata.json`:
 
 ```json
 { "name": "git", "type": "plugin", "provides": { "tools": ["git"] } }

@@ -134,8 +134,15 @@ cat cli/package.json         # dependencies: { "@studio-foundation/engine": ...,
 `repo_manager` (including `apply_patch`), `shell` and `studio_run` qualify. `git` fails
 criterion 2 — version control is a project choice, not a law of nature, and a team on
 another VCS or none at all should not inherit one. `search` fails criterion 1 (shell plus
-ripgrep). `web_search` fails criterion 2 (which provider?). Integrations name commercial
-products by definition and fail it too. All of them live in the marketplace.
+ripgrep). `web_search` fails criterion 2 (which provider?). All of them live in the
+marketplace.
+
+The same reasoning covers *inbound* behaviour. An external system pushing to Studio is
+served by a **trigger** (`.studio/triggers/*.trigger.yaml`): the kernel verifies the
+signature, matches the payload and launches the run, while every product-specific
+choice — which events count, which field becomes which input, what to do on failure —
+is written in the trigger's YAML. Anything a trigger does *outbound* is a tool or an
+MCP server, which the kernel already runs. No vendor's conventions live in kernel code.
 
 The kernel carries a **seed cache** of the official marketplace under
 `cli/templates/seed/` so a fresh install works with no network. The difference from a
@@ -146,12 +153,14 @@ does not interpret, which is why the seed is exempt from the check below.
 
 **Enforced by:** [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs),
 run as `pnpm check:kernel` and blocking in CI. It fails when a package bundles a
-`.integration.yaml`, bundles a `.tool.yaml` outside the builtin allowlist, or references
-a tool action that left the kernel.
+`.trigger.yaml`, bundles a `.tool.yaml` outside the builtin allowlist, references a tool
+action that left the kernel, or names a source directory after a product.
 
-**Known exception:** `api/src/integrations/` still hardcodes one tracker's webhook and
-failure handling. It predates this invariant and is a behavioural migration rather than a
-packaging one, so the check does not cover `*/src/integrations/` yet.
+That last check reads the *path*, not the contents. Grepping source text for vendor names
+was tried and abandoned: "linear" is an ordinary English adjective and a fixture name in
+the MCP tests, so it fired on prose. A directory named after a product is unambiguous,
+and it is the shape the violation actually took — `api/src/integrations/linear/` held one
+tracker's webhook and failure handling until STU-698 deleted it.
 
 **What breaks if violated:** the kernel accumulates opinions its users cannot override.
 A bundled `prompt_snippet` dictating a branching model, or a hardcoded search provider,

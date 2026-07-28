@@ -320,8 +320,8 @@
     {
       "name": "linear",
       "type": "plugin",
-      "version": "1.0.0",
-      "description": "Triggers pipelines from Linear webhook events and syncs issue status on pipeline completion or failure",
+      "version": "2.0.0",
+      "description": "Launches a pipeline from a Linear webhook and reports failures back on the issue",
       "author": "studio-core",
       "license": "MIT",
       "tags": [
@@ -331,7 +331,7 @@
         "webhooks",
         "triggers"
       ],
-      "studio_version": ">=0.2.0",
+      "studio_version": ">=0.13.0",
       "downloads": 0,
       "dependencies": {},
       "source": {
@@ -339,7 +339,7 @@
         "path": "plugins/linear"
       },
       "provides": {
-        "integrations": [
+        "triggers": [
           "linear"
         ]
       }
@@ -501,32 +501,6 @@
       }
     },
     {
-      "name": "slack",
-      "type": "plugin",
-      "version": "1.0.0",
-      "description": "Sends Slack notifications to a configured channel when pipeline events occur, such as completion or failure",
-      "author": "studio-core",
-      "license": "MIT",
-      "tags": [
-        "slack",
-        "notifications",
-        "messaging",
-        "alerts"
-      ],
-      "studio_version": ">=0.2.0",
-      "downloads": 0,
-      "dependencies": {},
-      "source": {
-        "type": "local",
-        "path": "plugins/slack"
-      },
-      "provides": {
-        "integrations": [
-          "slack"
-        ]
-      }
-    },
-    {
       "name": "studio-run",
       "type": "plugin",
       "version": "1.0.0",
@@ -573,33 +547,6 @@
       "provides": {
         "tools": [
           "web-search"
-        ]
-      }
-    },
-    {
-      "name": "webhook",
-      "type": "plugin",
-      "version": "1.0.0",
-      "description": "Sends generic HTTP webhook notifications for pipeline and stage lifecycle events including start, completion, and failure",
-      "author": "studio-core",
-      "license": "MIT",
-      "tags": [
-        "webhook",
-        "http",
-        "notifications",
-        "events",
-        "generic"
-      ],
-      "studio_version": ">=0.2.0",
-      "downloads": 0,
-      "dependencies": {},
-      "source": {
-        "type": "local",
-        "path": "plugins/webhook"
-      },
-      "provides": {
-        "integrations": [
-          "webhook"
         ]
       }
     },

@@ -1,6 +1,6 @@
 // api/src/user-store.ts
 // UserStore — SQLite persistence for users and daily usage
-// Follows same pattern as WebhookStore and IntegrationStore
+// Follows same pattern as WebhookStore and TriggerStore
 // Uses the same DB file as the run store (.studio/runs/runs.db)
 
 import { openDatabase, type SyncDatabase } from '@studio-foundation/engine';

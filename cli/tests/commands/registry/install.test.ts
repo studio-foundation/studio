@@ -33,12 +33,12 @@ const MOCK_METADATA = {
   name: 'linear',
   type: 'plugin',
   version: '1.0.0',
-  description: 'Linear integration',
+  description: 'Linear trigger',
   author: 'studio-core',
   license: 'MIT',
   tags: ['linear'],
   studio_version: '>=0.1.0',
-  provides: { integrations: ['linear'] },
+  provides: { triggers: ['linear'] },
 };
 
 const MOCK_INDEX = {
@@ -51,7 +51,7 @@ const MOCK_INDEX = {
   }],
 };
 
-const FAKE_INTEGRATION_CONTENT = 'name: linear\ntype: integration\n';
+const FAKE_TRIGGER_CONTENT = 'name: linear\npipeline: feature-builder\n';
 
 // Mock syncRegistry to be a no-op (sync already handled), and RegistryCache.read to return mock index
 vi.mock('../../../src/commands/registry/sync.js', () => ({
@@ -70,8 +70,8 @@ beforeEach(async () => {
   await mkdir(STUDIO_DIR, { recursive: true });
   vi.stubGlobal('fetch', routedFetch([
     [/\/plugins\/linear\/metadata\.json$/, MOCK_METADATA],
-    [/\/contents\/plugins\/linear$/, dirListing('plugins/linear', 'linear.integration.yaml')],
-    [/x\/linear\.integration\.yaml$/, FAKE_INTEGRATION_CONTENT],
+    [/\/contents\/plugins\/linear$/, dirListing('plugins/linear', 'linear.trigger.yaml')],
+    [/x\/linear\.trigger\.yaml$/, FAKE_TRIGGER_CONTENT],
     [/x\/metadata\.json$/, JSON.stringify(MOCK_METADATA)],
   ]));
 });
@@ -87,9 +87,9 @@ describe('installPackage', () => {
     const { installPackage } = await import('../../../src/commands/registry/install.js');
     await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
 
-    const dest = resolve(STUDIO_DIR, 'integrations', 'linear.integration.yaml');
+    const dest = resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml');
     const content = await readFile(dest, 'utf8');
-    expect(content).toBe(FAKE_INTEGRATION_CONTENT);
+    expect(content).toBe(FAKE_TRIGGER_CONTENT);
   });
 
   it('records the written files in the lockfile', async () => {
@@ -100,7 +100,7 @@ describe('installPackage', () => {
     expect(lf.installed['linear']).toMatchObject({
       version: '1.0.0',
       type: 'plugin',
-      files: ['integrations/linear.integration.yaml'],
+      files: ['triggers/linear.trigger.yaml'],
     });
     expect(lf.installed['linear'].sha256).toBeTruthy();
   });
@@ -116,7 +116,7 @@ describe('installPackage', () => {
       /Package 'linear' requires Studio >=99\.0\.0/
     );
     await expect(
-      readFile(resolve(STUDIO_DIR, 'integrations', 'linear.integration.yaml'), 'utf8')
+      readFile(resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml'), 'utf8')
     ).rejects.toThrow();
   });
 });
