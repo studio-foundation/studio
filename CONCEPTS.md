@@ -400,6 +400,29 @@ The lockfile records the exact paths a package wrote, so removal and `audit` act
 
 ---
 
+## Marketplaces
+
+A marketplace is a git repository with an `index.json` at its root, listing packages and where each one's payload lives. `studio-community` is the default and needs no registration; `studio marketplace add <url>` registers another, per machine in `~/.studio/marketplaces.json`. A private company marketplace is therefore a repository and one command — no hosted service, no fork of Studio.
+
+```bash
+studio marketplace add https://gitlab.internal/platform/studio-marketplace.git --name acme-corp
+studio registry install acme-corp:internal-deploy
+```
+
+An index entry's `source` says where the payload is:
+
+```json
+"source": { "type": "local", "path": "plugins/git" }
+"source": { "type": "git", "url": "https://github.com/someone/studio-legal.git",
+            "path": "template", "ref": "v2.1.0", "sha": "9f3c1a…" }
+```
+
+`local` is the marketplace repo itself, reviewed as a diff at merge time. `git` is someone else's repository, where review sees a URL and nothing more — so the fetch enforces what the diff cannot: the pinned `sha` must still be what `ref` points at, the payload must ship a LICENSE matching the declared `license`, and it must match `provides` in both directions. Any mismatch fails the install. See [ADR 0001](docs/adr/0001-distribution-model.md) and [CLI.md](CLI.md#marketplaces).
+
+A package name is unique within a marketplace, not across them. An unqualified name that exists in several is refused with the qualified forms spelled out, never resolved by registration order.
+
+---
+
 ## Package dependencies
 
 A registry package declares what it needs in its `metadata.json`. A template supplies pipelines and contracts; the plugins it depends on supply the tools and agents those pipelines reference.

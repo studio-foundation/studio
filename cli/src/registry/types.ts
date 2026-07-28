@@ -15,10 +15,26 @@ export type PackageProvides = Partial<Record<`${ContentKind}s`, string[]>>;
  * marketplace repo, never derived from `name` — the two may diverge. Payload
  * filenames are discovered by listing that directory.
  */
-export interface PackageSource {
+export interface LocalSource {
   type: 'local';
   path: string;
 }
+
+/**
+ * A payload hosted outside the marketplace repo (ADR 0001). `sha` is the commit
+ * actually installed; `ref` is what it is checked against, so an upstream push
+ * that moves the tag fails the install instead of silently changing the payload.
+ */
+export interface GitSource {
+  type: 'git';
+  url: string;
+  /** Package directory inside the repo. Absent means the repository root. */
+  path?: string;
+  ref: string;
+  sha: string;
+}
+
+export type PackageSource = LocalSource | GitSource;
 
 export interface PackageEntry {
   name: string;
@@ -62,6 +78,8 @@ export interface PackageMetadata extends Omit<PackageEntry, 'source'> {
 export interface LockfileEntry {
   /** `template` or `plugin`, or one of the pre-migration types on an older lockfile. */
   type: string;
+  /** Marketplace it came from. Absent on entries written before marketplaces existed. */
+  marketplace?: string;
   version: string;
   installed_at: string;
   sha256: string;
@@ -116,5 +134,3 @@ export function contentKindOf(filename: string): ContentKind | null {
 export const TEMPLATE_DIR = 'projects';
 
 export const REGISTRY_REPO = 'studio-foundation/studio-community';
-export const REGISTRY_RAW_BASE = `https://raw.githubusercontent.com/${REGISTRY_REPO}/main`;
-export const REGISTRY_API_BASE = `https://api.github.com/repos/${REGISTRY_REPO}`;

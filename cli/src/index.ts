@@ -29,6 +29,7 @@ import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/ap
 import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 import { createPluginCommand } from './commands/plugin.js';
+import { createMarketplaceCommand } from './commands/marketplace.js';
 import { usersCommand } from './commands/users.js';
 import { cacheCleanCommand } from './commands/cache.js';
 import { ollamaCommand } from './commands/ollama.js';
@@ -189,6 +190,7 @@ program
   });
 
 program.addCommand(createRegistryCommand());
+program.addCommand(createMarketplaceCommand());
 program.addCommand(createPluginCommand());
 
 const cacheCmd = program.command('cache').description('Manage Studio caches');

@@ -46,7 +46,7 @@ describe('RegistryCache', () => {
     const cache = new RegistryCache(TMP);
     await cache.write(MOCK_INDEX);
     // Force expire by overwriting with old _cached_at
-    const cachePath = resolve(TMP, 'index.json');
+    const cachePath = resolve(TMP, 'studio-community.json');
     const data = JSON.parse(await readFile(cachePath, 'utf8'));
     data._cached_at = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
     await writeFile(cachePath, JSON.stringify(data));

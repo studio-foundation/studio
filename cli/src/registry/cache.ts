@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { RegistryIndex } from './types.js';
+import { DEFAULT_MARKETPLACE } from './dependency-spec.js';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -13,9 +14,9 @@ export class RegistryCache {
   private cacheDir: string;
   private cachePath: string;
 
-  constructor(cacheDir?: string) {
+  constructor(cacheDir?: string, marketplace: string = DEFAULT_MARKETPLACE) {
     this.cacheDir = cacheDir ?? resolve(homedir(), '.cache', 'studio', 'registry');
-    this.cachePath = resolve(this.cacheDir, 'index.json');
+    this.cachePath = resolve(this.cacheDir, `${marketplace.replace(/[^\w.-]/g, '_')}.json`);
   }
 
   async read(): Promise<RegistryIndex | null> {

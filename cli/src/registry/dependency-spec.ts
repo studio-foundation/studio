@@ -4,18 +4,19 @@
  */
 export interface DependencySpec {
   raw: string;
-  marketplace: string;
+  /** Absent when unqualified — the dependency resolves in the dependent's own marketplace. */
+  marketplace?: string;
   name: string;
   range?: string;
 }
 
-/** The marketplace an unqualified dependency name resolves against. */
+/** The marketplace that needs no registration, and where an unqualified CLI name looks first. */
 export const DEFAULT_MARKETPLACE = 'studio-community';
 
 export function parseDependencySpec(raw: string): DependencySpec {
   const trimmed = raw.trim();
   const colon = trimmed.indexOf(':');
-  const marketplace = colon === -1 ? DEFAULT_MARKETPLACE : trimmed.slice(0, colon).trim();
+  const marketplace = colon === -1 ? undefined : trimmed.slice(0, colon).trim();
   const rest = (colon === -1 ? trimmed : trimmed.slice(colon + 1)).trim();
 
   const at = rest.indexOf('@');
@@ -23,7 +24,7 @@ export function parseDependencySpec(raw: string): DependencySpec {
   const range = at === -1 ? undefined : rest.slice(at + 1).trim() || undefined;
 
   if (!name) throw new Error(`Invalid dependency entry: '${raw}'`);
-  if (!marketplace) throw new Error(`Invalid dependency entry: '${raw}' — empty marketplace`);
+  if (colon !== -1 && !marketplace) throw new Error(`Invalid dependency entry: '${raw}' — empty marketplace`);
 
   return { raw: trimmed, marketplace, name, range };
 }

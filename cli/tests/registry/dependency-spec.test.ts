@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseDependencySpec, DEFAULT_MARKETPLACE } from '../../src/registry/dependency-spec.js';
+import { parseDependencySpec } from '../../src/registry/dependency-spec.js';
 
 describe('parseDependencySpec', () => {
-  it('resolves a bare name against the default marketplace', () => {
+  it('leaves a bare name unqualified — it resolves in the dependent own marketplace', () => {
     expect(parseDependencySpec('git')).toEqual({
-      raw: 'git', marketplace: DEFAULT_MARKETPLACE, name: 'git', range: undefined,
+      raw: 'git', marketplace: undefined, name: 'git', range: undefined,
     });
   });
 
