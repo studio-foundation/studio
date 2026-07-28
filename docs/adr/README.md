@@ -16,3 +16,4 @@ superseded by a new ADR, never edited away.
 | [0001](./0001-distribution-model.md) | Marketplace of pointers, not a content monorepo | Accepted |
 | [0002](./0002-packaging-model.md) | Two packaging types: template and plugin | Accepted |
 | [0003](./0003-contribution-rights.md) | DCO, no assignment, no relicensing | Accepted |
+| [0004](./0004-triggers-over-integrations.md) | Triggers replace integrations | Accepted |

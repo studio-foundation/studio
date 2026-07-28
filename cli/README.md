@@ -162,9 +162,6 @@ studio registry update [name]                  # Update installed tools (all or 
 studio templates list                          # List available templates
 studio template validate <path>                # Validate a template structure
 
-# Integrations
-studio integrations list                       # Manage integrations (install, list, remove, test, set)
-
 # API server
 studio api start                               # Start the HTTP REST API server (also: stop, status)
 

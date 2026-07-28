@@ -4,9 +4,9 @@ Serveur HTTP REST pour Studio. Même engine que le CLI, interface machine-to-mac
 
 ## Concept
 
-`bootstrap(cwd)` trouve `.studio/`, câble engine + store + launcher + integrations.
+`bootstrap(cwd)` trouve `.studio/`, câble engine + store + launcher + triggers.
 `buildServer()` crée le serveur Fastify avec toutes les routes et le Swagger UI.
-Résultat : Linear webhook → pipeline run → SSE streaming → webhook dispatch.
+Résultat : webhook entrant → pipeline run → SSE streaming → webhook dispatch.
 
 ## Règles
 
@@ -19,7 +19,7 @@ Résultat : Linear webhook → pipeline run → SSE streaming → webhook dispat
 
 ## Fichiers clés
 
-- `bootstrap.ts` — `bootstrap(cwd)` : trouve `.studio/`, crée store + engine + launcher + integrations
+- `bootstrap.ts` — `bootstrap(cwd)` : trouve `.studio/`, crée store + engine + launcher + triggers
 - `server.ts` — `buildServer()` : Fastify factory, monte toutes les routes
 - `launcher.ts` — `InProcessLauncher` : lance les pipelines en arrière-plan, publie sur le bus d'événements
 - `event-bus.ts` — `RunEventBus` : bus interne SSE (run events → clients connectés)
@@ -31,8 +31,8 @@ Résultat : Linear webhook → pipeline run → SSE streaming → webhook dispat
 - `routes/validate.ts` — `POST /api/validate`
 - `routes/webhooks.ts` — enregistrement webhooks
 - `webhook-store.ts`, `webhook-dispatcher.ts` — persistence + dispatch webhooks
-- `integration-store.ts`, `integration-runtime.ts` — lifecycle intégrations
-- `integrations/linear/webhook-handler.ts` — handler Linear (drag → run → comment → move)
+- `trigger-store.ts`, `trigger-runtime.ts` — endpoints entrants, journal des livraisons, `on_failure`
+- `triggers/trigger-loader.ts`, `triggers/webhook.ts` — chargement des `.trigger.yaml`, HMAC + matching + templating
 - `spawners/http-api-spawner.ts` — `HttpApiSpawner` : spawner auto-référentiel pour `studio_run`
 
 ## Séquence bootstrap
@@ -44,7 +44,7 @@ findStudioDir(cwd)
   → createProviderRegistry + ToolRegistry
   → loadProjectTools (.tool.yaml) + loadPlugins (MCP)
   → new HttpApiSpawner → EngineConfig → InProcessLauncher
-  → WebhookStore + IntegrationStore + IntegrationRuntime
+  → WebhookStore + TriggerStore + TriggerRuntime
 ```
 
 ## Dépendances
