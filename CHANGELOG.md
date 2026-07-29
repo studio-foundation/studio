@@ -7,6 +7,28 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.14.0] — 2026-07-28
+
+### Breaking
+
+- `.integration.yaml` and the `studio integrations` command are gone, along with `api/src/integrations/`. Inbound events are now a `.trigger.yaml` in `.studio/triggers/`: an HMAC-verified webhook that matches the payload with stage-condition syntax over `payload.<path>`, maps it into pipeline input, and launches a run. Everything a trigger says back to the external system is an ordinary tool call, and `on_failure` is a shell command receiving its values through the environment (`STUDIO_RUN_ID`, `STUDIO_META`, …), never interpolated into the command string. The kernel names no product — which events count and which field becomes which input are the trigger file's opinions, so a new one is a marketplace package rather than a Studio release. See [ADR 0004](docs/adr/0004-triggers-over-integrations.md).
+- `resolveRepoPath`, `cloneRepo` and `RepoResolveOptions` are no longer exported from `@studio-foundation/engine`. Repo resolution shells out to `git clone`, which INV-04 does not allow in the engine; it moved to `api/src/utils/`, reachable as `@studio-foundation/api/repo-resolver`.
+
+### API
+
+- `POST /api/triggers/<name>/webhook`, served by `studio api start`. The seeded `linear` plugin ships a `.trigger.yaml` in place of its integration; the `slack` and `webhook` integration packages are dropped — a generic webhook trigger covers them.
+
+### Invariants
+
+- INV-04/05/06/10/12 are enforced by `scripts/check-invariants.mjs` (`pnpm check:invariants`, blocking in CI). It greps the engine for domain vocabulary, asserts where the tool runtime and prompt builder live, and validates every `package.json` against the dependency DAG — the half ESLint cannot see, since it reads source and not manifests.
+- INV-06 is real again: the engine still loads skills and invariants, but hands them to `runAgent` as `pluginSkills`, `skills` and `projectInvariants` instead of concatenating them into `system_prompt`. `buildPrompt` assembles the identity block, preserving the previous ordering.
+- INV-07 is rewritten around the three points that decide a status — `deriveStageStatus`, post-validation, `on_stage_complete` hooks. INV-12 is new: the API never chooses what to run.
+
+### Docs
+
+- TEMPLATES.md describes the real registry: templates are packages, not directories in this repo.
+- CLAUDE.md and GOVERNANCE.md claimed the engine depends on anonymizer. It does not; runner does.
+
 ## [0.13.0] — 2026-07-28
 
 ### Breaking
