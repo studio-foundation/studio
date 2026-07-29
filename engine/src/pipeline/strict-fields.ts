@@ -9,7 +9,7 @@
  *
  * @param obj      parsed YAML object (or nested block) to check
  * @param allowed  every field name the kernel actually implements
- * @param what     human label for the block, e.g. "contract" or "stage 'qa'"
+ * @param what     human label for the block, e.g. "contract" or "stage 'review'"
  * @param context  file suffix for the error message, e.g. " (from /path)"
  */
 export function assertKnownFields(

@@ -38,6 +38,9 @@ jobs:
       - name: Check the kernel names no domain tool (INV-11)
         run: pnpm check:kernel
 
+      - name: Check the invariants a grep can settle (INV-04/05/06/10/12)
+        run: pnpm check:invariants
+
       - name: Build all packages
         run: pnpm build
 

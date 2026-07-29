@@ -18,14 +18,13 @@ Studio/
 Project templates are registry packages, not files in this repo — see [TEMPLATES.md](TEMPLATES.md).
 
 ```
-@studio-foundation/cli → @studio-foundation/api → @studio-foundation/engine
-                                 ├── @studio-foundation/ralph
-                                 ├── @studio-foundation/runner
-                                 └── @studio-foundation/anonymizer
-                             @studio-foundation/contracts (leaf — zero internal deps)
+cli ──→ api ──→ engine ──→ ralph ──────→ contracts
+ │       │        │                        ▲  ▲
+ │       │        └──────→ runner ─────────┘  │
+ └───────┴───────────────────────┴─→ anonymizer (co-leaf, zero internal deps)
 ```
 
-**Strict dependencies:** contracts is a leaf package. ralph, runner and anonymizer depend ONLY on contracts. engine depends on ralph + runner + anonymizer + contracts. cli and api depend on engine + contracts.
+**Strict dependencies:** contracts is a leaf. anonymizer is a co-leaf — it depends on `@redactpii/node` and nothing internal. ralph depends on contracts. runner depends on contracts + anonymizer. **engine depends on contracts + ralph + runner — not anonymizer**, which is instantiated in runner where the LLM call it wraps happens. api depends on contracts + engine + runner. cli depends on contracts + engine + runner + api. The `→ runner` edges from api and cli are documented composition-root exceptions ([INVARIANTS.md](INVARIANTS.md) INV-10), not drift.
 
 **No inverted dependencies.** ralph doesn't know runner. runner doesn't know engine. If you find yourself importing "upward", it's an architecture error.
 
@@ -90,25 +89,28 @@ Distribution: GitHub Releases (+ `install.sh` for `curl | sh`, `install.ps1` for
 
 ## State Machine
 
+The full status list lives in `contracts/src/stage.ts` and is the source this file follows:
+
 ```
-pending → running → success
-                  → failed
-                  → rejected
-                  → skipped
+pending | running | success | failed | skipped | rejected | cancelled | interrupted
 ```
 
-`deriveStageStatus(ralphResult)` in `engine/src/state/status-derivation.ts` is the critical function.
+A stage transitions through the first seven. `interrupted` is stamped on a *run* by `reconcileOrphan` when the owning process died without writing a terminal status — no stage ever derives it.
+
+`deriveStageStatus(ralphResult)` in `engine/src/state/status-derivation.ts` is the critical function, but not the last word: post-validation and `on_stage_complete` hooks can rewrite a `success` into `rejected` or `failed`, per rules the contract and hook YAML declare. See [INVARIANTS.md](INVARIANTS.md) INV-07 for the three decision points in order.
 
 ## Non-Negotiable Rules
 
-> The 6 you hit daily. Formal list of all 11: **[INVARIANTS.md](INVARIANTS.md)** — the source.
+> The 6 you hit daily. Formal list of all 12: **[INVARIANTS.md](INVARIANTS.md)** — the source.
 
 1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine — and the kernel at large ships no tool it does not implement (INV-11, `pnpm check:kernel`).
 2. **ralph doesn't know runner.** ralph takes a generic `executor: () => Promise<T>`.
 3. **runner doesn't validate or retry.** It executes and returns an AgentRun.
 4. **contracts is a leaf package.** Zero internal dependencies.
 5. **Tools live in runner, not engine.** The engine passes configs to runner.
-6. **Prompts live in runner.** `prompt-builder.ts` assembles system prompt + context.
+6. **Prompts live in runner.** `prompt-builder.ts` assembles system prompt + context — the engine loads skills and invariants but hands them over as data, never concatenated.
+
+Most of these are checked by `pnpm check:invariants`, blocking in CI. Loosening a check to make a change pass is the same act as violating the invariant.
 
 ## Versioning & Releases
 
@@ -316,7 +318,7 @@ stages:
 
 `pnpm lint` at the root (blocking in CI). Flat config in [eslint.config.mjs](eslint.config.mjs).
 
-The rule that matters: **INV-10 is enforced mechanically.** `ALLOWED_INTERNAL_IMPORTS` in the config mirrors the DAG, and a `no-restricted-imports` block per package rejects any `@studio-foundation/*` import outside it. Adding an internal dependency means editing that map *and* the package's `package.json` — an upward import can no longer land silently.
+The rule that matters: **INV-10 is enforced mechanically.** `ALLOWED_INTERNAL_IMPORTS` in the config mirrors the DAG, and a `no-restricted-imports` block per package rejects any `@studio-foundation/*` import outside it. ESLint reads source, not manifests, so `pnpm check:invariants` covers the other half by validating every `package.json` against the same graph. Adding an internal dependency means editing both maps *and* the package's `package.json` — an upward import can no longer land silently.
 
 `@typescript-eslint/no-explicit-any` is a **warning with a ratchet**: `--max-warnings 226` pins the current count, so the number may only go down. Flip the rule to `error` and drop the flag once it hits zero.
 
@@ -344,6 +346,8 @@ Same PR as the code, not a later cleanup pass:
 | New API route | [API.md](API.md) + its Swagger schema |
 | Template or distribution change | [TEMPLATES.md](TEMPLATES.md), [GOVERNANCE.md](GOVERNANCE.md) |
 | Builtin tool added or removed | [INVARIANTS.md](INVARIANTS.md) INV-11, `BUILTIN_TOOLS` in [check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs), CLAUDE.md builtin table |
+| Internal dependency edge added | `DAG` in [check-invariants.mjs](scripts/check-invariants.mjs), `ALLOWED_INTERNAL_IMPORTS` in [eslint.config.mjs](eslint.config.mjs), INV-10 table, CLAUDE.md graph |
+| New stage or run status | `StageStatus` in `contracts/src/stage.ts`, INV-07 list, CLAUDE.md state machine |
 | What Studio *is* — positioning, cadence, status, licensing | [GOVERNANCE.md](GOVERNANCE.md) |
 
 [GOVERNANCE.md](GOVERNANCE.md) is the doc a contributor reads first and the one nobody opens while coding, so it rots silently — it went a long stretch describing 5 packages and 6 invariants. It duplicates as little as possible on purpose: invariants live in INVARIANTS.md, templates in TEMPLATES.md. Don't reintroduce copies there; link instead.

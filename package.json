@@ -16,6 +16,7 @@
     "build": "pnpm --filter @studio-foundation/contracts build && pnpm --filter @studio-foundation/anonymizer build && pnpm --filter @studio-foundation/ralph build && pnpm --filter @studio-foundation/runner build && pnpm --filter @studio-foundation/engine build && pnpm --filter @studio-foundation/api build && pnpm --filter @studio-foundation/cli build",
     "build:binary": "node scripts/build-binary.mjs",
     "check:kernel": "node scripts/check-kernel-domain-free.mjs",
+    "check:invariants": "node scripts/check-invariants.mjs",
     "seed:refresh": "node scripts/refresh-seed.mjs",
     "clean": "pnpm -r run clean",
     "lint": "eslint . --max-warnings 226",
