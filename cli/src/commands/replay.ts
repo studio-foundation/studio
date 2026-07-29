@@ -338,7 +338,8 @@ export async function restartCommand(
 
     // Load config + dependencies (mirror run.ts pattern exactly)
     const { loadConfig } = await import('../config.js');
-    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner, resolveRepoPath } = await import('@studio-foundation/engine');
+    const { PipelineEngine, loadPipelineByName, DirectEngineSpawner } = await import('@studio-foundation/engine');
+    const { resolveRepoPath } = await import('@studio-foundation/api/repo-resolver');
     const { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } = await import('@studio-foundation/runner');
     const { createRunStore } = await import('../run-store-factory.js');
     const { createRunLogger } = await import('../run-logger.js');

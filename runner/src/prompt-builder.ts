@@ -54,7 +54,9 @@ export interface PromptBuildConfig {
   executionContext?: ExecutionContext;
   outputContract?: OutputContract;
   promptSnippets?: string[];
+  pluginSkills?: string[];
   skills?: SkillContent[];
+  projectInvariants?: string;
 }
 
 /**
@@ -66,6 +68,21 @@ export function buildPrompt(config: PromptBuildConfig): Message[] {
 
   // Build system message
   let systemContent = agent.system_prompt || 'You are a helpful AI assistant.';
+
+  // Assembled here and nowhere else (INV-06) — callers hand over loaded
+  // content, never a pre-concatenated system prompt.
+  if (config.pluginSkills?.length) {
+    systemContent += '\n\n' + config.pluginSkills.join('\n\n---\n\n');
+  }
+
+  if (config.skills?.length) {
+    const skillChunks = config.skills.map(s => `## Skill: ${s.name}\n\n${s.content}`);
+    systemContent += '\n\n' + skillChunks.join('\n\n---\n\n');
+  }
+
+  if (config.projectInvariants) {
+    systemContent += `\n\n---\n\n## Project Invariants\n\n${config.projectInvariants}`;
+  }
 
   // Add output format with concrete schema when available
   const contract = config.outputContract;
@@ -108,12 +125,6 @@ ${task.expected_output || `Provide your response according to the ${task.contrac
   // Inject prompt snippets from active tool plugins
   if (config.promptSnippets && config.promptSnippets.length > 0) {
     systemContent += '\n\n' + config.promptSnippets.join('\n\n');
-  }
-
-  // Inject skills (.studio/skills/*.skill.md) declared by the agent
-  if (config.skills && config.skills.length > 0) {
-    const skillChunks = config.skills.map(s => `## Skill: ${s.name}\n\n${s.content}`);
-    systemContent += '\n\n' + skillChunks.join('\n\n---\n\n');
   }
 
   messages.push({
