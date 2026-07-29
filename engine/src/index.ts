@@ -83,10 +83,6 @@ export { validateSchema } from '@studio-foundation/ralph';
 // Spawners
 export { DirectEngineSpawner } from './spawners/direct-engine-spawner.js';
 
-// Repo resolution
-export { resolveRepoPath, cloneRepo } from './repo-resolver.js';
-export type { RepoResolveOptions } from './repo-resolver.js';
-
 // Condition evaluation and {{...}} interpolation, reused by webhook triggers
 export { evaluateCondition, resolveContextPath } from './pipeline/condition-evaluator.js';
 export type { ConditionContext } from './pipeline/condition-evaluator.js';

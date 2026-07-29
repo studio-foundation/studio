@@ -83,17 +83,17 @@ Studio is a monorepo of seven packages, plus a template system. All packages sha
 ```
 @studio-foundation/cli          Terminal interface
     │
-    ├── @studio-foundation/api          HTTP REST API (Fastify)
-    │
-@studio-foundation/engine       Pipeline orchestration, state machine, persistence
-    │
-    ├── @studio-foundation/ralph        RALPH loop: execute → validate → retry if fail
-    │
-    ├── @studio-foundation/runner       Tool plugin runtime, LLM calls, multi-provider
-    │
-    └── @studio-foundation/anonymizer   PII anonymization before LLM calls
-    │
-@studio-foundation/contracts    Shared types (zero internal dependencies)
+    └── @studio-foundation/api          HTTP REST API (Fastify)
+            │
+            └── @studio-foundation/engine       Pipeline orchestration, state machine, persistence
+                    │
+                    ├── @studio-foundation/ralph        RALPH loop: execute → validate → retry if fail
+                    │
+                    └── @studio-foundation/runner       Tool plugin runtime, LLM calls, multi-provider
+                            │
+                            └── @studio-foundation/anonymizer   PII anonymization before LLM calls
+
+@studio-foundation/contracts    Shared types (zero internal dependencies) — every package depends on it
 Templates/                      Architectural patterns, distributed through the registry
 ```
 
@@ -109,7 +109,7 @@ Five concepts differentiate Studio from other orchestrators:
 
 **Tool plugins.** `.tool.yaml` files that define capabilities for agents. Self-documenting (the prompt snippet is auto-injected into the agent's system prompt), project-scoped (each project has its tools), double-gated (the project authorizes the tools, the agent authorizes which it calls). Creating a tool requires no code.
 
-A set of architectural invariants keeps the system coherent: a domain-agnostic engine, a strict dependency DAG, binary validation, a deterministic state machine, and a kernel that implements only primitives — every domain tool, `git` included, is a marketplace plugin. They are the constitution of the kernel — non-negotiable, and enforced mechanically wherever a rule can be checked by a machine.
+A set of architectural invariants keeps the system coherent: a domain-agnostic engine, a strict dependency DAG, binary validation, a state machine where every status comes from a declared rule, and a kernel that implements only primitives — every domain tool, `git` included, is a marketplace plugin. They are the constitution of the kernel — non-negotiable, and enforced mechanically wherever a rule can be checked by a machine.
 
 The formal list lives in **[INVARIANTS.md](./INVARIANTS.md)**, its single source. This charter deliberately does not restate it, so it cannot fall out of sync with it.
 

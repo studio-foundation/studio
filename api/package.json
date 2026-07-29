@@ -16,6 +16,10 @@
     "./user-store": {
       "import": "./dist/user-store.js",
       "types": "./dist/user-store.d.ts"
+    },
+    "./repo-resolver": {
+      "import": "./dist/utils/repo-resolver.js",
+      "types": "./dist/utils/repo-resolver.d.ts"
     }
   },
   "bin": {

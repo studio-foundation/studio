@@ -9,6 +9,7 @@ import { ToolExecutor } from './tools/tool-executor.js';
 import type { ProviderRegistry } from './providers/registry.js';
 import { isAgentLoopProvider } from './providers/provider.js';
 import type { AnonymizationMiddleware } from './middleware/anonymization.js';
+import type { SkillContent } from './tools/skills/skill-loader.js';
 
 /** Prefix used to identify unauthorized tool calls in error messages. */
 export const UNAUTHORIZED_TOOL_ERROR_PREFIX = 'Unauthorized tool call:';
@@ -21,6 +22,12 @@ export interface RunAgentConfig {
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
   outputContract?: OutputContract;
+  /** Markdown chunks from the plugins the agent declares. */
+  pluginSkills?: string[];
+  /** `.studio/skills/*.skill.md` the agent declares, already read from disk. */
+  skills?: SkillContent[];
+  /** `.studio/invariants.md` of the project the run belongs to. */
+  projectInvariants?: string;
   maxToolCalls?: number;
   anonymizationMiddleware?: AnonymizationMiddleware;
   callbacks?: RunnerCallbacks;
@@ -90,6 +97,9 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     executionContext,
     outputContract: config.outputContract,
     promptSnippets,
+    pluginSkills: config.pluginSkills,
+    skills: config.skills,
+    projectInvariants: config.projectInvariants,
   });
 
   const toolDefinitions = allowedTools.toToolDefinitions();

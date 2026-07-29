@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import type { EngineEvents, EventContext, MapItemCompleteEvent } from '@studio-foundation/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
-import { resolveRepoPath } from '@studio-foundation/engine';
+import { resolveRepoPath } from '@studio-foundation/api/repo-resolver';
 import { loadConfig } from '../config.js';
 import { checkConfig, formatConfigCheckError } from '../config-validation.js';
 import { checkBinaries, formatBinaryPreflightError } from '../binary-preflight.js';

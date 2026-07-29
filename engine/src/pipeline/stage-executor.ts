@@ -38,7 +38,7 @@ import {
 import { buildTaskInput } from './task-input.js';
 import { loadAgentProfile } from './agent-loader.js';
 import { loadContract } from './contract-loader.js';
-import { loadSkillFiles } from './skill-loader.js';
+import { loadSkillFiles, type SkillContent } from './skill-loader.js';
 import { runStageHook, runToolHook } from './hook-executor.js';
 import {
   getContextForStage,
@@ -140,6 +140,8 @@ export class StageExecutor {
 
     // Load agent profile — only for LLM stages (script stages have no agent)
     let agentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
+    let pluginSkills: string[] = [];
+    let projectSkills: SkillContent[] = [];
     if (stageDef.agent) {
       agentConfig = await loadAgentProfile(stageDef.agent, paths.agentsDir);
       // Apply defaults from config.yaml when agent YAML omits provider/model
@@ -154,27 +156,13 @@ export class StageExecutor {
       if (!agentConfig.model) {
         throw new Error(`Agent '${stageDef.agent}' has no model and no default is configured. Run: studio config set defaults.model <model>`);
       }
-      // Inject plugin skills into system_prompt for agents that declare plugins
+      // Loaded here because these paths are the engine's (INV-09), assembled in
+      // the runner's prompt-builder because the prompt is not (INV-06).
       if (agentConfig.plugins?.length && this.config.pluginSkills) {
-        const skillChunks = agentConfig.plugins
-          .flatMap((p) => this.config.pluginSkills![p] ?? []);
-        if (skillChunks.length > 0) {
-          agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
-        }
+        pluginSkills = agentConfig.plugins.flatMap((p) => this.config.pluginSkills![p] ?? []);
       }
-
-      // Inject project skills (.studio/skills/*.skill.md) for agents that declare skills
       if (agentConfig.skills?.length) {
-        const loaded = await loadSkillFiles(agentConfig.skills, paths.skillsDir);
-        if (loaded.length > 0) {
-          const skillChunks = loaded.map((s) => `## Skill: ${s.name}\n\n${s.content}`);
-          agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n${skillChunks.join('\n\n---\n\n')}`;
-        }
-      }
-
-      // Inject project domain invariants (.studio/invariants.md) into system_prompt
-      if (pipelineContext.invariantsContent) {
-        agentConfig.system_prompt = `${agentConfig.system_prompt ?? ''}\n\n---\n\n## Project Invariants\n\n${pipelineContext.invariantsContent}`;
+        projectSkills = await loadSkillFiles(agentConfig.skills, paths.skillsDir);
       }
     }
 
@@ -354,6 +342,9 @@ export class StageExecutor {
               toolRegistry: toolRegistry!,
               providerRegistry: this.config.providerRegistry,
               outputContract: contract ?? undefined,
+              pluginSkills,
+              skills: projectSkills,
+              projectInvariants: pipelineContext.invariantsContent,
               maxToolCalls: stageDef.ralph?.max_tool_calls,
               anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
               signal,
@@ -501,7 +492,7 @@ export class StageExecutor {
     }
 
     // Post-validation: check if a successful output is semantically rejected
-    // (e.g. QA stage returned valid JSON but status says "implementation_incomplete")
+    // (valid JSON, but a field the contract watches carries a rejecting value)
     let postResult: PostValidationResult | undefined;
     if (stageStatus === 'success' && contract?.post_validation?.rejection_detection) {
       const agentOutput = ralphResult.status === 'success' ? ralphResult.result?.output : undefined;

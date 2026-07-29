@@ -165,3 +165,50 @@ describe('buildPrompt — stage_name', () => {
     expect(userMsg).not.toContain('## Stage Name');
   });
 });
+
+describe('buildPrompt — plugin skills and project invariants', () => {
+  it('injects plugin skill chunks separated by ---', () => {
+    const messages = buildPrompt({
+      agent: AGENT,
+      task: TASK,
+      context: {},
+      pluginSkills: ['# Plugin A', '# Plugin B'],
+    });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).toContain('# Plugin A\n\n---\n\n# Plugin B');
+  });
+
+  it('injects project invariants under a Project Invariants heading', () => {
+    const messages = buildPrompt({
+      agent: AGENT,
+      task: TASK,
+      context: {},
+      projectInvariants: 'Never delete the audit log.',
+    });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).toContain('## Project Invariants\n\nNever delete the audit log.');
+  });
+
+  it('orders the identity block ahead of the output format section', () => {
+    const skills: SkillContent[] = [{ name: 'commit-conventions', content: 'Use conventional commits.' }];
+    const messages = buildPrompt({
+      agent: AGENT,
+      task: TASK,
+      context: {},
+      pluginSkills: ['# Plugin A'],
+      skills,
+      projectInvariants: 'Never delete the audit log.',
+      outputContract: { name: 'c', version: 1, schema: { required_fields: ['summary'] } },
+    });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg.indexOf('# Plugin A')).toBeLessThan(sysMsg.indexOf('## Skill: commit-conventions'));
+    expect(sysMsg.indexOf('## Skill: commit-conventions')).toBeLessThan(sysMsg.indexOf('## Project Invariants'));
+    expect(sysMsg.indexOf('## Project Invariants')).toBeLessThan(sysMsg.indexOf('## REQUIRED OUTPUT FORMAT'));
+  });
+
+  it('omits every section when nothing is provided', () => {
+    const messages = buildPrompt({ agent: AGENT, task: TASK, context: {} });
+    const sysMsg = messages.find(m => m.role === 'system')!.content as string;
+    expect(sysMsg).toBe('You are a helpful assistant.');
+  });
+});
