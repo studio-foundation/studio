@@ -27,7 +27,7 @@ export interface ResolveOptions {
 }
 
 /** Parsed dependency entries of one kind, tagged with the category they came from. */
-function specsOf(
+export function specsOf(
   deps: PackageDependencies,
   kind: 'required' | 'recommended',
 ): Array<{ spec: DependencySpec; category: string }> {

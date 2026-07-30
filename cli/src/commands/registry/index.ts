@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { searchCommand, browseCommand } from './search.js';
+import { infoCommand } from './info.js';
 import { installCommand } from './install.js';
 import { removeCommand } from './remove.js';
 import { updateCommand, outdatedCommand } from './update.js';
@@ -21,6 +22,11 @@ export function createRegistryCommand(): Command {
     .command('browse')
     .description('Browse most popular packages')
     .action(() => browseCommand());
+
+  registry
+    .command('info <name>')
+    .description('Show everything the registry knows about a package (use name@version for a specific version)')
+    .action((name: string) => infoCommand(name));
 
   registry
     .command('install <name>')

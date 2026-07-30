@@ -140,6 +140,7 @@ A marketplace publishes two kinds of package: a **template**, which starts a pro
 ### Registry
 
 ```bash
+studio registry info <name>                      # Inspect a package before installing it
 studio registry install <name>                   # Install a package (same as plugin add)
 studio registry remove <name>                    # Uninstall a package
 studio registry search <query>                   # Search the registry
@@ -206,6 +207,20 @@ Checkouts are cached at `~/.cache/studio/git/<sha>` — content-addressed, so th
 `studio registry install` resolves by name, not by type, so it installs templates and plugins alike — `studio plugin add` is the documented verb, `install` is the one muscle memory reaches for.
 
 `--type` on `search` filters by packaging type (`template`, `plugin`) or by provided content kind (`--type tool` still means "packages that give me a tool"). `browse` groups by what packages deliver rather than by packaging type, which would otherwise be a two-item listing.
+
+#### Inspecting a package
+
+`search` prints a match list and `browse` a popularity list; neither answers "is installing this safe on this machine?". `studio registry info <name>` prints the whole index entry — version, author, license, tags, `studio_version`, source, `provides` and `dependencies`:
+
+```bash
+studio registry info software-full
+studio registry info git@1.0.1                   # …a specific published version
+studio registry info acme-corp:internal-deploy   # …from a named marketplace
+```
+
+Three things it adds to the entry itself: the versions the registry actually carries, whether the running CLI satisfies the declared `studio_version` (a warning, not a refusal — nothing is being installed), and whether the package is already installed and at which version, read from `.studio/registry.lock.json`. An installed entry that came from another marketplace is named as such, since the lockfile is keyed by name alone.
+
+It reads the merged index, so it resolves the same way `install` does: an ambiguous unqualified name is refused with the qualified forms rather than picked by registration order, and a `name@version` that was never published is an error instead of a silent fall back to the newest. With nothing cached it answers from the bundled seed, so a fresh install can inspect the default marketplace's packages offline.
 
 #### Dependency resolution
 
