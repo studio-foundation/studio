@@ -1,4 +1,4 @@
-.PHONY: help build clean install test typecheck dev status
+.PHONY: help build clean install test typecheck dev status hooks
 
 # Default target
 help:
@@ -11,8 +11,15 @@ help:
 	@echo "  make test       - Run tests in all repositories"
 	@echo "  make dev        - Start dev mode (watch) in all repos"
 	@echo "  make status     - Show git status for all repos"
+	@echo "  make hooks      - Enable the repo git hooks (auto DCO sign-off)"
 	@echo "  make link-cli   - Link CLI globally (enables 'studio' command)"
 	@echo ""
+
+# Point git at the versioned hooks (once per clone) — makes every commit DCO-signed
+hooks:
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/*
+	@echo "✓ core.hooksPath = .githooks — commits are now signed off automatically"
 
 # Build all repositories in dependency order
 build:

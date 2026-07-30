@@ -33,6 +33,22 @@ Forgot? Fix the whole branch at once:
 git rebase --signoff main
 ```
 
+Better: stop having to remember. Once per clone,
+
+```bash
+make hooks
+```
+
+points `core.hooksPath` at [`.githooks/`](./.githooks), whose `prepare-commit-msg` appends the
+trailer to every commit — including commits made by an agent on your behalf. It derives the
+trailer from `user.name`/`user.email`, the same values git stamps as the author, so it always
+matches what the CI check compares against. (`git` has no `commit.signoff` config; the hook is
+the mechanism.)
+
+The trailer must match the commit **author** exactly, name included. If `user.name` is set to
+something other than the name you sign off with, the check fails on a commit that is otherwise
+fine — the hook makes that mismatch impossible.
+
 CI checks this on every pull request ([`.github/workflows/dco.yml`](./.github/workflows/dco.yml)).
 A PR with an unsigned commit does not merge.
 
