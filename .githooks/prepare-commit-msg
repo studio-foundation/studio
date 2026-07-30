@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# Appends the Signed-off-by trailer the DCO check requires, so `git commit` never needs -s.
+# The trailer is derived from user.name/user.email — the same values git stamps as the
+# commit author — so it always matches what scripts/check-dco.sh compares against.
+set -eu
+
+name="$(git config user.name || true)"
+email="$(git config user.email || true)"
+
+# No identity configured: git commit is about to fail on its own, don't add a broken trailer.
+[ -n "$name" ] && [ -n "$email" ] || exit 0
+
+git interpret-trailers --if-exists doNothing \
+  --trailer "Signed-off-by: $name <$email>" \
+  --in-place "$1"
