@@ -47,6 +47,12 @@ export interface PackageEntry {
   studio_version: string | null;
   downloads: number;
   provides?: PackageProvides;
+  /**
+   * Declared alongside the entry, not only in the package's `metadata.json`, so
+   * `registry info` can answer "what does this drag in?" from the index alone.
+   * Resolution still reads the metadata — this is the published copy.
+   */
+  dependencies?: PackageDependencies;
   source: PackageSource;
 }
 
@@ -72,7 +78,6 @@ export interface PackageDependencies {
 
 export interface PackageMetadata extends Omit<PackageEntry, 'source'> {
   requires_binaries?: string[];
-  dependencies?: PackageDependencies;
 }
 
 export interface LockfileEntry {
