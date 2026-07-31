@@ -598,6 +598,45 @@ under `tokens`. `studio status <run-id>` aggregates it per stage and per model. 
 
 ---
 
+## Prompt caching (`prompt_cache`)
+
+A prompt cache is not free storage. The write is billed *above* the plain input rate
+and only earns that back when a later call reads the same prefix — so a call with no
+successor costs more with caching on than off, on every token of the prefix. That is
+not a hypothetical: a measured run spent 4.5M tokens writing caches that were read
+back 1.05M times, and came out **35% more expensive** than the same run with no
+caching at all.
+
+So the decision is never "is this prefix big?" but "will anything read it back?", and
+only the runner can answer it — the provider sees one call at a time. A stage that
+must call tools comes back through the loop with the same system prompt and the same
+tool definitions in front of it, and every turn after the first reads what the first
+one wrote. A fan-out item or a QA verdict answers in one turn and never returns.
+
+Agents declare the policy; the default reads the stage:
+
+```yaml
+# .studio/agents/extractor.agent.yaml
+name: extractor
+prompt_cache: auto   # auto (default) | on | off
+```
+
+| Value | Behaviour |
+|-------|-----------|
+| `auto` | Cache only when the stage's **contract** obliges it to call tools (`tool_calls.minimum`, `required_tools`, or `required_tool_groups`) *and* the agent actually has tools. That contract is the one declaration in `.studio/` that predicts a second turn before the first has happened. |
+| `on` | Always cache. For a fan-out whose items have been *measured* to share a prefix long enough to beat the write premium — concurrent items all miss an unwarmed cache, so measure before reaching for this. |
+| `off` | Never cache, whatever the stage looks like. |
+
+Tools merely being *available* is not enough for `auto`: an agent that can call tools
+and doesn't is exactly the single-turn call that was overpaying. The decision is made
+once per agent run and held for every turn of it — flipping the marker mid-run writes
+a cache the remaining turns never look for.
+
+Providers with no cache controls (mock, ollama, and OpenAI, which caches server-side
+at no premium) ignore the setting.
+
+---
+
 ## PII anonymization
 
 Transparent middleware that replaces sensitive data with tokens before sending to the LLM:

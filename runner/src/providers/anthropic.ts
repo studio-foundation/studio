@@ -197,8 +197,17 @@ export class AnthropicProvider implements Provider, BatchProvider {
         throw new Error(`Unsupported message role: ${msg.role}`);
       });
 
-    // Convert tool definitions to Anthropic format
-    // Mark the last tool with cache_control so Anthropic caches system + tools block
+    // Only the caller knows whether a second turn will read this prefix back, and
+    // a write it never reads costs more than not caching at all — so the marker
+    // goes on only when asked for. Default TTL (5 minutes) is deliberate: the 1h
+    // TTL doubles the write premium and needs three reads, not two, to break even.
+    const cacheControl = request.cache_prompt
+      ? { cache_control: { type: 'ephemeral' as const } }
+      : {};
+
+    // Convert tool definitions to Anthropic format.
+    // The prefix renders tools → system, so marking the last tool and the system
+    // block caches them as one span.
     const rawTools = request.tools ?? [];
     const tools: Tool[] | undefined = rawTools.length > 0
       ? rawTools.map((tool, index) => ({
@@ -208,15 +217,12 @@ export class AnthropicProvider implements Provider, BatchProvider {
             type: 'object',
             ...tool.parameters
           } as Tool['input_schema'],
-          ...(index === rawTools.length - 1
-            ? { cache_control: { type: 'ephemeral' as const } }
-            : {})
+          ...(index === rawTools.length - 1 ? cacheControl : {})
         }))
       : undefined;
 
-    // Mark system prompt with cache_control — stable across retries and group iterations
     const systemParam: TextBlockParam[] | undefined = systemContent
-      ? [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' as const } }]
+      ? [{ type: 'text', text: systemContent, ...cacheControl }]
       : undefined;
 
     return {

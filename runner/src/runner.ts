@@ -5,6 +5,7 @@
 import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks, TokenUsage } from '@studio-foundation/contracts';
 import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import { buildPrompt, hasFields, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
+import { shouldCachePrompt } from './prompt-cache.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
 import type { ProviderRegistry } from './providers/registry.js';
@@ -106,6 +107,15 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
 
   const toolDefinitions = allowedTools.toToolDefinitions();
 
+  // Decided once for the whole run, not per turn: a prefix cached on turn 1 is
+  // what turns 2..n read, so flipping the marker mid-run writes a cache the
+  // remaining turns never look for.
+  const cachePrompt = shouldCachePrompt({
+    hasTools: toolDefinitions.length > 0,
+    contract: config.outputContract,
+    mode: agent.prompt_cache,
+  });
+
   // Tool executor
   const toolExecutor = new ToolExecutor(allowedTools);
 
@@ -131,6 +141,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
         temperature: agent.temperature,
         max_tokens: agent.max_tokens,
         stage_name: task.contract_name,
+        cache_prompt: cachePrompt,
       },
       async (name, args, callId) => {
         const tcStart = Date.now();
@@ -244,6 +255,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       max_tokens: agent.max_tokens,
       stage_name: task.contract_name,
       json_mode: !!task.contract_name,
+      cache_prompt: cachePrompt,
     }, onToken, signal);
 
     lastResponse = response;
