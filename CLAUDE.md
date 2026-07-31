@@ -38,7 +38,7 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **RALPH loop** — Execute → validate against contract → retry with enriched feedback if fail → repeat until success or max attempts. "Recursive Automated Loop for Persistent Handling."
 
-**Output contract** — JSON schema + constraints defining what a stage MUST produce. Validation is binary: pass or fail.
+**Output contract** — JSON schema + constraints defining what a stage MUST produce. Validation is binary: pass or fail. `contract:` is optional, and a stage without one validates nothing — no schema, no `tool_calls` floor, no rejection detection. That silence read as "validation is on" (it's how templates shipped contracts no stage referenced), so `studio run` prints one line per contract-less stage at startup and `studio doctor` reports the same across every pipeline. Warning only — exit code and stage status unchanged — and suppressible project-wide with `warnings.missing_contract: false` in `.studio/config.yaml`. Detection is a pure function in the engine ([contract-coverage.ts](engine/src/pipeline/contract-coverage.ts)); printing is the CLI's ([contract-warnings.ts](cli/src/contract-warnings.ts)).
 
 **Anti-theatre** — If a contract requires `tool_calls.minimum: 1` and the agent made 0 tool calls, it fails regardless of what the agent claims in its output. Real tool calls are tracked by the runner.
 
@@ -80,7 +80,7 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Required binaries (`requires_binaries`)** — Declared in `.studio/config.yaml` (project-wide) and in `constraints.requires_binaries` of any `.tool.yaml` (per plugin). `studio run` checks every entry against PATH before the first stage and exits with the missing ones. An entry may carry a semver range (`"node >=18 <=22"`), in which case `<binary> --version` is probed too. `studio registry install` warns instead of blocking. See CLI.md.
 
-**Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus an env-var check `run` doesn't have: a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
+**Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus two checks `run` doesn't have at that breadth: an env-var check (a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value) and contract coverage across every pipeline in `.studio/pipelines/`, not only the one being run. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
 
 **Standalone binary** — `bun build --compile` turns the CLI into a single executable per platform ([scripts/build-binary.mjs](scripts/build-binary.mjs), platform table in [scripts/platforms.mjs](scripts/platforms.mjs)). Two consequences for anything running inside it:
 
