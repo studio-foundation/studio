@@ -74,6 +74,14 @@ export {
 } from './pipeline/context-propagation.js';
 export type { PipelineContext, PipelineInput, GroupFeedback } from './pipeline/context-propagation.js';
 
+// Contract coverage — stages running with nothing to validate against
+export {
+  findUnvalidatedStages,
+  findUnvalidatedStagesInPipeline,
+  formatUnvalidatedStages,
+} from './pipeline/contract-coverage.js';
+export type { UnvalidatedStage } from './pipeline/contract-coverage.js';
+
 // Contract validation
 export { validateOutput } from './pipeline/output-validator.js';
 export type { OutputValidationResult } from './pipeline/output-validator.js';

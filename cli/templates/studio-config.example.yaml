@@ -22,6 +22,11 @@
 #   - git
 #   - "node >=18 <=22"
 
+# Startup warnings. `missing_contract` names every stage with no `contract:`,
+# whose output nothing validates — turn it off for a project that means it.
+# warnings:
+#   missing_contract: false
+
 # providers:
 #   anthropic:
 #     apiKey: ${ANTHROPIC_API_KEY}
