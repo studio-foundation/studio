@@ -231,6 +231,29 @@ export function mergeEvents(
         status: e.status,
       });
     },
+    onBatchDispatch: (e, ctx) => {
+      progressEvents.onBatchDispatch?.(e, ctx);
+      log(ctx, {
+        event: 'batch_dispatch',
+        map: e.map_name,
+        provider: e.provider,
+        size: e.size,
+        round: e.round,
+      });
+    },
+    onBatchComplete: (e, ctx) => {
+      progressEvents.onBatchComplete?.(e, ctx);
+      log(ctx, {
+        event: 'batch_complete',
+        map: e.map_name,
+        provider: e.provider,
+        size: e.size,
+        round: e.round,
+        succeeded: e.succeeded,
+        failed: e.failed,
+        duration_ms: e.duration_ms,
+      });
+    },
     onPipelineCancelled: (e, ctx) => {
       log(ctx, {
         event: 'pipeline_cancelled',

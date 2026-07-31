@@ -141,6 +141,52 @@ export interface MapStage {
    * restart between runs.
    */
   resume?: boolean;
+  /**
+   * Dispatch this fan-out's LLM calls as batches instead of one synchronous
+   * request per item (default: off). `true` takes every default below.
+   *
+   * The items of a fan-out are independent and nothing is waiting on any single
+   * one of them, which is exactly what a vendor batch endpoint is priced for:
+   * Anthropic's Message Batches API bills every token — input, output, cache
+   * write, cache read — at 50% of the synchronous rate, in exchange for up to
+   * 24h to finish. On a bulk stage that is the largest cost lever there is.
+   *
+   * What it changes, and what it does not:
+   *   - Items still run as ordinary child runs. Contracts, RALPH, hooks,
+   *     post-validation and the `resume` cache all behave identically; a cached
+   *     item is simply never dispatched.
+   *   - Validation stays per item, after the batch comes back. An item that
+   *     fails retries into the *next* batch, so rounds shrink instead of the
+   *     retry loop paying full price per item.
+   *   - `concurrency` defaults to `min(items, max_size)` here instead of 1 —
+   *     items must be in flight together to share a batch. An explicit
+   *     `concurrency` is still honoured, and caps the batch at that size.
+   *   - Nothing streams: a batched response arrives whole, so `--live` shows no
+   *     tokens for these items.
+   *   - A provider with no batch endpoint (mock, ollama, claude-code) runs the
+   *     stage exactly as it would without this key — correct, just not cheaper.
+   */
+  batch?: boolean | MapBatchConfig;
+}
+
+/** Tuning for a `map` stage's batched dispatch. Every field has a default. */
+export interface MapBatchConfig {
+  /** Requests per batch before one is sent without waiting for the rest. Default 500. */
+  max_size?: number;
+  /** How often to ask whether the batch has ended. Default 15000. */
+  poll_interval_ms?: number;
+  /**
+   * Give up on a batch after this long, failing its requests. Default 86400000
+   * (24h — the API's own expiry). A batch has no per-call timeout; this is the
+   * whole-stage budget that replaces one.
+   */
+  max_wait_ms?: number;
+  /**
+   * Send what is parked after this long with no new request arriving, even
+   * while an item is still busy elsewhere. Default 30000, `0` disables it.
+   * Without it one slow item would hold the whole batch.
+   */
+  flush_after_ms?: number;
 }
 
 /**

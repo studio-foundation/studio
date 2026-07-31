@@ -1,0 +1,13 @@
+name: per-item
+description: One LLM call per fan-out item — the shape a batched map stage pays for.
+version: 1
+stages:
+  - name: transform
+    kind: transform
+    agent: echoer
+    contract: item-echo
+    ralph:
+      max_attempts: 2
+      retry_strategy: none
+    context:
+      include: [input]

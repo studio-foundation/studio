@@ -164,6 +164,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
   concurrency: 4                      # max items in flight (default 1)
   on_item_failure: collect-all        # fail-fast (default) | collect-all
   resume: true                        # skip items already done in a prior run (default false)
+  batch: true                         # dispatch the items' LLM calls as one batch (default false)
 ```
 
 - **`over`** resolves to a list via the same reference syntax as `condition`: `input.<path>` or `stages.<name>.output(.<path>)`. If it doesn't resolve to an array, the stage fails.
@@ -173,6 +174,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
   - `fail-fast` (default): stop launching new items on the first failure; the stage fails. In-flight items still finish.
   - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
 - **`resume`** (default `false`) turns on **per-item resume** — see below.
+- **`batch`** (default `false`) turns on **batched dispatch** — see below.
 
 The stage output is structured for the next stage to consume — no scraping:
 
@@ -199,6 +201,42 @@ A fan-out over hundreds of network-bound items is a run measured in hours. Witho
 The cache is a JSON file per completed item under `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json`, so it survives a process restart between runs. It is best-effort: a read error is a miss and a write error is swallowed (the item simply re-runs) — resume never fails the stage. Cache-served items are flagged `cached: true` in the `map_item_complete` event and counted in the output's `resumed`.
 
 The key covers the item input and the target pipeline, **not the provider or the model** — so a warm re-run under a different provider replays the first provider's outputs. Clear the cache first when comparing providers: `studio cache clean` (whole cache) or `studio cache clean --pipeline <name>` (one parent pipeline). See [CLI.md](CLI.md).
+
+### Batched dispatch (`batch: true`)
+
+The items of a fan-out are independent and nothing interactive is waiting on any single one of them. That is exactly what a vendor batch endpoint is priced for: Anthropic's Message Batches API bills **every** token — input, output, cache write, cache read — at **50%** of the synchronous rate, in exchange for up to 24h to finish. On a bulk stage that is the largest cost lever available, and `batch: true` is how a map stage takes it.
+
+```yaml
+- map: generate-pages
+  over: stages.plan.output.entities
+  pipeline: wiki-page-item
+  as: entity
+  resume: true
+  batch: true          # or the object form, for tuning:
+  # batch:
+  #   max_size: 500          # requests per batch (default 500)
+  #   poll_interval_ms: 15000 # how often to ask whether the batch ended (default 15000)
+  #   max_wait_ms: 86400000   # whole-batch budget (default 24h — the API's own expiry)
+  #   flush_after_ms: 30000   # send what is queued after this quiet (default 30000, 0 disables)
+```
+
+**What it does.** Items still run as ordinary child runs — same contracts, same RALPH loop, same hooks, same post-validation, same `resume` cache. What changes is only how their LLM calls leave the process: instead of N synchronous requests, each item parks its call in a shared **batch window**, and the window submits them together as one job.
+
+The window sends a batch when nothing live can still add to it — every in-flight item is either parked or already inside a dispatch — or when the batch hits `max_size`. Items that finish (or are served from the resume cache) simply lower that bar rather than holding it up.
+
+**What it does not change:**
+
+- **Validation stays per item, after the batch returns.** An item whose output fails its contract retries by calling again, and lands in the *next* batch alongside whichever other items are also retrying. Rounds shrink — the retry loop never has to know batching exists.
+- **A per-request failure is that item's failure**, not the stage's. It reaches the child run as an ordinary executor error, so `on_item_failure` and RALPH treat it exactly as they treat any other.
+- **`resume` composes.** A cached item is never dispatched, so a warm re-run batches only what is actually left.
+
+**What it does change, and you should expect:**
+
+- **`concurrency` defaults to `min(items, max_size)`** here instead of `1` — items have to be in flight together to share a batch. An explicit `concurrency` is still honoured and caps the batch at that size; it is also how you bound how many child runs exist at once over a very long list.
+- **Nothing streams.** A batched response arrives whole, so `--live` shows no tokens for these items. It does show each batch leaving and returning (`⇢ batch #1 — 40 requests submitted`), because a batch can take an hour and "queued at half price" and "hung" look identical otherwise. The `batch_dispatch` / `batch_complete` events are in the run JSONL.
+- **Latency is the trade.** There is no per-call timeout to set; `max_wait_ms` is the whole-stage budget that replaces one.
+- **A provider with no batch endpoint runs the stage unchanged** — correct, just not cheaper. Today only `anthropic` batches; `mock`, `ollama` and `claude-code` fall back with a warning naming the provider. Batching also does not apply to a provider that owns its own agent loop, where there is no single call to intercept.
+- **Remote spawners do not batch.** The window is an object in this process, so a fan-out running through the HTTP spawner dispatches normally.
 
 ### Live progress
 

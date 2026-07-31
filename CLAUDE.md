@@ -46,7 +46,9 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Groups** — Multi-stage feedback loops. A group contains stages that execute in iterations. If the last stage rejects (via `post_validation.rejection_detection`), the group restarts from the beginning with accumulated feedback. Max iterations configured via `max_iterations`.
 
-**Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`), `resume` (default false — per-item resume: skip items already completed in a prior run, keyed on the item **input** not its index; failures are never cached; cache lives at `.studio/runs/map-cache/`). Output is `{ total, succeeded, failed, resumed, outputs, results }`. See CONCEPTS.md.
+**Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`), `resume` (default false — per-item resume: skip items already completed in a prior run, keyed on the item **input** not its index; failures are never cached; cache lives at `.studio/runs/map-cache/`), `batch` (default false — see below). Output is `{ total, succeeded, failed, resumed, outputs, results }`. See CONCEPTS.md.
+
+**Batched fan-out (`batch:` on a map stage)** — Dispatches the items' LLM calls through the provider's batch endpoint instead of one synchronous request each. Anthropic's Message Batches API bills every token at 50%, in exchange for up to 24h; a fan-out has no interactive deadline, so it is the shape that pays for it. The child runs are untouched — contracts, RALPH, hooks, `resume` all behave identically. What changes is that each item parks its call in a shared **batch window** (`runner/src/providers/batch-window.ts`) whose barrier releases one batch as soon as no live item can still add to it. Validation stays per item after collection, so a failed item retries into the *next* batch and rounds shrink. `concurrency` defaults to `min(items, max_size)` here, not 1 — items must be in flight together to share a batch. A provider with no batch endpoint (mock, ollama, claude-code) runs the stage exactly as before, with a warning. Tuning: `max_size`, `poll_interval_ms`, `max_wait_ms`, `flush_after_ms`. See CONCEPTS.md.
 
 **Context propagation** — Each stage configures exactly what context it receives via `context.include: [...]`. Options: `input`, `previous_stage_output`, `all_stage_outputs`, `group_feedback`, `repo_files`.
 
@@ -290,6 +292,8 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | `onGroupIteration` | Group iterates | `iteration`, `max_iterations` |
 | `onGroupFeedback` | Group rejects | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group ends | `iterations`, `status` |
+| `onBatchDispatch` | A batched map stage submits a batch | `map_name`, `provider`, `size`, `round` |
+| `onBatchComplete` | That batch returns | `succeeded`, `failed`, `duration_ms` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |
 | `onToolCallComplete` | Tool call ends | `tool`, `result`, `error` |
 | `onAgentThinking` | Agent thinking (streaming) | `stage`, `text` |

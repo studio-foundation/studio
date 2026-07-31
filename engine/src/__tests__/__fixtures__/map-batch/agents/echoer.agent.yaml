@@ -1,0 +1,5 @@
+name: echoer
+provider: fake-batch
+model: fake-model
+system_prompt: Echo the item you are given as JSON.
+tools: []
