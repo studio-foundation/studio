@@ -11,6 +11,13 @@ import {
 import { STUDIO_VERSION, checkStudioVersion } from './version-guard.js';
 import { checkBinaries, formatBinaryPreflightError, parseRequirement } from './binary-preflight.js';
 import type { BinaryRequirement } from './binary-preflight.js';
+import {
+  SUPPRESS_HINT,
+  formatCoverageEntry,
+  missingContractWarningsEnabled,
+  resolvePipelinesDir,
+  scanPipelineContracts,
+} from './contract-warnings.js';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail';
 
@@ -128,6 +135,52 @@ async function envCheck(studioDir: string): Promise<PreflightCheck> {
   };
 }
 
+/**
+ * Contract coverage across the pipelines this project ships. A stage with no
+ * `contract:` runs unvalidated, which is legitimate but silent at run time —
+ * this is where it becomes catchable before the run (STU-703). Never a `fail`:
+ * the run is not in danger, only unguarded.
+ */
+async function contractCheck(studioDir: string, config: StudioConfig): Promise<PreflightCheck> {
+  const coverage = await scanPipelineContracts(resolvePipelinesDir(studioDir, config));
+  const unreadable = coverage.unreadable.length
+    ? ` (${coverage.unreadable.length} unreadable: ${coverage.unreadable.join(', ')})`
+    : '';
+
+  if (coverage.scanned === 0) {
+    return { name: 'Contracts', status: 'ok', detail: `no pipelines found${unreadable}` };
+  }
+
+  const count = coverage.stages.length;
+  const pipelines = `${coverage.scanned} pipeline${coverage.scanned > 1 ? 's' : ''}`;
+  if (count === 0) {
+    return {
+      name: 'Contracts',
+      status: 'ok',
+      detail: `every stage validates its output (${pipelines})${unreadable}`,
+    };
+  }
+
+  const summary = `${count} stage${count > 1 ? 's' : ''} of ${pipelines} run${count > 1 ? '' : 's'} unvalidated`;
+  if (!missingContractWarningsEnabled(config)) {
+    return {
+      name: 'Contracts',
+      status: 'ok',
+      detail: `${summary} — warnings suppressed${unreadable}`,
+    };
+  }
+
+  return {
+    name: 'Contracts',
+    status: 'warn',
+    detail: `${summary}${unreadable}`,
+    fix:
+      'Warning: stages with no `contract:` run unvalidated — no schema check, no tool_calls floor, no rejection detection:\n' +
+      coverage.stages.map((s) => `  - ${formatCoverageEntry(s)}`).join('\n') +
+      `\n  ${SUPPRESS_HINT}`,
+  };
+}
+
 /** Every preflight check, in display order. Never throws — a broken check reports itself. */
 export async function collectChecks(
   studioDir: string,
@@ -138,5 +191,6 @@ export async function collectChecks(
     await configCheck(studioDir),
     binaryCheck(await binaryRequirements(studioDir, config)),
     await envCheck(studioDir),
+    await contractCheck(studioDir, config),
   ];
 }

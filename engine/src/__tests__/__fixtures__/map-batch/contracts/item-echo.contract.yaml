@@ -1,0 +1,5 @@
+name: item-echo
+version: 1
+schema:
+  required_fields:
+    - echoed

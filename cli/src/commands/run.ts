@@ -2,11 +2,18 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
+import type { PipelineDefinition } from '@studio-foundation/contracts';
 import type { EngineEvents, EventContext, MapItemCompleteEvent } from '@studio-foundation/engine';
 import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
 import { resolveRepoPath } from '@studio-foundation/api/repo-resolver';
 import { loadConfig } from '../config.js';
+import type { StudioConfig } from '../config.js';
+import {
+  SUPPRESS_HINT,
+  missingContractWarnings,
+  missingContractWarningsEnabled,
+} from '../contract-warnings.js';
 import { checkConfig, formatConfigCheckError } from '../config-validation.js';
 import { checkBinaries, formatBinaryPreflightError } from '../binary-preflight.js';
 import type { BinaryRequirement } from '../binary-preflight.js';
@@ -231,6 +238,29 @@ export function mergeEvents(
         status: e.status,
       });
     },
+    onBatchDispatch: (e, ctx) => {
+      progressEvents.onBatchDispatch?.(e, ctx);
+      log(ctx, {
+        event: 'batch_dispatch',
+        map: e.map_name,
+        provider: e.provider,
+        size: e.size,
+        round: e.round,
+      });
+    },
+    onBatchComplete: (e, ctx) => {
+      progressEvents.onBatchComplete?.(e, ctx);
+      log(ctx, {
+        event: 'batch_complete',
+        map: e.map_name,
+        provider: e.provider,
+        size: e.size,
+        round: e.round,
+        succeeded: e.succeeded,
+        failed: e.failed,
+        duration_ms: e.duration_ms,
+      });
+    },
     onPipelineCancelled: (e, ctx) => {
       log(ctx, {
         event: 'pipeline_cancelled',
@@ -270,6 +300,20 @@ function failOnMissingBinaries(requirements: BinaryRequirement[]): void {
     console.error(error);
     process.exit(1);
   }
+}
+
+/**
+ * One line per contract-less stage, on stderr so `--json` stdout stays a clean
+ * payload. Warning only: the exit code and every stage status are untouched.
+ */
+function warnOnMissingContracts(pipeline: PipelineDefinition, config: StudioConfig): void {
+  if (!missingContractWarningsEnabled(config)) return;
+  const warnings = missingContractWarnings(pipeline);
+  if (warnings.length === 0) return;
+  for (const line of warnings) {
+    console.warn(chalk.yellow(`⚠ ${line}`));
+  }
+  console.warn(chalk.gray(`  ${SUPPRESS_HINT}`));
 }
 
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
@@ -312,6 +356,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
 
     // Load pipeline early (needed for input_schema and repo URL)
     const pipelineDef = await loadPipelineByName(pipelineName, pipelinesDir);
+
+    // A stage with no `contract:` runs unvalidated. Legitimate, but say so —
+    // once here at startup, never per attempt, and never fatal (STU-703).
+    warnOnMissingContracts(pipelineDef, config);
 
     // Resolve input: --input-file > --input > wizard > error
     let input: string | Record<string, unknown>;

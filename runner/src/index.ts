@@ -29,6 +29,26 @@ export { AnthropicProvider } from './providers/anthropic.js';
 export { OllamaProvider } from './providers/ollama.js';
 export { ClaudeCodeProvider } from './providers/claude-code.js';
 export { ProviderRegistry, createDefaultRegistry } from './providers/registry.js';
+export { isBatchProvider, assertValidBatch, CUSTOM_ID_PATTERN } from './providers/batch.js';
+export type {
+  BatchProvider,
+  BatchRequestItem,
+  BatchResultItem,
+  BatchProgress,
+  BatchDispatchOptions,
+} from './providers/batch.js';
+export {
+  BatchWindow,
+  BatchingProviderRegistry,
+  DEFAULT_MAX_BATCH_SIZE,
+  DEFAULT_FLUSH_AFTER_MS,
+} from './providers/batch-window.js';
+export type {
+  BatchTicket,
+  BatchWindowOptions,
+  BatchDispatchInfo,
+  BatchSettledInfo,
+} from './providers/batch-window.js';
 export { MockProvider } from './providers/mock.js';
 export type { MockStageConfig } from './providers/mock.js';
 

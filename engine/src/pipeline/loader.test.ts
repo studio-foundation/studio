@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePipelineYaml } from './loader.js';
-import type { StageDefinition } from '@studio-foundation/contracts';
+import type { MapStage, StageDefinition } from '@studio-foundation/contracts';
 
 const MINIMAL_STAGE = `
   - name: analyze
@@ -161,6 +161,60 @@ stages:
   it('suggests the closest directive on a typo', () => {
     expect(() => parsePipelineYaml(withInclude('all_stage_output'))).toThrow(
       /Did you mean 'all_stage_outputs'\?/,
+    );
+  });
+});
+
+describe('parsePipelineYaml — map stage batch', () => {
+  const withBatch = (batch: string) => `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - map: items
+    over: input.things
+    pipeline: per-item
+    as: thing
+${batch}
+`;
+
+  it('accepts the boolean shorthand', () => {
+    const result = parsePipelineYaml(withBatch('    batch: true'));
+    expect((result.stages[0] as MapStage).batch).toBe(true);
+  });
+
+  it('accepts a tuning object and keeps only what was written', () => {
+    const result = parsePipelineYaml(withBatch(
+      '    batch:\n      max_size: 50\n      poll_interval_ms: 5000',
+    ));
+    expect((result.stages[0] as MapStage).batch).toEqual({ max_size: 50, poll_interval_ms: 5000 });
+  });
+
+  it('leaves batch absent when the key is omitted', () => {
+    const result = parsePipelineYaml(withBatch('    concurrency: 4'));
+    expect((result.stages[0] as MapStage).batch).toBeUndefined();
+  });
+
+  it('accepts flush_after_ms: 0 — that disables the quiescence flush, it is not a bad value', () => {
+    const result = parsePipelineYaml(withBatch('    batch:\n      flush_after_ms: 0'));
+    expect((result.stages[0] as MapStage).batch).toEqual({ flush_after_ms: 0 });
+  });
+
+  it('rejects a non-integer setting', () => {
+    expect(() => parsePipelineYaml(withBatch('    batch:\n      max_size: 0'))).toThrow(
+      /batch\.max_size' must be an integer >= 1/,
+    );
+  });
+
+  it('rejects a batch key the kernel does not implement', () => {
+    expect(() => parsePipelineYaml(withBatch('    batch:\n      retry_forever: true'))).toThrow(
+      /retry_forever/,
+    );
+  });
+
+  it('rejects a batch value that is neither a boolean nor an object', () => {
+    expect(() => parsePipelineYaml(withBatch('    batch: "yes"'))).toThrow(
+      /must be a boolean or an object/,
     );
   });
 });

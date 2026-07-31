@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, CallStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, MapBatchConfig, CallStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
 import { assertKnownFields, suggestClosest } from './strict-fields.js';
 import { CONTEXT_INCLUDE_DIRECTIVES } from './context-propagation.js';
 
@@ -18,7 +18,8 @@ const STAGE_FIELDS = [
   'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
-const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume'] as const;
+const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume', 'batch'] as const;
+const MAP_BATCH_FIELDS = ['max_size', 'poll_interval_ms', 'max_wait_ms', 'flush_after_ms'] as const;
 const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input', 'on_failure'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
 const CONTEXT_FIELDS = ['include', 'packs'] as const;
@@ -285,6 +286,7 @@ function parseMapStage(entry: any, context: string): MapStage {
   if (entry.resume !== undefined && typeof entry.resume !== 'boolean') {
     throw new Error(`Map stage '${name}' field 'resume' must be a boolean${context}`);
   }
+  const batch = parseMapBatch(entry.batch, name, context);
 
   return {
     map: name,
@@ -296,7 +298,34 @@ function parseMapStage(entry: any, context: string): MapStage {
     ...(entry.concurrency !== undefined ? { concurrency: entry.concurrency } : {}),
     on_item_failure: onItemFailure,
     ...(entry.resume !== undefined ? { resume: entry.resume } : {}),
+    ...(batch !== undefined ? { batch } : {}),
   };
+}
+
+/** `batch: true` | `batch: false` | `batch: { …tuning }`. Anything else is a config error. */
+function parseMapBatch(value: unknown, name: string, context: string): boolean | MapBatchConfig | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`Map stage '${name}' field 'batch' must be a boolean or an object of batch settings${context}`);
+  }
+  const settings = value as Record<string, unknown>;
+  assertKnownFields(settings, MAP_BATCH_FIELDS, `map stage '${name}' field 'batch'`, context);
+
+  const config: MapBatchConfig = {};
+  for (const field of MAP_BATCH_FIELDS) {
+    const raw = settings[field];
+    if (raw === undefined) continue;
+    // flush_after_ms accepts 0 (disable the quiescence flush); the rest are counts.
+    const min = field === 'flush_after_ms' ? 0 : 1;
+    if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < min) {
+      throw new Error(
+        `Map stage '${name}' field 'batch.${field}' must be an integer >= ${min}${context}`
+      );
+    }
+    config[field] = raw;
+  }
+  return config;
 }
 
 function parseCallStage(entry: any, context: string): CallStage {
