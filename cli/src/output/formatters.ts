@@ -32,8 +32,8 @@ const STAGE_LINE_WIDTH = 42;
 
 /**
  * Formats a stage progress line with dot-filling for alignment.
- * formatStageLine("[1/4]", "brief-analysis", "✓ (12s, 2.1k tokens)")
- * → "[1/4] brief-analysis ............ ✓ (12s, 2.1k tokens)"
+ * formatStageLine("[1/4]", "extract-entities", "✓ (12s, 2.1k tokens)")
+ * → "[1/4] extract-entities .......... ✓ (12s, 2.1k tokens)"
  */
 export function formatStageLine(prefix: string, name: string, suffix: string): string {
   const left = `${prefix} ${name} `;
@@ -44,25 +44,15 @@ export function formatStageLine(prefix: string, name: string, suffix: string): s
 
 // ── Stage name mapping ────────────────────────────────────────────────────────
 
-const STAGE_NAME_PATTERNS: Array<[RegExp, string]> = [
-  [/^brief[-_]analysis$/i, 'Analyzing brief'],
-  [/^implementation[-_]plan$/i, 'Planning implementation'],
-  [/^code[-_]gen(?:eration)?$/i, 'Generating code'],
-  [/^qa[-_]review$/i, 'Reviewing'],
-  [/^analysis$/i, 'Analysis'],
-  [/^planning$/i, 'Planning'],
-  [/^generation$/i, 'Generating'],
-  [/^review$/i, 'Reviewing'],
-];
-
 /**
  * Converts a kebab-case stage name to a human-readable label.
- * Uses a lookup table for known names; falls back to title-casing.
+ *
+ * Purely mechanical: a stage name is a config author's word, so the CLI
+ * title-cases it and renders nothing else (INV-13). A lookup table used to
+ * translate one template's stage names into verb phrases here — which made
+ * that template's pipeline read as more finished than everyone else's.
  */
 export function humanReadableStageName(stageName: string): string {
-  for (const [pattern, label] of STAGE_NAME_PATTERNS) {
-    if (pattern.test(stageName)) return label;
-  }
   return titleCase(stageName);
 }
 
