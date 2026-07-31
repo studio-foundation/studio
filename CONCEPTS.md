@@ -497,6 +497,48 @@ Cycles are detected and reported. A required name missing from the index aborts 
 
 ---
 
+## Token usage
+
+Every provider reports what a call spent, in one shape (`TokenUsage`):
+
+```json
+{
+  "prompt_tokens": 4200,
+  "completion_tokens": 3100,
+  "total_tokens": 128300,
+  "cached_input_tokens": 98000,
+  "cache_creation_tokens": 23000,
+  "by_model": { "claude-opus-4-5": { "prompt_tokens": 4200, "...": "..." } }
+}
+```
+
+The four count fields are disjoint on purpose: each is billed at its own rate, so a
+stage that read 200k tokens from cache and one that sent 200k fresh differ by an
+order of magnitude in cost — one number cannot tell them apart. Providers normalize
+to that definition (Anthropic already excludes cache counts from its input total,
+OpenAI folds them in and Studio splits them back out).
+
+It accumulates upward, and nothing is dropped on the way:
+
+| Level | What it sums |
+|-------|--------------|
+| Provider call | One LLM call, per model |
+| Agent run (runner) | Every turn of the tool-calling loop |
+| Stage (engine) | Every RALPH attempt — the discarded retries too |
+| `call` / `map` stage | The child runs it spawned |
+| Run | Every stage |
+
+Nothing is fabricated: a stage whose provider reported nothing (a script stage, the
+mock provider) has no usage at all rather than a row of zeros — an unmeasured stage
+must not read as a free one.
+
+Where it lands: on `StageRun.token_usage`, on the `stage_complete` / `stage_retry` /
+`map_item_complete` / `pipeline_complete` events, and in `.studio/runs/<run>.jsonl`
+under `tokens`. `studio status <run-id>` aggregates it per stage and per model. See
+[CLI.md](CLI.md) for the jq recipes.
+
+---
+
 ## PII anonymization
 
 Transparent middleware that replaces sensitive data with tokens before sending to the LLM:

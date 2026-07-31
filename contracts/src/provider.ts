@@ -1,5 +1,7 @@
 // LLM provider interfaces
 
+import type { TokenUsage } from './usage';
+
 export interface LLMRequest {
   model: string;
   messages: Message[];
@@ -23,13 +25,8 @@ export interface LLMResponse {
     arguments: Record<string, unknown>;
   }>;
   finish_reason: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-    cached_input_tokens?: number;
-    cache_creation_tokens?: number;
-  };
+  /** What the call cost, as the provider reported it. See ./usage.ts. */
+  usage?: TokenUsage;
 }
 
 export interface ToolDefinition {

@@ -121,3 +121,56 @@ describe('DirectEngineSpawner nesting (STU-615)', () => {
     expect(captured[0].configsDir).toBe('/x');
   });
 });
+
+describe('DirectEngineSpawner — token usage roll-up (STU-750)', () => {
+  it('sums the child run stages so the spawning stage can report what it cost', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const run = makeSuccessRun({
+      stages: [
+        {
+          id: 's1', stage_name: 'draft', status: 'success',
+          started_at: new Date().toISOString(), tasks: [],
+          token_usage: {
+            prompt_tokens: 100, completion_tokens: 10, total_tokens: 160, cached_input_tokens: 50,
+            by_model: { opus: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 160, cached_input_tokens: 50 } },
+          },
+        },
+        {
+          id: 's2', stage_name: 'review', status: 'success',
+          started_at: new Date().toISOString(), tasks: [], output: { answer: 42 },
+          token_usage: {
+            prompt_tokens: 20, completion_tokens: 5, total_tokens: 25,
+            by_model: { haiku: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 } },
+          },
+        },
+      ],
+    });
+    vi.mocked(PipelineEngine).mockImplementation(function () { return { run: vi.fn().mockResolvedValue(run) }; });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    const result = await spawner.spawnAndWait({ pipeline: 'test', input: {}, parentRunId: 'p1', depth: 1 });
+
+    expect(result.token_usage).toEqual({
+      prompt_tokens: 120,
+      completion_tokens: 15,
+      total_tokens: 185,
+      cached_input_tokens: 50,
+      by_model: {
+        opus: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 160, cached_input_tokens: 50 },
+        haiku: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+      },
+    });
+  });
+
+  it('omits token_usage when the child reported none', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    vi.mocked(PipelineEngine).mockImplementation(function () {
+      return { run: vi.fn().mockResolvedValue(makeSuccessRun()) };
+    });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    const result = await spawner.spawnAndWait({ pipeline: 'test', input: {}, parentRunId: 'p1', depth: 1 });
+
+    expect(result.token_usage).toBeUndefined();
+  });
+});

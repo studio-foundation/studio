@@ -2,6 +2,7 @@
 
 import type { StageStatus } from './stage';
 import type { TaskStatus } from './task';
+import type { TokenUsage } from './usage';
 
 export type AgentStatus = 'pending' | 'running' | 'success' | 'failed';
 
@@ -34,6 +35,10 @@ export interface StageRun {
   // reader (e.g. `studio status`) load and nest the child's own stages instead
   // of hand-mapping interleaved run logs.
   child_run_id?: string;
+  // What the stage spent, summed over every attempt of its RALPH loop. A `call`
+  // or `map` stage carries the total of the child runs it spawned — those runs
+  // are not in `stages`, so a per-run total never double-counts them.
+  token_usage?: TokenUsage;
 }
 
 export interface TaskRun {

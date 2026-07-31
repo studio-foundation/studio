@@ -1,5 +1,7 @@
 import chalk from 'chalk';
 import type { PipelineRun } from '@studio-foundation/contracts';
+import { sumTokenUsage } from '@studio-foundation/contracts';
+import { formatTokenCount, formatUsageSummary, usageByModel } from './token-usage.js';
 
 /**
  * Child pipeline runs keyed by the spawning stage's `child_run_id`. When
@@ -33,10 +35,30 @@ export function formatResult(run: PipelineRun, childRuns?: ChildRunMap): void {
     console.log(`Duration: ${duration}`);
   }
 
+  // What the run spent. Summing the stages (rather than trusting a single
+  // recorded total) keeps the number consistent with the per-stage lines below,
+  // and works the same whether the run came from the DB or the run JSONL.
+  const usage = sumTokenUsage(run.stages.map((s) => s.token_usage));
+  if (usage) {
+    console.log(`Tokens:   ${formatUsageSummary(usage)}`);
+  }
+
   if (run.stages.length > 0) {
     console.log('');
     console.log('Stages:');
     printStages(run.stages, childRuns, '  ');
+  }
+
+  // Per-model split — the breakdown a cost review starts from, and the reason
+  // a stage that delegated to a cheaper model is priced as such.
+  const models = usage ? usageByModel(usage) : [];
+  if (models.length > 0) {
+    console.log('');
+    console.log('Tokens by model:');
+    for (const [model, counts] of models) {
+      const dots = '.'.repeat(Math.max(2, 34 - model.length));
+      console.log(`  ${model} ${chalk.gray(dots)} ${formatUsageSummary(counts)}`);
+    }
   }
 
   console.log('');
@@ -70,18 +92,25 @@ function printStages(
     const durationMs = stageDurationMs(stage);
     const durationText = durationMs !== null ? `  ${chalk.gray(formatCompactDuration(durationMs))}` : '';
 
+    // Per-stage cost, so the expensive stage is identifiable at a glance instead
+    // of by summing the run JSONL by hand.
+    const stageUsage = stage.token_usage;
+    const tokensText = stageUsage
+      ? `  ${chalk.gray(`${formatTokenCount(stageUsage.total_tokens)} tok`)}`
+      : '';
+
     if (stage.status === 'success') {
       const attemptText = agentRuns !== undefined ? ` (${agentRuns} attempt${agentRuns !== 1 ? 's' : ''})` : '';
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')}${attemptText}${durationText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')}${attemptText}${durationText}${tokensText}`
       );
     } else if (stage.status === 'rejected') {
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ REJECTED')}${durationText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ REJECTED')}${durationText}${tokensText}`
       );
     } else if (stage.status === 'failed') {
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ FAILED')} (${attempts} attempts exhausted)${durationText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ FAILED')} (${attempts} attempts exhausted)${durationText}${tokensText}`
       );
       // Show errors from the last agent run
       const lastAgentRun = stage.tasks[0]?.agent_runs.at(-1);

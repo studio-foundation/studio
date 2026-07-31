@@ -398,3 +398,77 @@ describe('mergeEvents — run_id cleanup', () => {
     }
   });
 });
+
+describe('mergeEvents — token usage in the run JSONL (STU-750)', () => {
+  const USAGE = {
+    prompt_tokens: 4,
+    completion_tokens: 437,
+    total_tokens: 34953,
+    cached_input_tokens: 21000,
+    cache_creation_tokens: 13512,
+    by_model: {
+      'claude-sonnet-4-5-20250929': {
+        prompt_tokens: 4, completion_tokens: 437, total_tokens: 34953,
+        cached_input_tokens: 21000, cache_creation_tokens: 13512,
+      },
+    },
+  };
+
+  async function capture() {
+    const { mergeEvents } = await import('../src/commands/run.js');
+    const { logger, entries } = createCapturingLogger();
+    const events = mergeEvents({} as EngineEvents, logger, 'pipe', 'input');
+    events.onPipelineStart!({ pipeline_name: 'pipe', run_id: 'run-12345678' });
+    return { events, entries };
+  }
+
+  it('writes the whole usage — cache split and per-model — on stage_complete', async () => {
+    const { events, entries } = await capture();
+
+    events.onStageComplete!({
+      stage_name: 'generate', stage_index: 0, total_stages: 1,
+      status: 'success', attempts: 1, duration_ms: 1000,
+      token_usage: USAGE,
+    });
+
+    const entry = entries.find((e) => e.event === 'stage_complete')!;
+    // A per-stage cost breakdown has to be a jq pass over this file — that is
+    // the entire point of recording it here.
+    expect(entry.tokens).toEqual(USAGE);
+  });
+
+  it('records the cost of each discarded attempt on stage_retry', async () => {
+    const { events, entries } = await capture();
+
+    events.onTaskRetry!({
+      stage: 'generate', attempt: 1, max_attempts: 3, failures: ['missing field'],
+      token_usage: USAGE,
+    });
+
+    expect(entries.find((e) => e.event === 'stage_retry')!.tokens).toEqual(USAGE);
+  });
+
+  it('records each fan-out item cost on map_item_complete', async () => {
+    const { events, entries } = await capture();
+
+    events.onMapItemComplete!({
+      map_name: 'pages', index: 2, total_items: 10, status: 'success',
+      label: 'Alice', run_id: 'child-1', token_usage: USAGE,
+    });
+
+    expect(entries.find((e) => e.event === 'map_item_complete')!.tokens).toEqual(USAGE);
+  });
+
+  it('omits the field entirely when nothing was reported', async () => {
+    const { events, entries } = await capture();
+
+    events.onStageComplete!({
+      stage_name: 'generate', stage_index: 0, total_stages: 1,
+      status: 'success', attempts: 1, duration_ms: 10,
+    });
+    events.onMapItemComplete!({ map_name: 'pages', index: 0, total_items: 1, status: 'success' });
+
+    expect(entries.find((e) => e.event === 'stage_complete')!.tokens).toBeUndefined();
+    expect(entries.find((e) => e.event === 'map_item_complete')).not.toHaveProperty('tokens');
+  });
+});

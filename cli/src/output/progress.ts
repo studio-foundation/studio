@@ -305,10 +305,15 @@ export class ProgressDisplay {
           }
         }
 
-        // Token breakdown: verbose mode (both standalone and live+verbose)
+        // Token breakdown: verbose mode (both standalone and live+verbose).
+        // Cache reads/writes are shown separately — they are billed at their own
+        // rates, so folding them into one number hides what the stage cost.
         if (this.verbose && event.token_usage) {
           const u = event.token_usage;
-          console.log(chalk.gray(`  Tokens: ${u.prompt_tokens} prompt + ${u.completion_tokens} completion = ${u.total_tokens} total`));
+          const parts = [`${u.prompt_tokens} prompt`, `${u.completion_tokens} completion`];
+          if (u.cached_input_tokens) parts.push(`${u.cached_input_tokens} cached`);
+          if (u.cache_creation_tokens) parts.push(`${u.cache_creation_tokens} cache-write`);
+          console.log(chalk.gray(`  Tokens: ${parts.join(' + ')} = ${u.total_tokens} total`));
         }
       },
 

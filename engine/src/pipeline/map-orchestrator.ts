@@ -15,7 +15,8 @@
 //     surfaced in the output, never fatal — the pipeline keeps going.
 
 import { randomUUID } from 'node:crypto';
-import type { MapStage, RunSpawner, StageRun, StageStatus, TaskRun } from '@studio-foundation/contracts';
+import type { MapStage, RunSpawner, StageRun, StageStatus, TaskRun, TokenUsage } from '@studio-foundation/contracts';
+import { sumTokenUsage } from '@studio-foundation/contracts';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
 import { buildItemInput, mapItemLabel } from './map-input.js';
@@ -30,6 +31,8 @@ export interface MapItemResult {
   run_id?: string;
   /** True when served from the resume cache instead of spawned this run. */
   cached?: boolean;
+  /** What the item's child run spent. Absent for a cache hit — a resumed item costs nothing this run. */
+  token_usage?: TokenUsage;
 }
 
 export interface MapStageOutput {
@@ -47,6 +50,8 @@ export interface MapRunResult {
   status: StageStatus;
   stageRun: StageRun;
   output?: MapStageOutput;
+  /** Summed over the items spawned this run — what the fan-out cost. */
+  tokenUsage?: TokenUsage;
 }
 
 export interface MapOrchestratorConfig {
@@ -84,11 +89,18 @@ export class MapOrchestrator {
       tasks: [],
     };
 
+    // What the child runs spent, collected as items settle. A `map` stage makes
+    // no LLM call of its own, so without this roll-up the fan-out — usually the
+    // most expensive thing in a pipeline — reports zero tokens.
+    const itemUsages: Array<TokenUsage | undefined> = [];
+
     const finish = (status: StageStatus, output?: MapStageOutput, skippedReason?: string): MapRunResult => {
+      const tokenUsage = sumTokenUsage(itemUsages);
       stageRun.status = status;
       stageRun.completed_at = new Date().toISOString();
       if (output !== undefined) stageRun.output = output;
       if (skippedReason) stageRun.skipped_reason = skippedReason;
+      if (tokenUsage) stageRun.token_usage = tokenUsage;
       this.config.events?.onStageComplete?.({
         stage_name: map.map,
         stage_index: stageIndex,
@@ -97,10 +109,11 @@ export class MapOrchestrator {
         attempts: 1,
         duration_ms: Date.now() - new Date(startedAt).getTime(),
         ...(output ? { output } : {}),
+        ...(tokenUsage ? { token_usage: tokenUsage } : {}),
         ...(skippedReason ? { skipped_reason: skippedReason } : {}),
       });
       this.config.emitter.emit({ type: 'stage_complete', stageId: stageRun.id, stageName: map.map });
-      return { status, stageRun, output };
+      return { status, stageRun, output, tokenUsage };
     };
 
     // Technical failure (bad `over`, missing spawner, depth limit) — record the
@@ -276,7 +289,13 @@ export class MapOrchestrator {
             parentRunId: runId,
             depth: depth + 1,
           });
-          itemResult = { index: i, status: 'success', output: spawn.output, run_id: spawn.run_id };
+          itemResult = {
+            index: i,
+            status: 'success',
+            output: spawn.output,
+            run_id: spawn.run_id,
+            ...(spawn.token_usage ? { token_usage: spawn.token_usage } : {}),
+          };
           // Only successful items are cached — a failure stays un-cached so it
           // retries next run.
           if (resumeEnabled && cache) {
@@ -292,6 +311,7 @@ export class MapOrchestrator {
         }
 
         results[i] = itemResult;
+        itemUsages.push(itemResult.token_usage);
         this.config.events?.onMapItemComplete?.({
           map_name: map.map,
           index: i,
@@ -301,6 +321,7 @@ export class MapOrchestrator {
           ...(itemResult.output !== undefined ? { output: itemResult.output } : {}),
           ...(itemResult.run_id ? { run_id: itemResult.run_id } : {}),
           ...(itemResult.error ? { error: itemResult.error } : {}),
+          ...(itemResult.token_usage ? { token_usage: itemResult.token_usage } : {}),
         });
         this.config.emitter.emit({ type: 'map_item_complete', mapName: map.map, index: i, status: itemResult.status });
       }

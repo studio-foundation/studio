@@ -2,7 +2,8 @@
  * Main agent runner function - executes agent with LLM + tools
  */
 
-import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks } from '@studio-foundation/contracts';
+import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContract, RunnerCallbacks, TokenUsage } from '@studio-foundation/contracts';
+import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import { buildPrompt, hasFields, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
@@ -40,11 +41,12 @@ export interface AgentRunResult {
   tool_calls_count: number;
   raw_response?: LLMResponse;
   duration_ms: number;
-  token_usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  /**
+   * What this agent run cost, summed over every turn — including the turns a
+   * provider ran internally. Absent when no provider reported anything, so an
+   * unmeasured run is never mistaken for a free one.
+   */
+  token_usage?: TokenUsage;
   /** Set when the runner hit a terminal error (e.g. max tool iterations). RALPH treats this as a validation failure. */
   error?: string;
 }
@@ -110,8 +112,9 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
   // Track all tool calls made during execution
   const allToolCalls: ToolCall[] = [];
 
-  // Accumulate token usage across turns
-  const tokenAccumulator = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  // Accumulate token usage across turns, keeping the per-model split so a stage
+  // that spanned models can still be priced model by model.
+  const tokenAccumulator: TokenUsage = emptyTokenUsage();
 
   // Build onToken wrapper that bridges provider token callbacks → RunnerCallbacks.onAgentToken
   const onToken = config.callbacks?.onAgentToken
@@ -200,9 +203,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     );
 
     if (loopResult.usage) {
-      tokenAccumulator.prompt_tokens += loopResult.usage.prompt_tokens;
-      tokenAccumulator.completion_tokens += loopResult.usage.completion_tokens;
-      tokenAccumulator.total_tokens += loopResult.usage.total_tokens;
+      accumulateTokenUsage(tokenAccumulator, loopResult.usage);
     }
 
     const finalContent = mw ? mw.deanonymize(loopResult.content) : loopResult.content;
@@ -248,9 +249,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
     lastResponse = response;
 
     if (response.usage) {
-      tokenAccumulator.prompt_tokens += response.usage.prompt_tokens;
-      tokenAccumulator.completion_tokens += response.usage.completion_tokens;
-      tokenAccumulator.total_tokens += response.usage.total_tokens;
+      accumulateTokenUsage(tokenAccumulator, response.usage);
     }
 
     // Check if there are tool calls to execute

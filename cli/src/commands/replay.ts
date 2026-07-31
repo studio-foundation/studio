@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { ProgressDisplay } from '../output/progress.js';
+import { parseLoggedUsage } from '../output/token-usage.js';
 import type { PipelineDefinition, ToolCall } from '@studio-foundation/contracts';
 import { isStageGroup, isMapStage, isCallStage } from '@studio-foundation/contracts';
 
@@ -97,9 +98,7 @@ export function mapJsonlLineToEvent(
       };
 
     case 'stage_complete': {
-      const tokens = line.tokens as
-        | { prompt: number; completion: number; total: number }
-        | undefined;
+      const tokens = parseLoggedUsage(line.tokens);
       return {
         handler: 'onStageComplete',
         payload: {
@@ -109,15 +108,7 @@ export function mapJsonlLineToEvent(
           status: line.status as string,
           attempts: line.attempts as number,
           duration_ms: line.duration_ms as number,
-          ...(tokens
-            ? {
-                token_usage: {
-                  prompt_tokens: tokens.prompt,
-                  completion_tokens: tokens.completion,
-                  total_tokens: tokens.total,
-                },
-              }
-            : {}),
+          ...(tokens ? { token_usage: tokens } : {}),
           ...(line.tool_calls ? { tool_calls: line.tool_calls } : {}),
           ...(line.output !== undefined ? { output: line.output } : {}),
           ...(line.rejection_reason ? { rejection_reason: line.rejection_reason } : {}),

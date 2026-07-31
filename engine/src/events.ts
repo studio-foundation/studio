@@ -1,4 +1,4 @@
-import type { ToolCall, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
+import type { ToolCall, TokenUsage, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
 
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)
@@ -8,11 +8,10 @@ export interface ToolCallSummary {
   arguments_summary: string;
 }
 
-export interface TokenUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
+// The token accounting shape lives in contracts — providers fill it, the engine
+// only forwards it. Re-exported here so event consumers keep importing it from
+// the package that emits the events.
+export type { TokenUsage };
 
 export interface PipelineStartEvent {
   pipeline_name: string;
@@ -26,6 +25,8 @@ export interface PipelineCompleteEvent {
   duration_ms: number;
   total_tokens: number;
   total_tool_calls: number;
+  /** The run's full accounting — cache split and per-model breakdown. */
+  token_usage?: TokenUsage;
 }
 
 export interface PipelineCancelledEvent {
@@ -64,6 +65,8 @@ export interface StageRetryEvent {
   failures: string[];
   agent_output_raw?: string;
   tool_calls_count?: number;
+  /** What the discarded attempt cost. A retry is not free. */
+  token_usage?: TokenUsage;
 }
 
 export interface GroupStartEvent {
@@ -118,6 +121,8 @@ export interface MapItemCompleteEvent {
   cached?: boolean;
   /** The child run's output — what the item produced, for a consumer to render (domain-owned). */
   output?: unknown;
+  /** What the item's child run spent. Absent for a cache hit — a resumed item costs nothing. */
+  token_usage?: TokenUsage;
 }
 
 export interface MapCompleteEvent {

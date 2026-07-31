@@ -67,3 +67,71 @@ describe('getRunFromJsonl — call-chained run (STU-680)', () => {
     expect(run!.stages[0].stage_name).toBe('only');
   });
 });
+
+describe('getRunFromJsonl — token usage (STU-750)', () => {
+  it('reads the recorded usage onto each stage', async () => {
+    const runId = 'aa11bb22';
+    writeLog(
+      `2026-01-01T00h00m-costly-${runId}.jsonl`,
+      jsonl([
+        { event: 'pipeline_start', run_id: runId, pipeline: 'costly' },
+        {
+          event: 'stage_complete', stage: 'generate', status: 'success', attempts: 1,
+          duration_ms: 1000, run_id: runId,
+          tokens: {
+            prompt_tokens: 4, completion_tokens: 437, total_tokens: 34953,
+            cached_input_tokens: 21000, cache_creation_tokens: 13512,
+            by_model: { 'claude-sonnet-4-5': { prompt_tokens: 4, completion_tokens: 437, total_tokens: 34953 } },
+          },
+        },
+        { event: 'pipeline_complete', run_id: runId, status: 'success' },
+      ])
+    );
+
+    const run = await getRunFromJsonl(runId, dir);
+
+    expect(run!.stages[0].token_usage).toEqual({
+      prompt_tokens: 4, completion_tokens: 437, total_tokens: 34953,
+      cached_input_tokens: 21000, cache_creation_tokens: 13512,
+      by_model: { 'claude-sonnet-4-5': { prompt_tokens: 4, completion_tokens: 437, total_tokens: 34953 } },
+    });
+  });
+
+  it('still reads runs recorded before the shape changed', async () => {
+    const runId = 'cc33dd44';
+    writeLog(
+      `2026-01-01T00h00m-legacy-${runId}.jsonl`,
+      jsonl([
+        { event: 'pipeline_start', run_id: runId, pipeline: 'legacy' },
+        {
+          event: 'stage_complete', stage: 'analysis', status: 'success', attempts: 1,
+          duration_ms: 500, run_id: runId,
+          tokens: { prompt: 100, completion: 50, total: 150 },
+        },
+        { event: 'pipeline_complete', run_id: runId, status: 'success' },
+      ])
+    );
+
+    const run = await getRunFromJsonl(runId, dir);
+
+    expect(run!.stages[0].token_usage).toEqual({
+      prompt_tokens: 100, completion_tokens: 50, total_tokens: 150,
+    });
+  });
+
+  it('leaves token_usage off a stage that recorded none', async () => {
+    const runId = 'ee55ff66';
+    writeLog(
+      `2026-01-01T00h00m-quiet-${runId}.jsonl`,
+      jsonl([
+        { event: 'pipeline_start', run_id: runId, pipeline: 'quiet' },
+        { event: 'stage_complete', stage: 'analysis', status: 'success', attempts: 1, duration_ms: 500, run_id: runId },
+        { event: 'pipeline_complete', run_id: runId, status: 'success' },
+      ])
+    );
+
+    const run = await getRunFromJsonl(runId, dir);
+
+    expect(run!.stages[0].token_usage).toBeUndefined();
+  });
+});

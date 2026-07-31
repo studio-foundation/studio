@@ -2,7 +2,7 @@
  * Provider interface - aligned with @studio/contracts
  */
 
-import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
+import type { LLMRequest, LLMResponse, TokenUsage } from '@studio-foundation/contracts';
 
 export interface Provider {
   readonly name: string;
@@ -42,11 +42,8 @@ export interface AgentLoopResult {
     arguments: Record<string, unknown>;
   } & ToolCallOutcome>;
   finish_reason: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  /** Summed over every turn the provider ran internally. */
+  usage?: TokenUsage;
 }
 
 export function isAgentLoopProvider(p: Provider): p is AgentLoopProvider {

@@ -3,6 +3,7 @@
  */
 
 import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
+import { withModel } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
@@ -123,13 +124,17 @@ export class AnthropicProvider implements Provider {
       content: textContent,
       tool_calls,
       finish_reason: response.stop_reason || 'stop',
-      usage: {
+      // Attributed to the model the API answered with, not the one requested —
+      // an alias like `claude-sonnet-4-5` resolves to a dated id, and the cost
+      // breakdown has to name what was actually billed.
+      usage: withModel(response.model, {
         prompt_tokens: response.usage.input_tokens,
         completion_tokens: response.usage.output_tokens,
-        total_tokens: response.usage.input_tokens + response.usage.output_tokens,
-        cached_input_tokens: cachedInputTokens > 0 ? cachedInputTokens : undefined,
-        cache_creation_tokens: cacheCreationTokens > 0 ? cacheCreationTokens : undefined
-      }
+        total_tokens:
+          response.usage.input_tokens + response.usage.output_tokens + cachedInputTokens + cacheCreationTokens,
+        ...(cachedInputTokens > 0 ? { cached_input_tokens: cachedInputTokens } : {}),
+        ...(cacheCreationTokens > 0 ? { cache_creation_tokens: cacheCreationTokens } : {}),
+      })
     };
   }
 }

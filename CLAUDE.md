@@ -48,6 +48,8 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`), `resume` (default false — per-item resume: skip items already completed in a prior run, keyed on the item **input** not its index; failures are never cached; cache lives at `.studio/runs/map-cache/`). Output is `{ total, succeeded, failed, resumed, outputs, results }`. See CONCEPTS.md.
 
+**Token usage** — Every provider reports what a call spent (`TokenUsage` in [contracts/src/usage.ts](contracts/src/usage.ts)): `prompt_tokens`, `completion_tokens`, `total_tokens`, plus `cached_input_tokens` / `cache_creation_tokens` and a `by_model` split. The four count fields are disjoint because each is billed at its own rate; providers normalize to that definition (Anthropic excludes cache counts from its input total, OpenAI includes them). The runner sums it across the turns of one agent run, the engine across the attempts of a RALPH loop — a retried stage reports the retries too — and a `call`/`map` stage carries the roll-up of the child runs it spawned. It lands on the stage, on the run, and on each event in `.studio/runs/<run>.jsonl`, so pricing a run is a `jq` pass rather than a correlation of provider session files against stage timestamps. `studio status` aggregates it per stage and per model. See CLI.md.
+
 **Context propagation** — Each stage configures exactly what context it receives via `context.include: [...]`. Options: `input`, `previous_stage_output`, `all_stage_outputs`, `group_feedback`, `repo_files`.
 
 **on_pipeline_start** — Shell commands executed at pipeline startup before any stage. Their stdout is injected into stage context.
@@ -282,14 +284,15 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | Event | When | Data |
 |-------|------|------|
 | `onPipelineStart` | Pipeline starts | `pipeline_name`, `run_id` |
-| `onPipelineComplete` | Pipeline ends | `status`, `duration_ms`, `total_tokens`, `total_tool_calls` |
+| `onPipelineComplete` | Pipeline ends | `status`, `duration_ms`, `total_tokens`, `total_tool_calls`, `token_usage` |
 | `onStageStart` | Stage starts | `stage_name`, `stage_index`, `total_stages` |
 | `onStageComplete` | Stage ends | `status`, `attempts`, `duration_ms`, `output`, `tool_calls`, `token_usage` |
-| `onTaskRetry` | Stage retries | `stage`, `attempt`, `failures` |
+| `onTaskRetry` | Stage retries | `stage`, `attempt`, `failures`, `token_usage` |
 | `onGroupStart` | Group starts | `group_name`, `max_iterations` |
 | `onGroupIteration` | Group iterates | `iteration`, `max_iterations` |
 | `onGroupFeedback` | Group rejects | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group ends | `iterations`, `status` |
+| `onMapItemComplete` | Fan-out item ends | `map_name`, `index`, `status`, `output`, `token_usage` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |
 | `onToolCallComplete` | Tool call ends | `tool`, `result`, `error` |
 | `onAgentThinking` | Agent thinking (streaming) | `stage`, `text` |

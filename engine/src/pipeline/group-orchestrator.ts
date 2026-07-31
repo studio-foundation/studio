@@ -2,7 +2,8 @@
 // Handles group-level orchestration: parallel and sequential iteration with feedback loops.
 
 import { randomUUID } from 'node:crypto';
-import type { StageGroup, StageRun, StageStatus } from '@studio-foundation/contracts';
+import type { StageGroup, StageRun, StageStatus, TokenUsage } from '@studio-foundation/contracts';
+import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import {
   addStageOutput,
   addStageToolResults,
@@ -55,6 +56,8 @@ export class GroupOrchestrator {
     runId?: string,
     signal?: AbortSignal,
   ): Promise<GroupResult> {
+    const totalTokenUsage: TokenUsage = emptyTokenUsage();
+    let anyUsageReported = false;
     let totalTokensDelta = 0;
     let totalToolCallsDelta = 0;
 
@@ -85,7 +88,7 @@ export class GroupOrchestrator {
     if (signal?.aborted) {
       this.config.events?.onGroupComplete?.({ group_name: group.group, iterations: 1, status: 'cancelled' });
       this.config.emitter.emit({ type: 'group_complete', groupName: group.group, iterations: 1, status: 'cancelled' });
-      return { status: 'cancelled', stageRuns: [], stagesExecuted: group.stages.length, context, totalTokensDelta, totalToolCallsDelta };
+      return { status: 'cancelled', stageRuns: [], stagesExecuted: group.stages.length, context, totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined, totalTokensDelta, totalToolCallsDelta };
     }
 
     // All parallel stages read the same pre-group context snapshot.
@@ -145,6 +148,7 @@ export class GroupOrchestrator {
 
     // After building resultMap, accumulate token/tool call totals
     for (const [, result] of resultMap) {
+      if (result.tokenUsage) { accumulateTokenUsage(totalTokenUsage, result.tokenUsage); anyUsageReported = true; }
       totalTokensDelta += result.tokensDelta ?? 0;
       totalToolCallsDelta += result.toolCallsDelta ?? 0;
     }
@@ -186,6 +190,7 @@ export class GroupOrchestrator {
       stageRuns: allStageRuns,
       stagesExecuted: group.stages.length,
       context,
+      totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
       totalTokensDelta,
       totalToolCallsDelta,
     };
@@ -207,6 +212,8 @@ export class GroupOrchestrator {
   ): Promise<GroupResult> {
     const allStageRuns: StageRun[] = [];
     let iteration = 0;
+    const totalTokenUsage: TokenUsage = emptyTokenUsage();
+    let anyUsageReported = false;
     let totalTokensDelta = 0;
     let totalToolCallsDelta = 0;
 
@@ -239,6 +246,7 @@ export class GroupOrchestrator {
           stageRuns: allStageRuns,
           stagesExecuted: group.stages.length,
           context,
+          totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
           totalTokensDelta,
           totalToolCallsDelta,
         };
@@ -315,7 +323,8 @@ export class GroupOrchestrator {
         );
 
         allStageRuns.push(result.stageRun);
-        totalTokensDelta += result.tokensDelta ?? 0;
+        if (result.tokenUsage) { accumulateTokenUsage(totalTokenUsage, result.tokenUsage); anyUsageReported = true; }
+      totalTokensDelta += result.tokensDelta ?? 0;
         totalToolCallsDelta += result.toolCallsDelta ?? 0;
         if (result.status !== 'skipped') anyStageExecuted = true;
 
@@ -337,6 +346,7 @@ export class GroupOrchestrator {
             stageRuns: allStageRuns,
             stagesExecuted: group.stages.length,
             context,
+            totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
             totalTokensDelta,
             totalToolCallsDelta,
           };
@@ -360,6 +370,7 @@ export class GroupOrchestrator {
             stageRuns: allStageRuns,
             stagesExecuted: group.stages.length,
             context,
+            totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
             totalTokensDelta,
             totalToolCallsDelta,
           };
@@ -429,6 +440,7 @@ export class GroupOrchestrator {
             stageRuns: allStageRuns,
             stagesExecuted: group.stages.length,
             context,
+            totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
             totalTokensDelta,
             totalToolCallsDelta,
           };
@@ -453,6 +465,7 @@ export class GroupOrchestrator {
           stageRuns: allStageRuns,
           stagesExecuted: group.stages.length,
           context,
+          totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
           totalTokensDelta,
           totalToolCallsDelta,
         };
@@ -476,6 +489,7 @@ export class GroupOrchestrator {
       stageRuns: allStageRuns,
       stagesExecuted: group.stages.length,
       context,
+      totalTokenUsage: anyUsageReported ? totalTokenUsage : undefined,
       totalTokensDelta,
       totalToolCallsDelta,
     };
