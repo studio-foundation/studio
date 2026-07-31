@@ -13,9 +13,42 @@ import type {
   TextBlockParam
 } from '@anthropic-ai/sdk/resources/messages';
 import { raceSignal } from '../utils/race-signal.js';
+import {
+  assertValidBatch,
+  type BatchDispatchOptions,
+  type BatchProvider,
+  type BatchRequestItem,
+  type BatchResultItem,
+} from './batch.js';
 
-export class AnthropicProvider implements Provider {
+/** Hard ceiling of the Message Batches API: 100k requests (or 256 MB) per batch. */
+const ANTHROPIC_MAX_BATCH_SIZE = 100_000;
+/** How often to ask whether a batch has ended. Batches typically end in well under an hour. */
+const DEFAULT_POLL_INTERVAL_MS = 15_000;
+/** The API expires a batch after 24h; waiting past that buys nothing. */
+const DEFAULT_MAX_WAIT_MS = 24 * 60 * 60 * 1000;
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+export class AnthropicProvider implements Provider, BatchProvider {
   readonly name = 'anthropic';
+  readonly maxBatchSize = ANTHROPIC_MAX_BATCH_SIZE;
   private client: Anthropic;
 
   constructor(apiKey?: string) {
@@ -44,6 +77,106 @@ export class AnthropicProvider implements Provider {
     // Non-streaming path
     const response = await raceSignal(this.client.messages.create(params, { signal }), signal);
     return this.parseResponse(response);
+  }
+
+  /**
+   * Message Batches API: submit every request as one job, poll until it ends,
+   * then collect the results by `custom_id`.
+   *
+   * Every token in a batch is billed at 50% of the synchronous rate, which is
+   * the whole reason this path exists — see the `batch:` option on a map stage
+   * for what decides which calls arrive here together.
+   *
+   * A request that failed on its own comes back with `error` set. The promise
+   * rejects only if the batch as a whole failed; on abort or wait-budget
+   * exhaustion the batch is cancelled best-effort so it stops billing.
+   */
+  async submitBatch(items: BatchRequestItem[], options: BatchDispatchOptions = {}): Promise<BatchResultItem[]> {
+    if (items.length === 0) return [];
+    if (items.length > this.maxBatchSize) {
+      throw new Error(
+        `Batch of ${items.length} requests exceeds the Anthropic limit of ${this.maxBatchSize}.`
+      );
+    }
+    assertValidBatch(items);
+
+    const { signal, onProgress } = options;
+    const pollIntervalMs = options.poll_interval_ms ?? DEFAULT_POLL_INTERVAL_MS;
+    const maxWaitMs = options.max_wait_ms ?? DEFAULT_MAX_WAIT_MS;
+    const startedAt = Date.now();
+
+    const created = await raceSignal(
+      this.client.messages.batches.create(
+        {
+          requests: items.map(item => ({
+            custom_id: item.custom_id,
+            params: this.buildParams(item.request),
+          })),
+        },
+        { signal }
+      ),
+      signal
+    );
+
+    try {
+      let batch = created;
+      while (batch.processing_status !== 'ended') {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > maxWaitMs) {
+          throw new Error(
+            `Anthropic batch ${batch.id} did not end within ${Math.round(maxWaitMs / 1000)}s ` +
+            `(${batch.request_counts.processing} of ${items.length} requests still processing).`
+          );
+        }
+        await sleep(pollIntervalMs, signal);
+        batch = await raceSignal(this.client.messages.batches.retrieve(created.id, { signal }), signal);
+        onProgress?.({
+          batch_id: batch.id,
+          status: batch.processing_status,
+          total: items.length,
+          succeeded: batch.request_counts.succeeded,
+          errored: batch.request_counts.errored,
+          processing: batch.request_counts.processing,
+          elapsed_ms: Date.now() - startedAt,
+        });
+      }
+
+      const collected = new Map<string, BatchResultItem>();
+      const results = await raceSignal(this.client.messages.batches.results(created.id, { signal }), signal);
+      for await (const entry of results) {
+        collected.set(entry.custom_id, this.parseBatchEntry(entry.custom_id, entry.result));
+      }
+
+      // Answer for every request that went in, even one the API never reported.
+      return items.map(item =>
+        collected.get(item.custom_id) ?? {
+          custom_id: item.custom_id,
+          error: `Anthropic batch ${created.id} returned no result for this request.`,
+        }
+      );
+    } catch (err) {
+      // An abandoned batch keeps running (and billing) unless it is cancelled.
+      await this.client.messages.batches.cancel(created.id).catch(() => {});
+      throw err;
+    }
+  }
+
+  private parseBatchEntry(
+    customId: string,
+    result: { type: string; message?: Message; error?: unknown }
+  ): BatchResultItem {
+    switch (result.type) {
+      case 'succeeded':
+        return { custom_id: customId, response: this.parseResponse(result.message as Message) };
+      case 'errored':
+        return { custom_id: customId, error: `Anthropic batch request errored: ${JSON.stringify(result.error)}` };
+      case 'canceled':
+        return { custom_id: customId, error: 'Anthropic batch request was canceled before it ran.' };
+      case 'expired':
+        return { custom_id: customId, error: 'Anthropic batch request expired (the batch exceeded its 24h window).' };
+      default:
+        return { custom_id: customId, error: `Anthropic batch request ended with unknown result type "${result.type}".` };
+    }
   }
 
   private buildParams(request: LLMRequest) {

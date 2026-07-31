@@ -383,6 +383,25 @@ This exists because a too-old Studio doesn't always fail loudly — a config usi
 
 `studio registry install` applies the same check to a package's own `studio_version` and refuses to install one that needs a newer CLI.
 
+### Silencing the unvalidated-stage warning — `warnings.missing_contract`
+
+A stage with no `contract:` runs with nothing to validate its output against. `studio run` prints one line per such stage before the first stage starts:
+
+```
+⚠ stage 'code-generation' has no contract — output is not validated
+  Add a `contract:` to each, or set `warnings.missing_contract: false` in .studio/config.yaml to silence this.
+```
+
+Warning only — the exit code and every stage status are untouched, and the lines go to stderr so `--json` stdout stays a clean payload. A pipeline that is deliberately contract-less opts out:
+
+```yaml
+# .studio/config.yaml
+warnings:
+  missing_contract: false
+```
+
+The key is project-wide and turns the warning off in `studio run` and `studio doctor` alike. Absent key = warning on.
+
 ---
 
 ## Preflight — `studio doctor`
@@ -396,8 +415,9 @@ studio doctor
   ✗ Config             config.yaml missing 1 key: providers.anthropic.apiKey
   ✗ Required binaries  gh missing or unsupported
   ⚠ Env vars           ANTHROPIC_API_KEY unset — resolves to an empty value
+  ⚠ Contracts          2 stages of 3 pipelines run unvalidated
 
-  3 problems found — fix before running:
+  4 problems found — fix before running:
 
   <the same actionable message each check prints at run>
 ```
@@ -408,6 +428,9 @@ studio doctor
 | Config | `config.yaml` has every key the `config.example.yaml` contract declares |
 | Required binaries | Every `requires_binaries` entry — the project's and each tool plugin's — is on PATH and in range |
 | Env vars | Every `${VAR}` referenced by `config.yaml` resolves to a value |
+| Contracts | Every stage of every pipeline in `.studio/pipelines/` declares a `contract:` |
+
+The contracts check is a `⚠` and never a `✗`: a contract-less stage is legitimate, just unguarded. It names each one as `pipeline 'x', stage 'y'`, covers every pipeline in the project rather than only the one you're about to run, and goes quiet when `warnings.missing_contract: false` is set (the count still shows, marked suppressed).
 
 The env var check is the one `studio run` doesn't have: `${VAR}` with nothing behind it resolves to an **empty string**, so the key is present and the contract passes while the value is blank. It's a `⚠`, not a `✗` — a project can legitimately reference a key for a provider it isn't using.
 

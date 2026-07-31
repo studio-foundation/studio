@@ -25,13 +25,34 @@ const DAG = {
 };
 
 /**
+ * Separator between the words of a config-artifact name. Beyond the literal
+ * `-`/`_`, it accepts the character-class spelling a regex literal in source
+ * uses (`/^brief[-_]analysis$/`) — the form that let a whole template's stage
+ * vocabulary sit in cli/src/output/formatters.ts unnoticed (STU-710).
+ */
+const SEP = String.raw`(?:[-_]|\[[-_]+\])`;
+
+/**
  * A name a config author writes in `.studio/`. The kernel must never hardcode
  * one: doing so makes a project inherit another project's vocabulary.
  */
 const CONFIG_ARTIFACT = [
-  /\bfeature-builder\b|\bbrief-analysis\b|\bimplementation-plan\b|\bcode-generation\b|\bqa-review\b/,
+  new RegExp(
+    [
+      `feature${SEP}builder`,
+      `brief${SEP}analysis`,
+      `implementation${SEP}plan`,
+      `code${SEP}gen`,
+      `qa${SEP}review`,
+    ]
+      .map((name) => `\\b${name}`)
+      .join('|')
+  ),
   'hardcodes a pipeline, contract or stage name',
 ];
+
+/** `rejected` is any contract's verdict, so no layer may attribute it to QA. */
+const NAMES_QA = [/\bqa\b/i, "names 'QA'"];
 
 /**
  * Domain vocabulary the engine must not name, on top of the above. Every
@@ -40,7 +61,7 @@ const CONFIG_ARTIFACT = [
 const ENGINE_DOMAIN = [
   CONFIG_ARTIFACT,
   [/\bgit\s+(?:clone|commit|push|pull|checkout|status|diff|add)\b/, 'shells out to git'],
-  [/\bqa\b/i, "names 'QA'"],
+  NAMES_QA,
   [/\brepo_manager\b|\bshell-run_command\b|\bstudio_run-/, 'names a builtin tool'],
 ];
 
@@ -115,6 +136,16 @@ for (const [pattern, what] of ENGINE_DOMAIN) {
 const apiSrc = await walkTs(join(ROOT, 'api', 'src'));
 await forbid(apiSrc, CONFIG_ARTIFACT[0], `INV-12: the API ${CONFIG_ARTIFACT[1]}`);
 
+// --- INV-13: the CLI renders a project's words, it does not know them ---
+// Two of ENGINE_DOMAIN's patterns are deliberately left off: the CLI renders
+// builtin tool names (`repo_manager-read_file` → "Read 3 files") and shells out
+// to `git diff --numstat` for the file-change summary. Both are terminal
+// rendering of what the runner actually did, not the CLI naming a domain.
+const cliSrc = await walkTs(join(ROOT, 'cli', 'src'));
+for (const [pattern, what] of [CONFIG_ARTIFACT, NAMES_QA]) {
+  await forbid(cliSrc, pattern, `INV-13: the CLI ${what}`);
+}
+
 // --- INV-05: the tool runtime lives in runner ---
 if (await exists(join(ROOT, 'engine', 'src', 'tools'))) {
   violations.push('INV-05: engine/src/tools/ exists — the tool runtime belongs to runner');
@@ -146,6 +177,6 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `Invariants: ${engineSrc.length + apiSrc.length} source files and ` +
+  `Invariants: ${engineSrc.length + apiSrc.length + cliSrc.length} source files and ` +
     `${Object.keys(DAG).length} manifests clean.`
 );

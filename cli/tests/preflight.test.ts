@@ -51,6 +51,7 @@ describe('collectChecks', () => {
       'Config',
       'Required binaries',
       'Env vars',
+      'Contracts',
     ]);
     expect(checks.every((c) => c.status === 'ok')).toBe(true);
   });

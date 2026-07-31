@@ -15,28 +15,29 @@ import {
 import type { ToolCallSummary } from '@studio-foundation/engine';
 
 describe('humanReadableStageName', () => {
-  it('maps brief-analysis to Analyzing brief', () => {
-    expect(humanReadableStageName('brief-analysis')).toBe('Analyzing brief');
-  });
-
-  it('maps implementation-plan to Planning implementation', () => {
-    expect(humanReadableStageName('implementation-plan')).toBe('Planning implementation');
-  });
-
-  it('maps code-generation to Generating code', () => {
-    expect(humanReadableStageName('code-generation')).toBe('Generating code');
-  });
-
-  it('maps qa-review to Reviewing', () => {
-    expect(humanReadableStageName('qa-review')).toBe('Reviewing');
-  });
-
-  it('falls back to title-cased words for unknown names', () => {
+  it('title-cases a kebab-case stage name', () => {
     expect(humanReadableStageName('custom-stage')).toBe('Custom Stage');
+  });
+
+  it('title-cases a snake_case stage name', () => {
+    expect(humanReadableStageName('extract_entities')).toBe('Extract Entities');
   });
 
   it('handles single-word stage names', () => {
     expect(humanReadableStageName('analysis')).toBe('Analysis');
+  });
+
+  // INV-13: no stage name gets a nicer rendering than any other, or the kernel
+  // would make one template's pipeline look more finished than everyone else's.
+  it.each([
+    ['brief-analysis', 'Brief Analysis'],
+    ['implementation-plan', 'Implementation Plan'],
+    ['code-generation', 'Code Generation'],
+    ['qa-review', 'Qa Review'],
+    ['generation', 'Generation'],
+    ['review', 'Review'],
+  ])('gives %s no special treatment', (stageName, expected) => {
+    expect(humanReadableStageName(stageName)).toBe(expected);
   });
 });
 

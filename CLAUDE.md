@@ -38,7 +38,7 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **RALPH loop** — Execute → validate against contract → retry with enriched feedback if fail → repeat until success or max attempts. "Recursive Automated Loop for Persistent Handling."
 
-**Output contract** — JSON schema + constraints defining what a stage MUST produce. Validation is binary: pass or fail.
+**Output contract** — JSON schema + constraints defining what a stage MUST produce. Validation is binary: pass or fail. `contract:` is optional, and a stage without one validates nothing — no schema, no `tool_calls` floor, no rejection detection. That silence read as "validation is on" (it's how templates shipped contracts no stage referenced), so `studio run` prints one line per contract-less stage at startup and `studio doctor` reports the same across every pipeline. Warning only — exit code and stage status unchanged — and suppressible project-wide with `warnings.missing_contract: false` in `.studio/config.yaml`. Detection is a pure function in the engine ([contract-coverage.ts](engine/src/pipeline/contract-coverage.ts)); printing is the CLI's ([contract-warnings.ts](cli/src/contract-warnings.ts)).
 
 **Anti-theatre** — If a contract requires `tool_calls.minimum: 1` and the agent made 0 tool calls, it fails regardless of what the agent claims in its output. Real tool calls are tracked by the runner.
 
@@ -46,7 +46,9 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Groups** — Multi-stage feedback loops. A group contains stages that execute in iterations. If the last stage rejects (via `post_validation.rejection_detection`), the group restarts from the beginning with accumulated feedback. Max iterations configured via `max_iterations`.
 
-**Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`), `resume` (default false — per-item resume: skip items already completed in a prior run, keyed on the item **input** not its index; failures are never cached; cache lives at `.studio/runs/map-cache/`). Output is `{ total, succeeded, failed, resumed, outputs, results }`. See CONCEPTS.md.
+**Fan-out (map) stages** — A `map:` entry runs a sub-pipeline once per item of a list and collects the structured outputs. It replaces the "shell `studio run` per item + scrape the run log" glue: child runs are spawned in-process via the run spawner, each returning its last-stage output directly. Config: `over` (context path to the list), `pipeline` (sub-pipeline per item), `input`/`as` (per-item input), `concurrency` (default 1), `on_item_failure` (`fail-fast` default, or `collect-all`), `resume` (default false — per-item resume: skip items already completed in a prior run, keyed on the item **input** not its index; failures are never cached; cache lives at `.studio/runs/map-cache/`), `batch` (default false — see below). Output is `{ total, succeeded, failed, resumed, outputs, results }`. See CONCEPTS.md.
+
+**Batched fan-out (`batch:` on a map stage)** — Dispatches the items' LLM calls through the provider's batch endpoint instead of one synchronous request each. Anthropic's Message Batches API bills every token at 50%, in exchange for up to 24h; a fan-out has no interactive deadline, so it is the shape that pays for it. The child runs are untouched — contracts, RALPH, hooks, `resume` all behave identically. What changes is that each item parks its call in a shared **batch window** (`runner/src/providers/batch-window.ts`) whose barrier releases one batch as soon as no live item can still add to it. Validation stays per item after collection, so a failed item retries into the *next* batch and rounds shrink. `concurrency` defaults to `min(items, max_size)` here, not 1 — items must be in flight together to share a batch. A provider with no batch endpoint (mock, ollama, claude-code) runs the stage exactly as before, with a warning. Tuning: `max_size`, `poll_interval_ms`, `max_wait_ms`, `flush_after_ms`. See CONCEPTS.md.
 
 **Token usage** — Every provider reports what a call spent (`TokenUsage` in [contracts/src/usage.ts](contracts/src/usage.ts)): `prompt_tokens`, `completion_tokens`, `total_tokens`, plus `cached_input_tokens` / `cache_creation_tokens` and a `by_model` split. The four count fields are disjoint because each is billed at its own rate; providers normalize to that definition (Anthropic excludes cache counts from its input total, OpenAI includes them). The runner sums it across the turns of one agent run, the engine across the attempts of a RALPH loop — a retried stage reports the retries too — and a `call`/`map` stage carries the roll-up of the child runs it spawned. It lands on the stage, on the run, and on each event in `.studio/runs/<run>.jsonl`, so pricing a run is a `jq` pass rather than a correlation of provider session files against stage timestamps. `studio status` aggregates it per stage and per model. See CLI.md.
 
@@ -80,7 +82,7 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Required binaries (`requires_binaries`)** — Declared in `.studio/config.yaml` (project-wide) and in `constraints.requires_binaries` of any `.tool.yaml` (per plugin). `studio run` checks every entry against PATH before the first stage and exits with the missing ones. An entry may carry a semver range (`"node >=18 <=22"`), in which case `<binary> --version` is probed too. `studio registry install` warns instead of blocking. See CLI.md.
 
-**Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus an env-var check `run` doesn't have: a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
+**Preflight (`studio doctor`)** — One command that aggregates every startup check `studio run` performs separately (Studio version, config contract, required binaries) plus two checks `run` doesn't have at that breadth: an env-var check (a `${VAR}` with nothing behind it resolves to an empty string, so the key passes the contract while carrying no value) and contract coverage across every pipeline in `.studio/pipelines/`, not only the one being run. Green/red list, exit 1 on any failure, warnings don't fail. Checks live in `cli/src/preflight.ts`, printing in `cli/src/commands/doctor.ts`. See CLI.md.
 
 **Standalone binary** — `bun build --compile` turns the CLI into a single executable per platform ([scripts/build-binary.mjs](scripts/build-binary.mjs), platform table in [scripts/platforms.mjs](scripts/platforms.mjs)). Two consequences for anything running inside it:
 
@@ -103,7 +105,7 @@ A stage transitions through the first seven. `interrupted` is stamped on a *run*
 
 ## Non-Negotiable Rules
 
-> The 6 you hit daily. Formal list of all 12: **[INVARIANTS.md](INVARIANTS.md)** — the source.
+> The 6 you hit daily. Formal list of all 13: **[INVARIANTS.md](INVARIANTS.md)** — the source.
 
 1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine — and the kernel at large ships no tool it does not implement (INV-11, `pnpm check:kernel`).
 2. **ralph doesn't know runner.** ralph takes a generic `executor: () => Promise<T>`.
@@ -293,6 +295,8 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | `onGroupFeedback` | Group rejects | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group ends | `iterations`, `status` |
 | `onMapItemComplete` | Fan-out item ends | `map_name`, `index`, `status`, `output`, `token_usage` |
+| `onBatchDispatch` | A batched map stage submits a batch | `map_name`, `provider`, `size`, `round` |
+| `onBatchComplete` | That batch returns | `succeeded`, `failed`, `duration_ms` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |
 | `onToolCallComplete` | Tool call ends | `tool`, `result`, `error` |
 | `onAgentThinking` | Agent thinking (streaming) | `stage`, `text` |

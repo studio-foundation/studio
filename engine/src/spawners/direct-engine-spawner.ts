@@ -1,5 +1,6 @@
 import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 import { sumTokenUsage } from '@studio-foundation/contracts';
+import type { ProviderRegistry } from '@studio-foundation/runner';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
 
@@ -9,6 +10,24 @@ export class DirectEngineSpawner implements RunSpawner {
   constructor(private engineConfig: EngineConfig, private events?: EngineEvents) {}
 
   async spawnAndWait(config: SpawnConfig): Promise<SpawnResult> {
+    // Per-spawn overrides — today only a substituted provider registry, set by a
+    // `batch:` map stage so this child's LLM calls park in the parent's batch
+    // window. The cast is the price of contracts staying a leaf (INV-04): the
+    // registry type lives in runner, so SpawnOverrides can only name it as
+    // `unknown`. A remote spawner ignores overrides entirely — a batch window is
+    // a this-process object.
+    //
+    // The override rides on the child's own spawner too, so a nested `call`/`map`
+    // inside the item batches with it rather than silently dropping back to
+    // full-price single calls.
+    const overrideRegistry = config.overrides?.providerRegistry as ProviderRegistry | undefined;
+    const engineConfig: EngineConfig = overrideRegistry
+      ? { ...this.engineConfig, providerRegistry: overrideRegistry }
+      : this.engineConfig;
+    const spawner: RunSpawner = overrideRegistry
+      ? new DirectEngineSpawner(engineConfig, this.events)
+      : this;
+
     // Hand the spawner down: without it a child engine cannot run `call`/`map`
     // stages of its own, capping nesting at depth 1 while maxDepth promises 3
     // (STU-615). The orchestrators' depth guard is the recursion limit.
@@ -19,7 +38,7 @@ export class DirectEngineSpawner implements RunSpawner {
     const childEvents = this.events
       ? createTaggingAdapter(this.events, { depth: config.depth, childId: `d${config.depth}#${this.childCounter++}` })
       : undefined;
-    const child = new PipelineEngine({ ...this.engineConfig, spawner: this }, childEvents);
+    const child = new PipelineEngine({ ...engineConfig, spawner }, childEvents);
     const result: PipelineRun = await child.run({
       pipeline: config.pipeline,
       input: config.input,

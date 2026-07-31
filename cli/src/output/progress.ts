@@ -433,7 +433,19 @@ export class ProgressDisplay {
         }
 
         this.mapRenderer = new MapRenderer();
-        this.mapRenderer.start(event.map_name, event.total_items, event.concurrency);
+        this.mapRenderer.start(event.map_name, event.total_items, event.concurrency, event.batch === true);
+      },
+
+      onBatchDispatch: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
+        if (this.jsonMode) return;
+        this.mapRenderer?.batchDispatch(event.provider, event.size, event.round);
+      },
+
+      onBatchComplete: (event, ctx) => {
+        if (ctx && ctx.depth >= 1) return;
+        if (this.jsonMode) return;
+        this.mapRenderer?.batchComplete(event.size, event.round, event.succeeded, event.failed, event.duration_ms);
       },
 
       onMapItemStart: (event, ctx) => {

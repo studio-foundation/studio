@@ -98,6 +98,22 @@ export interface MapStartEvent {
   map_name: string;
   total_items: number;
   concurrency: number;
+  /** True when the fan-out dispatches its LLM calls through the provider's batch endpoint. */
+  batch?: boolean;
+}
+
+/** One batch left for the provider. A fan-out emits several: the first round, then retries and overflow. */
+export interface BatchDispatchEvent {
+  map_name: string;
+  provider: string;
+  size: number;
+  round: number;
+}
+
+export interface BatchCompleteEvent extends BatchDispatchEvent {
+  succeeded: number;
+  failed: number;
+  duration_ms: number;
 }
 
 export interface MapItemStartEvent {
@@ -182,6 +198,8 @@ export interface EngineEvents {
   onMapItemStart?: (event: MapItemStartEvent, ctx?: EventContext) => void;
   onMapItemComplete?: (event: MapItemCompleteEvent, ctx?: EventContext) => void;
   onMapComplete?: (event: MapCompleteEvent, ctx?: EventContext) => void;
+  onBatchDispatch?: (event: BatchDispatchEvent, ctx?: EventContext) => void;
+  onBatchComplete?: (event: BatchCompleteEvent, ctx?: EventContext) => void;
   onStageContext?: (event: StageContextEvent, ctx?: EventContext) => void;
   // Real-time tool call streaming (used by --live mode)
   onToolCallStart?: (event: StagedToolCallStartEvent, ctx?: EventContext) => void;

@@ -13,10 +13,31 @@
 //   - collect-all: run every item regardless; the stage succeeds as long as at
 //     least one item succeeded (or the list was empty). Per-item failures are
 //     surfaced in the output, never fatal — the pipeline keeps going.
+//
+// With `batch:`, the child runs are unchanged — what changes is how their LLM
+// calls leave the process. Each item joins a BatchWindow and runs against a
+// provider registry that parks calls in it instead of sending them, so the
+// fan-out's requests go out as one batched job at half the token price. The
+// window's barrier and the RALPH loop compose on their own: a validation
+// failure retries into the next batch, so rounds shrink.
 
 import { randomUUID } from 'node:crypto';
-import type { MapStage, RunSpawner, StageRun, StageStatus, TaskRun, TokenUsage } from '@studio-foundation/contracts';
+import type {
+  MapBatchConfig,
+  MapStage,
+  RunSpawner,
+  StageRun,
+  StageStatus,
+  TaskRun,
+  TokenUsage,
+} from '@studio-foundation/contracts';
 import { sumTokenUsage } from '@studio-foundation/contracts';
+import {
+  BatchWindow,
+  BatchingProviderRegistry,
+  DEFAULT_MAX_BATCH_SIZE,
+  type ProviderRegistry,
+} from '@studio-foundation/runner';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
 import { buildItemInput, mapItemLabel } from './map-input.js';
@@ -61,10 +82,18 @@ export interface MapOrchestratorConfig {
   maxDepth: number;
   /** Durable per-item store for `resume: true` map stages. Absent → resume is a no-op. */
   cache?: MapItemCache;
+  /** The engine's providers. Absent → `batch:` is a no-op (there is nothing to wrap). */
+  providerRegistry?: ProviderRegistry;
 }
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** `batch: true` → all defaults; `batch: false`/absent → off; an object → its tuning. */
+function resolveBatchConfig(batch: MapStage['batch']): MapBatchConfig | undefined {
+  if (batch === undefined || batch === false) return undefined;
+  return batch === true ? {} : batch;
 }
 
 export class MapOrchestrator {
@@ -186,10 +215,27 @@ export class MapOrchestrator {
     }
     const items = resolved;
 
-    const concurrency = Math.max(1, map.concurrency ?? 1);
+    // Batched dispatch is only possible with a registry to wrap.
+    const batchConfig = this.config.providerRegistry ? resolveBatchConfig(map.batch) : undefined;
+    const maxBatchSize = batchConfig?.max_size ?? DEFAULT_MAX_BATCH_SIZE;
+
+    // Items have to be in flight together to share a batch, so a batched
+    // fan-out defaults to "as many as fit in one batch" rather than the
+    // sequential default. An explicit `concurrency` still wins — it is also the
+    // way to cap how many child runs exist at once on a very long list.
+    const concurrency = map.concurrency !== undefined
+      ? Math.max(1, map.concurrency)
+      : batchConfig
+        ? Math.max(1, Math.min(items.length, maxBatchSize))
+        : 1;
     const failFast = (map.on_item_failure ?? 'fail-fast') === 'fail-fast';
 
-    this.config.events?.onMapStart?.({ map_name: map.map, total_items: items.length, concurrency });
+    this.config.events?.onMapStart?.({
+      map_name: map.map,
+      total_items: items.length,
+      concurrency,
+      ...(batchConfig ? { batch: true } : {}),
+    });
     this.config.emitter.emit({ type: 'map_start', mapName: map.map, totalItems: items.length });
 
     if (items.length === 0) {
@@ -220,6 +266,29 @@ export class MapOrchestrator {
       stage: map.map,
       subPipeline: map.pipeline,
     };
+
+    // The batch window lives for the whole fan-out: every item joins it, and it
+    // decides when the parked calls go out together. Closed in `finally` so a
+    // throw mid-fan-out never leaves a request parked forever.
+    const baseRegistry = this.config.providerRegistry;
+    const window = batchConfig && baseRegistry
+      ? new BatchWindow({
+          ...batchConfig,
+          ...(signal ? { signal } : {}),
+          onDispatch: (info) => {
+            this.config.events?.onBatchDispatch?.({ map_name: map.map, ...info });
+          },
+          onSettled: (info) => {
+            this.config.events?.onBatchComplete?.({ map_name: map.map, ...info });
+          },
+          onFallback: (providerName) => {
+            console.warn(
+              `[map:${map.map}] batch: is set but provider "${providerName}" has no batch endpoint — ` +
+              `items run as ordinary requests at full price.`
+            );
+          },
+        })
+      : undefined;
 
     const results = new Array<MapItemResult | undefined>(items.length);
     let cursor = 0;
@@ -280,6 +349,11 @@ export class MapOrchestrator {
           label,
         });
 
+        // One ticket per item, held for as long as the child run can still call
+        // the LLM. Releasing it on the way out is what tells the window this
+        // item will add nothing more — the barrier is counted, not guessed.
+        const ticket = window?.join();
+
         let itemResult: MapItemResult;
         try {
           const input = itemInput ?? buildItemInput(map, items[i], i, context.input);
@@ -288,6 +362,9 @@ export class MapOrchestrator {
             input,
             parentRunId: runId,
             depth: depth + 1,
+            ...(ticket && window && baseRegistry
+              ? { overrides: { providerRegistry: new BatchingProviderRegistry(baseRegistry, ticket, window) } }
+              : {}),
           });
           itemResult = {
             index: i,
@@ -308,6 +385,8 @@ export class MapOrchestrator {
         } catch (err) {
           itemResult = { index: i, status: 'failed', error: errorMessage(err) };
           if (failFast) abortLaunch = true;
+        } finally {
+          ticket?.leave();
         }
 
         results[i] = itemResult;
@@ -327,9 +406,15 @@ export class MapOrchestrator {
       }
     };
 
-    await Promise.all(
-      Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
-    );
+    try {
+      await Promise.all(
+        Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+      );
+    } finally {
+      // No item can call again — reject anything still parked rather than
+      // leaving a promise (and the run) hanging on a batch that will never fill.
+      window?.close();
+    }
 
     // Cancelled mid-flight → cancelled (don't report success/failure of a partial batch).
     if (signal?.aborted) return finish('cancelled');
