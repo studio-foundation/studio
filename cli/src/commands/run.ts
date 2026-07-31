@@ -102,6 +102,7 @@ export function mergeEvents(
         total_tokens: e.total_tokens,
         total_tool_calls: e.total_tool_calls,
         total_stages: totalStages,
+        ...(e.token_usage ? { tokens: e.token_usage } : {}),
       });
     },
     onStageStart: (e, ctx) => {
@@ -133,13 +134,10 @@ export function mergeEvents(
         status: e.status,
         attempts: e.attempts,
         duration_ms: e.duration_ms,
-        tokens: e.token_usage
-          ? {
-              prompt: e.token_usage.prompt_tokens,
-              completion: e.token_usage.completion_tokens,
-              total: e.token_usage.total_tokens,
-            }
-          : undefined,
+        // Full accounting, not just the three headline numbers: cache reads and
+        // writes are billed at their own rates, and `by_model` is what makes a
+        // per-model cost breakdown a jq one-liner over this file (STU-750).
+        tokens: e.token_usage,
         tool_calls: e.tool_calls,
         output: e.output,
         ...(e.rejection_reason ? { rejection_reason: e.rejection_reason } : {}),
@@ -157,6 +155,8 @@ export function mergeEvents(
         failures: e.failures,
         ...(e.agent_output_raw ? { agent_output_raw: e.agent_output_raw } : {}),
         ...(e.tool_calls_count !== undefined ? { tool_calls_count: e.tool_calls_count } : {}),
+        // Per-attempt cost — a stage's total minus its attempts is invisible otherwise.
+        ...(e.token_usage ? { tokens: e.token_usage } : {}),
       });
     },
     onGroupStart: (e, ctx) => {
@@ -225,6 +225,7 @@ export function mergeEvents(
         ...(e.label !== undefined ? { label: e.label } : {}),
         ...(e.run_id ? { run_id: e.run_id } : {}),
         ...(e.error ? { error: e.error } : {}),
+        ...(e.token_usage ? { tokens: e.token_usage } : {}),
       });
     },
     onMapComplete: (e, ctx) => {

@@ -1,10 +1,11 @@
 import chalk from 'chalk';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { PipelineRun, StageRun, TaskRun } from '@studio-foundation/contracts';
+import type { PipelineRun, StageRun, TaskRun, TokenUsage } from '@studio-foundation/contracts';
 import { loadConfig } from '../config.js';
 import { createRunStore } from '../run-store-factory.js';
 import { formatResult, type ChildRunMap } from '../output/formatter.js';
+import { parseLoggedUsage } from '../output/token-usage.js';
 
 // Cap how deep the nested-pipeline walk goes — mirrors the engine's maxDepth
 // and stops a corrupt parent/child cycle from looping forever.
@@ -104,6 +105,7 @@ export async function getRunFromJsonl(
       skipped_reason?: string;
       duration_ms?: number;
       completed_at?: string;
+      token_usage?: TokenUsage;
     }> = [];
 
     for (const r of records) {
@@ -123,6 +125,7 @@ export async function getRunFromJsonl(
           skipped_reason: r.skipped_reason as string | undefined,
           duration_ms: typeof r.duration_ms === 'number' ? r.duration_ms : undefined,
           completed_at: ts,
+          token_usage: parseLoggedUsage(r.tokens),
         });
       }
     }
@@ -155,6 +158,7 @@ export async function getRunFromJsonl(
         started_at: stageStartedAt,
         completed_at: stageCompletedAt,
         skipped_reason: s.skipped_reason,
+        ...(s.token_usage ? { token_usage: s.token_usage } : {}),
         tasks: [
           {
             id: `task-${i}`,

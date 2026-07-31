@@ -4,6 +4,7 @@
  */
 
 import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
+import { withModel } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionChunk } from 'openai/resources/chat/completions';
@@ -72,11 +73,12 @@ export class OllamaProvider implements Provider {
       content: choice.message.content || '',
       tool_calls,
       finish_reason: choice.finish_reason ?? 'stop',
-      usage: completion.usage ? {
+      // Local models have no prompt cache, so the counts map straight across.
+      usage: completion.usage ? withModel(completion.model || request.model, {
         prompt_tokens: completion.usage.prompt_tokens,
         completion_tokens: completion.usage.completion_tokens,
         total_tokens: completion.usage.total_tokens,
-      } : undefined,
+      }) : undefined,
     };
   }
 

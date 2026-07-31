@@ -335,3 +335,45 @@ describe('batch capability helpers', () => {
     ).toThrow(/Duplicate/);
   });
 });
+
+describe('BatchWindow — token usage (STU-750)', () => {
+  it('hands each parked caller the usage its own batched response reported', async () => {
+    const provider = new FakeBatchProvider(100, false);
+    const window = new BatchWindow({ flush_after_ms: 0 });
+    const tickets = [window.join(), window.join()];
+
+    const first = tickets[0].submit(provider, req('a'));
+    const second = tickets[1].submit(provider, req('b'));
+    await tick();
+
+    provider.settle(0, [
+      {
+        custom_id: provider.calls[0][0].custom_id,
+        response: {
+          ...echo(req('a')),
+          usage: {
+            prompt_tokens: 10, completion_tokens: 2, total_tokens: 12,
+            by_model: { 'test-model': { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 } },
+          },
+        },
+      },
+      {
+        custom_id: provider.calls[0][1].custom_id,
+        response: {
+          ...echo(req('b')),
+          usage: {
+            prompt_tokens: 300, completion_tokens: 40, total_tokens: 340,
+            by_model: { 'test-model': { prompt_tokens: 300, completion_tokens: 40, total_tokens: 340 } },
+          },
+        },
+      },
+    ]);
+
+    // Batching changes how the requests leave the process, not what they cost:
+    // each item must still get its own counts back, or a batched fan-out — the
+    // whole reason cost tracking exists — would report nothing.
+    expect((await first).usage?.total_tokens).toBe(12);
+    expect((await second).usage?.total_tokens).toBe(340);
+    expect((await second).usage?.by_model?.['test-model'].prompt_tokens).toBe(300);
+  });
+});

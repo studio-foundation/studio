@@ -8,6 +8,7 @@ export * from './agent.js';
 export * from './run.js';
 export * from './validation.js';
 export * from './provider.js';
+export * from './usage.js';
 export * from './errors.js';
 export * from './context-pack.js';
 export * from './tool-plugin.js';

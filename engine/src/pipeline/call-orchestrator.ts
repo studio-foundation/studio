@@ -8,7 +8,7 @@
 // YAML, which `run_wiki.py` otherwise sequences outside Studio.
 
 import { randomUUID } from 'node:crypto';
-import type { CallStage, RunSpawner, StageRun, StageStatus, TaskRun } from '@studio-foundation/contracts';
+import type { CallStage, RunSpawner, StageRun, StageStatus, TaskRun, TokenUsage } from '@studio-foundation/contracts';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { evaluateCondition } from './condition-evaluator.js';
 import { buildCallInput } from './call-input.js';
@@ -19,6 +19,8 @@ export interface CallRunResult {
   stageRun: StageRun;
   /** The child pipeline's output — propagated to downstream stages under the stage name. */
   output?: unknown;
+  /** What the child run spent. A `call` stage makes no LLM call of its own. */
+  tokenUsage?: TokenUsage;
 }
 
 export interface CallOrchestratorConfig {
@@ -54,11 +56,17 @@ export class CallOrchestrator {
       tasks: [],
     };
 
-    const finish = (status: StageStatus, output?: unknown, skippedReason?: string): CallRunResult => {
+    const finish = (
+      status: StageStatus,
+      output?: unknown,
+      skippedReason?: string,
+      tokenUsage?: TokenUsage,
+    ): CallRunResult => {
       stageRun.status = status;
       stageRun.completed_at = new Date().toISOString();
       if (output !== undefined) stageRun.output = output;
       if (skippedReason) stageRun.skipped_reason = skippedReason;
+      if (tokenUsage) stageRun.token_usage = tokenUsage;
       this.config.events?.onStageComplete?.({
         stage_name: call.call,
         stage_index: stageIndex,
@@ -67,10 +75,11 @@ export class CallOrchestrator {
         attempts: 1,
         duration_ms: Date.now() - new Date(startedAt).getTime(),
         ...(output !== undefined ? { output } : {}),
+        ...(tokenUsage ? { token_usage: tokenUsage } : {}),
         ...(skippedReason ? { skipped_reason: skippedReason } : {}),
       });
       this.config.emitter.emit({ type: 'stage_complete', stageId: stageRun.id, stageName: call.call });
-      return { status, stageRun, output };
+      return { status, stageRun, output, tokenUsage };
     };
 
     // Technical/child failure — record the reason as a failed task so it surfaces
@@ -151,7 +160,9 @@ export class CallOrchestrator {
       });
       // Remember which child run this stage produced so readers can nest it.
       stageRun.child_run_id = spawn.run_id;
-      return finish('success', spawn.output);
+      // The child's cost, rolled up onto this stage. The child's own stages live
+      // in its run, not in this one, so a per-run total never counts them twice.
+      return finish('success', spawn.output, undefined, spawn.token_usage);
     } catch (err) {
       // Cancelled mid-flight → cancelled, not a real failure.
       if (signal?.aborted) return finish('cancelled');

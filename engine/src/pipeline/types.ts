@@ -2,7 +2,7 @@
 // Shared local types for pipeline execution — used by engine, StageExecutor, GroupOrchestrator
 
 import { join } from 'node:path';
-import type { StageRun, StageStatus, ToolCall } from '@studio-foundation/contracts';
+import type { StageRun, StageStatus, TokenUsage, ToolCall } from '@studio-foundation/contracts';
 import type { PostValidationResult } from './post-validator.js';
 import type { PipelineContext } from './context-propagation.js';
 
@@ -30,6 +30,7 @@ export interface StageResult {
   postValidation?: PostValidationResult;
   lastAgentOutput?: unknown;
   toolCalls?: ToolCall[];
+  tokenUsage?: TokenUsage;    // full accounting (cache split, per model) for this stage
   tokensDelta?: number;       // tokens consumed by this stage
   toolCallsDelta?: number;    // tool calls made by this stage
 }
@@ -39,6 +40,7 @@ export interface GroupResult {
   stageRuns: StageRun[];
   stagesExecuted: number;
   context: PipelineContext;
+  totalTokenUsage?: TokenUsage;  // summed over every stage of every iteration
   totalTokensDelta: number;
   totalToolCallsDelta: number;
 }

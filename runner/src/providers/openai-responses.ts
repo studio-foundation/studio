@@ -7,7 +7,8 @@
  * items that cannot be expressed as plain text messages.
  */
 
-import type { LLMRequest, LLMResponse, Message } from '@studio-foundation/contracts';
+import type { LLMRequest, LLMResponse, Message, TokenUsage } from '@studio-foundation/contracts';
+import { accumulateTokenUsage, emptyTokenUsage, withModel } from '@studio-foundation/contracts';
 import type { AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './provider.js';
 import OpenAI from 'openai';
 import type {
@@ -42,13 +43,7 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
       content: response.output_text ?? '',
       tool_calls: [],
       finish_reason: 'stop',
-      usage: response.usage
-        ? {
-            prompt_tokens: response.usage.input_tokens,
-            completion_tokens: response.usage.output_tokens,
-            total_tokens: response.usage.total_tokens,
-          }
-        : undefined,
+      usage: normalizeUsage(response.usage, response.model || request.model),
     };
   }
 
@@ -68,7 +63,7 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
 
     let input: ResponseInputItem[] = messagesToInput(request.messages);
     const allToolCalls: AgentLoopResult['tool_calls'] = [];
-    const tokenAccumulator = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    const tokenAccumulator: TokenUsage = emptyTokenUsage();
     const MAX_ITERATIONS = 20;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -98,11 +93,10 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
 
         const finalResponse = await stream.finalResponse();
 
-        if (finalResponse.usage) {
-          tokenAccumulator.prompt_tokens += finalResponse.usage.input_tokens;
-          tokenAccumulator.completion_tokens += finalResponse.usage.output_tokens;
-          tokenAccumulator.total_tokens += finalResponse.usage.total_tokens;
-        }
+        accumulateTokenUsage(
+          tokenAccumulator,
+          normalizeUsage(finalResponse.usage, finalResponse.model || request.model)
+        );
 
         outputItems = finalResponse.output;
 
@@ -153,11 +147,10 @@ export class OpenAIResponsesProvider implements AgentLoopProvider {
           max_output_tokens: request.max_tokens ?? undefined,
         }, { signal });
 
-        if (response.usage) {
-          tokenAccumulator.prompt_tokens += response.usage.input_tokens;
-          tokenAccumulator.completion_tokens += response.usage.output_tokens;
-          tokenAccumulator.total_tokens += response.usage.total_tokens;
-        }
+        accumulateTokenUsage(
+          tokenAccumulator,
+          normalizeUsage(response.usage, response.model || request.model)
+        );
 
         // Find all function calls in the output
         const functionCalls = response.output.filter(
@@ -209,4 +202,27 @@ function messagesToInput(messages: Message[]): ResponseInputItem[] {
     role: msg.role as 'user' | 'assistant' | 'system',
     content: msg.content,
   }));
+}
+
+/**
+ * Map a Responses-API usage block onto Studio's counts. Like Chat Completions,
+ * `input_tokens` already includes anything served from cache
+ * (`input_tokens_details.cached_tokens`), so the cached part is split back out
+ * to keep `prompt_tokens` meaning "input billed at full rate".
+ */
+function normalizeUsage(
+  usage: { input_tokens?: number; output_tokens?: number; total_tokens?: number;
+           input_tokens_details?: { cached_tokens?: number } | null } | null | undefined,
+  model: string
+): TokenUsage | undefined {
+  if (!usage) return undefined;
+  const inputTokens = usage.input_tokens ?? 0;
+  const outputTokens = usage.output_tokens ?? 0;
+  const cachedTokens = Math.min(usage.input_tokens_details?.cached_tokens ?? 0, inputTokens);
+  return withModel(model, {
+    prompt_tokens: inputTokens - cachedTokens,
+    completion_tokens: outputTokens,
+    total_tokens: usage.total_tokens ?? inputTokens + outputTokens,
+    ...(cachedTokens > 0 ? { cached_input_tokens: cachedTokens } : {}),
+  });
 }

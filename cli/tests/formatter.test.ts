@@ -332,3 +332,53 @@ describe('formatCompactDuration', () => {
     expect(formatCompactDuration(83000)).toBe('1m23s');
   });
 });
+
+describe('formatResult — token usage (STU-750)', () => {
+  const usage = (model: string, total: number, extra: Record<string, number> = {}) => ({
+    prompt_tokens: total, completion_tokens: 0, total_tokens: total, ...extra,
+    by_model: { [model]: { prompt_tokens: total, completion_tokens: 0, total_tokens: total, ...extra } },
+  });
+
+  function runWithUsage(): PipelineRun {
+    const base = makeRun();
+    return {
+      ...base,
+      stages: [
+        { ...base.stages[0], stage_name: 'analysis', token_usage: usage('claude-opus-4-5', 120_000, { cached_input_tokens: 90_000 }) },
+        { ...base.stages[0], id: 'stage-2', stage_name: 'review', token_usage: usage('claude-haiku-4-5', 5_000) },
+      ],
+    };
+  }
+
+  it('reports the run total, summed from the stages', () => {
+    formatResult(runWithUsage());
+
+    const total = output.find((l) => l.startsWith('Tokens:'));
+    expect(total).toBeDefined();
+    expect(total).toContain('125.0k tokens');
+    expect(total).toContain('90.0k cached');
+  });
+
+  it('puts each stage cost on its own line', () => {
+    formatResult(runWithUsage());
+
+    expect(output.find((l) => l.includes('analysis'))).toContain('120.0k tok');
+    expect(output.find((l) => l.includes('review'))).toContain('5.0k tok');
+  });
+
+  it('breaks the total down per model, heaviest first', () => {
+    formatResult(runWithUsage());
+
+    const header = output.findIndex((l) => l === 'Tokens by model:');
+    expect(header).toBeGreaterThan(-1);
+    expect(output[header + 1]).toContain('claude-opus-4-5');
+    expect(output[header + 2]).toContain('claude-haiku-4-5');
+  });
+
+  it('says nothing about tokens when the run recorded none', () => {
+    formatResult(makeRun());
+
+    expect(output.some((l) => l.startsWith('Tokens:'))).toBe(false);
+    expect(output.some((l) => l === 'Tokens by model:')).toBe(false);
+  });
+});

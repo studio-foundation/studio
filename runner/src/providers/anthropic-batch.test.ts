@@ -52,6 +52,7 @@ function message(text: string) {
   return {
     content: [{ type: 'text', text }],
     stop_reason: 'end_turn',
+    model: 'claude-haiku-4-5-20251001',
     usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 3, cache_creation_input_tokens: 2 },
   };
 }
@@ -104,12 +105,24 @@ describe('AnthropicProvider.submitBatch', () => {
     const provider = new AnthropicProvider('key');
     const [result] = await provider.submitBatch([{ custom_id: 'a', request: req('one') }]);
 
+    // Batched results come back through the same normalization as a live call:
+    // the total counts the cache tokens too, and the model that answered is named
+    // — a batched fan-out is exactly where a per-model cost breakdown is wanted.
     expect(result.response?.usage).toEqual({
       prompt_tokens: 10,
       completion_tokens: 5,
-      total_tokens: 15,
+      total_tokens: 20,
       cached_input_tokens: 3,
       cache_creation_tokens: 2,
+      by_model: {
+        'claude-haiku-4-5-20251001': {
+          prompt_tokens: 10,
+          completion_tokens: 5,
+          total_tokens: 20,
+          cached_input_tokens: 3,
+          cache_creation_tokens: 2,
+        },
+      },
     });
   });
 

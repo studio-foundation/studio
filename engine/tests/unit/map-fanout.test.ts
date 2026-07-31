@@ -296,3 +296,72 @@ describe('Fan-out (map) stage', () => {
     expect(byIndex.get(2)).toMatchObject({ label: 'Gamma', status: 'success', run_id: 'run-2', output: 2 });
   });
 });
+
+describe('Fan-out (map) stage — token usage (STU-750)', () => {
+  const usage = (model: string, total: number) => ({
+    prompt_tokens: total, completion_tokens: 0, total_tokens: total,
+    by_model: { [model]: { prompt_tokens: total, completion_tokens: 0, total_tokens: total } },
+  });
+
+  it('rolls each item child run up onto the map stage and the run total', async () => {
+    const spawner = new FakeSpawner((c, i) => ({
+      ...ok(`run-${i}`, { page: (c.input as { entity: string }).entity }),
+      token_usage: usage('opus', 100 * (i + 1)),
+    }));
+    const events: EngineEvents = { onStageComplete: vi.fn(), onPipelineComplete: vi.fn(), onMapItemComplete: vi.fn() };
+    const engine = createEngine(spawner, events);
+
+    const result = await engine.run({ pipelineDef: mapPipeline(), input: { items: ['a', 'b', 'c'] } });
+
+    // 100 + 200 + 300 — a map stage makes no LLM call of its own, so without the
+    // roll-up the most expensive stage in a pipeline reports nothing.
+    expect(result.stages[0].token_usage).toEqual({
+      prompt_tokens: 600, completion_tokens: 0, total_tokens: 600,
+      by_model: { opus: { prompt_tokens: 600, completion_tokens: 0, total_tokens: 600 } },
+    });
+    expect(events.onStageComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ token_usage: expect.objectContaining({ total_tokens: 600 }) }),
+    );
+    expect(events.onPipelineComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ total_tokens: 600, token_usage: expect.objectContaining({ total_tokens: 600 }) }),
+    );
+  });
+
+  it('reports each item cost on its own map_item_complete event', async () => {
+    const spawner = new FakeSpawner((c, i) => ({
+      ...ok(`run-${i}`, { page: (c.input as { entity: string }).entity }),
+      token_usage: usage('opus', 100 * (i + 1)),
+    }));
+    const onMapItemComplete = vi.fn();
+    const engine = createEngine(spawner, { onMapItemComplete });
+
+    await engine.run({ pipelineDef: mapPipeline(), input: { items: ['a', 'b'] } });
+
+    expect(onMapItemComplete.mock.calls.map(([e]) => e.token_usage?.total_tokens)).toEqual([100, 200]);
+  });
+
+  it('leaves usage absent when no child reported any', async () => {
+    const spawner = new FakeSpawner((c, i) => ok(`run-${i}`, { page: 'x' }));
+    const engine = createEngine(spawner);
+
+    const result = await engine.run({ pipelineDef: mapPipeline(), input: { items: ['a'] } });
+
+    expect(result.stages[0].token_usage).toBeUndefined();
+  });
+
+  it('counts the items that ran even when a later one fails', async () => {
+    const spawner = new FakeSpawner((c, i) => {
+      if (i === 1) throw new Error('child blew up');
+      return { ...ok(`run-${i}`, { page: 'x' }), token_usage: usage('opus', 100) };
+    });
+    const engine = createEngine(spawner);
+
+    const result = await engine.run({
+      pipelineDef: mapPipeline({ on_item_failure: 'collect-all', concurrency: 1 }),
+      input: { items: ['a', 'b', 'c'] },
+    });
+
+    // Two items succeeded at 100 each; the failed one spent nothing we can see.
+    expect(result.stages[0].token_usage?.total_tokens).toBe(200);
+  });
+});

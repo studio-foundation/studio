@@ -2,7 +2,8 @@
  * OpenAI provider implementation with full tool calling support
  */
 
-import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
+import type { LLMRequest, LLMResponse, TokenUsage } from '@studio-foundation/contracts';
+import { withModel } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionChunk } from 'openai/resources/chat/completions';
@@ -48,11 +49,7 @@ export class OpenAIProvider implements Provider {
       content: choice.message.content || '',
       tool_calls,
       finish_reason: choice.finish_reason,
-      usage: {
-        prompt_tokens: completion.usage?.prompt_tokens || 0,
-        completion_tokens: completion.usage?.completion_tokens || 0,
-        total_tokens: completion.usage?.total_tokens || 0
-      }
+      usage: normalizeUsage(completion.usage, completion.model || request.model)
     };
   }
 
@@ -100,11 +97,7 @@ export class OpenAIProvider implements Provider {
       }
       if (chunk.choices[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason;
       if (chunk.usage) {
-        usage = {
-          prompt_tokens: chunk.usage.prompt_tokens,
-          completion_tokens: chunk.usage.completion_tokens,
-          total_tokens: chunk.usage.total_tokens,
-        };
+        usage = normalizeUsage(chunk.usage, chunk.model || request.model);
       }
     }
 
@@ -136,4 +129,31 @@ export class OpenAIProvider implements Provider {
       }
     }));
   }
+}
+
+/**
+ * Map OpenAI's usage block onto Studio's counts.
+ *
+ * OpenAI folds cache reads INTO `prompt_tokens`; Studio keeps them apart so a
+ * cached call is not priced as a fresh one. Subtracting `cached_tokens` back out
+ * leaves `prompt_tokens` meaning "input billed at full rate", and the reported
+ * `total_tokens` still holds since the parts only got redistributed.
+ * OpenAI's cache is implicit — nothing is billed to write it — so
+ * `cache_creation_tokens` stays absent.
+ */
+function normalizeUsage(
+  usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number;
+           prompt_tokens_details?: { cached_tokens?: number } | null } | null | undefined,
+  model: string
+): TokenUsage | undefined {
+  if (!usage) return undefined;
+  const promptTokens = usage.prompt_tokens ?? 0;
+  const completionTokens = usage.completion_tokens ?? 0;
+  const cachedTokens = Math.min(usage.prompt_tokens_details?.cached_tokens ?? 0, promptTokens);
+  return withModel(model, {
+    prompt_tokens: promptTokens - cachedTokens,
+    completion_tokens: completionTokens,
+    total_tokens: usage.total_tokens ?? promptTokens + completionTokens,
+    ...(cachedTokens > 0 ? { cached_input_tokens: cachedTokens } : {}),
+  });
 }

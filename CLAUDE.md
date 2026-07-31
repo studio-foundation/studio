@@ -50,6 +50,8 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Batched fan-out (`batch:` on a map stage)** — Dispatches the items' LLM calls through the provider's batch endpoint instead of one synchronous request each. Anthropic's Message Batches API bills every token at 50%, in exchange for up to 24h; a fan-out has no interactive deadline, so it is the shape that pays for it. The child runs are untouched — contracts, RALPH, hooks, `resume` all behave identically. What changes is that each item parks its call in a shared **batch window** (`runner/src/providers/batch-window.ts`) whose barrier releases one batch as soon as no live item can still add to it. Validation stays per item after collection, so a failed item retries into the *next* batch and rounds shrink. `concurrency` defaults to `min(items, max_size)` here, not 1 — items must be in flight together to share a batch. A provider with no batch endpoint (mock, ollama, claude-code) runs the stage exactly as before, with a warning. Tuning: `max_size`, `poll_interval_ms`, `max_wait_ms`, `flush_after_ms`. See CONCEPTS.md.
 
+**Token usage** — Every provider reports what a call spent (`TokenUsage` in [contracts/src/usage.ts](contracts/src/usage.ts)): `prompt_tokens`, `completion_tokens`, `total_tokens`, plus `cached_input_tokens` / `cache_creation_tokens` and a `by_model` split. The four count fields are disjoint because each is billed at its own rate; providers normalize to that definition (Anthropic excludes cache counts from its input total, OpenAI includes them). The runner sums it across the turns of one agent run, the engine across the attempts of a RALPH loop — a retried stage reports the retries too — and a `call`/`map` stage carries the roll-up of the child runs it spawned. It lands on the stage, on the run, and on each event in `.studio/runs/<run>.jsonl`, so pricing a run is a `jq` pass rather than a correlation of provider session files against stage timestamps. `studio status` aggregates it per stage and per model. See CLI.md.
+
 **Context propagation** — Each stage configures exactly what context it receives via `context.include: [...]`. Options: `input`, `previous_stage_output`, `all_stage_outputs`, `group_feedback`, `repo_files`.
 
 **on_pipeline_start** — Shell commands executed at pipeline startup before any stage. Their stdout is injected into stage context.
@@ -284,14 +286,15 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | Event | When | Data |
 |-------|------|------|
 | `onPipelineStart` | Pipeline starts | `pipeline_name`, `run_id` |
-| `onPipelineComplete` | Pipeline ends | `status`, `duration_ms`, `total_tokens`, `total_tool_calls` |
+| `onPipelineComplete` | Pipeline ends | `status`, `duration_ms`, `total_tokens`, `total_tool_calls`, `token_usage` |
 | `onStageStart` | Stage starts | `stage_name`, `stage_index`, `total_stages` |
 | `onStageComplete` | Stage ends | `status`, `attempts`, `duration_ms`, `output`, `tool_calls`, `token_usage` |
-| `onTaskRetry` | Stage retries | `stage`, `attempt`, `failures` |
+| `onTaskRetry` | Stage retries | `stage`, `attempt`, `failures`, `token_usage` |
 | `onGroupStart` | Group starts | `group_name`, `max_iterations` |
 | `onGroupIteration` | Group iterates | `iteration`, `max_iterations` |
 | `onGroupFeedback` | Group rejects | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group ends | `iterations`, `status` |
+| `onMapItemComplete` | Fan-out item ends | `map_name`, `index`, `status`, `output`, `token_usage` |
 | `onBatchDispatch` | A batched map stage submits a batch | `map_name`, `provider`, `size`, `round` |
 | `onBatchComplete` | That batch returns | `succeeded`, `failed`, `duration_ms` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |

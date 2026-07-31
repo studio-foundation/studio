@@ -9,9 +9,10 @@ import type {
   PipelineDefinition,
   RunSpawner,
   StageRun,
+  TokenUsage,
   ToolCall,
 } from '@studio-foundation/contracts';
-import { isStageGroup, isMapStage, isCallStage } from '@studio-foundation/contracts';
+import { isStageGroup, isMapStage, isCallStage, accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import {
   type ToolRegistry,
   type ProviderRegistry,
@@ -141,10 +142,21 @@ function makeSkippedStageRun(stageName: string, reason: string): StageRun {
 export class PipelineEngine {
   private emitter: PipelineEventEmitter;
   private pipelineTotals = { tokens: 0, toolCalls: 0 };
+  // Full accounting for the run — the cache split and per-model breakdown that
+  // `total_tokens` alone cannot carry. Undefined until a provider reports one.
+  private pipelineUsage: TokenUsage = emptyTokenUsage();
+  private pipelineUsageReported = false;
   private stageExecutor: StageExecutor;
   private groupOrchestrator: GroupOrchestrator;
   private mapOrchestrator: MapOrchestrator;
   private callOrchestrator: CallOrchestrator;
+
+  /** Fold one stage's (or one child run's) usage into the run total. */
+  private addPipelineUsage(usage: TokenUsage | undefined): void {
+    if (!usage) return;
+    accumulateTokenUsage(this.pipelineUsage, usage);
+    this.pipelineUsageReported = true;
+  }
 
   constructor(
     private config: EngineConfig,
@@ -224,6 +236,8 @@ export class PipelineEngine {
 
     // Reset totals for this run
     this.pipelineTotals = { tokens: 0, toolCalls: 0 };
+    this.pipelineUsage = emptyTokenUsage();
+    this.pipelineUsageReported = false;
     const pipelineStartTime = Date.now();
 
     // Create anonymization middleware for this run if requested via RunInput flag
@@ -313,6 +327,7 @@ export class PipelineEngine {
           duration_ms: Date.now() - pipelineStartTime,
           total_tokens: this.pipelineTotals.tokens,
           total_tool_calls: this.pipelineTotals.toolCalls,
+          ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
         });
         this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
         return pipelineRun;
@@ -361,6 +376,7 @@ export class PipelineEngine {
           skipSet,
           input.originalRunId,
         );
+        this.addPipelineUsage(groupResult.totalTokenUsage);
         this.pipelineTotals.tokens += groupResult.totalTokensDelta;
         this.pipelineTotals.toolCalls += groupResult.totalToolCallsDelta;
 
@@ -396,6 +412,7 @@ export class PipelineEngine {
             duration_ms: Date.now() - pipelineStartTime,
             total_tokens: this.pipelineTotals.tokens,
             total_tool_calls: this.pipelineTotals.toolCalls,
+            ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           return pipelineRun;
@@ -435,6 +452,10 @@ export class PipelineEngine {
           signal,
         );
 
+        // A map stage's own cost is the sum of the child runs it spawned.
+        this.addPipelineUsage(mapResult.tokenUsage);
+        this.pipelineTotals.tokens += mapResult.tokenUsage?.total_tokens ?? 0;
+
         pipelineRun.stages.push(mapResult.stageRun);
 
         if (mapResult.status === 'failed' || mapResult.status === 'cancelled') {
@@ -458,6 +479,7 @@ export class PipelineEngine {
             duration_ms: Date.now() - pipelineStartTime,
             total_tokens: this.pipelineTotals.tokens,
             total_tool_calls: this.pipelineTotals.toolCalls,
+            ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           return pipelineRun;
@@ -502,6 +524,9 @@ export class PipelineEngine {
           signal,
         );
 
+        this.addPipelineUsage(callResult.tokenUsage);
+        this.pipelineTotals.tokens += callResult.tokenUsage?.total_tokens ?? 0;
+
         pipelineRun.stages.push(callResult.stageRun);
 
         // A tolerated failure (`on_failure: continue`) is recorded as a failed
@@ -532,6 +557,7 @@ export class PipelineEngine {
             duration_ms: Date.now() - pipelineStartTime,
             total_tokens: this.pipelineTotals.tokens,
             total_tool_calls: this.pipelineTotals.toolCalls,
+            ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           return pipelineRun;
@@ -579,6 +605,7 @@ export class PipelineEngine {
           pipelineRun.id,
           signal,
         );
+        this.addPipelineUsage(result.tokenUsage);
         this.pipelineTotals.tokens += result.tokensDelta ?? 0;
         this.pipelineTotals.toolCalls += result.toolCallsDelta ?? 0;
 
@@ -605,6 +632,7 @@ export class PipelineEngine {
             duration_ms: Date.now() - pipelineStartTime,
             total_tokens: this.pipelineTotals.tokens,
             total_tool_calls: this.pipelineTotals.toolCalls,
+            ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
           });
           this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
           return pipelineRun;
@@ -637,6 +665,7 @@ export class PipelineEngine {
       duration_ms: Date.now() - pipelineStartTime,
       total_tokens: this.pipelineTotals.tokens,
       total_tool_calls: this.pipelineTotals.toolCalls,
+      ...(this.pipelineUsageReported ? { token_usage: this.pipelineUsage } : {}),
     });
     this.emitter.emit({ type: 'pipeline_complete', pipelineId: pipelineRun.id });
 

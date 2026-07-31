@@ -478,3 +478,44 @@ studio validate software/code-generation output.json       # Validate without LL
 ```
 
 Run logs are stored in `.studio/runs/logs/<timestamp>-<pipeline>-<id>.jsonl` (one JSON object per line).
+
+### What a run cost — token usage
+
+Every event that follows an LLM call carries a `tokens` object in the run JSONL:
+`stage_complete` (the stage total, summed over its RALPH attempts), `stage_retry`
+(what the discarded attempt cost), `map_item_complete` (one fan-out item's child
+run) and `pipeline_complete` (the run total). Its fields:
+
+| Field | Meaning |
+|-------|---------|
+| `prompt_tokens` | Input tokens billed at full rate — cache reads/writes excluded |
+| `completion_tokens` | Output tokens generated |
+| `total_tokens` | Everything the call consumed: prompt + cached + cache-creation + completion |
+| `cached_input_tokens` | Input served from the provider's prompt cache (cheaper) |
+| `cache_creation_tokens` | Input written to the provider's prompt cache (pricier) |
+| `by_model` | The same counts split per model — several entries when one call spanned models |
+
+The four count fields are disjoint because each is billed at its own rate: a stage
+that read 200k tokens from cache and one that sent 200k fresh differ by an order of
+magnitude in cost, and a single number cannot tell them apart.
+
+So a per-model cost breakdown is a `jq` pass over the run file:
+
+```bash
+# Total tokens per model, across the run
+jq -s '[.[] | .tokens.by_model // {} | to_entries[]]
+       | group_by(.key)
+       | map({model: .[0].key, total: (map(.value.total_tokens) | add)})'   .studio/runs/*-<id>.jsonl
+
+# The most expensive stages
+jq -r 'select(.event=="stage_complete" and .tokens)
+       | [.tokens.total_tokens, .stage] | @tsv' .studio/runs/*-<id>.jsonl | sort -rn
+```
+
+`studio status <run-id>` aggregates the same data: a run total with the cache split,
+a per-stage count on each stage line, and a per-model breakdown. Runs recorded before
+this landed carry the older `{prompt, completion, total}` shape; `studio status` and
+`studio replay` still read them.
+
+A stage that reports no `tokens` is a stage nothing was measured for (a script stage,
+the mock provider) — never a stage that was free.

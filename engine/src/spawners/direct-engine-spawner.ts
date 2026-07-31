@@ -1,4 +1,5 @@
 import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
+import { sumTokenUsage } from '@studio-foundation/contracts';
 import type { ProviderRegistry } from '@studio-foundation/runner';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
@@ -52,6 +53,10 @@ export class DirectEngineSpawner implements RunSpawner {
     const lastStage = [...result.stages].reverse().find(s => s.status === 'success');
     const output = (lastStage as { output?: unknown } | undefined)?.output ?? null;
 
-    return { run_id: result.id, status: result.status, output };
+    // Roll the child's per-stage usage up into one number for the caller, so a
+    // parent's `map`/`call` stage can report what the fan-out actually spent.
+    const token_usage = sumTokenUsage(result.stages.map(s => s.token_usage));
+
+    return { run_id: result.id, status: result.status, output, ...(token_usage ? { token_usage } : {}) };
   }
 }

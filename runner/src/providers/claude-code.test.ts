@@ -288,3 +288,115 @@ describe('ClaudeCodeProvider', () => {
     expect(result.finish_reason).toBe('stop');
   });
 });
+
+describe('ClaudeCodeProvider token usage (STU-750)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Verbatim shape of a `claude -p --output-format stream-json` result event.
+  const RESULT_WITH_USAGE = {
+    type: 'result',
+    subtype: 'success',
+    result: '{"summary":"done"}',
+    usage: {
+      input_tokens: 4,
+      cache_creation_input_tokens: 13512,
+      cache_read_input_tokens: 21000,
+      output_tokens: 437,
+    },
+    modelUsage: {
+      'claude-sonnet-4-5-20250929': {
+        inputTokens: 4,
+        outputTokens: 437,
+        cacheReadInputTokens: 21000,
+        cacheCreationInputTokens: 13512,
+        costUSD: 0.0521,
+      },
+    },
+  };
+
+  it('reports the CLI usage block on the agent loop result', async () => {
+    mockSpawn.mockReturnValueOnce(makeFakeProcess([JSON.stringify(RESULT_WITH_USAGE)]));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    expect(result.usage).toEqual({
+      prompt_tokens: 4,
+      completion_tokens: 437,
+      // Cache reads and writes are tokens the call consumed, so they belong in the total.
+      total_tokens: 4 + 437 + 21000 + 13512,
+      cached_input_tokens: 21000,
+      cache_creation_tokens: 13512,
+      by_model: {
+        'claude-sonnet-4-5-20250929': {
+          prompt_tokens: 4,
+          completion_tokens: 437,
+          total_tokens: 4 + 437 + 21000 + 13512,
+          cached_input_tokens: 21000,
+          cache_creation_tokens: 13512,
+        },
+      },
+    });
+  });
+
+  it('attributes each model separately when the session spanned several', async () => {
+    const lines = [JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      result: 'ok',
+      modelUsage: {
+        'claude-opus-4-5': { inputTokens: 100, outputTokens: 50 },
+        'claude-haiku-4-5': { inputTokens: 10, outputTokens: 5 },
+      },
+    })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    expect(result.usage?.total_tokens).toBe(165);
+    expect(result.usage?.by_model?.['claude-opus-4-5'].total_tokens).toBe(150);
+    expect(result.usage?.by_model?.['claude-haiku-4-5'].total_tokens).toBe(15);
+  });
+
+  it('falls back to the flat usage block, attributed to the spawned model', async () => {
+    const lines = [JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      result: 'ok',
+      usage: { input_tokens: 120, output_tokens: 30 },
+    })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-opus-4-5' });
+
+    const result = await provider.runAgentLoop({ ...BASE_REQUEST, model: '' }, vi.fn());
+
+    expect(result.usage).toEqual({
+      prompt_tokens: 120,
+      completion_tokens: 30,
+      total_tokens: 150,
+      by_model: { 'claude-opus-4-5': { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 } },
+    });
+  });
+
+  it('reports no usage when the CLI reported none, rather than a false zero', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    expect(result.usage).toBeUndefined();
+  });
+
+  it('carries usage through call() as well as runAgentLoop()', async () => {
+    mockSpawn.mockReturnValueOnce(makeFakeProcess([JSON.stringify(RESULT_WITH_USAGE)]));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+
+    const response = await provider.call(BASE_REQUEST);
+
+    expect(response.usage?.total_tokens).toBe(4 + 437 + 21000 + 13512);
+  });
+});

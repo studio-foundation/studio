@@ -10,7 +10,9 @@ import type {
   AgentRun,
   OutputContract,
   ResolvedAgentConfig,
+  TokenUsage,
 } from '@studio-foundation/contracts';
+import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import {
   ralph,
   validateSchema,
@@ -313,6 +315,13 @@ export class StageExecutor {
         }
       : undefined;
 
+    // Every attempt costs tokens, including the ones that failed validation.
+    // Accumulating here (rather than reading the winning attempt's usage) is what
+    // makes a stage that retried twice report what it actually spent. ralph stays
+    // generic — it never learns what a token is (INV-02).
+    const stageUsage: TokenUsage = emptyTokenUsage();
+    let stageUsageReported = false;
+
     // Execute ralph loop — catch unexpected executor throws (network errors, etc.)
     // and convert them to a failed stage rather than crashing the pipeline.
     let ralphResult: Awaited<ReturnType<typeof ralph<AgentRunResult>>>;
@@ -396,6 +405,11 @@ export class StageExecutor {
         };
         taskRun.agent_runs.push(agentRun);
 
+        if (result.token_usage) {
+          accumulateTokenUsage(stageUsage, result.token_usage);
+          stageUsageReported = true;
+        }
+
         return result;
       },
       validator: ralphValidator,
@@ -421,6 +435,9 @@ export class StageExecutor {
           failures: event.allFailures,
           agent_output_raw: rawOutput,
           tool_calls_count: event.result.tool_calls_count,
+          // What this discarded attempt cost — the part of a stage's bill that
+          // is invisible from the stage total alone.
+          token_usage: event.result.token_usage,
         });
         this.config.emitter.emit({
           type: 'task_retry',
@@ -551,6 +568,9 @@ export class StageExecutor {
     if (lastResult?.output !== undefined) {
       stageRun.output = lastResult.output;
     }
+    if (stageUsageReported) {
+      stageRun.token_usage = stageUsage;
+    }
     const stageDurationMs = stageRun.completed_at && stageRun.started_at
       ? new Date(stageRun.completed_at).getTime() - new Date(stageRun.started_at).getTime()
       : 0;
@@ -567,7 +587,7 @@ export class StageExecutor {
         : lastResult ? summarizeOutput(lastResult.output) : undefined,
       output: lastResult?.output,
       tool_calls: lastResult ? lastResult.tool_calls : undefined,
-      token_usage: lastResult?.token_usage,
+      token_usage: stageUsageReported ? stageUsage : undefined,
       rejection_reason: postResult?.rejection_reason,
       rejection_details: postResult?.rejection_details,
     });
@@ -579,7 +599,8 @@ export class StageExecutor {
       postValidation: postResult,
       lastAgentOutput: lastResult?.output,
       toolCalls: lastResult?.tool_calls,
-      tokensDelta: lastResult?.token_usage?.total_tokens ?? 0,
+      tokenUsage: stageUsageReported ? stageUsage : undefined,
+      tokensDelta: stageUsage.total_tokens,
       toolCallsDelta: lastResult?.tool_calls_count ?? 0,
     };
   }

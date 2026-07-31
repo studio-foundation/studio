@@ -6,7 +6,14 @@ Types et interfaces partagés par tous les packages Studio. ZERO dépendances. Z
 
 - Ce package n'a AUCUNE dépendance (pas de `@studio/*`, pas de libs externes)
 - JAMAIS de logique — uniquement des types, interfaces, enums TypeScript
-- Exception unique : `isStageGroup()` dans `pipeline.ts` (type guard pur, sans état)
+- Exceptions, toutes pures et sans état : les type guards de `pipeline.ts`
+  (`isStageGroup()`, `isMapStage()`, `isCallStage()`) et les helpers d'agrégation
+  de `usage.ts` (`accumulateTokenUsage()`, `sumTokenUsage()`, `withModel()`) —
+  l'arithmétique qui accompagne le type `TokenUsage`, sinon recopiée dans chaque
+  package qui additionne des tokens
+- `exports` déclare `require` en plus de `import` : `runner` et `anonymizer`
+  compilent en CommonJS, et leur `require()` d'un package ESM-only échouerait
+  (Node ≥ 22.12 sait charger de l'ESM depuis `require`)
 - Tout changement ici impacte TOUS les autres packages — être conservateur
 - Exporter tout depuis `index.ts`
 
@@ -19,6 +26,7 @@ Types et interfaces partagés par tous les packages Studio. ZERO dépendances. Z
 - `run.ts` — `PipelineRun`, `StageRun`, `TaskRun`, `AgentRun`, `AgentStatus`
 - `validation.ts` — `OutputContract`, `ToolCallRequirements`, `ValidationResult`, `ValidationRule`
 - `provider.ts` — `LLMRequest`, `LLMResponse`, `Message`, `ToolDefinition`
+- `usage.ts` — `TokenUsage`, `ModelTokenUsage`, `accumulateTokenUsage()`, `sumTokenUsage()`, `withModel()`
 - `errors.ts` — `ErrorCode` (enum), `StudioError`
 - `context-pack.ts` — `ContextPackDefinition`, `ResolvedContextPack`
 - `tool-plugin.ts` — `ToolPluginDef`, `ToolCommandDef`, `ShellExecute`, `BuiltinExecute`, `ParameterDef`

@@ -344,3 +344,89 @@ describe('runner — onPostToolUse callback', () => {
     expect(toolResultMessage?.content).toContain('Post-hook note: prettier ran and formatted the file');
   });
 });
+
+/**
+ * Reports usage on every turn, with a different model on the second — the shape
+ * a multi-turn tool-calling stage produces.
+ */
+class MeteredProvider implements Provider {
+  readonly name = 'metered-mock';
+  private callCount = 0;
+
+  async call(_request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    if (this.callCount === 1) {
+      return {
+        content: '',
+        tool_calls: [{ id: 'call-1', name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hi' } }],
+        finish_reason: 'tool_calls',
+        usage: {
+          prompt_tokens: 100, completion_tokens: 20, total_tokens: 170,
+          cached_input_tokens: 40, cache_creation_tokens: 10,
+          by_model: {
+            'model-a': {
+              prompt_tokens: 100, completion_tokens: 20, total_tokens: 170,
+              cached_input_tokens: 40, cache_creation_tokens: 10,
+            },
+          },
+        },
+      };
+    }
+    return {
+      content: JSON.stringify({ summary: 'done' }),
+      tool_calls: [],
+      finish_reason: 'stop',
+      usage: {
+        prompt_tokens: 5, completion_tokens: 3, total_tokens: 8,
+        by_model: { 'model-b': { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 } },
+      },
+    };
+  }
+}
+
+describe('runner — token usage (STU-750)', () => {
+  it('sums every turn, keeping the cache split and the per-model breakdown', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(new MeteredProvider());
+
+    const result = await runAgent({
+      agent: { ...agent, provider: 'metered-mock' },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.token_usage).toEqual({
+      prompt_tokens: 105,
+      completion_tokens: 23,
+      total_tokens: 178,
+      cached_input_tokens: 40,
+      cache_creation_tokens: 10,
+      by_model: {
+        'model-a': {
+          prompt_tokens: 100, completion_tokens: 20, total_tokens: 170,
+          cached_input_tokens: 40, cache_creation_tokens: 10,
+        },
+        'model-b': { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
+      },
+    });
+  });
+
+  it('leaves token_usage absent when no provider reported any', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(new StandardProvider());
+
+    const result = await runAgent({
+      agent: { ...agent, provider: 'standard-mock' },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.token_usage).toBeUndefined();
+  });
+});

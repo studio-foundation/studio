@@ -2,7 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
 import { PipelineEngine, type EngineConfig } from '../../src/engine.js';
 import { InMemoryRunStore } from '../../src/state/run-store.js';
-import type { EngineEvents } from '../../src/events.js';
+import type {
+  EngineEvents,
+  PipelineCompleteEvent,
+  StageCompleteEvent,
+  StageRetryEvent,
+} from '../../src/events.js';
 import { ToolRegistry } from '@studio-foundation/runner';
 
 // Provider mock that hangs forever unless the abort signal fires.
@@ -843,5 +848,113 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('success');
     expect(result.stages[0].status).toBe('success');
+  });
+});
+
+/** Wrap a stub provider as the registry the engine expects. */
+function providerRegistryOf(provider: { name: string; call: unknown }): EngineConfig['providerRegistry'] {
+  return { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as unknown as EngineConfig['providerRegistry'];
+}
+
+describe('PipelineEngine — token usage (STU-750)', () => {
+  const VALID_OUTPUT = JSON.stringify({
+    summary: 'Test summary',
+    requirements: ['req1'],
+    acceptance_criteria: ['ac1'],
+  });
+
+  /** Fails the contract on the first attempt, passes on the second. Both cost tokens. */
+  function createRetryingProvider() {
+    let calls = 0;
+    return {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(() => {
+        calls++;
+        const model = calls === 1 ? 'model-a' : 'model-b';
+        const counts = {
+          prompt_tokens: 100 * calls,
+          completion_tokens: 10 * calls,
+          total_tokens: 110 * calls,
+          cached_input_tokens: 5,
+        };
+        return Promise.resolve({
+          content: calls === 1 ? JSON.stringify({ no_summary: true }) : VALID_OUTPUT,
+          tool_calls: [],
+          finish_reason: 'stop',
+          usage: { ...counts, by_model: { [model]: counts } },
+        });
+      }),
+    };
+  }
+
+  it('counts the failed attempts too — a retry is not free', async () => {
+    const stageEvents: StageCompleteEvent[] = [];
+    const retryEvents: StageRetryEvent[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: providerRegistryOf(createRetryingProvider()),
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+      },
+      { onStageComplete: (e) => stageEvents.push(e), onTaskRetry: (e) => retryEvents.push(e) },
+    );
+
+    // `simple` allows 2 attempts; the first fails validation.
+    const result = await engine.run({ pipeline: 'simple', input: 'retry then succeed' });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0].token_usage).toEqual({
+      prompt_tokens: 300,      // 100 (discarded attempt) + 200
+      completion_tokens: 30,   // 10 + 20
+      total_tokens: 330,
+      cached_input_tokens: 10,
+      by_model: {
+        'model-a': { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110, cached_input_tokens: 5 },
+        'model-b': { prompt_tokens: 200, completion_tokens: 20, total_tokens: 220, cached_input_tokens: 5 },
+      },
+    });
+    expect(stageEvents[0].token_usage?.total_tokens).toBe(330);
+    // The discarded attempt reports its own cost, so the gap is attributable.
+    expect(retryEvents[0].token_usage?.total_tokens).toBe(110);
+  });
+
+  it('reports the run total on pipeline_complete, cache split included', async () => {
+    const pipelineEvents: PipelineCompleteEvent[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: providerRegistryOf(createRetryingProvider()),
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+      },
+      { onPipelineComplete: (e) => pipelineEvents.push(e) },
+    );
+
+    await engine.run({ pipeline: 'simple', input: 'retry then succeed' });
+
+    expect(pipelineEvents[0].total_tokens).toBe(330);
+    expect(pipelineEvents[0].token_usage).toEqual(
+      expect.objectContaining({ total_tokens: 330, cached_input_tokens: 10 }),
+    );
+  });
+
+  it('leaves usage absent when the provider reported none', async () => {
+    const silentProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockResolvedValue({ content: VALID_OUTPUT, tool_calls: [], finish_reason: 'stop' }),
+    };
+    const pipelineEvents: PipelineCompleteEvent[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: providerRegistryOf(silentProvider),
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+      },
+      { onPipelineComplete: (e) => pipelineEvents.push(e) },
+    );
+
+    const result = await engine.run({ pipeline: 'simple', input: 'no usage' });
+
+    expect(result.stages[0].token_usage).toBeUndefined();
+    expect(pipelineEvents[0].token_usage).toBeUndefined();
   });
 });
