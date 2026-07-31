@@ -7,14 +7,37 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
-## [Unreleased]
+## [0.15.0] — 2026-07-31
 
-### Added
+### Cost
 
 - **`batch:` on a fan-out (`map`) stage** — dispatches its items' LLM calls through the provider's batch endpoint instead of one synchronous request each. Anthropic's Message Batches API bills every token (input, output, cache write, cache read) at 50% of the synchronous rate in exchange for up to 24h to finish, and a fan-out has no interactive deadline — measured on a full wiki run, the four `map` stages are 98% of its API-equivalent cost. The child runs are untouched: contracts, RALPH, hooks, post-validation and the `resume` cache all behave identically. Each item parks its call in a shared batch window whose barrier releases one batch as soon as no live item can still add to it; validation stays per item after collection, so a failed item retries into the *next* batch and rounds shrink. `concurrency` defaults to `min(items, max_size)` under `batch:` rather than 1, since items must be in flight together to share a batch. Tuning: `max_size`, `poll_interval_ms`, `max_wait_ms`, `flush_after_ms`. A provider with no batch endpoint (mock, ollama, claude-code) runs the stage exactly as before, warning once and naming the provider. See CONCEPTS.md.
 - `AnthropicProvider` implements the new `BatchProvider` capability (`submitBatch`), and the runner exports `BatchWindow` / `BatchingProviderRegistry` for callers that want to coalesce calls themselves.
 - `onBatchDispatch` / `onBatchComplete` engine events, rendered by the CLI's fan-out progress (`⇢ batch #1 — 40 requests submitted`) and written to the run JSONL as `batch_dispatch` / `batch_complete`.
 - `SpawnConfig.overrides` — per-spawn execution overrides honoured by the in-process spawner and ignored by remote ones. Today it carries the substituted provider registry a batched map stage hands its children.
+- **Prompt caching is no longer unconditional.** The Anthropic provider marked system + the last tool with `cache_control` on every call; a cache write bills above the plain input rate and only earns it back when something reads the prefix again, so a call with no successor cost *more* cached than uncached — measured on a real run as 4.5M cache-write tokens against 1.05M reads, +35% on the bill. `LLMRequest.cache_prompt` moves the decision to the caller, absent meaning no, and the runner decides it once per agent run rather than per turn. The `auto` policy caches iff the stage's contract obliges tool calls (`tool_calls.minimum` / `required_tools` / `required_tool_groups`) and the agent has tools — that contract is the one declaration in `.studio/` that predicts a second turn before the first has happened. Agents override with `prompt_cache: on | off`. TTL stays at the 5m default.
+
+### Observability
+
+- **Per-call token usage is recorded end to end.** One shape (`TokenUsage` in `contracts/src/usage.ts`) carries prompt / completion / total plus cached and cache-creation counts and a `by_model` split; the four counts are disjoint because each bills at its own rate. Every provider normalizes to it — claude-code now reads the CLI's `usage`/`modelUsage` block instead of discarding it (`modelUsage` preferred, so a stage that delegated is priced correctly), and OpenAI's cache counts are split back out of its input total. It accumulates upward with nothing dropped: the runner sums turns, the engine sums RALPH attempts (a stage that retried twice reports both), and a `call`/`map` stage carries the roll-up of the child runs it spawned — the fan-out is usually the most expensive stage and used to report zero. ralph never learns what a token is.
+- Where it lands: `StageRun.token_usage`, the `stage_complete` / `stage_retry` / `map_item_complete` / `pipeline_complete` events, and the run JSONL under `tokens`. `studio status` aggregates it — run total with the cache split, a count per stage line, a per-model table. Runs recorded before this carry the older `{prompt, completion, total}` shape and still read. A stage whose provider reported nothing has no usage at all rather than a row of zeros: an unmeasured stage must not read as a free one.
+
+### CLI
+
+- `studio registry info <name>` completes the registry discovery verbs: `search` prints a match list and `browse` a popularity list, neither showing the version, license, `studio_version` range, dependencies or `provides` that decide whether an install is safe on this machine. It reads the merged index rather than adding a fetch path, resolves the way `install` does (an ambiguous unqualified name is refused with the qualified forms, never picked by registration order), and falls back to the bundled seed so a fresh install can inspect the default marketplace offline. A `name@version` that was never published is an error, not a silent fall back to the newest. Beyond the index entry it prints the versions the registry carries, whether the running CLI satisfies the declared `studio_version` (a warning — nothing is being installed), and the installed version from `.studio/registry.lock.json`, naming its marketplace when that differs.
+- **A stage with no `contract:` is now visible.** It runs with nothing to validate against — no schema check, no `tool_calls` floor, no rejection detection — and said so nowhere; next to a `.studio/contracts/` directory that silence reads as "validation is on", which is how three official templates shipped contracts no stage referenced. `studio run` prints one line per contract-less stage, once at startup, on stderr so `--json` stdout stays clean; `studio doctor` gains a Contracts check reporting the same across every pipeline, naming each as `pipeline 'x', stage 'y'`. Both are warnings and stay warnings — exit codes and stage statuses are untouched. Opt out project-wide with `warnings.missing_contract: false` in `.studio/config.yaml`; doctor then still shows the count, marked suppressed. `map` and `call` entries are never reported: what validates them is the sub-pipeline they run.
+
+### Fixed
+
+- The kernel no longer renders one template's stage names better than everyone else's. `humanReadableStageName` mapped stage names through a lookup table whose first four entries were the `software-full` template's stages, so `brief-analysis` printed as "Analyzing brief" while any other name fell through to title-casing. The table is gone entirely. `✗ rejected by QA` becomes `✗ rejected` — `rejected` is produced by any contract's `post_validation.rejection_detection`, and naming QA sends a user looking for a stage they never wrote.
+
+### Invariants
+
+- INV-13: the CLI names no domain either. `check:invariants` now runs the domain-vocabulary grep over `cli/src/`, minus the two exceptions the CLI has and the API does not (it renders builtin tool names and shells out to `git diff --numstat`, both reporting what the runner did). The name patterns also match the character-class spelling a regex literal uses (`brief[-_]analysis`) — how the stage-name table went unseen while the same check ran green over `api/src/`.
+
+### Contributing
+
+- `.githooks/prepare-commit-msg` appends the `Signed-off-by` trailer on every commit, wired once per clone with `make hooks` — git has no `commit.signoff` config, so a hook is the mechanism. Deriving it from `user.name`/`user.email` also closes a latent trap: `check-dco.sh` compares the trailer against the commit author verbatim, name included, so an author name differing from the signed-off name failed the check on an otherwise valid commit.
 
 ## [0.14.0] — 2026-07-28
 
