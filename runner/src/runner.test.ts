@@ -430,3 +430,71 @@ describe('runner — token usage (STU-750)', () => {
     expect(result.token_usage).toBeUndefined();
   });
 });
+
+/** Records the `cache_prompt` flag the runner put on every request. */
+class CacheFlagProvider implements Provider {
+  readonly name = 'cache-flag-mock';
+  public flags: Array<boolean | undefined> = [];
+  private callCount = 0;
+
+  async call(request: LLMRequest): Promise<LLMResponse> {
+    this.flags.push(request.cache_prompt);
+    this.callCount++;
+    if (this.callCount === 1) {
+      return {
+        content: '',
+        tool_calls: [{ id: 'call-1', name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hi' } }],
+        finish_reason: 'tool_calls',
+      };
+    }
+    return { content: JSON.stringify({ summary: 'done' }), tool_calls: [], finish_reason: 'stop' };
+  }
+}
+
+describe('runner — prompt cache decision (STU-752)', () => {
+  async function flagsFor(overrides: Partial<Parameters<typeof runAgent>[0]>) {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const provider = new CacheFlagProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    await runAgent({
+      agent: { ...agent, provider: 'cache-flag-mock' },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      ...overrides,
+    });
+    return provider.flags;
+  }
+
+  it('asks for no cache when nothing obliges the stage to call tools', async () => {
+    expect(await flagsFor({})).toEqual([false, false]);
+  });
+
+  it('asks for a cache when the contract requires tool calls', async () => {
+    const flags = await flagsFor({
+      outputContract: { name: 'code-generation', version: 1, tool_calls: { minimum: 1 } },
+    });
+    // Same answer on every turn — turn 2 reads what turn 1 wrote.
+    expect(flags).toEqual([true, true]);
+  });
+
+  it('honours the agent-level override', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const provider = new CacheFlagProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+
+    await runAgent({
+      agent: { ...agent, provider: 'cache-flag-mock', prompt_cache: 'on' },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(provider.flags).toEqual([true, true]);
+  });
+});
