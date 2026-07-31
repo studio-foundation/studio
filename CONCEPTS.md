@@ -88,6 +88,27 @@ Supported per-field keys:
 
 Failures name the exact path — `Field 'pages[2].importance' must be one of [principal, secondary, figurant], got "lead"` — so the retry feedback points the agent at the offending value. This is the mechanism that lets invariants like "`importance ∈ {principal, secondary, figurant}`" be enforced by the contract itself instead of by an ad-hoc gate in a downstream script.
 
+### A stage with no contract
+
+`contract:` is optional. A stage that omits it still runs, still retries on a terminal executor error — and validates nothing else: no schema check, no `tool_calls` floor, no rejection detection. Whatever the agent returns is accepted.
+
+That's legitimate (a scratch pipeline, a stage nothing downstream reads), but it used to be indistinguishable from validation being in force, which is how templates shipped contracts no stage referenced. So Studio says it out loud, once at startup:
+
+```
+⚠ stage 'code-generation' has no contract — output is not validated
+  Add a `contract:` to each, or set `warnings.missing_contract: false` in .studio/config.yaml to silence this.
+```
+
+It is a **warning and stays one**: the exit code and every stage status are exactly what they'd be without it. `studio doctor` reports the same thing across every pipeline in `.studio/pipelines/`, so it's catchable before a run, and a project that means it opts out:
+
+```yaml
+# .studio/config.yaml
+warnings:
+  missing_contract: false
+```
+
+`map` and `call` entries are never reported — they carry no `contract:` of their own, since what validates them is the sub-pipeline they run.
+
 ---
 
 ## Anti-theatre
