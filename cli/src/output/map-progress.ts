@@ -81,6 +81,8 @@ export class MapRenderer {
   private failed = 0;
   private lastResult: string | null = null;
   private readonly inFlight = new Map<number, InFlight>();
+  /** round → request count, for batches submitted and not yet returned. */
+  private readonly batchesInFlight = new Map<number, number>();
 
   /**
    * Begin rendering. Prints a permanent header line, then a live status line
@@ -88,7 +90,7 @@ export class MapRenderer {
    * stream still gets the header, per-item failures, and the final summary
    * (ora degrades to non-animated frames on its own).
    */
-  start(mapName: string, total: number, concurrency: number): void {
+  start(mapName: string, total: number, concurrency: number, batch = false): void {
     this.startedAt = Date.now();
     this.mapName = mapName;
     this.total = total;
@@ -96,10 +98,12 @@ export class MapRenderer {
     this.failed = 0;
     this.lastResult = null;
     this.inFlight.clear();
+    this.batchesInFlight.clear();
 
     console.log(
       chalk.cyan(`  ↳ ${mapName}`) +
-        chalk.gray(` — fan-out over ${total} item${total === 1 ? '' : 's'} (concurrency ${concurrency})`),
+        chalk.gray(` — fan-out over ${total} item${total === 1 ? '' : 's'} (concurrency ${concurrency})`) +
+        (batch ? chalk.gray(' · batched') : ''),
     );
 
     this.spinner = makeSpinner({ text: this.statusText(), indent: 2, color: 'cyan' }).start();
@@ -145,6 +149,27 @@ export class MapRenderer {
     if (this.spinner) this.spinner.text = this.statusText();
   }
 
+  /**
+   * A batch left for the provider. Persisted rather than folded into the live
+   * line: a batch can take an hour, and "nothing is happening" and "40 requests
+   * are queued at half price" look identical otherwise.
+   */
+  batchDispatch(provider: string, size: number, round: number): void {
+    this.batchesInFlight.set(round, size);
+    this.persist(
+      chalk.gray(`    ⇢ batch #${round} — ${size} request${size === 1 ? '' : 's'} submitted to ${provider}`),
+    );
+  }
+
+  /** A batch came back. Per-item outcomes still arrive through itemComplete. */
+  batchComplete(size: number, round: number, succeeded: number, failed: number, durationMs: number): void {
+    this.batchesInFlight.delete(round);
+    const counts = failed > 0
+      ? `${succeeded}/${size} returned, ${chalk.red(`${failed} errored`)}`
+      : `${succeeded}/${size} returned`;
+    this.persist(chalk.gray(`    ⇠ batch #${round} — ${counts} (${formatDuration(durationMs)})`));
+  }
+
   /** Tear down the live line and print the final summary. */
   finish(succeeded: number, failed: number, status: string): void {
     this.stopTimer();
@@ -176,7 +201,13 @@ export class MapRenderer {
     const flightStr = labels.length
       ? chalk.dim(` · ${labels.length} in flight: ${truncateList(labels, MAX_INFLIGHT_WIDTH)}`)
       : '';
-    return `${head}${failStr}${lastStr}${flightStr}${chalk.gray(` (${elapsed}s)`)}`;
+    // A batched fan-out spends most of its wall clock here: items are "in
+    // flight" but every one of them is parked inside a provider-side batch.
+    const queued = [...this.batchesInFlight.values()].reduce((sum, size) => sum + size, 0);
+    const batchStr = queued > 0
+      ? chalk.dim(` · ${queued} queued in ${this.batchesInFlight.size} batch${this.batchesInFlight.size === 1 ? '' : 'es'}`)
+      : '';
+    return `${head}${failStr}${lastStr}${batchStr}${flightStr}${chalk.gray(` (${elapsed}s)`)}`;
   }
 
   /** Print a permanent line above the live status line, then restore it. */

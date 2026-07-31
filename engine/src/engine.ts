@@ -175,6 +175,8 @@ export class PipelineEngine {
       // Durable per-item resume store for `map` stages with `resume: true`.
       // Lives alongside the anonymization keymaps under .studio/runs/.
       cache: new FileSystemMapItemCache(join(config.configsDir, 'runs', 'map-cache')),
+      // Needed to wrap the child runs' providers when a map stage sets `batch:`.
+      providerRegistry: config.providerRegistry,
     });
     this.callOrchestrator = new CallOrchestrator({
       events,

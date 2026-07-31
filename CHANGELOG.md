@@ -7,6 +7,15 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [Unreleased]
+
+### Added
+
+- **`batch:` on a fan-out (`map`) stage** — dispatches its items' LLM calls through the provider's batch endpoint instead of one synchronous request each. Anthropic's Message Batches API bills every token (input, output, cache write, cache read) at 50% of the synchronous rate in exchange for up to 24h to finish, and a fan-out has no interactive deadline — measured on a full wiki run, the four `map` stages are 98% of its API-equivalent cost. The child runs are untouched: contracts, RALPH, hooks, post-validation and the `resume` cache all behave identically. Each item parks its call in a shared batch window whose barrier releases one batch as soon as no live item can still add to it; validation stays per item after collection, so a failed item retries into the *next* batch and rounds shrink. `concurrency` defaults to `min(items, max_size)` under `batch:` rather than 1, since items must be in flight together to share a batch. Tuning: `max_size`, `poll_interval_ms`, `max_wait_ms`, `flush_after_ms`. A provider with no batch endpoint (mock, ollama, claude-code) runs the stage exactly as before, warning once and naming the provider. See CONCEPTS.md.
+- `AnthropicProvider` implements the new `BatchProvider` capability (`submitBatch`), and the runner exports `BatchWindow` / `BatchingProviderRegistry` for callers that want to coalesce calls themselves.
+- `onBatchDispatch` / `onBatchComplete` engine events, rendered by the CLI's fan-out progress (`⇢ batch #1 — 40 requests submitted`) and written to the run JSONL as `batch_dispatch` / `batch_complete`.
+- `SpawnConfig.overrides` — per-spawn execution overrides honoured by the in-process spawner and ignored by remote ones. Today it carries the substituted provider registry a batched map stage hands its children.
+
 ## [0.14.0] — 2026-07-28
 
 ### Breaking
