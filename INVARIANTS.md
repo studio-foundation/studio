@@ -4,7 +4,7 @@ Non-negotiable contracts on system behavior. These invariants are enforced by co
 
 **Ground rule:** If you find code that violates one of these invariants, it is an architecture error, not an acceptable exception.
 
-**Declared is not enforced.** An invariant nobody can break by accident is the only kind that holds. INV-04, INV-05, INV-06, INV-10 and INV-12 are checked by [scripts/check-invariants.mjs](scripts/check-invariants.mjs) (`pnpm check:invariants`, blocking in CI), INV-10's import direction additionally by ESLint, and INV-11 by [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs). The rest are properties of type signatures and call graphs that no grep can settle; each says so under **Enforced by**. Loosening a check to make a change pass is the same act as violating the invariant.
+**Declared is not enforced.** An invariant nobody can break by accident is the only kind that holds. INV-04, INV-05, INV-06, INV-10, INV-12 and INV-13 are checked by [scripts/check-invariants.mjs](scripts/check-invariants.mjs) (`pnpm check:invariants`, blocking in CI), INV-10's import direction additionally by ESLint, and INV-11 by [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs). The rest are properties of type signatures and call graphs that no grep can settle; each says so under **Enforced by**. Loosening a check to make a change pass is the same act as violating the invariant.
 
 ---
 
@@ -209,6 +209,20 @@ The violation this invariant was written for is already gone: `api/src/integrati
 
 ---
 
+## INV-13: The CLI renders a project's words, it does not know them
+
+**Description:** `@studio-foundation/cli` prints stage names, statuses and outputs. Every one of those strings is a config author's word, and the CLI treats them all identically: it title-cases, aligns and colours them, and never recognises a particular one. It hardcodes no pipeline, contract or stage name, and does not attribute a generic status to a domain role.
+
+This is the third statement of the same rule — INV-04 for the engine, INV-12 for the API — and it is separate for the same reason INV-12 is: the CLI's exception surface is its own. Unlike the API, the CLI legitimately names things the engine may not. It renders builtin tool names (`repo_manager-read_file` → "Read 3 files") because those are Studio's own primitives, not a project's vocabulary (INV-11), and it shells out to `git diff --numstat` ([`output/file-changes.ts`](cli/src/output/file-changes.ts)) to summarise what a run touched. Both report what actually happened; neither is the CLI knowing a domain.
+
+The violations this invariant was written for were real. `cli/src/output/formatters.ts` mapped stage names to display labels through a table whose first four entries were the `software-full` template's stages, so `brief-analysis` rendered as "Analyzing brief" while every other project's stages fell through to plain title-casing — the kernel making one template's pipeline look more finished than everyone else's. And a rejected run printed `✗ rejected by QA`, though `rejected` is produced by any contract's `post_validation.rejection_detection` and nothing about it is QA. STU-710 deleted the table outright: the generic fallback already renders those names fine, and the two verb forms it alone could produce ("Generating code", "Reviewing") were not worth naming a template in the kernel.
+
+**Enforced by:** [scripts/check-invariants.mjs](scripts/check-invariants.mjs) fails the build when any file under `cli/src/` names a pipeline, contract or stage shipped in a template, or names 'QA'. The name patterns also match the character-class spelling a regex literal uses (`brief[-_]analysis`), which is how the table evaded the API-scoped check for as long as it did.
+
+**What breaks if violated:** a project whose stages are named anything else gets a visibly plainer run, and the difference reads as the tool judging its pipeline rather than as a lookup table missing an entry. The status line is worse: `rejected by QA` tells a user their contract was reviewed by something that does not exist in their project, so they go looking for a QA stage they never wrote.
+
+---
+
 ## Quick reference
 
 Checked mechanically in CI unless the last column says otherwise.
@@ -227,3 +241,4 @@ Checked mechanically in CI unless the last column says otherwise.
 | INV-10 | Strict dependency DAG | all | `*/package.json` | `check:invariants`, ESLint |
 | INV-11 | Kernel implements only primitives | runner, cli | `runner/src/tools/plugin-loader.ts` | `check:kernel` |
 | INV-12 | The API never chooses what to run | api | `api/src/trigger-runtime.ts` | `check:invariants` |
+| INV-13 | The CLI renders a project's words | cli | `cli/src/output/formatters.ts` | `check:invariants` |

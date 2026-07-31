@@ -15,7 +15,9 @@ export function formatResult(run: PipelineRun, childRuns?: ChildRunMap): void {
   if (run.status === 'success') {
     console.log(`Status:   ${chalk.green('✓ success')}`);
   } else if (run.status === 'rejected') {
-    console.log(`Status:   ${chalk.red('✗ rejected by QA')}`);
+    // `rejected` is whatever the contract's post_validation.rejection_detection
+    // declared it to be — the CLI names no reviewer (INV-13).
+    console.log(`Status:   ${chalk.red('✗ rejected')}`);
   } else if (run.status === 'cancelled') {
     console.log(`Status:   ${chalk.yellow('⚠ cancelled')}`);
   } else if (run.status === 'interrupted') {

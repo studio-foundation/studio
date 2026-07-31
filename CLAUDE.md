@@ -103,7 +103,7 @@ A stage transitions through the first seven. `interrupted` is stamped on a *run*
 
 ## Non-Negotiable Rules
 
-> The 6 you hit daily. Formal list of all 12: **[INVARIANTS.md](INVARIANTS.md)** — the source.
+> The 6 you hit daily. Formal list of all 13: **[INVARIANTS.md](INVARIANTS.md)** — the source.
 
 1. **The engine is domain-agnostic.** No reference to "code", "file", "git", "QA" in the engine — and the kernel at large ships no tool it does not implement (INV-11, `pnpm check:kernel`).
 2. **ralph doesn't know runner.** ralph takes a generic `executor: () => Promise<T>`.
