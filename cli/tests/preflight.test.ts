@@ -97,4 +97,17 @@ describe('collectChecks', () => {
     expect(check.status).toBe('warn');
     expect(check.detail).toContain('STUDIO_PREFLIGHT_UNSET_KEY');
   });
+
+  it('ignores env-var-looking text inside comments (STU-756)', async () => {
+    await write(
+      'config.yaml',
+      '# Optional overrides: ANTHROPIC_API_KEY, ${STUDIO_SMART_PROVIDER}\n' +
+        'defaults:\n' +
+        '  model: ${STUDIO_PREFLIGHT_UNSET_KEY:-claude-haiku-4-5}\n'
+    );
+
+    const check = byName(await collectChecks(STUDIO_DIR, {}), 'Env vars');
+    expect(check.status).toBe('ok');
+    expect(check.detail).not.toContain('STUDIO_SMART_PROVIDER');
+  });
 });
