@@ -47,7 +47,14 @@ export class DirectEngineSpawner implements RunSpawner {
     });
 
     if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
-      throw new Error(`Child run ${result.id} ${result.status}`);
+      const lastFailedStage = [...result.stages].reverse().find(
+        s => s.status === 'failed' || s.status === 'rejected' || s.status === 'cancelled'
+      );
+      const stageError = lastFailedStage?.tasks
+        .flatMap(t => t.agent_runs)
+        .reverse()
+        .find(a => a.error)?.error;
+      throw new Error(`Child run ${result.id} ${result.status}: ${stageError ?? 'no error recorded'}`);
     }
 
     const lastStage = [...result.stages].reverse().find(s => s.status === 'success');
