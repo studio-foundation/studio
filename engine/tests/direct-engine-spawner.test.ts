@@ -99,6 +99,56 @@ describe('DirectEngineSpawner', () => {
       spawner.spawnAndWait({ pipeline: 'qa', input: {}, parentRunId: 'p1', depth: 1 })
     ).rejects.toThrow('Child run child-rej rejected');
   });
+
+  it('surfaces the failed stage\'s real error instead of a bare status (STU-765)', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const failedRun = makeSuccessRun({
+      id: 'child-fail',
+      status: 'failed',
+      stages: [
+        {
+          id: 's1', stage_name: 'ok', status: 'success',
+          started_at: new Date().toISOString(), tasks: [],
+        },
+        {
+          id: 's2', stage_name: 'broken', status: 'failed',
+          started_at: new Date().toISOString(),
+          tasks: [{
+            id: 't1', task_name: 'broken', status: 'failed',
+            started_at: new Date().toISOString(),
+            agent_runs: [{
+              id: 'a1', agent_name: 'broken', attempt: 1, status: 'failed',
+              tool_calls: 0, started_at: new Date().toISOString(),
+              error: "400 json: cannot unmarshal object into Go struct field ChatCompletionRequest.model of type string",
+            }],
+          }],
+        },
+      ],
+    });
+    vi.mocked(PipelineEngine).mockImplementation(function () { return {
+      run: vi.fn().mockResolvedValue(failedRun),
+    }; });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    await expect(
+      spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 })
+    ).rejects.toThrow(
+      'Child run child-fail failed: 400 json: cannot unmarshal object into Go struct field ChatCompletionRequest.model of type string'
+    );
+  });
+
+  it('falls back to "no error recorded" when the failed stage carries none', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const failedRun = makeSuccessRun({ id: 'child-fail-2', status: 'failed', stages: [] });
+    vi.mocked(PipelineEngine).mockImplementation(function () { return {
+      run: vi.fn().mockResolvedValue(failedRun),
+    }; });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    await expect(
+      spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 })
+    ).rejects.toThrow('Child run child-fail-2 failed: no error recorded');
+  });
 });
 
 describe('DirectEngineSpawner nesting (STU-615)', () => {
