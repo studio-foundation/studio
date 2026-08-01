@@ -7,6 +7,13 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.15.1] — 2026-08-01
+
+### Fixed
+
+- `studio doctor`'s env-var check scanned `config.yaml`'s raw text for `${VAR}` refs, so a variable name only mentioned in a comment (or an invalid one like `STUDIO_SMART_*`) was reported as an unset reference. It now parses the file first and walks only its string values, which also drops the false positive on a var whose only real reference already declares a `${VAR:-default}` fallback. (STU-756)
+- A failed/rejected/cancelled child of a `map`/`call` stage surfaced a bare "Child run \<id\> \<status\>", discarding the real error already recorded on the child's failed stage. `DirectEngineSpawner` now pulls that stage's agent-run error into the thrown message, so it reaches `map_item_complete`, the run JSONL, and `studio status` without a manual lookup of the child run. (STU-765)
+
 ## [0.15.0] — 2026-07-31
 
 ### Cost
