@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import yaml from 'js-yaml';
 import { loadProjectTools } from '@studio-foundation/runner';
 import type { StudioConfig } from './config.js';
 import {
@@ -43,6 +44,14 @@ export function unsetEnvRefs(raw: string, env: NodeJS.ProcessEnv = process.env):
     if (env[name] === undefined || env[name] === '') missing.add(name);
   }
   return [...missing];
+}
+
+/** Every string leaf reachable from a parsed YAML document — comments never survive `yaml.load`. */
+function leafStringValues(doc: unknown): string[] {
+  if (typeof doc === 'string') return [doc];
+  if (Array.isArray(doc)) return doc.flatMap(leafStringValues);
+  if (doc && typeof doc === 'object') return Object.values(doc).flatMap(leafStringValues);
+  return [];
 }
 
 function versionCheck(config: StudioConfig): PreflightCheck {
@@ -115,8 +124,16 @@ async function envCheck(studioDir: string): Promise<PreflightCheck> {
     return { name: 'Env vars', status: 'ok', detail: `no ${CONFIG_FILE} to read` };
   }
 
-  const unset = unsetEnvRefs(raw);
-  const referenced = new Set([...raw.matchAll(/\$\{([^}]+)\}/g)].map(([, e]) => e.trim()));
+  let doc: unknown;
+  try {
+    doc = yaml.load(raw);
+  } catch {
+    return { name: 'Env vars', status: 'ok', detail: `${CONFIG_FILE} is not valid YAML — skipped` };
+  }
+  const values = leafStringValues(doc).join('\n');
+
+  const unset = unsetEnvRefs(values);
+  const referenced = new Set([...values.matchAll(/\$\{([^}]+)\}/g)].map(([, e]) => e.trim()));
   if (unset.length === 0) {
     return {
       name: 'Env vars',
