@@ -8,6 +8,14 @@ export interface ParameterDef {
   required?: boolean;
   default?: unknown;
   items?: { type: string };
+  /**
+   * Dot-path into the stage's own resolved context (e.g. `input.book_dir`),
+   * resolved by the executor at call time instead of by the LLM. A parameter
+   * declaring this is hidden from the tool's LLM-facing schema entirely — the
+   * model cannot see or set it, so it cannot echo back a wrong value for
+   * something the pre-stage already gave it (STU-762).
+   */
+  from_context?: string;
 }
 
 export interface ShellExecute {

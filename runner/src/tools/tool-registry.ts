@@ -19,7 +19,12 @@ export interface Tool {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  execute(args: Record<string, unknown>): Promise<ToolResult>;
+  /**
+   * `resolvedContext` is the current stage's own context (e.g. `{ input }`),
+   * threaded through by the runner for tools with `from_context` parameters —
+   * never supplied by the LLM.
+   */
+  execute(args: Record<string, unknown>, resolvedContext?: unknown): Promise<ToolResult>;
 }
 
 export class ToolRegistry {

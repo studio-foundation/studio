@@ -85,4 +85,16 @@ describe('ToolExecutor — argument validation', () => {
     expect(result.error).toBeUndefined();
     expect(result.result).toBe('ok');
   });
+
+  it('passes resolvedContext through to the tool (STU-762)', async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true, output: 'ok' });
+    const registry = new ToolRegistry();
+    registry.register({ name: 'test-tool', description: 'A test tool', parameters: SCHEMA_NO_REQUIRED, execute });
+    const executor = new ToolExecutor(registry);
+    const resolvedContext = { input: { book_dir: 'library/real/book' } };
+
+    await executor.execute({ id: '6', name: 'test-tool', arguments: {} }, resolvedContext);
+
+    expect(execute).toHaveBeenCalledWith({}, resolvedContext);
+  });
 });

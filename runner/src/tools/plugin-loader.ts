@@ -29,7 +29,11 @@ function buildBuiltinMap(repoPath: string): Map<string, Tool> {
   return map;
 }
 
-/** Convert a ParameterDef map to a JSON Schema object for the LLM. */
+/** Convert a ParameterDef map to a JSON Schema object for the LLM.
+ *
+ * A `from_context` parameter is omitted entirely — the model never sees it,
+ * so it cannot supply one (STU-762).
+ */
 function buildJsonSchema(
   parameters: ToolCommandDef['parameters']
 ): Record<string, unknown> {
@@ -37,6 +41,7 @@ function buildJsonSchema(
   const required: string[] = [];
 
   for (const [key, def] of Object.entries(parameters ?? {})) {
+    if (def.from_context) continue;
     properties[key] = {
       type: def.type,
       ...(def.description ? { description: def.description } : {}),
@@ -50,6 +55,16 @@ function buildJsonSchema(
     properties,
     ...(required.length > 0 ? { required } : {}),
   };
+}
+
+/** Walk a dot-path (e.g. `input.book_dir`) into a resolved context object. */
+function resolveContextPath(context: unknown, path: string): unknown {
+  let current: unknown = context;
+  for (const part of path.split('.')) {
+    if (current === null || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
 }
 
 /** Template keywords that appear as {{word}} but are not parameter names.
@@ -87,12 +102,24 @@ function validateShellTemplate(fileName: string, cmd: ToolCommandDef): void {
 /** Create a Tool that renders the command template and runs it in a shell. */
 function createShellTool(cmd: ToolCommandDef, repoPath: string, configsDir: string): Tool {
   const exec = cmd.execute as { type: 'shell'; command: string; parse_output?: 'text' | 'json'; timeout_ms?: number };
+  const contextParams = Object.entries(cmd.parameters ?? {}).filter(([, def]) => def.from_context);
   return {
     name: cmd.name,
     description: cmd.description,
     parameters: buildJsonSchema(cmd.parameters),
-    async execute(args) {
-      const rendered = renderTemplate(exec.command, args);
+    async execute(args, resolvedContext) {
+      const merged = { ...args };
+      for (const [key, def] of contextParams) {
+        const value = resolveContextPath(resolvedContext, def.from_context!);
+        if (value === undefined) {
+          throw new Error(
+            `Tool ${cmd.name}: parameter '${key}' declares from_context: ${def.from_context}, ` +
+            `which did not resolve against this stage's context`
+          );
+        }
+        merged[key] = value;
+      }
+      const rendered = renderTemplate(exec.command, merged);
       return executeShellCommand(rendered, exec.parse_output ?? 'text', repoPath, exec.timeout_ms, { STUDIO_CONFIG_DIR: configsDir });
     },
   };

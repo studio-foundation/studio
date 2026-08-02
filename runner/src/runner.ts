@@ -21,6 +21,9 @@ export interface RunAgentConfig {
   task: TaskInput;
   context: AgentContext;
   executionContext?: ExecutionContext;
+  /** The current stage's own resolved context (e.g. `{ input }`), passed through
+   *  to tool execution for `from_context` parameters — never seen by the LLM. */
+  resolvedContext?: unknown;
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
   outputContract?: OutputContract;
@@ -166,7 +169,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           }
         }
 
-        const executed = await toolExecutor.execute({ id: callId, name, arguments: args });
+        const executed = await toolExecutor.execute({ id: callId, name, arguments: args }, config.resolvedContext);
         allToolCalls.push(executed);
 
         // Hallucination guard: tool not in whitelist → terminal stage error (RALPH fails, not retries)
@@ -318,7 +321,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
           id: tc.id,
           name: tc.name,
           arguments: tc.arguments,
-        });
+        }, config.resolvedContext);
 
         // Hallucination guard: tool not in whitelist → terminal stage error
         if (executed.error?.startsWith('Tool not found:')) {

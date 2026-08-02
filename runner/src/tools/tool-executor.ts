@@ -30,7 +30,10 @@ function validateArgs(
 export class ToolExecutor {
   constructor(private registry: ToolRegistry) {}
 
-  async execute(toolCall: { id: string; name: string; arguments: Record<string, unknown> }): Promise<ToolCall> {
+  async execute(
+    toolCall: { id: string; name: string; arguments: Record<string, unknown> },
+    resolvedContext?: unknown
+  ): Promise<ToolCall> {
     const tool = this.registry.get(toolCall.name);
 
     if (!tool) {
@@ -54,7 +57,7 @@ export class ToolExecutor {
     }
 
     try {
-      const toolResult = await tool.execute(toolCall.arguments);
+      const toolResult = await tool.execute(toolCall.arguments, resolvedContext);
 
       if (!toolResult.success) {
         return {
