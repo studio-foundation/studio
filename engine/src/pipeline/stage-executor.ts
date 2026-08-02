@@ -348,6 +348,7 @@ export class StageExecutor {
               task: taskInput,
               context: agentContext,
               executionContext: runnerExecContext,
+              resolvedContext: { input: pipelineContext.input },
               toolRegistry: toolRegistry!,
               providerRegistry: this.config.providerRegistry,
               outputContract: contract ?? undefined,

@@ -128,3 +128,69 @@ commands:
     );
   });
 });
+
+describe('loadProjectTools — from_context parameters (STU-762)', () => {
+  async function loadBookDirTool() {
+    const toolsDir = await writeToolYaml('book-dir-tool', `
+name: book_dir_tool
+version: 1
+commands:
+  - name: book_dir_tool-search
+    description: Search
+    parameters:
+      book_dir:
+        type: string
+        required: true
+        from_context: input.book_dir
+      query:
+        type: string
+        required: true
+    execute:
+      type: shell
+      command: 'echo "{{book_dir}}:{{query}}"'
+      parse_output: text
+`);
+    const [plugin] = await loadProjectTools(toolsDir, '/tmp');
+    return plugin.tools[0];
+  }
+
+  it('omits a from_context parameter from the LLM-facing schema entirely', async () => {
+    const tool = await loadBookDirTool();
+    const schema = tool.parameters as { properties: Record<string, unknown>; required?: string[] };
+    expect(schema.properties).not.toHaveProperty('book_dir');
+    expect(schema.properties).toHaveProperty('query');
+    expect(schema.required).not.toContain('book_dir');
+  });
+
+  it('resolves a from_context parameter from the stage context, ignoring any LLM-supplied value', async () => {
+    const tool = await loadBookDirTool();
+    const result = await tool.execute(
+      { query: 'hello' },
+      { input: { book_dir: 'library/real/book', book_dir_supplied_by_llm: 'library/wrong/book' } }
+    );
+    expect(result).toEqual({ success: true, output: 'library/real/book:hello' });
+  });
+
+  it('ignores an LLM-supplied value for a from_context parameter even if present in args', async () => {
+    const tool = await loadBookDirTool();
+    const result = await tool.execute(
+      { book_dir: 'library/wrong/book', query: 'hello' },
+      { input: { book_dir: 'library/real/book' } }
+    );
+    expect(result).toEqual({ success: true, output: 'library/real/book:hello' });
+  });
+
+  it('errors instead of rendering "undefined" when the context path does not resolve', async () => {
+    const tool = await loadBookDirTool();
+    await expect(tool.execute({ query: 'hello' }, { input: {} })).rejects.toThrow(
+      "from_context: input.book_dir"
+    );
+  });
+
+  it('errors when no resolvedContext is passed at all', async () => {
+    const tool = await loadBookDirTool();
+    await expect(tool.execute({ query: 'hello' })).rejects.toThrow(
+      "from_context: input.book_dir"
+    );
+  });
+});
