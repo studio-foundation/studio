@@ -365,6 +365,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     // Resolve input: --input-file > --input > wizard > error
     let input: string | Record<string, unknown>;
     let inputFileRepoUrl: string | undefined;
+    let anonymizeFields: string[] | undefined;
 
     if (options.inputFile) {
       const inputPath = resolve(options.inputFile);
@@ -380,6 +381,17 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         const parsedObj = parsed as Record<string, unknown>;
         inputFileRepoUrl = typeof parsedObj['repo_url'] === 'string' ? parsedObj['repo_url'] : undefined;
         delete parsedObj['repo_url'];
+        // Control key, not a task field: the app declares WHICH fields to
+        // anonymize. Names stay opaque here and downstream.
+        const scope = parsedObj['anonymize_fields'];
+        if (scope !== undefined) {
+          if (!Array.isArray(scope) || scope.some(f => typeof f !== 'string')) {
+            console.error('Error: anonymize_fields must be a list of field names');
+            process.exit(1);
+          }
+          anonymizeFields = scope as string[];
+          delete parsedObj['anonymize_fields'];
+        }
         input = parsedObj;
       } else {
         console.error('Error: Input file must contain a YAML object (key-value pairs)');
@@ -592,6 +604,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         pipeline: pipelineName,
         input,
         anonymize: options.anonymize,
+        anonymizeFields,
         signal: controller.signal,
       });
     } finally {
