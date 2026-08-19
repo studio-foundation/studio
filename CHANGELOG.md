@@ -7,6 +7,16 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.16.0] — 2026-08-19
+
+### Tools
+
+- **`from_context:` on a `.tool.yaml` command parameter** — the parameter is resolved from the current stage's own resolved context (`from_context: input.book_dir`) instead of being supplied by the model. It is omitted from the tool's JSON schema entirely, so the model never sees or sets it. A "pass this value back verbatim" parameter was really only advisory: nothing stopped the model from substituting a different, plausible-looking value on retry, which let a tool call satisfy `tool_calls.minimum` while querying the wrong target. The value is threaded down through `runAgent` -> `ToolExecutor` -> the shell tool's `execute()`, each map/child pipeline run getting its own isolated context so concurrent fan-out items never share one another's values. (STU-762)
+
+### Anonymization
+
+- **`anonymize_fields:` in an input file** — declares which fields an anonymized run tokenizes, reaching the run-level middleware as its default scope. The field scope existed in the middleware since 0.5.2 but nothing fed it, so `--input-file` had no way to say anything and an anonymized run tokenized every field. It is a control key, stripped from the input like `repo_url`. Names stay opaque end to end — no kernel branching on what a field means. (STU-399)
+
 ## [0.15.1] — 2026-08-01
 
 ### Fixed
