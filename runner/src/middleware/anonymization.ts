@@ -10,9 +10,17 @@ export class AnonymizationMiddleware {
   private keymap: Record<string, string> = {};
   private options?: Omit<AnonymizerOptions, 'seedKeymap'>;
   private detector: DetectionProvider;
+  private defaultScope?: string[];
 
-  constructor(options?: Omit<AnonymizerOptions, 'seedKeymap'>, detector?: DetectionProvider) {
+  constructor(
+    options?: Omit<AnonymizerOptions, 'seedKeymap'>,
+    detector?: DetectionProvider,
+    defaultScope?: string[],
+  ) {
     this.options = options;
+    // Run-level scope: applies to every field-scoped call that carries no scope
+    // of its own. Opaque names, same as the per-call scope.
+    this.defaultScope = defaultScope;
     // Default to the in-process regex detector. A run can inject a different
     // DetectionProvider (e.g. a future NER/Presidio provider) without the
     // middleware knowing anything about detection internals.
@@ -36,8 +44,9 @@ export class AnonymizationMiddleware {
    * DetectionProvider, all sharing this instance's run-level keymap — so a PII
    * value appearing in two in-scope fields receives the SAME token.
    *
-   * `scope` is an OPAQUE list of field names to anonymize: undefined → all
-   * fields (fail-safe); [] → none; ['a'] → only field `a`. Out-of-scope fields
+   * `scope` is an OPAQUE list of field names to anonymize, falling back to the
+   * run-level scope given to the constructor: undefined (both) → all fields
+   * (fail-safe); [] → none; ['a'] → only field `a`. Out-of-scope fields
    * are copied byte-for-byte and are NEVER passed to the detector, so their PII
    * cannot enter the keymap and collide with a value tokenized elsewhere.
    * Membership is a set check on opaque names — the kernel never branches on
@@ -47,10 +56,11 @@ export class AnonymizationMiddleware {
     fields: Record<string, string>,
     scope?: string[],
   ): Promise<Record<string, string>> {
+    const effectiveScope = scope ?? this.defaultScope;
     const out: Record<string, string> = {};
     for (const [name, value] of Object.entries(fields)) {
       // Out of scope → copy verbatim, no detection. Undefined scope = all in.
-      if (scope !== undefined && !scope.includes(name)) {
+      if (effectiveScope !== undefined && !effectiveScope.includes(name)) {
         out[name] = value;
         continue;
       }

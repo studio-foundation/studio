@@ -111,3 +111,19 @@ describe('AnonymizationMiddleware.anonymizeFields scope', () => {
     expect(out).toEqual({ body: 'Hi jane@acme.com' });
   });
 });
+
+describe('AnonymizationMiddleware run-level scope', () => {
+  it('constructor scope applies when a call passes none', async () => {
+    const mw = new AnonymizationMiddleware(undefined, undefined, ['body']);
+    const out = await mw.anonymizeFields({ from: 'mc@acme.com', body: 'Reply to jane@acme.com' });
+    expect(out.from).toBe('mc@acme.com');
+    expect(out.body).toContain('EMAIL_1');
+  });
+
+  it('per-call scope wins over the run-level scope', async () => {
+    const mw = new AnonymizationMiddleware(undefined, undefined, ['body']);
+    const out = await mw.anonymizeFields({ from: 'mc@acme.com', body: 'Reply to jane@acme.com' }, ['from']);
+    expect(out.from).toContain('EMAIL_1');
+    expect(out.body).toBe('Reply to jane@acme.com');
+  });
+});

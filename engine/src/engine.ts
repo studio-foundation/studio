@@ -67,6 +67,9 @@ export interface RunInput {
   userInput?: string | Record<string, unknown>; // alias for input (used in tests and programmatic API)
   meta?: Record<string, unknown>;
   anonymize?: boolean;
+  // Opaque field names to anonymize when `anonymize` is on. Undefined → every
+  // field (fail-safe). The engine never interprets these names (INV-04).
+  anonymizeFields?: string[];
   signal?: AbortSignal;
   depth?: number;        // nesting depth (0 = top-level)
   parentRunId?: string;  // parent run ID if spawned by another pipeline
@@ -242,7 +245,9 @@ export class PipelineEngine {
 
     // Create anonymization middleware for this run if requested via RunInput flag
     const runAnonymize = input.anonymize === true;
-    const runMiddleware = runAnonymize ? new AnonymizationMiddleware() : null;
+    const runMiddleware = runAnonymize
+      ? new AnonymizationMiddleware(undefined, undefined, input.anonymizeFields)
+      : null;
 
     // Persist the run immediately so log_path can be written before terminal states
     await this.config.db?.savePipelineRun(pipelineRun);
