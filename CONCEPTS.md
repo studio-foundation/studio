@@ -308,6 +308,21 @@ Stages:
 
 ---
 
+## Script stages
+
+A stage with `executor: script` runs a deterministic script instead of an LLM — `script` is the path, `runtime` is `python`, `node` or `shell`. It receives the stage context as JSON on stdin, returns its output as JSON on stdout, and is validated and retried by RALPH like any other stage.
+
+**Which interpreter it runs.** The script is spawned directly, not through a shell, so the repo needs a way to say which interpreter it means. Resolution order, first match wins:
+
+1. **`STUDIO_<RUNTIME>_BIN`** — `STUDIO_PYTHON_BIN`, `STUDIO_NODE_BIN`, `STUDIO_SHELL_BIN`. An absolute path, taken verbatim. The studio process inherits its environment, so a consumer repo's Makefile hands the interpreter over with no config round-trip.
+2. **`VIRTUAL_ENV`** (python) — an activated virtualenv wins over one sitting at `cwd`: the operator chose it, whereas a `.venv/` on disk may be a stale sibling of the one they meant. This is what makes `source .venv-3.12/bin/activate && studio run …` work.
+3. **`venv/` then `.venv/` at the stage's `cwd`** (python) — sniffed, activated by prepending its `bin` to `PATH`.
+4. **The runtime default** — `python3`, `node`, `sh`, resolved through `PATH`.
+
+Steps 2 and 3 also set `VIRTUAL_ENV` and prepend `bin` to `PATH` for the child, so a script that shells out further stays inside the same environment. A stage that fails to spawn names the interpreter path it tried and the override variable that would change it — a missing interpreter reads as a missing interpreter, not as a dead stage.
+
+---
+
 ## Context propagation
 
 Each stage declares exactly what context it receives:
