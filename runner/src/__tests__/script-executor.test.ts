@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as cp from 'node:child_process';
 import * as fs from 'node:fs';
 import { EventEmitter } from 'node:events';
@@ -56,6 +56,15 @@ function makeSpawnMock(opts: {
 beforeEach(() => {
   vi.mocked(fs.existsSync).mockReturnValue(false);
   vi.clearAllMocks();
+  // The suite must not inherit the shell that runs it: an activated venv or an
+  // override exported for another purpose would decide these assertions.
+  vi.stubEnv('VIRTUAL_ENV', '');
+  vi.stubEnv('STUDIO_PYTHON_BIN', '');
+  vi.stubEnv('STUDIO_NODE_BIN', '');
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('runScript', () => {
@@ -239,5 +248,65 @@ describe('runScript', () => {
 
     expect(result.error).toMatch(/exited with code 1/);
     expect(result.error).toMatch(/SyntaxError: invalid syntax/);
+  });
+
+  it('resolves the venv interpreter by path, not by PATH lookup', async () => {
+    vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('venv'));
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: makeContext(), cwd: '/project' });
+
+    expect(vi.mocked(cp.spawn).mock.calls[0][0]).toBe('/project/venv/bin/python3');
+  });
+
+  it('follows an activated VIRTUAL_ENV named neither venv/ nor .venv/', async () => {
+    vi.stubEnv('VIRTUAL_ENV', '/project/.venv-3.12');
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: makeContext(), cwd: '/project' });
+
+    const [cmd, , opts] = vi.mocked(cp.spawn).mock.calls[0];
+    expect(cmd).toBe('/project/.venv-3.12/bin/python3');
+    expect(opts?.env?.PATH).toContain('/project/.venv-3.12/bin');
+  });
+
+  it('prefers an activated VIRTUAL_ENV over a venv/ sitting at cwd', async () => {
+    vi.stubEnv('VIRTUAL_ENV', '/elsewhere/.venv-3.12');
+    vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('venv'));
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: makeContext(), cwd: '/project' });
+
+    expect(vi.mocked(cp.spawn).mock.calls[0][0]).toBe('/elsewhere/.venv-3.12/bin/python3');
+  });
+
+  it('STUDIO_PYTHON_BIN wins over both an activated venv and one at cwd', async () => {
+    vi.stubEnv('STUDIO_PYTHON_BIN', '/opt/py/bin/python3.12');
+    vi.stubEnv('VIRTUAL_ENV', '/elsewhere/.venv-3.12');
+    vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('venv'));
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: makeContext(), cwd: '/project' });
+
+    expect(vi.mocked(cp.spawn).mock.calls[0][0]).toBe('/opt/py/bin/python3.12');
+  });
+
+  it('STUDIO_NODE_BIN overrides the node runtime too', async () => {
+    vi.stubEnv('STUDIO_NODE_BIN', '/opt/node22/bin/node');
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({ scriptPath: 'scripts/parse.js', runtime: 'node', context: makeContext() });
+
+    expect(vi.mocked(cp.spawn).mock.calls[0][0]).toBe('/opt/node22/bin/node');
+  });
+
+  it('names the interpreter it tried when the spawn fails', async () => {
+    vi.stubEnv('VIRTUAL_ENV', '/project/.venv-3.12');
+    makeSpawnMock({ errorEvent: new Error('spawn ENOENT') });
+
+    const result = await runScript({ scriptPath: 'scripts/parse.py', runtime: 'python', context: makeContext() });
+
+    expect(result.error).toMatch(/\/project\/\.venv-3\.12\/bin\/python3/);
+    expect(result.error).toMatch(/STUDIO_PYTHON_BIN/);
   });
 });

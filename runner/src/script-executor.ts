@@ -18,31 +18,49 @@ const RUNTIME_COMMANDS: Record<string, string> = {
   shell: 'sh',
 };
 
-function buildEnv(runtime: string, cwd: string): Record<string, string> {
+/** `STUDIO_PYTHON_BIN`, `STUDIO_NODE_BIN`, `STUDIO_SHELL_BIN`. */
+function overrideVar(runtime: string): string {
+  return `STUDIO_${runtime.toUpperCase()}_BIN`;
+}
+
+/**
+ * An activated virtualenv beats one sniffed at `cwd`: the operator chose it,
+ * whereas a `.venv/` on disk may be a stale sibling of the one they meant.
+ */
+function resolvePythonVenv(env: Record<string, string>, cwd: string): string | null {
+  if (env.VIRTUAL_ENV) return env.VIRTUAL_ENV;
+  if (existsSync(join(cwd, 'venv'))) return join(cwd, 'venv');
+  if (existsSync(join(cwd, '.venv'))) return join(cwd, '.venv');
+  return null;
+}
+
+export function resolveRuntime(
+  runtime: string,
+  cwd: string,
+): { command: string; env: Record<string, string> } {
   const env = { ...process.env } as Record<string, string>;
 
-  if (runtime === 'python') {
-    const venvPath = existsSync(join(cwd, 'venv'))
-      ? join(cwd, 'venv')
-      : existsSync(join(cwd, '.venv'))
-        ? join(cwd, '.venv')
-        : null;
+  const override = env[overrideVar(runtime)];
+  if (override) return { command: override, env };
 
+  if (runtime === 'python') {
+    const venvPath = resolvePythonVenv(env, cwd);
     if (venvPath) {
+      const bin = join(venvPath, 'bin');
       env.VIRTUAL_ENV = venvPath;
-      env.PATH = `${join(venvPath, 'bin')}:${env.PATH ?? ''}`;
+      env.PATH = `${bin}:${env.PATH ?? ''}`;
+      return { command: join(bin, 'python3'), env };
     }
   }
 
-  return env;
+  return { command: RUNTIME_COMMANDS[runtime], env };
 }
 
 export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunResult> {
   const startTime = Date.now();
   const cwd = config.cwd ?? process.cwd();
   const timeoutMs = config.timeoutMs ?? 30_000;
-  const cmd = RUNTIME_COMMANDS[config.runtime];
-  const env = buildEnv(config.runtime, cwd);
+  const { command: cmd, env } = resolveRuntime(config.runtime, cwd);
   const stdin = JSON.stringify(config.context);
 
   return new Promise((resolve) => {
@@ -115,7 +133,7 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
     });
 
     proc.on('error', (err) => {
-      settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms: Date.now() - startTime, error: `Script process error: ${err.message}` });
+      settle({ output: null, tool_calls: [], tool_calls_count: 0, duration_ms: Date.now() - startTime, error: `Script process error (interpreter: ${cmd}, override with ${overrideVar(config.runtime)}): ${err.message}` });
     });
   });
 }
