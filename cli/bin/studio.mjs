@@ -6,20 +6,9 @@
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
+import { platformKey } from './platform-key.mjs';
 
-function platformKey() {
-  const arch = process.arch === 'x64' || process.arch === 'arm64' ? process.arch : null;
-  if (!arch) return null;
-  if (process.platform === 'darwin') return `darwin-${arch}`;
-  if (process.platform === 'win32') return arch === 'x64' ? 'win-x64' : null;
-  if (process.platform === 'linux') {
-    // A musl runtime reports no glibc version; the two are not interchangeable.
-    const musl = !process.report.getReport().header.glibcVersionRuntime;
-    return `linux-${arch}${musl ? '-musl' : ''}`;
-  }
-  return null;
-}
+const require = createRequire(import.meta.url);
 
 const platform = platformKey();
 let binary = null;
@@ -28,7 +17,9 @@ if (platform) {
   try {
     binary = require.resolve(`@studio-foundation/cli-${platform}/${exe}`);
   } catch {
-    // No platform package installed — fall through to the JS build.
+    // No platform package installed — fall through to the JS build. A musl x64 host
+    // without AVX2 lands here: there is no musl baseline package, and the JS build
+    // runs on any CPU.
   }
 }
 
