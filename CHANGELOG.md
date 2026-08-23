@@ -7,6 +7,16 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.17.0] — 2026-08-23
+
+### Script stages
+
+- **Breaking: a script stage resolves its interpreter from what the repo controls.** A python stage got the system `python3` unless a venv named exactly `venv/` or `.venv/` sat at the stage's cwd; any other layout — `.venv-3.12`, a container image, a CI cache dir, a uv or poetry path outside the tree — ran an interpreter without the project package, and every stage died on import with nothing naming the cause. Resolution is now, first match wins: `STUDIO_<RUNTIME>_BIN`, an activated `VIRTUAL_ENV` (python), `venv/` then `.venv/` at cwd, the runtime default. An activated virtualenv beats one sniffed at cwd, so a repo that exported `VIRTUAL_ENV` while a different `.venv/` sat at the stage's cwd changes interpreter. (STU-866)
+
+### Distribution
+
+- **A baseline x64 build for CPUs without AVX2.** The `linux-x64` binary is compiled with `bun-linux-x64`, which assumes AVX2; on an older CPU it died on an illegal instruction with no output at all — indistinguishable from a broken install. `linux-x64-baseline` is the same CLI without that assumption, and `bin/studio.mjs` reads `/proc/cpuinfo` to pick between them. npm installs both, `cpu: ["x64"]` being as specific as a package can be about a processor. A musl host without AVX2 has no baseline package and runs the JavaScript build. (STU-974)
+
 ## [0.16.0] — 2026-08-19
 
 ### Tools
