@@ -39,6 +39,12 @@ Binaries ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glib
 musl each), and `win-x64`. On any other platform the npm package falls back to the
 JavaScript build, which needs Node.js >= 22.13.
 
+The x64 build assumes AVX2, which CPUs older than roughly 2013 lack — there it would die
+on an illegal instruction with no message at all. `linux-x64-baseline` is the same CLI
+compiled without that assumption, and the launcher reads `/proc/cpuinfo` to pick between
+them. npm installs both, since `cpu: ["x64"]` is as specific as a package can be about a
+processor. A musl host without AVX2 has no baseline package and runs the JavaScript build.
+
 Building them locally needs [Bun](https://bun.sh):
 
 ```bash

@@ -10,6 +10,12 @@ export const PLATFORMS = {
   'linux-arm64': { target: 'bun-linux-arm64', os: ['linux'], cpu: ['arm64'], libc: ['glibc'] },
   'linux-arm64-musl': { target: 'bun-linux-arm64-musl', os: ['linux'], cpu: ['arm64'], libc: ['musl'] },
   'linux-x64': { target: 'bun-linux-x64', os: ['linux'], cpu: ['x64'], libc: ['glibc'] },
+  // For x64 CPUs without AVX2, which the default build assumes. npm cannot tell them
+  // apart — `cpu: ['x64']` matches both — so both packages install and the launcher
+  // picks between them at runtime (STU-974).
+  'linux-x64-baseline': {
+    target: 'bun-linux-x64-baseline', os: ['linux'], cpu: ['x64'], libc: ['glibc'],
+  },
   'linux-x64-musl': { target: 'bun-linux-x64-musl', os: ['linux'], cpu: ['x64'], libc: ['musl'] },
   'win-x64': { target: 'bun-windows-x64', os: ['win32'], cpu: ['x64'] },
 };
