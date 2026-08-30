@@ -104,6 +104,18 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         // the whole --print subprocess (→ Studio cancels with 0 tool calls / 0
         // tokens) and injects ~88k tokens of tool defs into every call (~15x cost).
         '--strict-mcp-config',
+        // --setting-sources '': load no settings file, so the operator's
+        // ~/.claude never reaches an agent whose behaviour .studio/ is supposed to
+        // define. It takes out user settings, hooks, output styles, skills and
+        // plugins together; CLAUDE_CODE_DISABLE_AUTO_MEMORY below takes out the
+        // auto-memory index, which this flag alone leaves in (STU-863).
+        // Not --bare or --safe-mode: --bare reads no OAuth session (it demands an
+        // API key), and --safe-mode drops the MCP servers we pass in --mcp-config,
+        // which is how every tool a Studio agent has reaches it. Both measured on
+        // claude 2.1.231.
+        // Project CLAUDE.md still loads: it comes from the cwd, not from settings
+        // (STU-1115).
+        '--setting-sources', '',
         // stream-json output with --print REQUIRES --verbose. (The old
         // --no-verbose flag was removed from the claude CLI and now errors.)
         '--verbose',
@@ -119,7 +131,10 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
       // outgrows 128 KiB, before the process exists (STU-561).
       // What stdin must never be is an open pipe nobody closes: claude 2.1.37 blocks
       // waiting for its EOF and never emits output. `end()` below is what delivers it.
-      const proc = spawn('claude', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      const proc = spawn('claude', args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' },
+      });
       logCC('spawned', { pid: proc.pid });
       proc.stdin.on('error', () => {
         // The CLI can exit before reading it all; `close` already reports that.
