@@ -84,7 +84,7 @@ The notes are the `CHANGELOG.md` section written at step 3, expanded — grouped
 gh release create vX.Y.Z --target main --title "vX.Y.Z" --draft --notes-file notes.md
 gh workflow run release-binaries.yml -f tag=vX.Y.Z
 gh run watch <run-id> --exit-status
-gh release view vX.Y.Z --json assets --jq '.assets[].name'   # 7 binaries + SHA256SUMS
+gh release view vX.Y.Z --json assets --jq '.assets[].name'   # 8 binaries + SHA256SUMS
 gh release edit vX.Y.Z --draft=false --latest
 ```
 
@@ -105,4 +105,8 @@ version.
 - **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 8 move together.
 - **Bumping inside a feature PR.** Bumps are their own commit, at release time.
 - **Shipping a version with no `CHANGELOG.md` entry.** Write it in the bump commit; after the release is cut nobody comes back for it.
+- **Reading a fresh publish through `npm view`.** `npm view <pkg>@X.Y.Z` can answer `E404`
+  for minutes after a publish the workflow reported as successful — it is CDN cache, not a
+  partial publish. Confirm against the registry itself before diagnosing anything:
+  `curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`.
 - **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.
