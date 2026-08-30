@@ -119,6 +119,28 @@ describe('ClaudeCodeProvider', () => {
     expect(args).not.toContain('--no-verbose');
   });
 
+  it('spawns with the operator\'s user-level CLI configuration suppressed', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    const [, args, options] = mockSpawn.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
+    // Without these, ~/.claude/CLAUDE.md, the user's hooks, output styles and
+    // auto-memory index land in the system prompt of an agent .studio/ is
+    // supposed to define completely (STU-863).
+    const sourcesIdx = args.indexOf('--setting-sources');
+    expect(sourcesIdx).toBeGreaterThan(-1);
+    expect(args[sourcesIdx + 1]).toBe('');
+    // It takes a single value, so the empty string must be followed by another
+    // flag — never left last, where the CLI would read the next word as a source.
+    expect(args[sourcesIdx + 2]).toMatch(/^--/);
+    expect(options.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY).toBe('1');
+    // The CLI still needs the rest of the operator's environment: the OAuth
+    // session it authenticates with is not something Studio can supply.
+    expect(options.env.PATH).toBe(process.env.PATH);
+  });
+
   it('sends the prompt on stdin and closes it, never in argv', async () => {
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
     const proc = makeFakeProcess(lines);
