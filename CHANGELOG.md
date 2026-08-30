@@ -7,6 +7,12 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.17.1] — 2026-08-30
+
+### Fixes
+
+- **The `claude-code` provider no longer carries the host's own configuration into agent prompts.** It spawned the `claude` CLI with everything that CLI resolves from the machine it runs on — `~/.claude/CLAUDE.md`, the user's hooks, output styles, skills and plugins, the auto-memory index, and the `CLAUDE.md` of the repo Studio happened to be running in. All of it landed in the system prompt of an agent whose behaviour `.studio/` is supposed to define completely, so a stage could fail its contract on prose it was never asked for, and the same pipeline behaved differently on two machines with nothing in the repo explaining why. The spawn now passes `--setting-sources ''` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`; neither `--bare` (which reads no OAuth session) nor `--safe-mode` (which drops the MCP servers carrying every tool) can do this. One call's cache-write dropped from 26,621 to 7,349 tokens on a repo with a large `CLAUDE.md`. (STU-863, STU-1115)
+
 ## [0.17.0] — 2026-08-23
 
 ### Script stages
