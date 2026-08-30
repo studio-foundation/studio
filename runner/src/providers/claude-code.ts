@@ -113,8 +113,11 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         // API key), and --safe-mode drops the MCP servers we pass in --mcp-config,
         // which is how every tool a Studio agent has reaches it. Both measured on
         // claude 2.1.231.
-        // Project CLAUDE.md still loads: it comes from the cwd, not from settings
-        // (STU-1115).
+        // This covers the CLAUDE.md of the repo Studio is running in too: memory
+        // discovery is gated on the settings sources, not on the cwd, so the
+        // spawn needs no cwd of its own. Measured, since the reverse was assumed:
+        // a marker planted in the repo's CLAUDE.md stops reaching the agent, and
+        // one call's cache-write drops from 26.6k tokens to 7.3k (STU-1115).
         '--setting-sources', '',
         // stream-json output with --print REQUIRES --verbose. (The old
         // --no-verbose flag was removed from the claude CLI and now errors.)

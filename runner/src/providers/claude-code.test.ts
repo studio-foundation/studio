@@ -128,7 +128,8 @@ describe('ClaudeCodeProvider', () => {
     const [, args, options] = mockSpawn.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
     // Without these, ~/.claude/CLAUDE.md, the user's hooks, output styles and
     // auto-memory index land in the system prompt of an agent .studio/ is
-    // supposed to define completely (STU-863).
+    // supposed to define completely (STU-863) — as does the CLAUDE.md of the
+    // repo Studio is running in (STU-1115).
     const sourcesIdx = args.indexOf('--setting-sources');
     expect(sourcesIdx).toBeGreaterThan(-1);
     expect(args[sourcesIdx + 1]).toBe('');
