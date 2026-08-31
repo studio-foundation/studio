@@ -91,12 +91,18 @@ resolved item input, is.
   so will most things.
 - **plugin** — real, reusable, but carries a product or vendor opinion. Tools, triggers,
   agents, skills, whole templates.
-- **won't-do** — with the reason. The three that recur:
+- **won't-do** — with the reason. The two that recur:
   - *already exists* — name the key and the doc line. Hand it to **studio-native-migration**;
     it is a migration, not a gap.
   - *domain leak* — the kernel would have to learn a noun from the project's world.
-  - *n=1* — one project, one shape, no second caller. Say what would change the verdict
-    (a second project hitting it).
+
+**One caller is not a refusal.** A shape seen in a single project argues kernel → plugin,
+never plugin → won't-do. A marketplace package costs nothing to publish and stays
+removable, overridable and pinnable, so a wrong guess there is cheap; only the kernel —
+privileged and unremovable — needs a second caller to earn its place. Studio has a handful
+of downstream projects, all of them ours, so holding a finding until n=2 holds it forever.
+It is the trade CLAUDE.md already makes for 1.0: while every `.studio/` in the world is
+ours, a bad call is a sed across three repos, not a migration guide.
 
 ## 5. Ship it
 
