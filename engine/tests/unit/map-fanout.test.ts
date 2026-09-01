@@ -8,6 +8,7 @@ import type {
   SpawnConfig,
   SpawnResult,
 } from '@studio-foundation/contracts';
+import { ChildRunError } from '@studio-foundation/contracts';
 
 const PROJECT_DIR = '/tmp/map-fanout-nonexistent'; // pipelineDef is used, so no files are read
 
@@ -361,7 +362,90 @@ describe('Fan-out (map) stage — token usage (STU-750)', () => {
       input: { items: ['a', 'b', 'c'] },
     });
 
-    // Two items succeeded at 100 each; the failed one spent nothing we can see.
+    // Two items succeeded at 100 each. A plain throw carries no record of what
+    // the child spent — only a ChildRunError does (see STU-1064 below).
     expect(result.stages[0].token_usage?.total_tokens).toBe(200);
+  });
+});
+
+describe('Fan-out (map) stage — failed item breakdown (STU-1064)', () => {
+  const usage = (total: number) => ({ prompt_tokens: total, completion_tokens: 0, total_tokens: total });
+
+  const burned = (runId: string) => new ChildRunError(
+    `Child run ${runId} failed: contract violation`,
+    runId,
+    'failed',
+    [
+      { stage: 'classify', status: 'success', attempts: 1, token_usage: usage(40) },
+      { stage: 'generate-draft', status: 'failed', attempts: 3, token_usage: usage(300) },
+    ],
+    usage(340),
+  );
+
+  it('keeps a failed item cost on the item, the stage and the run total', async () => {
+    const spawner = new FakeSpawner((c, i) => {
+      if (i === 1) throw burned('run-1');
+      return { ...ok(`run-${i}`, { page: 'x' }), token_usage: usage(100) };
+    });
+    const engine = createEngine(spawner);
+
+    const result = await engine.run({
+      pipelineDef: mapPipeline({ on_item_failure: 'collect-all', concurrency: 1 }),
+      input: { items: ['a', 'b', 'c'] },
+    });
+
+    const output = result.stages[0].output as { results: Array<Record<string, unknown>> };
+    expect(output.results[1]).toMatchObject({
+      status: 'failed',
+      run_id: 'run-1',
+      token_usage: usage(340),
+      stages: [
+        { stage: 'classify', status: 'success', attempts: 1, token_usage: usage(40) },
+        { stage: 'generate-draft', status: 'failed', attempts: 3, token_usage: usage(300) },
+      ],
+    });
+    // 100 + 100 succeeded, 340 burned by the failure. Dropping the last term is
+    // what made a failed item price as a single unpriced call.
+    expect(result.stages[0].token_usage?.total_tokens).toBe(540);
+  });
+
+  it('emits the failed item breakdown on its map_item_complete event', async () => {
+    const spawner = new FakeSpawner(() => { throw burned('run-0'); });
+    const onMapItemComplete = vi.fn();
+    const engine = createEngine(spawner, { onMapItemComplete });
+
+    await engine.run({
+      pipelineDef: mapPipeline({ on_item_failure: 'collect-all' }),
+      input: { items: ['a'] },
+    });
+
+    expect(onMapItemComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        run_id: 'run-0',
+        token_usage: usage(340),
+        stages: expect.arrayContaining([
+          expect.objectContaining({ stage: 'generate-draft', attempts: 3 }),
+        ]),
+      }),
+    );
+  });
+
+  it('passes the successful item breakdown through untouched', async () => {
+    const spawner = new FakeSpawner((c, i) => ({
+      ...ok(`run-${i}`, { page: 'x' }),
+      token_usage: usage(100),
+      stages: [{ stage: 'draft', status: 'success' as const, attempts: 2, token_usage: usage(100) }],
+    }));
+    const engine = createEngine(spawner);
+
+    const result = await engine.run({ pipelineDef: mapPipeline(), input: { items: ['a'] } });
+
+    const output = result.stages[0].output as { results: Array<Record<string, unknown>> };
+    expect(output.results[0]).toMatchObject({
+      status: 'success',
+      token_usage: usage(100),
+      stages: [{ stage: 'draft', status: 'success', attempts: 2, token_usage: usage(100) }],
+    });
   });
 });
