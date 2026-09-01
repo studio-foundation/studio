@@ -7,6 +7,20 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.18.0] — 2026-09-01
+
+### Script stages
+
+- **A script stage reads the pipeline input as a structure, not as a YAML dump.** `context.include: [input]` only set `additional_context`, the input rendered as YAML for an LLM prompt. A script receives the whole `AgentContext` as JSON on stdin, so it had to parse that YAML back out of a string to recover fields the engine was holding structurally one call earlier — every other include reached it as real JSON. `AgentContext.input` now carries the value unserialized alongside it, so `ctx["input"]["url"]` works. `buildPrompt` still reads `additional_context`, so agent behaviour and every existing prompt are unchanged. This is what makes a script sub-pipeline a workable body for a `map` stage, whose per-item input is assembled structurally. (STU-1196)
+
+### Token usage
+
+- **A spawned child reports its per-stage breakdown across the spawner boundary.** A child that failed reported nothing back: no usage, no stage list, no attempt count. Its calls were billed all the same, so a caller pricing a fan-out had to assume one call per item — measured 2.46x low on a run whose every item died in its RALPH loop. `SpawnResult` gains `stages` (name, status, attempts and usage per child stage), and the failure path throws a `ChildRunError` carrying the same record instead of a bare `Error`. Map results and the `map_item_complete` event carry that breakdown too, on a failed item as well as a successful one, and a `call` stage whose child failed reports what it burned and which run to open. The flat `token_usage` is unchanged; a cache-served item still reports neither, a resumed item costing nothing this run. (STU-1064)
+
+### Fixes
+
+- **The published platform binary is executable.** `download-artifact` drops the exec bit, so the binary reached `dist-npm/` as 644 and npm packed it that way — every global install failed its first spawn with `EACCES` until someone ran `chmod` by hand. It is now packed 755, and `bin/studio.mjs` names the cause and exits 126 instead of surfacing a raw `EACCES` stack when it meets a binary it cannot execute. (STU-975)
+
 ## [0.17.1] — 2026-08-30
 
 ### Fixes
