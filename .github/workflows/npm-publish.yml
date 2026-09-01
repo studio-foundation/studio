@@ -22,13 +22,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'pnpm'
@@ -58,7 +58,7 @@ jobs:
       - name: Bump all package versions to match release tag
         run: pnpm -r exec npm version ${{ steps.dist-tag.outputs.version }} --no-git-tag-version --allow-same-version
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: binaries-*
           path: dist-binaries
