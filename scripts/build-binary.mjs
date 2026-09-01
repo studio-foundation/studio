@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLATFORMS } from './platforms.mjs';
+import { PLATFORMS, assetName } from './platforms.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'dist-binaries');
@@ -27,7 +27,7 @@ for (const platform of platforms) {
 await mkdir(OUT_DIR, { recursive: true });
 
 for (const platform of platforms) {
-  const outfile = join(OUT_DIR, `studio-${platform}${platform.startsWith('win-') ? '.exe' : ''}`);
+  const outfile = join(OUT_DIR, assetName(platform));
   const result = spawnSync(
     'bun',
     ['build', '--compile', `--target=${PLATFORMS[platform].target}`, ENTRY, '--outfile', outfile],
