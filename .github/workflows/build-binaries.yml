@@ -21,17 +21,17 @@ jobs:
           - os: macos-14
             platforms: darwin-arm64 darwin-x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'pnpm'
@@ -95,7 +95,7 @@ jobs:
               sh -c 'apk add --no-cache libstdc++ >/dev/null && /b/studio-linux-x64-musl --version'
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ matrix.os }}
           path: dist-binaries/studio-*
