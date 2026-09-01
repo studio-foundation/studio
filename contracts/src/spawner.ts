@@ -5,12 +5,9 @@ import type { StageStatus } from './stage';
 import type { TokenUsage } from './usage';
 
 /**
- * One stage of a child run, as the parent sees it.
- *
- * The flat `token_usage` answers "what did this child cost"; this answers "what
- * bought it" — which stage, how many RALPH attempts it took, and what those
- * attempts spent. A caller pricing a fan-out otherwise has to assume one call
- * per item, which under-counts every retried stage.
+ * One stage of a child run, as the parent sees it. The flat `token_usage` says
+ * what a child cost; this says what bought it. Without it a caller pricing a
+ * fan-out assumes one call per item, under-counting every retried stage.
  */
 export interface ChildStageUsage {
   stage: string;
@@ -57,11 +54,8 @@ export interface SpawnResult {
 }
 
 /**
- * A child run that reached a terminal non-success status.
- *
- * The calls a failed child made were still billed, so the throw carries the same
- * record a successful spawn returns. Without it a caller sees only a message and
- * prices the whole item as one unpriced call.
+ * A child run that reached a terminal non-success status. The calls it made were
+ * still billed, so the throw carries the same record a successful spawn returns.
  */
 export class ChildRunError extends Error {
   constructor(

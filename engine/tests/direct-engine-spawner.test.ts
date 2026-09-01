@@ -280,7 +280,7 @@ describe('DirectEngineSpawner — per-stage breakdown (STU-1064)', () => {
     const spawner = new DirectEngineSpawner({} as EngineConfig);
     const err = await spawner
       .spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 })
-      .then(() => undefined, (e: unknown) => e);
+      .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChildRunError);
     const childErr = err as ChildRunError;

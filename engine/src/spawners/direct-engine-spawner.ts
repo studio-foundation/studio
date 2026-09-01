@@ -5,10 +5,8 @@ import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
 
 /**
- * The child's stages as the parent needs them: what ran, how it ended, how many
- * attempts it took, and what those attempts spent. Attempts come from the agent
- * runs the stage recorded — one per RALPH attempt — so a stage that retried
- * twice reports 3, not 1.
+ * Attempts come from the agent runs the stage recorded — one per RALPH attempt —
+ * so a stage that retried twice reports 3, not 1.
  */
 function childStageUsage(stages: StageRun[]): ChildStageUsage[] {
   return stages.map(stage => ({
@@ -64,8 +62,7 @@ export class DirectEngineSpawner implements RunSpawner {
       depth: config.depth,
     });
 
-    // Built before the failure branch: a child that died still made billed calls,
-    // and dropping them is what makes a failed fan-out item price as one call.
+    // Built before the failure branch: a child that died still made billed calls.
     const stages = childStageUsage(result.stages);
     const token_usage = sumTokenUsage(result.stages.map(s => s.token_usage));
 
