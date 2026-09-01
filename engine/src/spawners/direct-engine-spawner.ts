@@ -1,8 +1,26 @@
-import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
-import { sumTokenUsage } from '@studio-foundation/contracts';
+import type { ChildStageUsage, RunSpawner, SpawnConfig, SpawnResult, PipelineRun, StageRun } from '@studio-foundation/contracts';
+import { ChildRunError, sumTokenUsage } from '@studio-foundation/contracts';
 import type { ProviderRegistry } from '@studio-foundation/runner';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
+
+/**
+ * The child's stages as the parent needs them: what ran, how it ended, how many
+ * attempts it took, and what those attempts spent. Attempts come from the agent
+ * runs the stage recorded — one per RALPH attempt — so a stage that retried
+ * twice reports 3, not 1.
+ */
+function childStageUsage(stages: StageRun[]): ChildStageUsage[] {
+  return stages.map(stage => ({
+    stage: stage.stage_name,
+    status: stage.status,
+    attempts: stage.tasks.reduce(
+      (max, task) => task.agent_runs.reduce((n, run) => Math.max(n, run.attempt), max),
+      0,
+    ),
+    ...(stage.token_usage ? { token_usage: stage.token_usage } : {}),
+  }));
+}
 
 export class DirectEngineSpawner implements RunSpawner {
   private childCounter = 0;
@@ -46,6 +64,11 @@ export class DirectEngineSpawner implements RunSpawner {
       depth: config.depth,
     });
 
+    // Built before the failure branch: a child that died still made billed calls,
+    // and dropping them is what makes a failed fan-out item price as one call.
+    const stages = childStageUsage(result.stages);
+    const token_usage = sumTokenUsage(result.stages.map(s => s.token_usage));
+
     if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
       const lastFailedStage = [...result.stages].reverse().find(
         s => s.status === 'failed' || s.status === 'rejected' || s.status === 'cancelled'
@@ -54,16 +77,18 @@ export class DirectEngineSpawner implements RunSpawner {
         .flatMap(t => t.agent_runs)
         .reverse()
         .find(a => a.error)?.error;
-      throw new Error(`Child run ${result.id} ${result.status}: ${stageError ?? 'no error recorded'}`);
+      throw new ChildRunError(
+        `Child run ${result.id} ${result.status}: ${stageError ?? 'no error recorded'}`,
+        result.id,
+        result.status,
+        stages,
+        token_usage,
+      );
     }
 
     const lastStage = [...result.stages].reverse().find(s => s.status === 'success');
     const output = (lastStage as { output?: unknown } | undefined)?.output ?? null;
 
-    // Roll the child's per-stage usage up into one number for the caller, so a
-    // parent's `map`/`call` stage can report what the fan-out actually spent.
-    const token_usage = sumTokenUsage(result.stages.map(s => s.token_usage));
-
-    return { run_id: result.id, status: result.status, output, ...(token_usage ? { token_usage } : {}) };
+    return { run_id: result.id, status: result.status, output, stages, ...(token_usage ? { token_usage } : {}) };
   }
 }
