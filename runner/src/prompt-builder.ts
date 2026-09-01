@@ -41,6 +41,12 @@ export interface AgentContext {
   previous_tool_results?: Record<string, ToolCall[]>;
   repo_files?: string[];
   additional_context?: string;
+  /**
+   * The pipeline input, unserialized. `additional_context` is its prose form for
+   * the prompt; a script stage receives the whole context as JSON on stdin and
+   * would otherwise have to parse the YAML dump back out. (STU-1196)
+   */
+  input?: unknown;
   group_feedback?: GroupFeedbackContext;
   context_packs?: ResolvedContextPack[];
   startup_context?: Record<string, string>;

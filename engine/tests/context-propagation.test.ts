@@ -82,6 +82,45 @@ describe('structured input', () => {
     });
     expect(agentCtx.additional_context).toBe('Simple string input');
   });
+
+  it('also carries structured input unserialized, for script stages', () => {
+    const structuredInput = {
+      source: 'Example Feed',
+      url: 'https://example.com/feed',
+      limits: { max_items: 5 },
+    };
+    const context = createInitialContext(structuredInput);
+    const agentCtx = getContextForStage(context, {
+      name: 'test',
+      kind: 'analysis',
+      agent: 'test-agent',
+      context: { include: ['input'] },
+    });
+    expect(agentCtx.input).toEqual(structuredInput);
+    expect(agentCtx.additional_context).toContain('source: Example Feed');
+  });
+
+  it('carries string input on both fields', () => {
+    const context = createInitialContext('Simple string input');
+    const agentCtx = getContextForStage(context, {
+      name: 'test',
+      kind: 'analysis',
+      agent: 'test-agent',
+      context: { include: ['input'] },
+    });
+    expect(agentCtx.input).toBe('Simple string input');
+  });
+
+  it('leaves input unset when the stage does not include it', () => {
+    const context = createInitialContext({ source: 'Example Feed' });
+    const agentCtx = getContextForStage(context, {
+      name: 'test',
+      kind: 'analysis',
+      agent: 'test-agent',
+      context: { include: ['previous_stage_output'] },
+    });
+    expect(agentCtx.input).toBeUndefined();
+  });
 });
 
 describe('getContextForStage', () => {

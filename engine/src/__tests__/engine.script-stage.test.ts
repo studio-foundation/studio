@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolve } from 'node:path';
-import { PipelineEngine } from '../engine.js';
+import { PipelineEngine, type EngineConfig } from '../engine.js';
+import { DirectEngineSpawner } from '../spawners/direct-engine-spawner.js';
 import type { PipelineDefinition } from '@studio-foundation/contracts';
 
 // Mock runScript from runner to avoid real subprocess spawning
@@ -12,7 +13,7 @@ vi.mock('@studio-foundation/runner', async (importOriginal) => {
   };
 });
 
-import { runScript } from '@studio-foundation/runner';
+import { ProviderRegistry, ToolRegistry, runScript } from '@studio-foundation/runner';
 
 const FIXTURES_DIR = resolve(__dirname, '__fixtures__/script-stage');
 
@@ -100,5 +101,54 @@ describe('engine — script stage execution', () => {
     const lastAgentRun = result.stages[0]?.tasks[0]?.agent_runs.at(-1);
     expect(lastAgentRun?.status).toBe('failed');
     expect(lastAgentRun?.error).toMatch(/ImportError: cannot import name 'EXTRACTION_CONFIG_FILE'/);
+  });
+
+  // A fan-out over data is the natural shape for a script sub-pipeline, and the
+  // one that pays for a flattened input: `buildItemInput` assembles the item
+  // structurally, so the child's script must receive it that way. (STU-1196)
+  it('hands a map child its item as an object, not a YAML dump', async () => {
+    vi.mocked(runScript).mockResolvedValue({
+      output: { title: 'ok' },
+      tool_calls: [],
+      tool_calls_count: 0,
+      duration_ms: 5,
+    });
+
+    const engineConfig: EngineConfig = {
+      configsDir: FIXTURES_DIR,
+      providerRegistry: new ProviderRegistry(),
+      toolRegistry: new ToolRegistry(),
+    };
+    const engine = new PipelineEngine({
+      ...engineConfig,
+      spawner: new DirectEngineSpawner(engineConfig),
+      maxDepth: 3,
+    });
+
+    const result = await engine.run({
+      pipelineDef: {
+        name: 'fan-out',
+        description: 'test',
+        version: 1,
+        stages: [
+          {
+            map: 'items',
+            over: 'input.feeds',
+            pipeline: 'per-item',
+            input: { source: '{{item.name}}', url: '{{item.url}}' },
+          } as never,
+        ],
+      },
+      userInput: { feeds: [{ name: 'Example Feed', url: 'https://example.com/feed' }] },
+    });
+
+    expect(result.status).toBe('success');
+    expect(vi.mocked(runScript)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          input: { source: 'Example Feed', url: 'https://example.com/feed' },
+        }),
+      }),
+    );
   });
 });
