@@ -1,0 +1,11 @@
+name: per-item
+description: One script run per fan-out item.
+version: 1
+stages:
+  - name: handle-item
+    executor: script
+    script: scripts/item.py
+    runtime: python
+    contract: book-context
+    context:
+      include: [input]

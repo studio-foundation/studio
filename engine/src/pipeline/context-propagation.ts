@@ -179,6 +179,7 @@ export function getContextForStage(
         agentContext.additional_context = typeof context.input === 'string'
           ? context.input
           : yaml.dump(context.input, { lineWidth: 120 });
+        agentContext.input = context.input;
         break;
 
       case 'previous_stage_output':

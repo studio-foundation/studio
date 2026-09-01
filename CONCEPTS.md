@@ -312,6 +312,14 @@ Stages:
 
 A stage with `executor: script` runs a deterministic script instead of an LLM — `script` is the path, `runtime` is `python`, `node` or `shell`. It receives the stage context as JSON on stdin, returns its output as JSON on stdout, and is validated and retried by RALPH like any other stage.
 
+**What it reads on stdin.** The whole `AgentContext`, JSON-encoded: `previous_outputs`, `previous_tool_results`, `startup_context` and the rest arrive as the structures they already were. So does the pipeline input — `context.include: [input]` sets both `input`, the unserialized value, and `additional_context`, its YAML rendering for an LLM prompt. A script reads `input`; nothing has to parse YAML back out of a string. This is what makes a script sub-pipeline a workable body for a `map` stage, whose per-item input is assembled structurally.
+
+```python
+import json, sys
+ctx = json.load(sys.stdin)
+url = ctx["input"]["url"]        # not a YAML dump
+```
+
 **Which interpreter it runs.** The script is spawned directly, not through a shell, so the repo needs a way to say which interpreter it means. Resolution order, first match wins:
 
 1. **`STUDIO_<RUNTIME>_BIN`** — `STUDIO_PYTHON_BIN`, `STUDIO_NODE_BIN`, `STUDIO_SHELL_BIN`. An absolute path, taken verbatim. The studio process inherits its environment, so a consumer repo's Makefile hands the interpreter over with no config round-trip.
