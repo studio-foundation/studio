@@ -48,8 +48,8 @@ grouping the release notes will use, newest first, dated with the day it publish
 changelog is the record for anyone who isn't browsing GitHub releases; written at bump
 time it stays a one-minute job, deferred it never happens.
 
-Commit as `chore: bump version to X.Y.Z`, open the PR, wait for merge. The bump and its
-changelog entry ride alone — no source changes in the same PR.
+Commit as `chore: bump version to X.Y.Z` with `git commit -s`, open the PR, wait for
+merge. The bump and its changelog entry ride alone — no source changes in the same PR.
 
 ## 4. Publish, then verify
 
@@ -105,8 +105,13 @@ version.
 - **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 8 move together.
 - **Bumping inside a feature PR.** Bumps are their own commit, at release time.
 - **Shipping a version with no `CHANGELOG.md` entry.** Write it in the bump commit; after the release is cut nobody comes back for it.
+- **Committing the bump without a sign-off.** The DCO check blocks the merge on any commit
+  with no `Signed-off-by` trailer matching its author, so an unsigned bump costs a
+  force-push on the one branch you least want to rewrite. `git commit -s`.
 - **Reading a fresh publish through `npm view`.** `npm view <pkg>@X.Y.Z` can answer `E404`
   for minutes after a publish the workflow reported as successful — it is CDN cache, not a
   partial publish. Confirm against the registry itself before diagnosing anything:
   `curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`.
+  That endpoint lags too — 0.18.0 read `false` for `runner` and `api` for a couple of
+  minutes after a green publish. Poll it before concluding a package did not ship.
 - **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.

@@ -333,6 +333,13 @@ The rule that matters: **INV-10 is enforced mechanically.** `ALLOWED_INTERNAL_IM
 
 Type-aware rules (`no-floating-promises`, `await-thenable`) run only on `*/src/**` — every package tsconfig excludes `tests/`, so test files get the syntactic rules only.
 
+## Commits
+
+Every commit needs a `Signed-off-by` trailer matching its author — `git commit -s`.
+[dco.yml](.github/workflows/dco.yml) checks every commit on a PR to `main` and blocks the
+merge on the first one missing it; `git rebase --signoff <base>` fixes a branch after the
+fact. Full rationale in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Debugging
 
 ```bash
