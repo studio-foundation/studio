@@ -9,6 +9,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { CallStage, RunSpawner, StageRun, StageStatus, TaskRun, TokenUsage } from '@studio-foundation/contracts';
+import { ChildRunError } from '@studio-foundation/contracts';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { evaluateCondition } from './condition-evaluator.js';
 import { buildCallInput } from './call-input.js';
@@ -84,7 +85,7 @@ export class CallOrchestrator {
 
     // Technical/child failure — record the reason as a failed task so it surfaces
     // in `studio status`, the run JSONL, and the CLI's "Errors:" line.
-    const failWith = (reason: string): CallRunResult => {
+    const failWith = (reason: string, tokenUsage?: TokenUsage): CallRunResult => {
       const now = new Date().toISOString();
       const taskRun: TaskRun = {
         id: randomUUID(),
@@ -104,7 +105,7 @@ export class CallOrchestrator {
         }],
       };
       stageRun.tasks = [taskRun];
-      return finish('failed');
+      return finish('failed', undefined, undefined, tokenUsage);
     };
 
     this.config.events?.onStageStart?.({
@@ -166,6 +167,12 @@ export class CallOrchestrator {
     } catch (err) {
       // Cancelled mid-flight → cancelled, not a real failure.
       if (signal?.aborted) return finish('cancelled');
+      // A child that failed still burned tokens — report them rather than
+      // letting the stage read as free.
+      if (err instanceof ChildRunError) {
+        stageRun.child_run_id = err.run_id;
+        return failWith(err.message, err.token_usage);
+      }
       return failWith(errorMessage(err));
     }
   }

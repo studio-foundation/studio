@@ -23,6 +23,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type {
+  ChildStageUsage,
   MapBatchConfig,
   MapStage,
   RunSpawner,
@@ -31,7 +32,7 @@ import type {
   TaskRun,
   TokenUsage,
 } from '@studio-foundation/contracts';
-import { sumTokenUsage } from '@studio-foundation/contracts';
+import { ChildRunError, sumTokenUsage } from '@studio-foundation/contracts';
 import {
   BatchWindow,
   BatchingProviderRegistry,
@@ -54,6 +55,12 @@ export interface MapItemResult {
   cached?: boolean;
   /** What the item's child run spent. Absent for a cache hit — a resumed item costs nothing this run. */
   token_usage?: TokenUsage;
+  /**
+   * The child run's stages behind `token_usage` — name, status, attempts, spend.
+   * Present for a failed item too: its calls were billed, and a caller pricing
+   * the fan-out otherwise counts each failure as a single call.
+   */
+  stages?: ChildStageUsage[];
 }
 
 export interface MapStageOutput {
@@ -372,6 +379,7 @@ export class MapOrchestrator {
             output: spawn.output,
             run_id: spawn.run_id,
             ...(spawn.token_usage ? { token_usage: spawn.token_usage } : {}),
+            ...(spawn.stages ? { stages: spawn.stages } : {}),
           };
           // Only successful items are cached — a failure stays un-cached so it
           // retries next run.
@@ -383,7 +391,20 @@ export class MapOrchestrator {
             });
           }
         } catch (err) {
-          itemResult = { index: i, status: 'failed', error: errorMessage(err) };
+          itemResult = {
+            index: i,
+            status: 'failed',
+            error: errorMessage(err),
+            // A child that reached a terminal status reports what it burned on
+            // the way there; a throw from before the run started has nothing.
+            ...(err instanceof ChildRunError
+              ? {
+                  run_id: err.run_id,
+                  stages: err.stages,
+                  ...(err.token_usage ? { token_usage: err.token_usage } : {}),
+                }
+              : {}),
+          };
           if (failFast) abortLaunch = true;
         } finally {
           ticket?.leave();
@@ -401,6 +422,7 @@ export class MapOrchestrator {
           ...(itemResult.run_id ? { run_id: itemResult.run_id } : {}),
           ...(itemResult.error ? { error: itemResult.error } : {}),
           ...(itemResult.token_usage ? { token_usage: itemResult.token_usage } : {}),
+          ...(itemResult.stages ? { stages: itemResult.stages } : {}),
         });
         this.config.emitter.emit({ type: 'map_item_complete', mapName: map.map, index: i, status: itemResult.status });
       }

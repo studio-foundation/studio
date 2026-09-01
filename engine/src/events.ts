@@ -1,4 +1,4 @@
-import type { ToolCall, TokenUsage, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
+import type { ChildStageUsage, ToolCall, TokenUsage, ToolCallStartEvent, ToolCallCompleteEvent, AgentThinkingEvent, AgentProgressEvent, AgentTokenEvent } from '@studio-foundation/contracts';
 
 // Event types for pipeline observability
 // Dedicated event types — separate from contract types (PipelineRun, StageRun)
@@ -139,6 +139,8 @@ export interface MapItemCompleteEvent {
   output?: unknown;
   /** What the item's child run spent. Absent for a cache hit — a resumed item costs nothing. */
   token_usage?: TokenUsage;
+  /** The child run's per-stage breakdown behind `token_usage` — present on a failed item too. */
+  stages?: ChildStageUsage[];
 }
 
 export interface MapCompleteEvent {

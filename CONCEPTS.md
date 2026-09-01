@@ -208,6 +208,13 @@ The stage output is structured for the next stage to consume — no scraping:
 }
 ```
 
+Each entry in `results` also carries `token_usage` (what the item's child run
+spent) and `stages` — that child's per-stage breakdown, one entry per stage with
+its `status`, RALPH `attempts` and own `token_usage`. Both are present on a
+**failed** item too: its calls were billed, and a caller pricing the fan-out from
+the flat number alone counts every failure as a single call. A cache-served item
+has neither — a resumed item costs nothing this run.
+
 A downstream stage reads it like any other stage output, e.g. `over: stages.generate-pages.output.outputs` or `context.include: [previous_stage_output]`. Child runs count against `maxDepth`, exactly like `studio_run`.
 
 ### Per-item resume (`resume: true`)
@@ -616,7 +623,9 @@ must not read as a free one.
 
 Where it lands: on `StageRun.token_usage`, on the `stage_complete` / `stage_retry` /
 `map_item_complete` / `pipeline_complete` events, and in `.studio/runs/<run>.jsonl`
-under `tokens`. `studio status <run-id>` aggregates it per stage and per model. See
+under `tokens`. A `map` item additionally carries `stages` — the child run's
+per-stage breakdown, so how many attempts bought that number is readable without
+correlating the child's own journal. `studio status <run-id>` aggregates it per stage and per model. See
 [CLI.md](CLI.md) for the jq recipes.
 
 ---

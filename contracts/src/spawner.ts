@@ -1,7 +1,21 @@
 // The abstraction that studio-run tool uses to launch child runs.
 // Implementations: DirectEngineSpawner (engine) and HttpApiSpawner (api).
 
+import type { StageStatus } from './stage';
 import type { TokenUsage } from './usage';
+
+/**
+ * One stage of a child run, as the parent sees it. The flat `token_usage` says
+ * what a child cost; this says what bought it. Without it a caller pricing a
+ * fan-out assumes one call per item, under-counting every retried stage.
+ */
+export interface ChildStageUsage {
+  stage: string;
+  status: StageStatus;
+  /** Attempts the stage's RALPH loop made. 0 for a stage that ran no agent. */
+  attempts: number;
+  token_usage?: TokenUsage;
+}
 
 /**
  * Per-spawn execution overrides. In-process spawners honour them; a remote
@@ -35,6 +49,25 @@ export interface SpawnResult {
   output: unknown;
   /** What the child run spent, summed over its stages. Absent when unreported. */
   token_usage?: TokenUsage;
+  /** The per-stage breakdown behind `token_usage`. Absent when the spawner reports none. */
+  stages?: ChildStageUsage[];
+}
+
+/**
+ * A child run that reached a terminal non-success status. The calls it made were
+ * still billed, so the throw carries the same record a successful spawn returns.
+ */
+export class ChildRunError extends Error {
+  constructor(
+    message: string,
+    public run_id: string,
+    public run_status: string,
+    public stages: ChildStageUsage[],
+    public token_usage?: TokenUsage,
+  ) {
+    super(message);
+    this.name = 'ChildRunError';
+  }
 }
 
 export interface RunSpawner {
