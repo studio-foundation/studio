@@ -20,6 +20,10 @@ beforeAll(async () => {
   execFileSync('git', ['init', '-q', '-b', 'main', REPO]);
   git('config', 'user.email', 'test@example.com');
   git('config', 'user.name', 'Test');
+  // A signing key the fixture cannot supply a message for turns `git tag` into an
+  // annotated tag and aborts the file, for anyone whose global config signs.
+  git('config', 'commit.gpgSign', 'false');
+  git('config', 'tag.gpgSign', 'false');
 
   await writeFile(resolve(REPO, 'plugin', 'deploy.tool.yaml'), 'name: deploy\n');
   git('add', '.');
