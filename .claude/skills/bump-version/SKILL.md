@@ -84,8 +84,16 @@ The notes are the `CHANGELOG.md` section written at step 3, expanded — grouped
 gh release create vX.Y.Z --target main --title "vX.Y.Z" --draft --notes-file notes.md
 gh workflow run release-binaries.yml -f tag=vX.Y.Z
 gh run watch <run-id> --exit-status
-gh release view vX.Y.Z --json assets --jq '.assets[].name'   # 8 binaries + SHA256SUMS
 gh release edit vX.Y.Z --draft=false --latest
+```
+
+Before that last line, prove the assets are complete — the release is immutable once
+published, so a missing binary cannot be added afterwards. Do not count them by hand;
+`scripts/platforms.mjs` is what the build reads, so ask it:
+
+```bash
+diff <(gh release view vX.Y.Z --json assets --jq '.assets[].name' | sort) \
+     <(node -e 'import("./scripts/platforms.mjs").then(m=>console.log([...Object.keys(m.PLATFORMS).map(m.assetName),"SHA256SUMS"].sort().join("\n")))')
 ```
 
 `install.sh` and `install.ps1` download `studio-<platform>` and `SHA256SUMS` from the

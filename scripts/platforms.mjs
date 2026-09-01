@@ -24,3 +24,8 @@ export const PLATFORMS = {
 export function binaryName(platform) {
   return platform.startsWith('win-') ? 'studio.exe' : 'studio';
 }
+
+/** Release asset name for a platform — what `studio init`'s installers download. */
+export function assetName(platform) {
+  return `studio-${platform}${platform.startsWith('win-') ? '.exe' : ''}`;
+}
