@@ -9,7 +9,7 @@
 //
 // Usage: node scripts/build-npm-packages.mjs   (reads dist-binaries/, writes dist-npm/)
 
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLATFORMS, binaryName } from './platforms.mjs';
@@ -32,7 +32,11 @@ for (const [platform, meta] of Object.entries(PLATFORMS)) {
   const exe = binaryName(platform);
   const pkgDir = join(OUT_DIR, platform);
   await mkdir(pkgDir, { recursive: true });
-  await copyFile(join(IN_DIR, exe.replace('studio', `studio-${platform}`)), join(pkgDir, exe));
+  const binary = join(pkgDir, exe);
+  await copyFile(join(IN_DIR, exe.replace('studio', `studio-${platform}`)), binary);
+  // download-artifact drops the exec bit, so the copy arrives 644 and npm packs it
+  // that way — every global install would then fail its first spawn with EACCES.
+  await chmod(binary, 0o755);
 
   await writeFile(
     join(pkgDir, 'package.json'),
