@@ -25,6 +25,14 @@ if (platform) {
 
 if (binary) {
   const { status, error } = spawnSync(binary, process.argv.slice(2), { stdio: 'inherit' });
+  if (error?.code === 'EACCES') {
+    console.error(
+      `studio: ${binary} is not executable.\n` +
+        `Run: chmod +x ${binary}\n` +
+        'A published binary ships mode 755, so please report this install.'
+    );
+    process.exit(126);
+  }
   if (error) throw error;
   process.exit(status ?? 1);
 }
