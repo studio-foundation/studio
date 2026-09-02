@@ -7,6 +7,13 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.20.1] — 2026-09-02
+
+### Fixes
+
+- **A run whose work happens below the root pipeline shows it.** Six map handlers in the CLI's progress display returned early at depth ≥ 1, so a fan-out reached through a `call` rendered nothing at all — no header, no live counts, no per-item failure lines, in any mode — and nested stage lines needed `--live`, leaving a `call` stage as one spinner hanging for the whole child run. The single renderer field was the reason: one renderer cannot serve several fan-outs, and nesting plus concurrency means several can be live at once, including two at the same depth in different child runs. Renderers are now keyed by child run and held in a stack, where only the innermost draws to the terminal's bottom line and the others keep writing their permanent lines. Stage lines inside a fan-out stay collapsed to its per-item line at every depth, as they already did at depth 0. (STU-861)
+- **A child run spawned over the API reports what it cost.** `HttpApiSpawner` returned `{ run_id, status, output }` while holding the child's whole run — it fetches it to read the last stage's output — so a `call` or `map` stage driven by the remote spawner reported zero tokens and the run total silently omitted everything its children spent. Its failure path discarded both the child's real error and its spend, where a dead child's calls were still billed. It now returns the same `SpawnResult` the in-process spawner does and throws `ChildRunError` carrying that record. The two extraction functions moved to `contracts` so the two spawners cannot drift apart again. (STU-1209)
+
 ## [0.20.0] — 2026-09-02
 
 ### Contracts
