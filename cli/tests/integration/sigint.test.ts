@@ -24,6 +24,11 @@ import { resolve, join } from 'node:path';
 
 const CLI_BIN = resolve(import.meta.dirname, '../../dist/index.js');
 
+// Both budgets exist to catch a hung CLI, not to measure speed: a loaded machine
+// may be an order of magnitude slower than an idle one without anything being wrong.
+const STARTUP_TIMEOUT_MS = 20_000;
+const EXIT_TIMEOUT_MS = 20_000;
+
 const SHELL_TOOL_SRC = resolve(
   import.meta.dirname,
   '../../../runner/templates/tools/shell.tool.yaml',
@@ -131,6 +136,45 @@ function spawnCli(cwd: string): ChildProcess {
   );
 }
 
+/**
+ * Resolve once `marker` appears on the child's stdout. Waiting on what the CLI
+ * actually printed — rather than on a constant chosen from one machine's timings —
+ * is what makes this test survive vitest's parallel pool on a loaded machine.
+ */
+function waitForStdout(child: ChildProcess, marker: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let seen = '';
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      child.stdout?.off('data', onData);
+      child.off('exit', onExit);
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      reject(new Error(`CLI did not print "${marker}" within ${timeoutMs}ms. stdout: ${seen}`));
+    }, timeoutMs);
+
+    const onData = (chunk: Buffer) => {
+      seen += chunk.toString();
+      if (seen.includes(marker)) {
+        cleanup();
+        resolve();
+      }
+    };
+
+    const onExit = () => {
+      cleanup();
+      reject(new Error(`CLI exited before printing "${marker}". stdout: ${seen}`));
+    };
+
+    child.stdout?.on('data', onData);
+    child.on('exit', onExit);
+  });
+}
+
 function waitForExit(child: ChildProcess, timeoutMs: number): Promise<{ code: number | null; signal: string | null }> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -163,14 +207,14 @@ describe('CLI SIGINT handling', () => {
 
     const child = spawnCli(projectDir);
 
-    // Wait long enough for:
-    //   • Node.js startup + ESM module loading (~500ms)
-    //   • runCommand async setup: loadConfig, createRunStore, loadPipelineByName,
-    //     resolveRepoPath, loadProjectTools, loadPlugins, engine init (~500ms)
-    //   • SIGINT handler registration + engine.run() start (~1ms)
-    //   • sleep 60 tool call to begin executing (a few ms)
-    // 2500ms is 2.5× the measured worst-case setup time → reliable without being slow.
-    await new Promise((r) => setTimeout(r, 2500));
+    // The CLI registers its SIGINT handler immediately before engine.run(), and
+    // this line is printed from inside that call — so the marker is proof the
+    // handler is installed.
+    await waitForStdout(child, 'Running pipeline: two-stage', STARTUP_TIMEOUT_MS);
+
+    // The marker fires just before the first tool call is dispatched; let the
+    // `sleep 60` grandchild exist so the group SIGINT below reaches it too.
+    await new Promise((r) => setTimeout(r, 500));
 
     // Send SIGINT to the entire process group (negative PID = PGID when detached: true).
     // This kills both node and the sleep subprocess. Node's SIGINT handler fires,
@@ -181,8 +225,8 @@ describe('CLI SIGINT handling', () => {
       // Process already exited — captured below
     }
 
-    const { code } = await waitForExit(child, 8000);
+    const { code } = await waitForExit(child, EXIT_TIMEOUT_MS);
 
     expect(code).toBe(130);
-  }, 15_000);
+  }, 60_000);
 });
