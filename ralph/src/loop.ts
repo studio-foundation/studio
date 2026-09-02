@@ -32,6 +32,17 @@ export interface RalphConfig<T> {
    * instead of burning the remaining attempts. Success is never re-checked.
    */
   isFatal?: (result: T) => boolean;
+  /**
+   * Fingerprint of the failure a result carries, compared across attempts. Two
+   * consecutive attempts producing the same fingerprint end the loop: the
+   * failure is not responding to retries, so the remaining budget would buy
+   * nothing. `undefined` means "no comparable failure" and never stops the loop.
+   *
+   * This is the stochastic counterpart of `isFatal`, which judges one result on
+   * its own. A model's output varies between attempts by design; a failure that
+   * does not vary with it is coming from somewhere the model cannot reach.
+   */
+  failureFingerprint?: (result: T) => string | undefined;
   signal?: AbortSignal;
 }
 
@@ -41,11 +52,12 @@ export type RalphResult<T> =
   | { status: 'cancelled'; lastResult?: T; attempts: number };
 
 export async function ralph<T>(config: RalphConfig<T>): Promise<RalphResult<T>> {
-  const { executor, validator, maxAttempts, retryStrategy, onRetry, onSuccess, onExhausted, isFatal, signal } = config;
+  const { executor, validator, maxAttempts, retryStrategy, onRetry, onSuccess, onExhausted, isFatal, failureFingerprint, signal } = config;
 
   let attempt = 1;
   const allFailures: string[] = [];
   let lastResult: T | undefined;
+  let lastFingerprint: string | undefined;
 
   while (attempt <= maxAttempts) {
     // Check cancellation before each attempt
@@ -84,14 +96,25 @@ export async function ralph<T>(config: RalphConfig<T>): Promise<RalphResult<T>> 
     // 4. Si invalide → accumuler erreurs
     allFailures.push(...validation.errors);
 
-    // 5. Deterministic failure → stop now, don't burn the remaining attempts.
+    // 5. The same failure twice running → stop now. Retrying is a bet that the
+    //    next attempt differs; two identical failures are the evidence against
+    //    it. Two is the only threshold below the usual max_attempts of 3 that
+    //    fires at all, and a higher one would never save an attempt.
+    const fingerprint = failureFingerprint?.(result);
+    if (fingerprint !== undefined && fingerprint === lastFingerprint) {
+      await onExhausted?.(result, allFailures);
+      return { status: 'exhausted', lastResult: result, attempts: attempt, failures: allFailures };
+    }
+    lastFingerprint = fingerprint;
+
+    // 6. Deterministic failure → stop now, don't burn the remaining attempts.
     //    A crashed startup won't heal on attempt 2/3.
     if (isFatal?.(result)) {
       await onExhausted?.(result, allFailures);
       return { status: 'exhausted', lastResult: result, attempts: attempt, failures: allFailures };
     }
 
-    // 6. Si dernière tentative → EXHAUSTED
+    // 7. Si dernière tentative → EXHAUSTED
     if (attempt >= maxAttempts) {
       await onExhausted?.(result, allFailures);
       return { status: 'exhausted', lastResult: result, attempts: attempt, failures: allFailures };
@@ -102,7 +125,7 @@ export async function ralph<T>(config: RalphConfig<T>): Promise<RalphResult<T>> 
       return { status: 'cancelled', lastResult: result, attempts: attempt };
     }
 
-    // 6. Callback + delay + retry
+    // 8. Callback + delay + retry
     const retryEvent: RetryEvent<T> = {
       attempt,
       result,

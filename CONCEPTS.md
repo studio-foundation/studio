@@ -26,6 +26,13 @@ RALPH is a standalone package (`@studio-foundation/ralph`). It takes a generic `
 
 **ralph does not know runner.** This is a hard boundary. ralph receives an executor function, it never imports runner, never constructs LLM calls, never touches tool logic.
 
+**The budget is spent only where a retry can win.** Retrying is a bet that the next attempt differs from this one, and RALPH stops early where that bet is already lost:
+
+- A **script** stage is deterministic — the same command on the same stdin yields the same result — so a process-level error (a startup crash, a non-zero exit, a timeout) fails the stage on attempt 1 rather than on attempt 3. Agent stages are stochastic and keep their retries.
+- An **agent** stage stops when a *tool* fails identically on two consecutive attempts. That is not the model varying; it is the model having no reach over the outcome — a mailbox that refuses every write, an API returning the same 400. The comparison is on the tool error alone, so two attempts whose prose differs but whose tool failure does not are caught. A tool error that *changes* between attempts still retries: that is evidence the model is affecting the outcome.
+
+Both are the engine's opinions, passed to ralph as functions (`isFatal`, `failureFingerprint`). ralph itself still knows nothing about scripts, tools or LLMs.
+
 ---
 
 ## Output contracts
