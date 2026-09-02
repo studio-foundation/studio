@@ -7,6 +7,27 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.20.0] — 2026-09-02
+
+### Contracts
+
+- **`tool_calls.per_tool` bounds one named tool**, which the stage-wide numbers cannot. `minimum`/`maximum` count every successful call together, so they say nothing about any individual tool the moment a stage has several — and each tool added forces the ceiling *up*, buying the agent more room to loop on the tool that matters. One contract went 8 → 12 → 16 across three changes for exactly that reason. `per_tool` writes it the other way round — search as often as you like, but write exactly one draft:
+
+  ```yaml
+  tool_calls:
+    minimum: 1
+    maximum: 20              # still a loop guard for the stage as a whole
+    per_tool:
+      mail_drafts.create_draft: { minimum: 1, maximum: 1 }
+      club_web.search_site: { maximum: 6 }
+  ```
+
+  Counts successful calls only and matches either spelling of a tool name, like every other tool rule. A typo inside a `per_tool` entry is rejected at load naming the tool it sits under, so the block cannot silently guard nothing. Stage-wide bounds are unchanged, and a contract with no `per_tool` validates identically. (STU-880)
+
+### RALPH
+
+- **A tool failure that repeats identically stops the retry loop.** When a required tool failed deterministically, RALPH spent the whole budget re-asking the model to do something it cannot do: measured on a fan-out where every draft call returned the same API 400, nine LLM calls per item and ninety in total, all ending in that error, still grinding after ~1000 seconds with nothing produced. Two consecutive attempts whose *tool* failure is identical now end the loop — that is not the model varying, it is the model having no reach over the outcome. The comparison is on the tool error alone, so two attempts whose prose differs but whose tool failure does not are caught; a tool error that *changes* between attempts still retries. ralph stays generic — it takes a fingerprint function and knows nothing about tools, as it already did for the script-stage `isFatal` hook. (STU-864)
+
 ## [0.19.0] — 2026-09-02
 
 ### Skills
