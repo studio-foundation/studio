@@ -7,6 +7,32 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.19.0] — 2026-09-02
+
+### Skills
+
+- **A declared skill that cannot be read now fails the run.** ⚠️ **Breaking.** It used to warn and skip, so an agent whose `skills:` entry hit a typo, a rename, or a plugin that did not install ran with that section simply absent from its system prompt — then produced a well-formed answer, validated against its contract, and reported `success`. Skills are the input that carries grounding, so the agent most likely to invent facts was exactly the one whose skill had silently vanished. A missing file, an unreadable one, or a directory where a file was expected now aborts the load naming the skill and the path tried, the way a missing agent or contract already did. Path escape stays a hard error. Any project running with a skill it does not have will now fail at load; those runs were already producing ungrounded output. (STU-918)
+- **`.skill.md` frontmatter is parsed, not injected.** The `---`, `name:` and `description:` lines reached the model as the skill's opening content — `name` arriving twice, since `prompt-builder` already writes it as the heading, and `description` being a sentence addressed to whoever picks skills, which under static loading is nobody. The body alone now reaches the prompt, `description` becomes a field on `SkillContent`, and a frontmatter `name` that disagrees with the filename is a load error rather than a silent preference — skills resolve by filename, so a divergence means the author believes something false about which file loads. A file with no frontmatter is unchanged. (STU-916)
+
+### Script stages
+
+- **`runtimes:` in `.studio/config.yaml` declares the interpreter a script stage spawns**, keyed by runtime, at the head of the resolution order. The choice was only expressible as `STUDIO_<RUNTIME>_BIN` — the one place Studio cannot inspect — so an interpreter that did not exist surfaced as a spawn failure on the first script stage instead of at preflight, and `config.example.yaml` could say nothing about a value every contributor needs to set. `${VAR}` interpolation keeps the environment as the source of the path; the config only names the key, and an entry that interpolated to nothing falls through rather than resolving to an empty command. `studio doctor` gains a **Script interpreters** check that calls the executor's own `resolveRuntime`, so it cannot drift from what the run does. No block leaves the existing order untouched. (STU-898)
+
+### Removed
+
+- `@studio-foundation/runner` no longer exports `loadSkills`, `loadSkill` or `validateSkillManifest`. They were a second copy of the skill loader that nothing called, and keeping two loaders that disagree on what a missing file means would be worse than the duplication was. Skill loading is the engine's, through `loadSkillFiles`.
+
+### Fixes
+
+- **The release asset check derives its list from the platform table.** Step 5 of the release procedure carried a hand-maintained count that read `7 binaries` after an eighth shipped. It now diffs the release's assets against `scripts/platforms.mjs`, which is what the build reads, so it cannot go stale on the next platform. (STU-979)
+- **The SIGINT test waits on the CLI's own output instead of a fixed startup delay.** Its flat 8 s budget was not enough under full-suite parallel load on a busy machine, so `pnpm test` went red on a file unrelated to whatever was being changed — while CI, less loaded, stayed green. (STU-1233)
+- **The `git-source` test fixture is hermetic against a signing config.** With `tag.gpgsign true` in a developer's global git config, `git tag` demanded a message the fixture never passed and the whole file aborted — so `pnpm test` went red locally on changes touching nothing in `cli/`, while CI stayed green. (STU-1202)
+
+### CI
+
+- **The workflow files are linted on every PR**, the `workflow_dispatch`-only publish ones included. Nothing read `npm-publish.yml` or `release-binaries.yml` between releases, so a mistake in either surfaced *during* a release — the run least able to absorb one, since a release tag here is immutable and a version number burned mid-publish cannot be reused. (STU-1234)
+- Every pinned GitHub action moved to a major targeting a supported runtime. Five actions still targeted Node 20, which GitHub was forcing onto Node 24 with a deprecation annotation on every run. Two of the five are the publish path, exercised only during a release — where a burned tag cannot be reused. (STU-1220)
+
 ## [0.18.0] — 2026-09-01
 
 ### Script stages
