@@ -342,6 +342,111 @@ describe('ralph loop', () => {
     expect(validator).toHaveBeenCalledTimes(1);
   });
 
+  describe('failureFingerprint — a failure that repeats identically (STU-864)', () => {
+    const GRAPH_400 = 'mail_drafts-create_draft:HTTP 400 Bad Request';
+    const invalid = { valid: false, errors: ['Required tool has no successful calls'], warnings: [] };
+
+    it('stops on the second identical failure instead of exhausting the budget', async () => {
+      const executor = vi.fn().mockResolvedValue({ fp: GRAPH_400 });
+      const onExhausted = vi.fn();
+
+      const result = await ralph<{ fp?: string }>({
+        executor,
+        validator: () => invalid,
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+        failureFingerprint: (r) => r.fp,
+        onExhausted,
+      });
+
+      expect(result.status).toBe('exhausted');
+      expect(result.attempts).toBe(2);
+      // The third attempt is the one this saves; it could not have succeeded.
+      expect(executor).toHaveBeenCalledTimes(2);
+      expect(onExhausted).toHaveBeenCalled();
+    });
+
+    it('spends the full budget when the failure changes between attempts', async () => {
+      const executor = vi.fn()
+        .mockResolvedValueOnce({ fp: 'tool:HTTP 500' })
+        .mockResolvedValueOnce({ fp: 'tool:HTTP 429' })
+        .mockResolvedValueOnce({ fp: 'tool:HTTP 503' });
+
+      const result = await ralph<{ fp?: string }>({
+        executor,
+        validator: () => invalid,
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+        failureFingerprint: (r) => r.fp,
+      });
+
+      expect(result.status).toBe('exhausted');
+      expect(result.attempts).toBe(3);
+      expect(executor).toHaveBeenCalledTimes(3);
+    });
+
+    it('requires the repeat to be consecutive', async () => {
+      const executor = vi.fn()
+        .mockResolvedValueOnce({ fp: 'tool:A' })
+        .mockResolvedValueOnce({ fp: 'tool:B' })
+        .mockResolvedValueOnce({ fp: 'tool:A' });
+
+      const result = await ralph<{ fp?: string }>({
+        executor,
+        validator: () => invalid,
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+        failureFingerprint: (r) => r.fp,
+      });
+
+      expect(result.attempts).toBe(3);
+    });
+
+    it('never stops on an undefined fingerprint, however often it repeats', async () => {
+      const executor = vi.fn().mockResolvedValue({});
+
+      const result = await ralph<{ fp?: string }>({
+        executor,
+        validator: () => invalid,
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+        failureFingerprint: (r) => r.fp,   // always undefined — no tool failed
+      });
+
+      expect(result.attempts).toBe(3);
+      expect(executor).toHaveBeenCalledTimes(3);
+    });
+
+    it('is never consulted on a valid result', async () => {
+      const failureFingerprint = vi.fn().mockReturnValue('same');
+
+      const result = await ralph({
+        executor: async () => 'result',
+        validator: () => ({ valid: true, errors: [], warnings: [] }),
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+        failureFingerprint,
+      });
+
+      expect(result.status).toBe('success');
+      expect(failureFingerprint).not.toHaveBeenCalled();
+    });
+
+    it('leaves a loop with no fingerprint function exactly as it was', async () => {
+      const executor = vi.fn().mockResolvedValue({ fp: GRAPH_400 });
+
+      const result = await ralph<{ fp?: string }>({
+        executor,
+        validator: () => invalid,
+        maxAttempts: 3,
+        retryStrategy: noDelay(),
+      });
+
+      expect(result.attempts).toBe(3);
+      expect(executor).toHaveBeenCalledTimes(3);
+    });
+  });
+
   it('stops immediately without retrying when isFatal returns true', async () => {
     const executor = vi.fn().mockResolvedValue({ error: 'ImportError at startup' });
     const validator = vi.fn().mockReturnValue({ valid: false, errors: ['ImportError at startup'], warnings: [] });

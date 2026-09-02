@@ -11,6 +11,7 @@ import type {
   OutputContract,
   ResolvedAgentConfig,
   TokenUsage,
+  ToolCall,
 } from '@studio-foundation/contracts';
 import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import {
@@ -69,6 +70,20 @@ function summarizeOutput(output: unknown): string {
   return `${keys.length} fields: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}`;
 }
 
+
+/**
+ * The distinct tool failures a run produced, as a stable string, or undefined
+ * when no tool failed. Deduplicated and sorted: how many times an agent retried
+ * a call within one attempt is its own stochasticity, whereas *which* calls
+ * failed is what lies outside it.
+ */
+export function toolErrorFingerprint(result: { tool_calls?: ToolCall[] }): string | undefined {
+  const errors = (result.tool_calls ?? [])
+    .filter((tc) => tc.error)
+    .map((tc) => `${tc.name}:${tc.error}`);
+  if (errors.length === 0) return undefined;
+  return [...new Set(errors)].sort().join('\n');
+}
 
 export interface StageExecutorConfig {
   events?: EngineEvents;
@@ -425,6 +440,12 @@ export class StageExecutor {
       // instead of burning every attempt on an identical crash. Agent stages
       // are stochastic and keep their retries. (STU-568)
       isFatal: stageDef.agent ? undefined : (result) => result.error != null,
+      // An agent stage is stochastic, so it keeps its retries — unless what
+      // failed is a tool, identically, twice running. That is not the model
+      // varying; it is the model having no reach over the outcome. Compared on
+      // the tool error alone: two attempts whose prose differs but whose tool
+      // failure does not are exactly the case this catches. (STU-864)
+      failureFingerprint: stageDef.agent ? toolErrorFingerprint : undefined,
       signal,
       onRetry: async (event) => {
         // Extract raw output for diagnostic logging
