@@ -1,4 +1,5 @@
 import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
+import { ChildRunError, childRunErrorMessage, childStageUsage, sumTokenUsage } from '@studio-foundation/contracts';
 
 export class HttpApiSpawner implements RunSpawner {
   constructor(private apiUrl: string, private apiKey?: string) {}
@@ -39,14 +40,25 @@ export class HttpApiSpawner implements RunSpawner {
     }
     const run = (await getRes.json()) as PipelineRun;
 
+    // Built before the failure branch: a child that died still made billed calls.
+    const stages = childStageUsage(run.stages);
+    const token_usage = sumTokenUsage(run.stages.map(s => s.token_usage));
+
     if (run.status === 'failed' || run.status === 'rejected' || run.status === 'cancelled') {
-      throw new Error(`Child run ${run_id} ${run.status}`);
+      const stageError = childRunErrorMessage(run.stages);
+      throw new ChildRunError(
+        `Child run ${run_id} ${run.status}: ${stageError ?? 'no error recorded'}`,
+        run_id,
+        run.status,
+        stages,
+        token_usage,
+      );
     }
 
     const lastStage = [...run.stages].reverse().find(s => s.status === 'success');
     const output = (lastStage as { output?: unknown } | undefined)?.output ?? null;
 
-    return { run_id, status: run.status, output };
+    return { run_id, status: run.status, output, stages, ...(token_usage ? { token_usage } : {}) };
   }
 
   private waitForCompletion(runId: string): Promise<void> {

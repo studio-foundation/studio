@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HttpApiSpawner } from '../src/spawners/http-api-spawner.js';
+import { ChildRunError } from '@studio-foundation/contracts';
 
 // Helper: create a fake SSE stream that emits events then closes
 function makeFakeSseResponse(events: Array<{ type: string; data: unknown }>) {
@@ -154,5 +155,134 @@ describe('HttpApiSpawner', () => {
     await expect(
       spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'x', depth: 1 })
     ).rejects.toThrow('Child run child-3 failed');
+  });
+
+  describe('cost reporting across the spawner boundary (STU-1209)', () => {
+    const usage = (total: number) => ({
+      prompt_tokens: total - 10,
+      completion_tokens: 10,
+      total_tokens: total,
+    });
+
+    const stage = (name: string, status: string, attempts: number, total?: number) => ({
+      id: name,
+      stage_name: name,
+      status,
+      started_at: '',
+      tasks: [{ agent_runs: Array.from({ length: attempts }, (_, i) => ({ attempt: i + 1 })) }],
+      ...(total ? { token_usage: usage(total) } : {}),
+      output: { ok: true },
+    });
+
+    const respondWith = (run: Record<string, unknown>, status = 'success') => {
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ run_id: run.id, status: 'running', stream_url: '' }), {
+            status: 201,
+            headers: { 'content-type': 'application/json' },
+          })
+        )
+        .mockResolvedValueOnce(
+          makeFakeSseResponse([{ type: 'pipeline_complete', data: { status, run_id: run.id } }])
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify(run), { headers: { 'content-type': 'application/json' } })
+        );
+    };
+
+    it('sums the child run usage into a flat total', async () => {
+      respondWith({
+        id: 'child-4',
+        pipeline_name: 'p',
+        status: 'success',
+        started_at: '',
+        stages: [stage('a', 'success', 1, 100), stage('b', 'success', 2, 250)],
+      });
+
+      const result = await new HttpApiSpawner('http://localhost:3000').spawnAndWait({
+        pipeline: 'p', input: {}, parentRunId: 'x', depth: 1,
+      });
+
+      expect(result.token_usage?.total_tokens).toBe(350);
+    });
+
+    it('reports the per-stage breakdown, with attempts from the agent runs', async () => {
+      respondWith({
+        id: 'child-5',
+        pipeline_name: 'p',
+        status: 'success',
+        started_at: '',
+        stages: [stage('a', 'success', 1, 100), stage('b', 'success', 3, 250)],
+      });
+
+      const result = await new HttpApiSpawner('http://localhost:3000').spawnAndWait({
+        pipeline: 'p', input: {}, parentRunId: 'x', depth: 1,
+      });
+
+      expect(result.stages).toEqual([
+        { stage: 'a', status: 'success', attempts: 1, token_usage: usage(100) },
+        { stage: 'b', status: 'success', attempts: 3, token_usage: usage(250) },
+      ]);
+    });
+
+    it('reports nothing when the child reported no usage, rather than a zero', async () => {
+      respondWith({
+        id: 'child-6',
+        pipeline_name: 'p',
+        status: 'success',
+        started_at: '',
+        stages: [stage('a', 'success', 1)],
+      });
+
+      const result = await new HttpApiSpawner('http://localhost:3000').spawnAndWait({
+        pipeline: 'p', input: {}, parentRunId: 'x', depth: 1,
+      });
+
+      expect(result.token_usage).toBeUndefined();
+      expect(result.stages).toEqual([{ stage: 'a', status: 'success', attempts: 1 }]);
+    });
+
+    it('carries the record and the real error on a failed child, not a bare status', async () => {
+      const failed = {
+        id: 'child-7',
+        pipeline_name: 'p',
+        status: 'failed',
+        started_at: '',
+        stages: [
+          stage('a', 'success', 1, 100),
+          {
+            id: 'b', stage_name: 'b', status: 'failed', started_at: '',
+            tasks: [{ agent_runs: [{ attempt: 1 }, { attempt: 2, error: 'HTTP 400 from create_draft' }] }],
+            token_usage: usage(60),
+          },
+        ],
+      };
+      respondWith(failed, 'failed');
+
+      const err = await new HttpApiSpawner('http://localhost:3000')
+        .spawnAndWait({ pipeline: 'p', input: {}, parentRunId: 'x', depth: 1 })
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ChildRunError);
+      const childErr = err as ChildRunError;
+      // The calls a dead child made were still billed.
+      expect(childErr.token_usage?.total_tokens).toBe(160);
+      expect(childErr.stages).toHaveLength(2);
+      expect(childErr.run_id).toBe('child-7');
+      expect(childErr.run_status).toBe('failed');
+      expect(childErr.message).toContain('HTTP 400 from create_draft');
+    });
+
+    it('says so when a failed child recorded no error at all', async () => {
+      respondWith(
+        { id: 'child-8', pipeline_name: 'p', status: 'failed', started_at: '', stages: [] },
+        'failed'
+      );
+
+      await expect(
+        new HttpApiSpawner('http://localhost:3000')
+          .spawnAndWait({ pipeline: 'p', input: {}, parentRunId: 'x', depth: 1 })
+      ).rejects.toThrow('no error recorded');
+    });
   });
 });
