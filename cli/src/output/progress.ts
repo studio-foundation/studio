@@ -24,7 +24,14 @@ export class ProgressDisplay {
 
   // Fan-out (map) stage rendering
   private isInMapStage = false;
-  private mapRenderer: MapRenderer | null = null;
+  /**
+   * Live fan-outs, in the order they started. A `map` reached through a `call`
+   * runs at depth ≥ 1, and with concurrency > 1 several can be live at the same
+   * depth at once — so they are keyed by child run, not by depth. Only the last
+   * one started draws to the terminal's bottom line; the rest are suspended and
+   * keep writing permanent lines. (STU-861)
+   */
+  private readonly mapStack: Array<{ key: string; renderer: MapRenderer }> = [];
 
   // State tracking for stage progress
   runId = '';
@@ -47,6 +54,35 @@ export class ProgressDisplay {
       this.live = mode.live;
       this.verbose = mode.verbose;
     }
+  }
+
+  /** Identity of the run an event came from — depth alone collides under concurrency. */
+  private mapKey(ctx?: { depth: number; childId: string }): string {
+    return ctx ? `${ctx.depth}#${ctx.childId}` : 'root';
+  }
+
+  private mapFor(ctx?: { depth: number; childId: string }): MapRenderer | null {
+    const key = this.mapKey(ctx);
+    return this.mapStack.find((entry) => entry.key === key)?.renderer ?? null;
+  }
+
+  private pushMap(key: string, renderer: MapRenderer): void {
+    this.mapStack[this.mapStack.length - 1]?.renderer.suspend();
+    this.mapStack.push({ key, renderer });
+  }
+
+  /** Drop a finished fan-out and hand the bottom line back to the one outside it. */
+  private popMap(key: string): MapRenderer | null {
+    const index = this.mapStack.findIndex((entry) => entry.key === key);
+    if (index === -1) return null;
+    const [entry] = this.mapStack.splice(index, 1);
+    this.mapStack[this.mapStack.length - 1]?.renderer.resume();
+    return entry.renderer;
+  }
+
+  private interruptAllMaps(): void {
+    for (const entry of this.mapStack) entry.renderer.interrupt();
+    this.mapStack.length = 0;
   }
 
   private resetStageTimer(): void {
@@ -109,8 +145,7 @@ export class ProgressDisplay {
     this.parallelRenderer?.interrupt();
     this.parallelRenderer = null;
     this.isInParallelGroup = false;
-    this.mapRenderer?.interrupt();
-    this.mapRenderer = null;
+    this.interruptAllMaps();
     this.isInMapStage = false;
     if (this.isStreamingTokens) {
       process.stdout.write('\n');
@@ -136,11 +171,13 @@ export class ProgressDisplay {
       onStageStart: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+          // Inside a fan-out these stay collapsed to the map's per-item line —
+          // rendering both would smear its live counts.
+          if (!this.mapStack.length && !this.isInParallelGroup) {
             this.stopSpinnersForChildLine();
             const prefix = `[${event.stage_index + 1}/${event.total_stages}]`;
             console.log(this.indent(ctx.depth) + chalk.cyan(`${prefix} ${event.stage_name}...`));
-            this.startChildThinkingSpinner(ctx.depth);
+            if (this.live) this.startChildThinkingSpinner(ctx.depth);
           }
           return;
         }
@@ -182,7 +219,7 @@ export class ProgressDisplay {
       onStageComplete: (event, ctx) => {
         if (this.jsonMode) return;
         if (ctx && ctx.depth >= 1) {
-          if (this.live && !this.isInMapStage && !this.isInParallelGroup) {
+          if (!this.mapStack.length && !this.isInParallelGroup) {
             this.stopSpinnersForChildLine();
             const mark = event.status === 'success' ? chalk.green('✓')
               : event.status === 'skipped' ? chalk.gray('⊘')
@@ -199,8 +236,7 @@ export class ProgressDisplay {
         // generic stage-completion output here.
         if (this.isInMapStage) {
           this.isInMapStage = false;
-          this.mapRenderer?.interrupt();
-          this.mapRenderer = null;
+          this.popMap(this.mapKey(ctx))?.interrupt();
           return;
         }
 
@@ -415,9 +451,9 @@ export class ProgressDisplay {
       },
 
       onMapStart: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.isInMapStage = true;
+        const depth = ctx?.depth ?? 0;
+        if (depth === 0) this.isInMapStage = true;
 
         // Tear down whatever onStageStart spun up for this stage — a map stage
         // is not a single agent call, so the "Thinking…" spinner is wrong here.
@@ -432,32 +468,29 @@ export class ProgressDisplay {
           this.spinner = null;
         }
 
-        this.mapRenderer = new MapRenderer();
-        this.mapRenderer.start(event.map_name, event.total_items, event.concurrency, event.batch === true);
+        const renderer = new MapRenderer();
+        this.pushMap(this.mapKey(ctx), renderer);
+        renderer.start(event.map_name, event.total_items, event.concurrency, event.batch === true, depth);
       },
 
       onBatchDispatch: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.mapRenderer?.batchDispatch(event.provider, event.size, event.round);
+        this.mapFor(ctx)?.batchDispatch(event.provider, event.size, event.round);
       },
 
       onBatchComplete: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.mapRenderer?.batchComplete(event.size, event.round, event.succeeded, event.failed, event.duration_ms);
+        this.mapFor(ctx)?.batchComplete(event.size, event.round, event.succeeded, event.failed, event.duration_ms);
       },
 
       onMapItemStart: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.mapRenderer?.itemStart(event.index, event.label);
+        this.mapFor(ctx)?.itemStart(event.index, event.label);
       },
 
       onMapItemComplete: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.mapRenderer?.itemComplete(
+        this.mapFor(ctx)?.itemComplete(
           event.index,
           event.status,
           event.label ?? `#${event.index}`,
@@ -468,10 +501,8 @@ export class ProgressDisplay {
       },
 
       onMapComplete: (event, ctx) => {
-        if (ctx && ctx.depth >= 1) return;
         if (this.jsonMode) return;
-        this.mapRenderer?.finish(event.succeeded, event.failed, event.status);
-        this.mapRenderer = null;
+        this.popMap(this.mapKey(ctx))?.finish(event.succeeded, event.failed, event.status);
       },
 
       onAgentThinking: (event, ctx) => {

@@ -73,6 +73,9 @@ function truncateList(labels: string[], max: number): string {
 
 export class MapRenderer {
   private spinner: Ora | null = null;
+  /** Columns of indent for this renderer's lines — 2 per nesting level. */
+  private pad = 2;
+  private suspended = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private startedAt = Date.now();
   private mapName = '';
@@ -90,7 +93,8 @@ export class MapRenderer {
    * stream still gets the header, per-item failures, and the final summary
    * (ora degrades to non-animated frames on its own).
    */
-  start(mapName: string, total: number, concurrency: number, batch = false): void {
+  start(mapName: string, total: number, concurrency: number, batch = false, depth = 0): void {
+    this.pad = 2 + depth * 2;
     this.startedAt = Date.now();
     this.mapName = mapName;
     this.total = total;
@@ -101,12 +105,37 @@ export class MapRenderer {
     this.batchesInFlight.clear();
 
     console.log(
-      chalk.cyan(`  ↳ ${mapName}`) +
+      ' '.repeat(this.pad) +
+        chalk.cyan(`↳ ${mapName}`) +
         chalk.gray(` — fan-out over ${total} item${total === 1 ? '' : 's'} (concurrency ${concurrency})`) +
         (batch ? chalk.gray(' · batched') : ''),
     );
 
-    this.spinner = makeSpinner({ text: this.statusText(), indent: 2, color: 'cyan' }).start();
+    this.startLiveLine();
+  }
+
+  /**
+   * Give up the terminal's bottom line to a renderer nested inside this one.
+   * The counts keep advancing; they simply stop being drawn until `resume`.
+   * Only one renderer may own that line, or two spinners overwrite each other.
+   */
+  suspend(): void {
+    if (this.suspended) return;
+    this.suspended = true;
+    this.stopTimer();
+    this.spinner?.stop();
+    this.spinner = null;
+  }
+
+  /** Take the bottom line back once the renderer nested inside this one is done. */
+  resume(): void {
+    if (!this.suspended) return;
+    this.suspended = false;
+    this.startLiveLine();
+  }
+
+  private startLiveLine(): void {
+    this.spinner = makeSpinner({ text: this.statusText(), indent: this.pad, color: 'cyan' }).start();
     this.timer = setInterval(() => {
       if (this.spinner) this.spinner.text = this.statusText();
     }, 250);
@@ -182,7 +211,9 @@ export class MapRenderer {
         ? `${succeeded}/${this.total} succeeded, ${chalk.red(`${failed} failed`)}`
         : `${succeeded}/${this.total} succeeded`;
     const icon = status === 'success' ? chalk.green('✓') : chalk.red('✗');
-    console.log(`  ${icon} ${chalk.cyan(this.mapName)} ${counts}` + chalk.gray(` (${duration})`));
+    console.log(
+      ' '.repeat(this.pad) + `${icon} ${chalk.cyan(this.mapName)} ${counts}` + chalk.gray(` (${duration})`),
+    );
   }
 
   /** Ctrl-C / abort — drop the live line without a summary. */

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProgressDisplay } from '../src/output/progress.js';
+import type { MapStartEvent, MapCompleteEvent, MapItemCompleteEvent } from '@studio-foundation/engine';
 
 describe('ProgressDisplay — nested child events (STU-620)', () => {
   let logs: string[];
@@ -32,14 +33,18 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     expect(logs.join('')).not.toContain('y');
   });
 
-  it('suppresses a depth>=1 stage-start line in non-live mode', () => {
+  // Was 'suppresses a depth>=1 stage-start line in non-live mode' — without it a
+  // `call` stage was a single spinner hanging for the whole child run. (STU-861)
+  it('prints a depth>=1 stage-start line in non-live mode too', () => {
     const display = new ProgressDisplay(false, { live: false, verbose: false });
     const ev = display.getEvents();
     ev.onStageStart!(
       { stage_name: 'child-stage', stage_index: 0, total_stages: 2, max_attempts: 1 },
       { depth: 1, childId: 'd1#0' },
     );
-    expect(logs.find(l => l.includes('child-stage'))).toBeUndefined();
+    expect(logs.find(l => l.includes('child-stage'))).toBeDefined();
+    expect((display as unknown as { thinkingSpinner: unknown }).thinkingSpinner).toBeFalsy();
+    display.interrupt();
   });
 
   it('does not reprint pipeline banners or mutate runId for child pipeline events', () => {
@@ -140,5 +145,137 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     expect(second).not.toBe(first); // prior spinner replaced, not stacked
     expect(first.isSpinning).toBe(false);
     display.interrupt();
+  });
+});
+
+describe('ProgressDisplay — a fan-out below the root pipeline (STU-861)', () => {
+  let logs: string[];
+  let spy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    logs = [];
+    spy = vi.spyOn(console, 'log').mockImplementation((s?: unknown) => { logs.push(String(s ?? '')); });
+  });
+  afterEach(() => { spy.mockRestore(); });
+
+  const display = () => new ProgressDisplay(false, { live: false, verbose: false });
+  const at = (depth: number, n = 0) => ({ depth, childId: `d${depth}#${n}` });
+  const stack = (d: ProgressDisplay) =>
+    (d as unknown as { mapStack: Array<{ key: string; renderer: { suspended: boolean } }> }).mapStack;
+
+  const mapStart = (map_name: string, total_items: number, concurrency = 1): MapStartEvent =>
+    ({ map_name, total_items, concurrency });
+  const mapDone = (map_name: string, succeeded: number, total: number): MapCompleteEvent =>
+    ({ map_name, total, succeeded, failed: 0, status: 'success' });
+  const itemDone = (map_name: string, index: number, total_items: number): MapItemCompleteEvent =>
+    ({ map_name, index, total_items, status: 'success' });
+
+  it('renders a map reached through a call, which used to print nothing at all', () => {
+    const d = display();
+    const ev = d.getEvents();
+
+    ev.onMapStart!(mapStart('classify-verdicts', 3, 2), at(1));
+    expect(logs.find(l => l.includes('classify-verdicts'))).toBeDefined();
+
+    ev.onMapItemComplete!(itemDone('classify-verdicts', 0, 3), at(1));
+    ev.onMapComplete!(mapDone('classify-verdicts', 3, 3), at(1));
+
+    const summary = logs.filter(l => l.includes('3/3 succeeded'));
+    expect(summary).toHaveLength(1);
+    d.interrupt();
+  });
+
+  it('indents a nested fan-out deeper than a root one', () => {
+    const root = display();
+    root.getEvents().onMapStart!(mapStart('m', 1, 1));
+    const rootHeader = logs.find(l => l.includes('↳ m'))!;
+    root.interrupt();
+
+    logs.length = 0;
+    const nested = display();
+    nested.getEvents().onMapStart!(mapStart('m', 1, 1), at(2));
+    const nestedHeader = logs.find(l => l.includes('↳ m'))!;
+    nested.interrupt();
+
+    const pad = (l: string) => l.length - l.trimStart().length;
+    expect(pad(nestedHeader)).toBeGreaterThan(pad(rootHeader));
+  });
+
+  it('routes events to the fan-out they came from, not to whichever is newest', () => {
+    const d = display();
+    const ev = d.getEvents();
+
+    ev.onMapStart!(mapStart('outer', 2, 1), at(1, 0));
+    ev.onMapStart!(mapStart('inner', 5, 1), at(2, 0));
+    expect(stack(d).map(e => e.key)).toEqual(['1#d1#0', '2#d2#0']);
+
+    // The inner one finishes; the outer must survive and still be addressable.
+    ev.onMapComplete!(mapDone('inner', 5, 5), at(2, 0));
+    expect(stack(d).map(e => e.key)).toEqual(['1#d1#0']);
+    expect(logs.find(l => l.includes('5/2'))).toBeUndefined();  // never credited to 'outer'
+
+    ev.onMapComplete!(mapDone('outer', 2, 2), at(1, 0));
+    expect(stack(d)).toHaveLength(0);
+    d.interrupt();
+  });
+
+  it('keeps two concurrent same-depth fan-outs apart', () => {
+    const d = display();
+    const ev = d.getEvents();
+
+    ev.onMapStart!(mapStart('a', 1, 1), at(1, 0));
+    ev.onMapStart!(mapStart('b', 1, 1), at(1, 1));
+    expect(stack(d)).toHaveLength(2);
+
+    ev.onMapComplete!(mapDone('b', 1, 1), at(1, 1));
+    expect(stack(d).map(e => e.key)).toEqual(['1#d1#0']);
+    d.interrupt();
+  });
+
+  it('gives the bottom line to the innermost renderer and hands it back', () => {
+    const d = display();
+    const ev = d.getEvents();
+    const suspended = (i: number) => stack(d)[i].renderer.suspended;
+
+    ev.onMapStart!(mapStart('outer', 2, 1), at(1, 0));
+    expect(suspended(0)).toBe(false);
+
+    ev.onMapStart!(mapStart('inner', 5, 1), at(2, 0));
+    expect(suspended(0)).toBe(true);   // outer stepped aside
+    expect(suspended(1)).toBe(false);
+
+    ev.onMapComplete!(mapDone('inner', 5, 5), at(2, 0));
+    expect(suspended(0)).toBe(false);  // outer took it back
+    d.interrupt();
+  });
+
+  it('collapses nested stage lines inside a fan-out, at any depth', () => {
+    const d = display();
+    const ev = d.getEvents();
+
+    ev.onMapStart!(mapStart('fan-out', 2, 1), at(1));
+    logs.length = 0;
+    ev.onStageStart!(
+      { stage_name: 'item-stage', stage_index: 0, total_stages: 1, max_attempts: 1 },
+      at(2),
+    );
+    expect(logs.find(l => l.includes('item-stage'))).toBeUndefined();
+    d.interrupt();
+  });
+
+  it('emits nothing extra in json mode', () => {
+    const ev = new ProgressDisplay(true, { live: false, verbose: false }).getEvents();
+    ev.onMapStart!(mapStart('m', 1, 1), at(1));
+    ev.onMapComplete!(mapDone('m', 1, 1), at(1));
+    expect(logs).toHaveLength(0);
+  });
+
+  it('drops every live fan-out on interrupt, whatever its depth', () => {
+    const d = display();
+    const ev = d.getEvents();
+    ev.onMapStart!(mapStart('a', 1, 1), at(1, 0));
+    ev.onMapStart!(mapStart('b', 1, 1), at(2, 0));
+    d.interrupt();
+    expect(stack(d)).toHaveLength(0);
   });
 });
