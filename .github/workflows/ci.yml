@@ -49,3 +49,30 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  workflows:
+    name: Lint the workflow files
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads every file in .github/workflows/, including the dispatch-only publish
+      # ones no PR would otherwise exercise.
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+
+      # actionlint is offline: a pin that does not exist still lints clean.
+      - name: Check every action reference resolves
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          while read -r file ref; do
+            if gh api "repos/${ref%@*}/commits/${ref#*@}" --silent; then
+              echo "ok            $ref ($file)"
+            else
+              echo "unresolvable: $ref in $file"
+              rc=1
+            fi
+          done < <(grep -roE 'uses: [^ ]+@[^ ]+' .github/workflows/ | sed 's/:uses: / /' | sort -u)
+          exit $rc
