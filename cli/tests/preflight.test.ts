@@ -21,6 +21,50 @@ const write = (name: string, content: string) =>
 const byName = (checks: PreflightCheck[], name: string): PreflightCheck =>
   checks.find((c) => c.name === name)!;
 
+describe('the script-interpreter check (STU-898)', () => {
+  it('passes when nothing is declared', async () => {
+    const check = byName(await collectChecks(STUDIO_DIR, {}), 'Script interpreters');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('none declared');
+  });
+
+  it('fails and names the runtime when a declared interpreter is not on disk', async () => {
+    const check = byName(
+      await collectChecks(STUDIO_DIR, { runtimes: { python: '/nope/not/a/python3' } }),
+      'Script interpreters'
+    );
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('python');
+    expect(check.fix).toContain('/nope/not/a/python3');
+  });
+
+  it('fails on a bare command name that is not on PATH', async () => {
+    const check = byName(
+      await collectChecks(STUDIO_DIR, { runtimes: { python: 'definitely-not-a-real-binary' } }),
+      'Script interpreters'
+    );
+    expect(check.status).toBe('fail');
+  });
+
+  it('passes on an interpreter that resolves', async () => {
+    const check = byName(
+      await collectChecks(STUDIO_DIR, { runtimes: { node: process.execPath } }),
+      'Script interpreters'
+    );
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('node');
+  });
+
+  it('skips an entry whose ${VAR} resolved to nothing rather than failing on it', async () => {
+    const check = byName(
+      await collectChecks(STUDIO_DIR, { runtimes: { python: '' } }),
+      'Script interpreters'
+    );
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('none declared');
+  });
+});
+
 describe('unsetEnvRefs', () => {
   it('reports references with no value in the environment', () => {
     expect(unsetEnvRefs('apiKey: ${MISSING_KEY}', {})).toEqual(['MISSING_KEY']);
@@ -50,6 +94,7 @@ describe('collectChecks', () => {
       'Studio version',
       'Config',
       'Required binaries',
+      'Script interpreters',
       'Env vars',
       'Contracts',
     ]);

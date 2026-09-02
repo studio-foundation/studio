@@ -7,7 +7,7 @@ export { runAgent } from './runner.js';
 export type { RunAgentConfig, AgentRunResult } from './runner.js';
 
 // Script executor
-export { runScript } from './script-executor.js';
+export { runScript, resolveRuntime } from './script-executor.js';
 export type { ScriptExecutorConfig } from './script-executor.js';
 
 // Prompt builder

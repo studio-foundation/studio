@@ -1,7 +1,9 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
-import { loadProjectTools } from '@studio-foundation/runner';
+import { loadProjectTools, resolveRuntime } from '@studio-foundation/runner';
 import type { StudioConfig } from './config.js';
 import {
   CONFIG_FILE,
@@ -198,6 +200,45 @@ async function contractCheck(studioDir: string, config: StudioConfig): Promise<P
   };
 }
 
+/**
+ * Interpreters a script stage will spawn. Resolution runs through the executor's
+ * own `resolveRuntime`, so this check cannot drift from what the run will do.
+ */
+function runtimeCheck(config: StudioConfig, cwd: string): PreflightCheck {
+  const declared = Object.entries(config.runtimes ?? {}).filter(([, path]) => path);
+  if (declared.length === 0) {
+    return { name: 'Script interpreters', status: 'ok', detail: 'none declared' };
+  }
+
+  const missing = declared.filter(([runtime]) => {
+    const { command } = resolveRuntime(runtime, cwd, config.runtimes);
+    return command.includes('/')
+      ? !existsSync(command)
+      : spawnSync('which', [command], { encoding: 'utf8' }).status !== 0;
+  });
+
+  if (missing.length === 0) {
+    return {
+      name: 'Script interpreters',
+      status: 'ok',
+      detail: declared.map(([runtime]) => runtime).join(', '),
+    };
+  }
+
+  return {
+    name: 'Script interpreters',
+    status: 'fail',
+    detail: `${missing.map(([runtime]) => runtime).join(', ')} unresolvable`,
+    fix:
+      'Interpreters declared in `runtimes:` that are not on this machine:\n' +
+      missing
+        .map(([runtime, path]) => `  - ${runtime}: ${path}`)
+        .join('\n') +
+      '\n  Install them, or point the key at a path that exists. An entry interpolating\n' +
+      '  an unset ${VAR} resolves to nothing and is skipped, not checked.',
+  };
+}
+
 /** Every preflight check, in display order. Never throws — a broken check reports itself. */
 export async function collectChecks(
   studioDir: string,
@@ -207,6 +248,7 @@ export async function collectChecks(
     versionCheck(config),
     await configCheck(studioDir),
     binaryCheck(await binaryRequirements(studioDir, config)),
+    runtimeCheck(config, resolve(studioDir, '..')),
     await envCheck(studioDir),
     await contractCheck(studioDir, config),
   ];

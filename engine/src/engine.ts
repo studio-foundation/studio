@@ -57,6 +57,7 @@ export interface EngineConfig {
   maxDepth?: number;     // max nesting depth for spawned runs, default 3
   defaultProvider?: string;  // fallback when agent YAML omits provider
   defaultModel?: string;     // fallback when agent YAML omits model
+  runtimes?: Record<string, string>;  // script-stage interpreters, keyed by runtime
 }
 
 export interface RunInput {
@@ -176,6 +177,7 @@ export class PipelineEngine {
       providerOverride: config.providerOverride,
       defaultProvider: config.defaultProvider,
       defaultModel: config.defaultModel,
+      runtimes: config.runtimes,
     });
     this.groupOrchestrator = new GroupOrchestrator({
       events,

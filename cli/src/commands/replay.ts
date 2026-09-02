@@ -455,6 +455,7 @@ export async function restartCommand(
       db: runStore ?? undefined,
       defaultProvider: config.defaults?.provider,
       defaultModel: config.defaults?.model,
+      runtimes: config.runtimes,
       ...(options.provider ? { providerOverride: options.provider } : {}),
     };
 

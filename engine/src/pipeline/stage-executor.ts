@@ -79,6 +79,7 @@ export interface StageExecutorConfig {
   providerOverride?: string;
   defaultProvider?: string;
   defaultModel?: string;
+  runtimes?: Record<string, string>;
 }
 
 export class StageExecutor {
@@ -386,6 +387,7 @@ export class StageExecutor {
               context: agentContext,
               cwd: this.config.repoPath ?? this.config.configsDir,
               timeoutMs: stageDef.timeout_ms,
+              runtimes: this.config.runtimes,
             });
 
         // Record agent run. A terminal executor error (a crashed script, max
