@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPrompt } from './prompt-builder.js';
 import type { AgentConfig } from '@studio-foundation/contracts';
-import type { SkillContent } from './tools/skills/skill-loader.js';
+import type { SkillContent } from './plugins/plugin-loader.js';
 
 const AGENT: AgentConfig = {
   name: 'test-agent',
