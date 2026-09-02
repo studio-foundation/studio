@@ -3,7 +3,7 @@
  */
 
 import type { Message, AgentConfig, OutputContract, ResolvedContextPack, ToolCall, TaskInput } from '@studio-foundation/contracts';
-import type { SkillContent } from './tools/skills/skill-loader.js';
+import type { SkillContent } from './plugins/plugin-loader.js';
 
 // TaskInput is the runner's input contract — defined in @studio-foundation/contracts
 // (the leaf package) and re-exported here so existing `@studio-foundation/runner`

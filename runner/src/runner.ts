@@ -11,7 +11,7 @@ import { ToolExecutor } from './tools/tool-executor.js';
 import type { ProviderRegistry } from './providers/registry.js';
 import { isAgentLoopProvider } from './providers/provider.js';
 import type { AnonymizationMiddleware } from './middleware/anonymization.js';
-import type { SkillContent } from './tools/skills/skill-loader.js';
+import type { SkillContent } from './plugins/plugin-loader.js';
 
 /** Prefix used to identify unauthorized tool calls in error messages. */
 export const UNAUTHORIZED_TOOL_ERROR_PREFIX = 'Unauthorized tool call:';

@@ -75,6 +75,4 @@ export { loadPlugins, MCPClient, StudioOAuthProvider } from './plugins/index.js'
 export type { PluginManifest, MCPServerDef, SkillContent } from './plugins/index.js';
 
 // Skill loader
-export { loadSkills, loadSkill, validateSkillManifest } from './tools/skills/skill-loader.js';
-export type { SkillManifest } from './tools/skills/skill-loader.js';
 

@@ -427,6 +427,27 @@ skills:
 
 The skill content is auto-injected into the agent's system prompt. No code involved, just markdown that becomes context.
 
+A file may open with YAML frontmatter. It is metadata, not prompt text — the body alone
+reaches the model:
+
+```markdown
+---
+name: commit-conventions
+description: How this repo words a commit message.
+---
+Commit messages follow conventional commits format:
+```
+
+Skills resolve by **filename**, so a frontmatter `name` that disagrees with the file it sits
+in is a load error rather than a silent preference for one of the two. A file with no
+frontmatter is all body, unchanged.
+
+**A declared skill that cannot be read fails the run.** A missing file, a typo, a plugin
+that did not install — each aborts the load naming the skill and the path tried, the same
+way a missing agent or contract does. Skills carry grounding, so an agent that answered
+without one would produce a well-formed, confidently invented answer that validates against
+its contract and reports success. Silence is the one outcome that cannot be allowed here.
+
 ---
 
 ## Tool plugins
