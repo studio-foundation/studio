@@ -54,6 +54,19 @@ Validation is binary. The output either satisfies every constraint or it doesn't
 
 **`required_tools`** enforces that specific tools were actually called. A code generation stage that never called `write_file` didn't generate code.
 
+**`per_tool`** bounds one named tool, which the stage-wide numbers cannot. `minimum` and `maximum` count every tool together, so they say nothing about any individual one the moment a stage has several — and each tool added forces the ceiling up, buying the agent more room to loop on the tool that matters. `per_tool` writes it the other way round:
+
+```yaml
+tool_calls:
+  minimum: 1
+  maximum: 20              # still a loop guard for the stage as a whole
+  per_tool:
+    mail_drafts.create_draft: { minimum: 1, maximum: 1 }   # exactly one draft
+    club_web.search_site: { maximum: 6 }                   # search freely, within reason
+```
+
+Both bounds count **successful** calls, like every other tool rule, and both spellings of a tool name resolve to the same tool. A tool the block does not name is unconstrained by it, and a contract with no `per_tool` validates exactly as before.
+
 ### Field-level validation (`schema.fields`)
 
 `required_fields` only checks that a top-level key is present. `schema.fields` goes further, declaratively: the type a field must hold, the set of values it may take, and — for objects and arrays — the shape of what's nested inside. It fires only for fields that are present, so it composes cleanly with `required_fields` (presence) rather than duplicating it.

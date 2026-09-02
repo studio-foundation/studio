@@ -220,6 +220,31 @@ export function validateCountedTools(toolCalls: ToolCall[], requirements?: ToolC
   return { valid: errors.length === 0, errors, warnings };
 }
 
+export function validatePerToolCalls(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  for (const [tool, limit] of Object.entries(requirements?.per_tool ?? {})) {
+    const normalized = normalizeToolName(tool);
+    const count = toolCalls.filter(
+      (tc) => normalizeToolName(tc.name) === normalized && isSuccessfulToolCall(tc)
+    ).length;
+
+    if (limit.minimum !== undefined && count < limit.minimum) {
+      errors.push(
+        `Tool '${tool}': expected at least ${limit.minimum} successful call${limit.minimum === 1 ? '' : 's'}, got ${count}`
+      );
+    }
+    if (limit.maximum !== undefined && count > limit.maximum) {
+      errors.push(
+        `Tool '${tool}': made ${count} successful call${count === 1 ? '' : 's'}, maximum is ${limit.maximum}`
+      );
+    }
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
 export function validateToolGroups(toolCalls: ToolCall[], requirements?: ToolCallRequirements): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];

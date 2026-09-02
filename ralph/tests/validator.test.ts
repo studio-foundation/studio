@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateSchema, validateToolCalls, validateRequiredTools, validateCountedTools, validateToolGroups, compose } from '../src/validator.js';
+import { validateSchema, validateToolCalls, validateRequiredTools, validateCountedTools, validateToolGroups, validatePerToolCalls, compose } from '../src/validator.js';
 import type { OutputContract, ToolCall } from '@studio-foundation/contracts';
 
 describe('validateSchema', () => {
@@ -243,6 +243,65 @@ describe('validateSchema — field-level (types, enums, nested)', () => {
     expect(validateSchema({}, contract).errors).toContain('Missing required field: status');
     // valid
     expect(validateSchema({ status: 'approved' }, contract).valid).toBe(true);
+  });
+});
+
+describe('validatePerToolCalls', () => {
+  const call = (name: string, id: string): ToolCall => ({ id, name, arguments: {} });
+  const failed = (name: string, id: string): ToolCall => ({ id, name, arguments: {}, error: 'HTTP 400' });
+
+  const draft = 'mail_drafts-create_draft';
+  const search = 'club_web-search_site';
+
+  it('fails a tool over its own maximum even when the stage total is under the stage maximum', () => {
+    const calls = [call(draft, '1'), call(draft, '2'), call(search, '3')];
+    // 3 calls total — well under a stage maximum of 16 — but two drafts.
+    expect(validateToolCalls(calls, { maximum: 16 }).valid).toBe(true);
+    const result = validatePerToolCalls(calls, { per_tool: { [draft]: { maximum: 1 } } });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain(draft);
+    expect(result.errors[0]).toContain('maximum is 1');
+  });
+
+  it('still fails on the stage rule when a tool is inside its per_tool bound', () => {
+    const calls = Array.from({ length: 5 }, (_, i) => call(search, String(i)));
+    expect(validatePerToolCalls(calls, { per_tool: { [search]: { maximum: 6 } } }).valid).toBe(true);
+    expect(validateToolCalls(calls, { maximum: 3 }).valid).toBe(false);
+  });
+
+  it('enforces a per-tool minimum', () => {
+    const result = validatePerToolCalls([call(search, '1')], { per_tool: { [draft]: { minimum: 1 } } });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain(`Tool '${draft}': expected at least 1 successful call, got 0`);
+  });
+
+  it('pins a tool to exactly one call', () => {
+    const spec = { per_tool: { [draft]: { minimum: 1, maximum: 1 } } };
+    expect(validatePerToolCalls([call(draft, '1')], spec).valid).toBe(true);
+    expect(validatePerToolCalls([], spec).valid).toBe(false);
+    expect(validatePerToolCalls([call(draft, '1'), call(draft, '2')], spec).valid).toBe(false);
+  });
+
+  it('counts successful calls only, like every other tool rule', () => {
+    const calls = [call(draft, '1'), failed(draft, '2'), failed(draft, '3')];
+    expect(validatePerToolCalls(calls, { per_tool: { [draft]: { maximum: 1 } } }).valid).toBe(true);
+  });
+
+  it('matches dot and dash spellings of the same tool', () => {
+    const calls = [call('mail_drafts.create_draft', '1'), call(draft, '2')];
+    const result = validatePerToolCalls(calls, { per_tool: { 'mail_drafts.create_draft': { maximum: 1 } } });
+    expect(result.valid).toBe(false);
+  });
+
+  it('ignores tools it does not name', () => {
+    const calls = Array.from({ length: 9 }, (_, i) => call(search, String(i)));
+    expect(validatePerToolCalls(calls, { per_tool: { [draft]: { maximum: 1 } } }).valid).toBe(true);
+  });
+
+  it('is a no-op with no per_tool block', () => {
+    const calls = [call(draft, '1'), call(draft, '2')];
+    expect(validatePerToolCalls(calls, { maximum: 1 }).valid).toBe(true);
+    expect(validatePerToolCalls(calls, undefined).valid).toBe(true);
   });
 });
 
