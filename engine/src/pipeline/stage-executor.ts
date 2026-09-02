@@ -20,6 +20,7 @@ import {
   validateRequiredTools,
   validateCountedTools,
   validateToolGroups,
+  validatePerToolCalls,
   compose,
   exponentialBackoff,
   fixedDelay,
@@ -653,6 +654,12 @@ export class StageExecutor {
     // Tool groups validation (OR per group — at least one tool from each group must be called)
     if (toolCallReqs?.required_tool_groups?.length) {
       validators.push((result) => validateToolGroups(result.tool_calls, toolCallReqs));
+    }
+
+    // Per-tool bounds — the stage-wide minimum/maximum say nothing about an
+    // individual tool once a stage has several.
+    if (toolCallReqs?.per_tool && Object.keys(toolCallReqs.per_tool).length > 0) {
+      validators.push((result) => validatePerToolCalls(result.tool_calls, toolCallReqs));
     }
 
     // External validators — run a command against the REAL output (not tool args).

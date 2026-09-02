@@ -5,6 +5,7 @@ import {
   validateRequiredTools,
   validateCountedTools,
   validateToolGroups,
+  validatePerToolCalls,
 } from '@studio-foundation/ralph';
 import { postValidate, type PostValidationResult } from './post-validator.js';
 
@@ -26,6 +27,7 @@ export function validateOutput(
     validateRequiredTools(toolCalls, contract.tool_calls),
     validateCountedTools(toolCalls, contract.tool_calls),
     validateToolGroups(toolCalls, contract.tool_calls),
+    validatePerToolCalls(toolCalls, contract.tool_calls),
   ];
 
   const errors = results.flatMap(r => r.errors);

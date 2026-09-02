@@ -255,7 +255,13 @@ tool_calls:
   maximum: 15
   required_tools:
     - repo_manager.write_file    # Dot format in contract YAML
+  per_tool:
+    repo_manager.write_file: { maximum: 5 }   # bound one tool, not the stage
 ```
+
+`minimum`/`maximum` count every tool together; `per_tool` bounds a named one, which is
+what lets a contract say "search as often as you like, but write exactly one draft"
+instead of raising the stage ceiling each time a tool is added.
 
 **Note:** Contract YAML uses dot format (`repo_manager.write_file`), runtime uses dash format (`repo_manager-write_file`). The engine transforms.
 

@@ -1,11 +1,24 @@
 // Validation contracts and results
 
+/** Bounds on how many successful calls one named tool may make. */
+export interface PerToolLimit {
+  minimum?: number;
+  maximum?: number;
+}
+
 export interface ToolCallRequirements {
   minimum?: number;
   maximum?: number;
   required_tools?: string[];
   required_tool_groups?: string[][];
   counted_tools?: string[];
+  /**
+   * Per-tool bounds, keyed by tool name. `minimum`/`maximum` above stay
+   * stage-wide: they count every tool together, which says nothing about any
+   * individual one once a stage has several. This is what lets a contract say
+   * "search as often as you like, but write exactly one draft".
+   */
+  per_tool?: Record<string, PerToolLimit>;
 }
 
 /**

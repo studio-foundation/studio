@@ -91,6 +91,33 @@ tool_calls:
     expect(() => parseContractYaml(yamlContent)).toThrow(/Did you mean 'minimum'\?/);
   });
 
+  it('rejects a typo inside a per_tool entry, naming the tool', () => {
+    const yamlContent = `
+name: typo-per-tool
+version: 1
+tool_calls:
+  per_tool:
+    mail_drafts.create_draft:
+      maximumm: 1
+`;
+    expect(() => parseContractYaml(yamlContent)).toThrow(
+      /tool_calls\.per_tool\.mail_drafts\.create_draft/
+    );
+  });
+
+  it('accepts a well-formed per_tool block', () => {
+    const yamlContent = `
+name: per-tool-ok
+version: 1
+tool_calls:
+  minimum: 1
+  per_tool:
+    mail_drafts.create_draft: { minimum: 1, maximum: 1 }
+    club_web.search_site: { maximum: 6 }
+`;
+    expect(() => parseContractYaml(yamlContent)).not.toThrow();
+  });
+
   it('rejects an unknown key inside expected_outputs', () => {
     const yamlContent = `
 name: bad-outputs

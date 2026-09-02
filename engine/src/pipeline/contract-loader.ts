@@ -17,7 +17,9 @@ const FIELD_SPEC_FIELDS = ['type', 'enum', 'required_fields', 'fields', 'items']
 const EXPECTED_OUTPUTS_FIELDS = ['files'] as const;
 const TOOL_CALLS_FIELDS = [
   'minimum', 'maximum', 'required_tools', 'required_tool_groups', 'counted_tools',
+  'per_tool',
 ] as const;
+const PER_TOOL_FIELDS = ['minimum', 'maximum'] as const;
 const VALIDATOR_FIELDS = ['name', 'command', 'timeout_ms'] as const;
 const CUSTOM_RULE_FIELDS = ['name', 'description', 'check'] as const;
 const POST_VALIDATION_FIELDS = ['rejection_detection'] as const;
@@ -75,6 +77,12 @@ export function parseContractYaml(yamlContent: string, sourcePath?: string): Out
     checkFieldSpecs(schemaFields as Record<string, unknown>, 'schema.fields', inContract, context);
   }
   check(parsed.tool_calls, TOOL_CALLS_FIELDS, 'tool_calls');
+  const perTool = (parsed.tool_calls as Record<string, unknown> | undefined)?.per_tool;
+  if (perTool && typeof perTool === 'object' && !Array.isArray(perTool)) {
+    for (const [tool, limit] of Object.entries(perTool as Record<string, unknown>)) {
+      check(limit, PER_TOOL_FIELDS, `tool_calls.per_tool.${tool}`);
+    }
+  }
   check(parsed.expected_outputs, EXPECTED_OUTPUTS_FIELDS, 'expected_outputs');
   check(parsed.post_validation, POST_VALIDATION_FIELDS, 'post_validation');
   const rejectionDetection = (parsed.post_validation as Record<string, unknown> | undefined)
