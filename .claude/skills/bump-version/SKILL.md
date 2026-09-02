@@ -89,7 +89,8 @@ gh release edit vX.Y.Z --draft=false --latest
 
 Before that last line, prove the assets are complete — the release is immutable once
 published, so a missing binary cannot be added afterwards. Do not count them by hand;
-`scripts/platforms.mjs` is what the build reads, so ask it:
+`scripts/platforms.mjs` is what the build reads, so ask it — **from a checkout that has the
+code being released**, which is usually the bump worktree, not the main checkout:
 
 ```bash
 diff <(gh release view vX.Y.Z --json assets --jq '.assets[].name' | sort) \
@@ -120,6 +121,8 @@ version.
   for minutes after a publish the workflow reported as successful — it is CDN cache, not a
   partial publish. Confirm against the registry itself before diagnosing anything:
   `curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`.
-  That endpoint lags too — 0.18.0 read `false` for `runner` and `api` for a couple of
-  minutes after a green publish. Poll it before concluding a package did not ship.
+  That endpoint lags too, and reliably: `runner` and `api` read `false` for a few minutes
+  after a green publish on 0.18.0, 0.19.0 **and** 0.20.0 — the same two packages every
+  time. Poll until all 7 answer rather than concluding a package did not ship; 0.20.0 took
+  eight 20-second rounds.
 - **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.
