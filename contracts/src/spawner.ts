@@ -2,6 +2,7 @@
 // Implementations: DirectEngineSpawner (engine) and HttpApiSpawner (api).
 
 import type { StageStatus } from './stage';
+import type { StageRun } from './run';
 import type { TokenUsage } from './usage';
 
 /**
@@ -72,4 +73,38 @@ export class ChildRunError extends Error {
 
 export interface RunSpawner {
   spawnAndWait(config: SpawnConfig): Promise<SpawnResult>;
+}
+
+/**
+ * Read a child run's per-stage cost record off its stages. Lives here rather than
+ * in either spawner so both report the same shape — a pipeline's cost reporting
+ * must not depend on whether its children ran in-process or over the API.
+ *
+ * Attempts come from the agent runs the stage recorded — one per RALPH attempt —
+ * so a stage that retried twice reports 3, not 1.
+ */
+export function childStageUsage(stages: StageRun[]): ChildStageUsage[] {
+  return stages.map((stage) => ({
+    stage: stage.stage_name,
+    status: stage.status,
+    attempts: stage.tasks.reduce(
+      (max, task) => task.agent_runs.reduce((n, run) => Math.max(n, run.attempt), max),
+      0,
+    ),
+    ...(stage.token_usage ? { token_usage: stage.token_usage } : {}),
+  }));
+}
+
+/**
+ * The error a terminal child run actually died of, dug out of its last failed
+ * stage. Without it a caller sees only the status, which names no cause.
+ */
+export function childRunErrorMessage(stages: StageRun[]): string | undefined {
+  const lastFailed = [...stages]
+    .reverse()
+    .find((s) => s.status === 'failed' || s.status === 'rejected' || s.status === 'cancelled');
+  return lastFailed?.tasks
+    .flatMap((t) => t.agent_runs)
+    .reverse()
+    .find((a) => a.error)?.error;
 }

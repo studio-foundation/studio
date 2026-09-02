@@ -1,24 +1,8 @@
-import type { ChildStageUsage, RunSpawner, SpawnConfig, SpawnResult, PipelineRun, StageRun } from '@studio-foundation/contracts';
-import { ChildRunError, sumTokenUsage } from '@studio-foundation/contracts';
+import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
+import { ChildRunError, childRunErrorMessage, childStageUsage, sumTokenUsage } from '@studio-foundation/contracts';
 import type { ProviderRegistry } from '@studio-foundation/runner';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
-
-/**
- * Attempts come from the agent runs the stage recorded — one per RALPH attempt —
- * so a stage that retried twice reports 3, not 1.
- */
-function childStageUsage(stages: StageRun[]): ChildStageUsage[] {
-  return stages.map(stage => ({
-    stage: stage.stage_name,
-    status: stage.status,
-    attempts: stage.tasks.reduce(
-      (max, task) => task.agent_runs.reduce((n, run) => Math.max(n, run.attempt), max),
-      0,
-    ),
-    ...(stage.token_usage ? { token_usage: stage.token_usage } : {}),
-  }));
-}
 
 export class DirectEngineSpawner implements RunSpawner {
   private childCounter = 0;
@@ -67,13 +51,7 @@ export class DirectEngineSpawner implements RunSpawner {
     const token_usage = sumTokenUsage(result.stages.map(s => s.token_usage));
 
     if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
-      const lastFailedStage = [...result.stages].reverse().find(
-        s => s.status === 'failed' || s.status === 'rejected' || s.status === 'cancelled'
-      );
-      const stageError = lastFailedStage?.tasks
-        .flatMap(t => t.agent_runs)
-        .reverse()
-        .find(a => a.error)?.error;
+      const stageError = childRunErrorMessage(result.stages);
       throw new ChildRunError(
         `Child run ${result.id} ${result.status}: ${stageError ?? 'no error recorded'}`,
         result.id,
