@@ -329,12 +329,21 @@ url = ctx["input"]["url"]        # not a YAML dump
 
 **Which interpreter it runs.** The script is spawned directly, not through a shell, so the repo needs a way to say which interpreter it means. Resolution order, first match wins:
 
-1. **`STUDIO_<RUNTIME>_BIN`** — `STUDIO_PYTHON_BIN`, `STUDIO_NODE_BIN`, `STUDIO_SHELL_BIN`. An absolute path, taken verbatim. The studio process inherits its environment, so a consumer repo's Makefile hands the interpreter over with no config round-trip.
-2. **`VIRTUAL_ENV`** (python) — an activated virtualenv wins over one sitting at `cwd`: the operator chose it, whereas a `.venv/` on disk may be a stale sibling of the one they meant. This is what makes `source .venv-3.12/bin/activate && studio run …` work.
-3. **`venv/` then `.venv/` at the stage's `cwd`** (python) — sniffed, activated by prepending its `bin` to `PATH`.
-4. **The runtime default** — `python3`, `node`, `sh`, resolved through `PATH`.
+1. **`runtimes:` in `.studio/config.yaml`** — the interpreter the project declares, keyed by runtime. This is the only step `studio doctor` can see, which is why it exists: an interpreter named here is checked before the first stage rather than discovered as a spawn failure mid-run.
 
-Steps 2 and 3 also set `VIRTUAL_ENV` and prepend `bin` to `PATH` for the child, so a script that shells out further stays inside the same environment. A stage that fails to spawn names the interpreter path it tried and the override variable that would change it — a missing interpreter reads as a missing interpreter, not as a dead stage.
+   ```yaml
+   runtimes:
+     python: ${STUDIO_PYTHON_BIN}
+     node: /opt/node22/bin/node
+   ```
+
+   The config names the key, the environment supplies the value. An entry interpolating an unset `${VAR}` becomes an empty string and falls through to the next step rather than resolving to an empty command — so declaring the key costs nothing on a machine that has not set it.
+2. **`STUDIO_<RUNTIME>_BIN`** — `STUDIO_PYTHON_BIN`, `STUDIO_NODE_BIN`, `STUDIO_SHELL_BIN`. An absolute path, taken verbatim. The studio process inherits its environment, so a consumer repo's Makefile hands the interpreter over with no config round-trip.
+3. **`VIRTUAL_ENV`** (python) — an activated virtualenv wins over one sitting at `cwd`: the operator chose it, whereas a `.venv/` on disk may be a stale sibling of the one they meant. This is what makes `source .venv-3.12/bin/activate && studio run …` work.
+4. **`venv/` then `.venv/` at the stage's `cwd`** (python) — sniffed, activated by prepending its `bin` to `PATH`.
+5. **The runtime default** — `python3`, `node`, `sh`, resolved through `PATH`.
+
+Steps 3 and 4 also set `VIRTUAL_ENV` and prepend `bin` to `PATH` for the child, so a script that shells out further stays inside the same environment. A stage that fails to spawn names the interpreter path it tried and the override variable that would change it — a missing interpreter reads as a missing interpreter, not as a dead stage.
 
 ---
 

@@ -568,6 +568,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       db: runStore ?? undefined,
       defaultProvider: config.defaults?.provider,
       defaultModel: config.defaults?.model,
+      runtimes: config.runtimes,
       ...(options.provider ? { providerOverride: options.provider } : {}),
     };
 

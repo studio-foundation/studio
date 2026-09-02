@@ -41,6 +41,8 @@ export interface StudioApiConfig {
   };
   paths?: { projects_dir?: string };
   defaults?: { provider?: string; model?: string };
+  /** Interpreter a script stage's runtime spawns, keyed by runtime. */
+  runtimes?: Record<string, string>;
   api?: { key?: string; port?: number };
   db?: {
     type?: 'sqlite' | 'postgres' | 'inmemory';
@@ -199,6 +201,7 @@ export async function bootstrap(cwd: string = process.cwd()): Promise<BootstrapR
     maxDepth: 3,
     defaultProvider: config.defaults?.provider,
     defaultModel: config.defaults?.model,
+    runtimes: config.runtimes,
   };
 
   const bus = new RunEventBus();

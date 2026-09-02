@@ -11,6 +11,8 @@ export interface StudioConfig {
   studio_version?: string;
   /** Binaries this project needs: `"git"`, or `"node >=18 <=22"` for a range. */
   requires_binaries?: string[];
+  /** Interpreter a script stage's runtime spawns, e.g. `{ python: "${STUDIO_PYTHON_BIN}" }`. */
+  runtimes?: Record<string, string>;
   /** Startup warnings that can be switched off for a project that means it. */
   warnings?: {
     /** Warn when a stage declares no `contract:` and runs unvalidated. Default true. */

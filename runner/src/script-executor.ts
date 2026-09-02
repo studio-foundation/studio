@@ -10,6 +10,8 @@ export interface ScriptExecutorConfig {
   context: AgentContext;
   cwd?: string;
   timeoutMs?: number;
+  /** Interpreters the project declared in `.studio/config.yaml`, keyed by runtime. */
+  runtimes?: Record<string, string>;
 }
 
 const RUNTIME_COMMANDS: Record<string, string> = {
@@ -37,8 +39,14 @@ function resolvePythonVenv(env: Record<string, string>, cwd: string): string | n
 export function resolveRuntime(
   runtime: string,
   cwd: string,
+  runtimes?: Record<string, string>,
 ): { command: string; env: Record<string, string> } {
   const env = { ...process.env } as Record<string, string>;
+
+  // An unset `${VAR}` interpolates to '', which must fall through rather than
+  // resolve to an empty command.
+  const declared = runtimes?.[runtime];
+  if (declared) return { command: declared, env };
 
   const override = env[overrideVar(runtime)];
   if (override) return { command: override, env };
@@ -60,7 +68,7 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
   const startTime = Date.now();
   const cwd = config.cwd ?? process.cwd();
   const timeoutMs = config.timeoutMs ?? 30_000;
-  const { command: cmd, env } = resolveRuntime(config.runtime, cwd);
+  const { command: cmd, env } = resolveRuntime(config.runtime, cwd, config.runtimes);
   const stdin = JSON.stringify(config.context);
 
   return new Promise((resolve) => {
