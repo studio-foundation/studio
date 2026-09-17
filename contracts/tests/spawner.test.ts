@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { childStageUsage, childRunErrorMessage } from '../src/spawner.js';
 import type { StageRun } from '../src/run.js';
 
-const run = (attempt: number, error?: string) => ({ attempt, ...(error ? { error } : {}) });
+const run = (attempt: number, error?: string, agent_name = 'test-agent') =>
+  ({ attempt, agent_name, ...(error ? { error } : {}) });
+const scriptRun = (attempt: number, error?: string) => run(attempt, error, 'script:settle.sh');
 
 const stage = (
   stage_name: string,
   status: string,
-  agent_runs: Array<{ attempt: number; error?: string }>,
+  agent_runs: Array<{ attempt: number; agent_name: string; error?: string }>,
   token_usage?: { total_tokens: number },
 ): StageRun =>
   ({ id: stage_name, stage_name, status, started_at: '', tasks: [{ agent_runs }], token_usage }) as unknown as StageRun;
@@ -16,6 +18,24 @@ describe('childStageUsage', () => {
   it('reports the highest attempt the stage recorded, not the number of stages', () => {
     const [a] = childStageUsage([stage('a', 'success', [run(1), run(2), run(3)])]);
     expect(a.attempts).toBe(3);
+  });
+
+  it('reports 0 for a stage that ran no agent, only a script (STU-1245)', () => {
+    const [a] = childStageUsage([stage('settle', 'success', [scriptRun(1)])]);
+    expect(a.attempts).toBe(0);
+  });
+
+  it('reports 0 for a script stage that failed, same as one that succeeded', () => {
+    const [a] = childStageUsage([stage('settle', 'failed', [scriptRun(1, 'exit code 1')])]);
+    expect(a.attempts).toBe(0);
+  });
+
+  it('counts an agent stage normally when a script stage sits beside it', () => {
+    const got = childStageUsage([
+      stage('think', 'success', [run(1), run(2)]),
+      stage('settle', 'success', [scriptRun(1)]),
+    ]);
+    expect(got.map((s) => [s.stage, s.attempts])).toEqual([['think', 2], ['settle', 0]]);
   });
 
   it('reads attempts across every task, not only the first', () => {
