@@ -472,6 +472,16 @@ export class StageExecutor {
           rawOutput,
         });
       },
+      // The last attempt's rejection reasons would otherwise vanish: the agent
+      // ran fine (status 'success', no `error`) and only failed contract
+      // validation, so without this a parent `map` stage reads "no error
+      // recorded" instead of naming what the contract rejected (STU-1483).
+      onExhausted: (_result, allFailures) => {
+        const lastAgentRun = taskRun.agent_runs[taskRun.agent_runs.length - 1];
+        if (lastAgentRun && !lastAgentRun.error && allFailures.length > 0) {
+          lastAgentRun.error = allFailures.join('; ');
+        }
+      },
       });
     } catch (err) {
       // AbortError from signal propagation is handled inside ralph (returns 'cancelled').
