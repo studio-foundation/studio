@@ -7,6 +7,22 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.21.0] — 2026-09-18
+
+### Runner
+
+- **Breaking: `timeout_ms` is now enforced on agent stages, not only script.** The field was already declared on `StageDefinition` and accepted on any stage, but only the script executor read it — an agent stage's `claude --print` process had no abort path but the whole-pipeline signal (Ctrl-C on the entire run), and one wedged child under a `map` stage held its concurrency slot indefinitely. `runAgent()` now aborts via the same `AbortSignal` every provider already honors for pipeline cancellation. A pipeline that already sets `timeout_ms` on an agent stage now gets real enforcement instead of a silently ignored key — the reason this is a MINOR, not a PATCH. A fired timeout returns a normal `AgentRunResult` with `error` set, the same shape script-executor's own timeout already returns, so RALPH retries it as an ordinary failed attempt (agent stages keep their retries) rather than failing the whole stage on attempt 1. (STU-1485)
+- **A `claude-code` provider API error is now a retry-eligible failed attempt, not a stage-ending throw.** STU-1484 made the provider recognize an error envelope in `claude --print` output and fail the run — but it did so by rejecting the promise, and RALPH's retry loop only treats a throw as retry-eligible when it matches its own cancellation signal. Any other throw skips every remaining attempt. `AgentLoopResult` gains an optional `error` field for exactly this: a provider-reported failure the runner returns as a normal failed attempt instead of throwing, distinct from a reject (still how a genuinely unrecoverable failure — a crash, a missing binary — is reported). Investigated as part of this: the specific unbalanced `tool_use`/`tool_result` 400 this issue was filed against is not a Studio-assembled conversation — no code in this kernel ever constructs a `tool_use`/`tool_result` content block; it is reconstructed entirely inside the `claude` CLI's own internal tool-calling loop, outside Studio's visibility. (STU-1488)
+- **MockProvider's "requires stage_name" error now names the actual requirement.** An agent stage with no `contract:` field, run under `--provider mock`, died with `Error: MockProvider requires stage_name in LLMRequest` — an internal field name, not anything the operator wrote. Both `MockProvider` error paths now say what's missing: add a `contract:` field, and key `mock.yaml` by that contract's name, not the stage's own name. (STU-1486)
+
+### Contracts / Engine
+
+- **`StageRun.attempts` exposes a stage's RALPH attempt count directly, not only via the `onStageComplete` event.** A `studio run <pipeline> --json` caller wanting the number had to re-derive it by walking `tasks[].agent_runs[]` and taking the max `attempt`. The engine already computed it for the event; it just never wrote it onto the record `--json` serializes. Populated on direct stages (`0` for a condition-skipped stage), and on `map`/`call` stages too, which don't retry themselves (always `1`). (STU-1287)
+
+### CLI
+
+- **A `--live` run no longer leaves a frozen "Thinking..." line above a map stage's header.** A stage that turns out to be a `map` fan-out emits `onMapStart` synchronously, in the same tick as `onStageStart` — so the CLI's live renderer had already written the spinner's first frame before it could know the stage was a map, and on a non-TTY stream (CI logs, `studio run > out.txt`) that line can never be erased. The spinner's first render is now deferred to the next tick, so `onMapStart` can cancel it before it reaches the terminal. (STU-1487)
+
 ## [0.20.2] — 2026-09-18
 
 ### Engine
