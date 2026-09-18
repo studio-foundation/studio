@@ -64,7 +64,9 @@ export interface StageDefinition {
   executor?: 'script';      // 'script' or absent (defaults to LLM)
   script?: string;          // path to script file (required when executor: 'script')
   runtime?: 'python' | 'node' | 'shell'; // runtime for script executor
-  timeout_ms?: number;      // script timeout in ms (default: 30000)
+  // Per-attempt timeout. A script stage defaults to 30000 when unset; an agent
+  // stage has no default — it only aborts the provider call when this is set.
+  timeout_ms?: number;
   contract?: string;
   ralph?: {
     max_attempts: number;
