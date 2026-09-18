@@ -37,6 +37,15 @@ export interface RunAgentConfig {
   anonymizationMiddleware?: AnonymizationMiddleware;
   callbacks?: RunnerCallbacks;
   signal?: AbortSignal;
+  /**
+   * Aborts the provider call (killing its process/request) if one attempt runs
+   * longer than this. Undefined means no timeout — the historical behavior,
+   * since a default here would cut off long-running LLM calls unannounced.
+   * A fired timeout returns a normal AgentRunResult with `error` set, the same
+   * shape script-executor's own timeout returns, so RALPH retries it as an
+   * ordinary failed attempt instead of failing the whole stage (STU-1485).
+   */
+  timeoutMs?: number;
 }
 
 export interface AgentRunResult {
@@ -67,8 +76,39 @@ const DEFAULT_MAX_TOOL_CALLS = 20; // Safety limit for tool calling loop
  * 4. Return complete result with tracked tool calls
  */
 export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> {
+  const { timeoutMs, signal: externalSignal } = config;
+  if (timeoutMs === undefined) {
+    return runAgentAttempt(config, externalSignal);
+  }
+
   const startTime = Date.now();
-  const { agent, task, context, executionContext, toolRegistry, providerRegistry, signal } = config;
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const signal = externalSignal ? AbortSignal.any([externalSignal, timeoutController.signal]) : timeoutController.signal;
+
+  try {
+    return await runAgentAttempt(config, signal);
+  } catch (err) {
+    // Distinguish our own timeout from a real provider/network error: only the
+    // former is a retry-eligible failed attempt, not a stage-ending throw.
+    if (timeoutController.signal.aborted) {
+      return {
+        output: null,
+        tool_calls: [],
+        tool_calls_count: 0,
+        duration_ms: Date.now() - startTime,
+        error: `Agent timed out after ${timeoutMs}ms`,
+      };
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runAgentAttempt(config: RunAgentConfig, signal: AbortSignal | undefined): Promise<AgentRunResult> {
+  const startTime = Date.now();
+  const { agent, task, context, executionContext, toolRegistry, providerRegistry } = config;
   const maxToolCalls = config.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS;
   const mw = config.anonymizationMiddleware;
 

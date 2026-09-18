@@ -144,6 +144,7 @@ export class StageExecutor {
         stageRun.status = 'skipped';
         stageRun.completed_at = new Date().toISOString();
         stageRun.tasks = [];
+        stageRun.attempts = 0;
         this.config.events?.onStageComplete?.({
           stage_name: stageDef.name,
           stage_index: stageIndex,
@@ -374,6 +375,7 @@ export class StageExecutor {
               projectInvariants: pipelineContext.invariantsContent,
               maxToolCalls: stageDef.ralph?.max_tool_calls,
               anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
+              timeoutMs: stageDef.timeout_ms,
               signal,
               callbacks: {
                 ...(this.config.events ? {
@@ -595,6 +597,7 @@ export class StageExecutor {
     stageRun.tasks = [taskRun];
     stageRun.status = stageStatus;
     stageRun.completed_at = new Date().toISOString();
+    stageRun.attempts = ralphResult.attempts;
 
     // Extract result data for observability
     const lastResult = ralphResult.status === 'success' ? ralphResult.result : undefined;

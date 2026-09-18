@@ -102,6 +102,24 @@ stages:
         - input
 `);
 
+  writeFileSync(join(PIPELINES_DIR, 'timeout-agent.pipeline.yaml'), `
+name: timeout-agent
+description: Agent stage with a short timeout_ms, for STU-1485
+version: 1
+stages:
+  - name: analysis
+    kind: analysis
+    agent: test-agent
+    contract: test-contract
+    timeout_ms: 20
+    ralph:
+      max_attempts: 2
+      retry_strategy: none
+    context:
+      include:
+        - input
+`);
+
   writeFileSync(join(PIPELINES_DIR, 'two-stage.pipeline.yaml'), `
 name: two-stage
 description: Two stage pipeline
@@ -437,6 +455,7 @@ describe('PipelineEngine', () => {
     expect(agentRuns[0].error).toBeUndefined(); // retried attempt — not the final word
     expect(agentRuns[1].error).toBeDefined();
     expect(agentRuns[1].error).toContain('summary');
+    expect(result.stages[0].attempts).toBe(2); // STU-1287: exposed on the record, not only the event
   });
 
   it('fails the stage when an external validator rejects the real output', async () => {
@@ -498,6 +517,7 @@ describe('PipelineEngine', () => {
 
     const stage = result.stages[0];
     expect(stage.tasks).toHaveLength(1);
+    expect(stage.attempts).toBe(1); // STU-1287
 
     const task = stage.tasks[0];
     expect(task.task_name).toBe('analysis');
@@ -684,6 +704,26 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('cancelled');
   });
+
+  it('enforces timeout_ms on an agent stage as a retry-eligible failed attempt, not a stage-ending throw (STU-1485)', async () => {
+    const engine = createTestEngine({
+      providerRegistry: providerRegistryOf(createHangingProvider()),
+    });
+
+    const result = await engine.run({
+      pipeline: 'timeout-agent',
+      input: 'test input',
+    });
+
+    // Agent stages are stochastic and keep their retries — the timeout burns
+    // both configured attempts (max_attempts: 2) instead of failing on the first.
+    expect(result.status).toBe('failed');
+    expect(result.stages[0].status).toBe('failed');
+    const agentRuns = result.stages[0].tasks[0].agent_runs;
+    expect(agentRuns).toHaveLength(2);
+    expect(agentRuns[0].error).toContain('Agent timed out after 20ms');
+    expect(agentRuns[1].error).toContain('Agent timed out after 20ms');
+  }, 10_000);
 
   it('cancels between stages when signal is aborted after first stage completes', async () => {
     const controller = new AbortController();

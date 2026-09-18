@@ -499,6 +499,116 @@ describe('runner — prompt cache decision (STU-752)', () => {
   });
 });
 
+/**
+ * A provider that never resolves on its own — simulates a wedged `claude --print`
+ * or a stuck HTTP call. Only settles when its `signal` aborts, the same contract
+ * every real provider (fetch, child_process) honors.
+ */
+class HangingProvider implements Provider {
+  readonly name = 'hanging-mock';
+  public sawAbort = false;
+
+  call(_request: LLMRequest, _onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
+    return new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => {
+        this.sawAbort = true;
+        reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+    });
+  }
+}
+
+describe('runner — timeout_ms on agent stages (STU-1485)', () => {
+  function hangingConfig() {
+    const toolRegistry = new ToolRegistry();
+    const provider = new HangingProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider);
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'hanging-mock', model: 'mock' };
+    return { agent, toolRegistry, providerRegistry, provider };
+  }
+
+  it('returns a failed-attempt result instead of hanging or throwing', async () => {
+    const { agent, toolRegistry, providerRegistry } = hangingConfig();
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      timeoutMs: 20,
+    });
+
+    expect(result.error).toBe('Agent timed out after 20ms');
+    expect(result.output).toBeNull();
+  });
+
+  it('aborts the provider call, not just the wait', async () => {
+    const { agent, toolRegistry, providerRegistry, provider } = hangingConfig();
+
+    await runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      timeoutMs: 20,
+    });
+
+    expect(provider.sawAbort).toBe(true);
+  });
+
+  it('does not fire when the call finishes well within the timeout', async () => {
+    const { agent, toolRegistry, providerRegistry } = makeConfig(
+      'repo_manager-write_file',
+      { path: '/tmp/foo.ts', content: 'hello' }
+    );
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'write a file', contract_name: 'test-stage' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      timeoutMs: 5000,
+    });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it('leaves agent stages with no timeout at all when timeout_ms is unset', async () => {
+    // Same hanging provider, but no timeoutMs — must not resolve on its own.
+    // Racing it against a short delay proves runAgent is still pending, not that
+    // it "completed" with nothing to assert.
+    const { agent, toolRegistry, providerRegistry } = hangingConfig();
+
+    const outcome = await Promise.race([
+      runAgent({ agent, task: { description: 'x' }, context: {}, toolRegistry, providerRegistry })
+        .then(() => 'resolved' as const),
+      new Promise<'still-pending'>((resolve) => setTimeout(() => resolve('still-pending'), 30)),
+    ]);
+
+    expect(outcome).toBe('still-pending');
+  });
+
+  it('still throws (does not swallow) a real cancellation via the caller-supplied signal', async () => {
+    const { agent, toolRegistry, providerRegistry } = hangingConfig();
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+
+    await expect(runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      timeoutMs: 5000, // generous — the external signal must win, not the timeout
+      signal: controller.signal,
+    })).rejects.toThrow('Aborted');
+  });
+});
+
 /** An AgentLoopProvider (e.g. claude-code) that reports a provider-side failure. */
 class FailingLoopProvider implements AgentLoopProvider {
   readonly name = 'failing-loop-mock';
