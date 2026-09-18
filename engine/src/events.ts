@@ -96,6 +96,13 @@ export interface GroupCompleteEvent {
 
 export interface MapStartEvent {
   map_name: string;
+  /**
+   * The sub-pipeline run once per item. Since a run can show several fan-outs
+   * at different depths at once (STU-861), the map's own name alone doesn't
+   * say which pass is which — the header needs the pipeline too (STU-1260).
+   * Optional: an event consumer that doesn't care is unaffected.
+   */
+  pipeline?: string;
   total_items: number;
   concurrency: number;
   /** True when the fan-out dispatches its LLM calls through the provider's batch endpoint. */

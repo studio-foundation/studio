@@ -200,6 +200,7 @@ export function mergeEvents(
       log(ctx, {
         event: 'map_start',
         map: e.map_name,
+        pipeline: e.pipeline,
         total_items: e.total_items,
         concurrency: e.concurrency,
       });
