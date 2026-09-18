@@ -375,6 +375,7 @@ export class StageExecutor {
               projectInvariants: pipelineContext.invariantsContent,
               maxToolCalls: stageDef.ralph?.max_tool_calls,
               anonymizationMiddleware: runMiddleware ?? stageMiddleware ?? undefined,
+              timeoutMs: stageDef.timeout_ms,
               signal,
               callbacks: {
                 ...(this.config.events ? {
