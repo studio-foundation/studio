@@ -14,6 +14,13 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
 
   function live() { return new ProgressDisplay(false, { live: true, verbose: false }); }
 
+  // The live "Thinking..." spinner's first render is deferred to the next tick
+  // (STU-1487), so onMapStart can cancel it before it reaches the terminal when
+  // a stage turns out to be a map fan-out.
+  function flushImmediates(): Promise<void> {
+    return new Promise((resolve) => setImmediate(resolve));
+  }
+
   it('indents a child stage-start line by its depth', () => {
     const ev = live().getEvents();
     ev.onStageStart!(
@@ -83,7 +90,7 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     display.interrupt();
   });
 
-  it('runs a live thinking spinner for a child stage and stops it on completion', () => {
+  it('runs a live thinking spinner for a child stage and stops it on completion', async () => {
     const display = live();
     const ev = display.getEvents();
 
@@ -91,6 +98,7 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
       { stage_name: 'child-stage', stage_index: 0, total_stages: 1, max_attempts: 1 },
       { depth: 1, childId: 'd1#0' },
     );
+    await flushImmediates();
     expect((display as any).thinkingSpinner).toBeTruthy();
 
     ev.onStageComplete!(
@@ -101,7 +109,7 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     display.interrupt();
   });
 
-  it('does not resurrect a spinner from in-flight child events after interrupt (Ctrl-C)', () => {
+  it('does not resurrect a spinner from in-flight child events after interrupt (Ctrl-C)', async () => {
     const display = live();
     const ev = display.getEvents();
 
@@ -109,6 +117,7 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
       { stage_name: 'child-stage', stage_index: 0, total_stages: 2, max_attempts: 1 },
       { depth: 1, childId: 'd1#0' },
     );
+    await flushImmediates();
     expect((display as any).thinkingSpinner).toBeTruthy();
 
     display.interrupt();
@@ -127,7 +136,7 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
     expect((display as any).timerInterval).toBeNull();
   });
 
-  it('does not leave two spinners running when a sibling child stage starts', () => {
+  it('does not leave two spinners running when a sibling child stage starts', async () => {
     const display = live();
     const ev = display.getEvents();
 
@@ -135,11 +144,13 @@ describe('ProgressDisplay — nested child events (STU-620)', () => {
       { stage_name: 'stage-a', stage_index: 0, total_stages: 2, max_attempts: 1 },
       { depth: 1, childId: 'd1#0' },
     );
+    await flushImmediates();
     const first = (display as any).thinkingSpinner;
     ev.onStageStart!(
       { stage_name: 'stage-b', stage_index: 1, total_stages: 2, max_attempts: 1 },
       { depth: 1, childId: 'd1#0' },
     );
+    await flushImmediates();
     const second = (display as any).thinkingSpinner;
     expect(second).toBeTruthy();
     expect(second).not.toBe(first); // prior spinner replaced, not stacked

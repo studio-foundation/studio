@@ -37,32 +37,43 @@ function toolCallCompleteEvent() {
   return { tool: 'repo_manager-read_file', result: 'ok', duration_ms: 100, timestamp: Date.now() };
 }
 
+// The live "Thinking..." spinner's first render is deferred to the next tick
+// (STU-1487), so onMapStart can cancel it before it reaches the terminal when
+// a stage turns out to be a map fan-out. Tests that drive onStageStart in live
+// mode need to flush that tick before asserting on the spinner.
+function flushImmediates(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 describe('ProgressDisplay — thinking spinner (live mode)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('starts thinking spinner on onStageStart', () => {
+  it('starts thinking spinner on onStageStart', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     expect(ora).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
     expect(mockOraInstance.start).toHaveBeenCalledTimes(1);
   });
 
-  it('stops thinking spinner before starting tool spinner on onToolCallStart', () => {
+  it('stops thinking spinner before starting tool spinner on onToolCallStart', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     vi.clearAllMocks();
     events.onToolCallStart!(toolCallStartEvent());
     expect(mockOraInstance.stop).toHaveBeenCalled();
   });
 
-  it('restarts thinking spinner after onToolCallComplete', () => {
+  it('restarts thinking spinner after onToolCallComplete', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     events.onToolCallStart!(toolCallStartEvent());
     vi.clearAllMocks();
     events.onToolCallComplete!(toolCallCompleteEvent());
@@ -70,20 +81,22 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
     expect(mockOraInstance.start).toHaveBeenCalled();
   });
 
-  it('restarts thinking spinner after onToolCallComplete with error', () => {
+  it('restarts thinking spinner after onToolCallComplete with error', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     events.onToolCallStart!(toolCallStartEvent());
     vi.clearAllMocks();
     events.onToolCallComplete!({ tool: 'repo_manager-read_file', result: undefined, error: 'file not found', duration_ms: 100, timestamp: Date.now() });
     expect(mockOraInstance.start).toHaveBeenCalled();
   });
 
-  it('stops thinking spinner on onStageComplete', () => {
+  it('stops thinking spinner on onStageComplete', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     vi.clearAllMocks();
     events.onStageComplete!(stageCompleteEvent());
     expect(mockOraInstance.stop).toHaveBeenCalled();
@@ -129,10 +142,11 @@ describe('ProgressDisplay — thinking spinner (live mode)', () => {
     expect(ora).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
   });
 
-  it('stops thinking spinner on onTaskRetry', () => {
+  it('stops thinking spinner on onTaskRetry', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     vi.clearAllMocks();
     events.onTaskRetry!({ stage: 'code-generation', attempt: 2, max_attempts: 3, failures: ['validation failed'] });
     expect(mockOraInstance.stop).toHaveBeenCalled();
@@ -144,10 +158,11 @@ describe('ProgressDisplay — token streaming (live mode)', () => {
     vi.clearAllMocks();
   });
 
-  it('stops thinking spinner when first token arrives', () => {
+  it('stops thinking spinner when first token arrives', async () => {
     const d = makeDisplay();
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     vi.clearAllMocks();
     events.onAgentToken!({ token: 'Hello', stage: 'code-generation', timestamp: Date.now() });
     expect(mockOraInstance.stop).toHaveBeenCalled();
@@ -168,10 +183,11 @@ describe('ProgressDisplay — constructor accepts live + verbose booleans', () =
     vi.clearAllMocks();
   });
 
-  it('accepts {live: true, verbose: false} and behaves like live mode', () => {
+  it('accepts {live: true, verbose: false} and behaves like live mode', async () => {
     const d = new ProgressDisplay(false, { live: true, verbose: false });
     const events = d.getEvents();
     events.onStageStart!(stageStartEvent());
+    await flushImmediates();
     expect(ora).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Thinking') }));
   });
 
