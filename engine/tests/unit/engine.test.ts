@@ -407,6 +407,38 @@ describe('PipelineEngine', () => {
     expect(result.stages[0].status).toBe('failed');
   });
 
+  it('records the last attempt\'s validation failures as the agent run\'s error on exhaustion (STU-1483)', async () => {
+    // Provider returns output missing required 'summary' field on every attempt,
+    // so ralph exhausts its 2 attempts on a contract rejection. The agent itself
+    // never errors — until this fix the exhausted attempt's agent_run.error stayed
+    // undefined, which is exactly what made a parent `map` stage report
+    // "no error recorded" for a contract rejection.
+    const badProvider = {
+      name: 'anthropic',
+      call: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ no_summary: true }),
+        tool_calls: [],
+        finish_reason: 'stop',
+      }),
+    };
+
+    const engine = createTestEngine({
+      providerRegistry: providerRegistryOf(badProvider),
+    });
+
+    const result = await engine.run({
+      pipeline: 'simple',
+      input: 'This should exhaust retries',
+    });
+
+    expect(result.status).toBe('failed');
+    const agentRuns = result.stages[0].tasks[0].agent_runs;
+    expect(agentRuns).toHaveLength(2);
+    expect(agentRuns[0].error).toBeUndefined(); // retried attempt — not the final word
+    expect(agentRuns[1].error).toBeDefined();
+    expect(agentRuns[1].error).toContain('summary');
+  });
+
   it('fails the stage when an external validator rejects the real output', async () => {
     // required_fields [summary] is satisfied, but the external validator rejects
     // because summary !== 'good'. Without the hook this run would succeed.
