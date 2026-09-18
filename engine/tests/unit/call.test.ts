@@ -76,6 +76,7 @@ describe('Call (one-shot sub-pipeline) stage', () => {
     const stage = result.stages[0];
     expect(stage.stage_name).toBe('run-child');
     expect(stage.status).toBe('success');
+    expect(stage.attempts).toBe(1); // STU-1287: a call stage doesn't retry itself
     // Output is the child's output, propagated directly (not wrapped).
     expect((stage as any).output).toEqual({ pages: 3 });
     // The spawned child run id is recorded so readers can nest it.
