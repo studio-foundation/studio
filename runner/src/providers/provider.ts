@@ -44,6 +44,15 @@ export interface AgentLoopResult {
   finish_reason: string;
   /** Summed over every turn the provider ran internally. */
   usage?: TokenUsage;
+  /**
+   * A provider-reported failure the runner should treat as a normal
+   * retry-eligible failed attempt (RALPH's `errorCheck`), not a stage-ending
+   * throw — e.g. a `claude --print` error envelope (STU-1488). Rejecting the
+   * promise is still how a genuinely unrecoverable failure (a crash, a
+   * missing binary) is reported; this field is for the stochastic, plausibly
+   * transient kind an agent stage keeps its retries for.
+   */
+  error?: string;
 }
 
 export function isAgentLoopProvider(p: Provider): p is AgentLoopProvider {

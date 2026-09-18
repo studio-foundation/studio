@@ -260,9 +260,24 @@ async function runAgentAttempt(config: RunAgentConfig, signal: AbortSignal | und
       accumulateTokenUsage(tokenAccumulator, loopResult.usage);
     }
 
+    const duration = Date.now() - startTime;
+
+    // A provider-reported failure (STU-1488) — resolved, not thrown, precisely
+    // so it lands here as a normal retry-eligible failed attempt instead of
+    // propagating out of runAgent and skipping RALPH's remaining attempts.
+    if (loopResult.error) {
+      return {
+        output: null,
+        tool_calls: allToolCalls,
+        tool_calls_count: allToolCalls.filter(tc => !tc.error).length,
+        duration_ms: duration,
+        token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+        error: loopResult.error,
+      };
+    }
+
     const finalContent = mw ? mw.deanonymize(loopResult.content) : loopResult.content;
     const output = parseAgentOutput(finalContent);
-    const duration = Date.now() - startTime;
     return {
       output,
       tool_calls: allToolCalls,
