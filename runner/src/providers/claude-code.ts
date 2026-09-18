@@ -202,7 +202,14 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         if (resultContent !== undefined) {
           const apiError = parseApiErrorEnvelope(resultContent);
           if (apiError) {
-            reject(new Error(`Provider API error: ${apiError}`));
+            // Resolve, don't reject: a provider API error (rate limit, a
+            // malformed-request 400 from the CLI's own internal turn — see
+            // STU-1488) is the stochastic kind RALPH already retries an agent
+            // stage for. Rejecting instead would skip straight past every
+            // remaining attempt (ralph/src/loop.ts only treats a throw as a
+            // retry-eligible failure when it matches its own cancellation
+            // signal), burning the whole retry budget on one transient error.
+            resolve({ content: '', finish_reason: 'error', error: `Provider API error: ${apiError}` });
             return;
           }
           resolve({ content: resultContent, finish_reason: 'stop', usage: resultUsage });
@@ -235,6 +242,19 @@ function num(value: unknown): number {
  * Two observed shapes: a bare JSON envelope (`{"type":"error","error":{...}}`),
  * and the same envelope wrapped in a markdown-bolded "API Error: <code>"
  * prefix. Anything else is a real completion and returns undefined.
+ *
+ * One recorded variant is a 400 naming unbalanced `tool_use`/`tool_result`
+ * blocks (STU-1488). That is not a Studio-assembled conversation: this
+ * provider sends `claude --print` one flat prompt string per RALPH attempt —
+ * a fresh subprocess every time, nothing carried over — and no code in this
+ * repo ever constructs a `tool_use` or `tool_result` content block (confirmed
+ * by repo-wide search; `anthropic.ts`'s own message builder sends every turn
+ * as plain text for the same reason). The unbalanced pair is reconstructed
+ * entirely inside the `claude` CLI's own internal tool-calling loop — Studio
+ * has no visibility into or control over it. The fix this issue shipped is
+ * not to that assembly (there is none to fix); it's making any envelope this
+ * function catches, this one included, a retry-eligible failed attempt
+ * instead of a stage-ending throw — see the `resolve(...)` below.
  */
 function parseApiErrorEnvelope(content: string): string | undefined {
   const trimmed = content.trim();
