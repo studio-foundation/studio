@@ -48,6 +48,16 @@ export interface RunAgentConfig {
   timeoutMs?: number;
 }
 
+/**
+ * What one attempt managed to do before it threw. `runAgentAttempt` writes into
+ * it as it goes, so the catch in `runAgent` can report the tool calls already
+ * executed and the tokens already spent instead of a zeroed result (STU-1489).
+ */
+interface AttemptProgress {
+  tool_calls: ToolCall[];
+  token_usage: TokenUsage;
+}
+
 export interface AgentRunResult {
   output: unknown;
   tool_calls: ToolCall[];
@@ -60,7 +70,12 @@ export interface AgentRunResult {
    * unmeasured run is never mistaken for a free one.
    */
   token_usage?: TokenUsage;
-  /** Set when the runner hit a terminal error (e.g. max tool iterations). RALPH treats this as a validation failure. */
+  /**
+   * Set when the attempt failed — max tool iterations, an unauthorized tool, a
+   * timeout, or any throw that escaped the provider call. RALPH treats it as a
+   * validation failure, which is the point: `runAgent` resolves with it rather
+   * than rejecting, so the stage keeps the attempts it has left (STU-1489).
+   */
   error?: string;
 }
 
@@ -77,36 +92,61 @@ const DEFAULT_MAX_TOOL_CALLS = 20; // Safety limit for tool calling loop
  */
 export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> {
   const { timeoutMs, signal: externalSignal } = config;
-  if (timeoutMs === undefined) {
-    return runAgentAttempt(config, externalSignal);
-  }
-
   const startTime = Date.now();
-  const timeoutController = new AbortController();
-  const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
-  const signal = externalSignal ? AbortSignal.any([externalSignal, timeoutController.signal]) : timeoutController.signal;
+  const progress: AttemptProgress = { tool_calls: [], token_usage: emptyTokenUsage() };
+
+  const timeoutController = timeoutMs === undefined ? undefined : new AbortController();
+  const timer = timeoutController === undefined
+    ? undefined
+    : setTimeout(() => timeoutController.abort(), timeoutMs);
+  const signal = timeoutController === undefined
+    ? externalSignal
+    : externalSignal
+      ? AbortSignal.any([externalSignal, timeoutController.signal])
+      : timeoutController.signal;
 
   try {
-    return await runAgentAttempt(config, signal);
+    return await runAgentAttempt(config, signal, progress);
   } catch (err) {
-    // Distinguish our own timeout from a real provider/network error: only the
-    // former is a retry-eligible failed attempt, not a stage-ending throw.
-    if (timeoutController.signal.aborted) {
-      return {
-        output: null,
-        tool_calls: [],
-        tool_calls_count: 0,
-        duration_ms: Date.now() - startTime,
-        error: `Agent timed out after ${timeoutMs}ms`,
-      };
+    // The pipeline's own cancellation is the one throw that must keep
+    // propagating: ralph reads it as 'cancelled', and swallowing it here would
+    // turn a cancelled run into a failed one.
+    if (externalSignal?.aborted) {
+      throw err;
     }
-    throw err;
+    // Everything else — a provider network error, a rate limit the SDK raised
+    // instead of wrapping, an AgentLoopProvider that rejected rather than
+    // resolving with `error` — is one failed attempt, not a stage-ending throw.
+    // Returned as an ordinary AgentRunResult so it reaches RALPH with the
+    // stage's remaining attempts intact (STU-1489).
+    return {
+      output: null,
+      tool_calls: progress.tool_calls,
+      tool_calls_count: progress.tool_calls.filter(tc => !tc.error).length,
+      duration_ms: Date.now() - startTime,
+      token_usage: progress.token_usage.total_tokens > 0 ? progress.token_usage : undefined,
+      error: timeoutController?.signal.aborted
+        ? `Agent timed out after ${timeoutMs}ms`
+        : `Agent execution failed: ${describeThrown(err)}`,
+    };
   } finally {
-    clearTimeout(timer);
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
-async function runAgentAttempt(config: RunAgentConfig, signal: AbortSignal | undefined): Promise<AgentRunResult> {
+/** Message of a thrown value, keeping the error name when it adds something. */
+function describeThrown(err: unknown): string {
+  if (err instanceof Error) {
+    return err.name && err.name !== 'Error' ? `${err.name}: ${err.message}` : err.message;
+  }
+  return String(err);
+}
+
+async function runAgentAttempt(
+  config: RunAgentConfig,
+  signal: AbortSignal | undefined,
+  progress: AttemptProgress,
+): Promise<AgentRunResult> {
   const startTime = Date.now();
   const { agent, task, context, executionContext, toolRegistry, providerRegistry } = config;
   const maxToolCalls = config.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS;
@@ -162,12 +202,14 @@ async function runAgentAttempt(config: RunAgentConfig, signal: AbortSignal | und
   // Tool executor
   const toolExecutor = new ToolExecutor(allowedTools);
 
-  // Track all tool calls made during execution
-  const allToolCalls: ToolCall[] = [];
+  // Track all tool calls made during execution. Shared with the caller so a
+  // throw mid-run still reports what already ran.
+  const allToolCalls: ToolCall[] = progress.tool_calls;
 
   // Accumulate token usage across turns, keeping the per-model split so a stage
-  // that spanned models can still be priced model by model.
-  const tokenAccumulator: TokenUsage = emptyTokenUsage();
+  // that spanned models can still be priced model by model. Shared for the same
+  // reason as allToolCalls: a failed attempt still cost what it cost.
+  const tokenAccumulator: TokenUsage = progress.token_usage;
 
   // Build onToken wrapper that bridges provider token callbacks → RunnerCallbacks.onAgentToken
   const onToken = config.callbacks?.onAgentToken

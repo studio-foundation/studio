@@ -645,3 +645,119 @@ describe('runner — AgentLoopProvider error field (STU-1488)', () => {
     expect(result.output).toBeNull();
   });
 });
+
+/** A Chat Completions-style provider whose call rejects, the way an SDK raises a network error. */
+class ThrowingProvider implements Provider {
+  readonly name = 'throwing-mock';
+  public callCount = 0;
+
+  async call(_request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    throw new Error('fetch failed: ECONNRESET');
+  }
+}
+
+/** An AgentLoopProvider that rejects instead of resolving with `error` set. */
+class ThrowingLoopProvider implements AgentLoopProvider {
+  readonly name = 'throwing-loop-mock';
+
+  async call(): Promise<LLMResponse> {
+    throw new Error('use runAgentLoop');
+  }
+
+  async runAgentLoop(): Promise<AgentLoopResult> {
+    throw new Error('429 rate_limit_error');
+  }
+}
+
+/** Runs one tool, reports usage, then throws on the next turn. */
+class ThrowsAfterToolCallProvider implements Provider {
+  readonly name = 'throws-after-tool-mock';
+  private callCount = 0;
+
+  async call(_request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    if (this.callCount === 1) {
+      return {
+        content: '',
+        tool_calls: [{ id: 'call-1', name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hi' } }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      };
+    }
+    throw new Error('socket hang up');
+  }
+}
+
+describe('runner — provider throws are retry-eligible failed attempts (STU-1489)', () => {
+  function registryOf(provider: Provider) {
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(provider as never);
+    return providerRegistry;
+  }
+
+  it('returns an error result instead of rejecting when the multi-turn provider.call() throws', async () => {
+    const provider = new ThrowingProvider();
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'throwing-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: registryOf(provider),
+    });
+
+    expect(result.error).toContain('fetch failed: ECONNRESET');
+    expect(result.output).toBeNull();
+    expect(provider.callCount).toBe(1);
+  });
+
+  it('returns an error result instead of rejecting when an AgentLoopProvider throws', async () => {
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'throwing-loop-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: registryOf(new ThrowingLoopProvider()),
+    });
+
+    expect(result.error).toContain('429 rate_limit_error');
+    expect(result.output).toBeNull();
+  });
+
+  it('keeps the tool calls and tokens the failed attempt already spent', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+
+    const result = await runAgent({
+      agent: { ...agent, provider: 'throws-after-tool-mock' },
+      task: { description: 'x' },
+      context: {},
+      toolRegistry,
+      providerRegistry: registryOf(new ThrowsAfterToolCallProvider()),
+    });
+
+    expect(result.error).toContain('socket hang up');
+    expect(result.tool_calls).toHaveLength(1);
+    expect(result.tool_calls_count).toBe(1);
+    expect(result.token_usage?.total_tokens).toBe(15);
+  });
+
+  it('still throws a real cancellation rather than reporting it as a failed attempt', async () => {
+    const controller = new AbortController();
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'hanging-mock', model: 'mock' };
+    const provider = new HangingProvider();
+    setTimeout(() => controller.abort(), 10);
+
+    await expect(runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: registryOf(provider),
+      signal: controller.signal,
+    })).rejects.toThrow('Aborted');
+  });
+});

@@ -725,6 +725,52 @@ describe('PipelineEngine', () => {
     expect(agentRuns[1].error).toContain('Agent timed out after 20ms');
   }, 10_000);
 
+  it('spends one attempt, not the whole budget, when the provider call throws (STU-1489)', async () => {
+    // A network error raised by the SDK used to propagate out of runAgent and
+    // ralph, failing the stage on attempt 1 with max_attempts: 2 unspent.
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn().mockRejectedValue(new Error('fetch failed: ECONNRESET')),
+    };
+    const engine = createTestEngine({ providerRegistry: providerRegistryOf(provider) });
+
+    const result = await engine.run({ pipeline: 'simple', input: 'test input' });
+
+    expect(result.status).toBe('failed');
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    const agentRuns = result.stages[0].tasks[0].agent_runs;
+    expect(agentRuns).toHaveLength(2);
+    expect(agentRuns[0].error).toContain('ECONNRESET');
+    expect(agentRuns[1].error).toContain('ECONNRESET');
+  });
+
+  it('recovers on the retry when the throw was transient (STU-1489)', async () => {
+    let calls = 0;
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn().mockImplementation(() => {
+        calls++;
+        if (calls === 1) return Promise.reject(new Error('429 rate_limit_error'));
+        return Promise.resolve({
+          content: JSON.stringify({
+            summary: 'Test summary',
+            requirements: ['req1'],
+            acceptance_criteria: ['ac1'],
+          }),
+          tool_calls: [],
+          finish_reason: 'stop',
+        });
+      }),
+    };
+    const engine = createTestEngine({ providerRegistry: providerRegistryOf(provider) });
+
+    const result = await engine.run({ pipeline: 'simple', input: 'test input' });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0].status).toBe('success');
+    expect(provider.call).toHaveBeenCalledTimes(2);
+  });
+
   it('cancels between stages when signal is aborted after first stage completes', async () => {
     const controller = new AbortController();
     let stage1Completed = false;
