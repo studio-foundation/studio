@@ -470,7 +470,7 @@ export class ProgressDisplay {
 
         const renderer = new MapRenderer();
         this.pushMap(this.mapKey(ctx), renderer);
-        renderer.start(event.map_name, event.total_items, event.concurrency, event.batch === true, depth);
+        renderer.start(event.map_name, event.pipeline, event.total_items, event.concurrency, event.batch === true, depth);
       },
 
       onBatchDispatch: (event, ctx) => {

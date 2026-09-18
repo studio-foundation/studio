@@ -22,7 +22,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync, rmSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
 const CLI_BIN = resolve(import.meta.dirname, '../../dist/index.js');
 const FIXTURE_DIR = resolve(import.meta.dirname, '../fixtures/nested-console');
@@ -56,8 +57,8 @@ describe('nested run console on a real run (STU-1261)', () => {
 
     // The outer fan-out (process-books, depth 0) and the inner one
     // (review-chapters, reached through book-pipeline's call, depth 2).
-    expect(stdout).toContain('↳ process-books — fan-out over 2 items (concurrency 2)');
-    const innerHeaders = stdout.split('↳ review-chapters — fan-out over 2 items (concurrency 2)').length - 1;
+    expect(stdout).toContain('↳ process-books → book-pipeline — fan-out over 2 items (concurrency 2)');
+    const innerHeaders = stdout.split('↳ review-chapters → chapter-reviewer — fan-out over 2 items (concurrency 2)').length - 1;
     // Two books, each spawning its own inner map — both headers must appear,
     // not just one reused for both (that would mean the second book's fan-out
     // never rendered at all, the actual risk this test exists to catch).
@@ -76,7 +77,7 @@ describe('nested run console on a real run (STU-1261)', () => {
     // Both inner headers appear before either inner fan-out's own summary —
     // i.e. book two's map started rendering while book one's was still live,
     // not queued up and printed only after book one fully finished.
-    const secondInnerHeaderIndex = stdout.lastIndexOf('↳ review-chapters — fan-out over 2 items (concurrency 2)');
+    const secondInnerHeaderIndex = stdout.lastIndexOf('↳ review-chapters → chapter-reviewer — fan-out over 2 items (concurrency 2)');
     const firstInnerSummaryIndex = stdout.indexOf('review-chapters 1/2 succeeded, 1 failed');
     const secondInnerSummaryIndex = stdout.indexOf('review-chapters 2/2 succeeded');
     expect(secondInnerHeaderIndex).toBeLessThan(Math.max(firstInnerSummaryIndex, secondInnerSummaryIndex));
@@ -95,8 +96,8 @@ describe('nested run console on a real run (STU-1261)', () => {
     const { code, stdout } = await run([...RUN_ARGS, '--live']);
 
     expect(code).toBe(0);
-    expect(stdout).toContain('↳ process-books — fan-out over 2 items (concurrency 2)');
-    const innerHeaders = stdout.split('↳ review-chapters — fan-out over 2 items (concurrency 2)').length - 1;
+    expect(stdout).toContain('↳ process-books → book-pipeline — fan-out over 2 items (concurrency 2)');
+    const innerHeaders = stdout.split('↳ review-chapters → chapter-reviewer — fan-out over 2 items (concurrency 2)').length - 1;
     expect(innerHeaders).toBe(2);
     expect(stdout).toContain('Chapter 2 (fails review) failed');
     expect(stdout).toContain('✓ Pipeline completed');
@@ -110,11 +111,30 @@ describe('nested run console on a real run (STU-1261)', () => {
     expect(stdout).not.toContain('fan-out over');
 
     const result = JSON.parse(stdout) as {
+      id: string;
       status: string;
       stages: Array<{ stage_name: string; status: string; output: { total: number; succeeded: number; failed: number } }>;
     };
     expect(result.status).toBe('success');
     const outer = result.stages.find((s) => s.stage_name === 'process-books');
     expect(outer?.output).toEqual(expect.objectContaining({ total: 2, succeeded: 2, failed: 0 }));
+  }, 15_000);
+
+  it('the run JSONL names the child pipeline on map_start, under --json too (STU-1260)', async () => {
+    const { code, stdout } = await run([...RUN_ARGS, '--json']);
+    expect(code).toBe(0);
+    const runId = (JSON.parse(stdout) as { id: string }).id;
+
+    const runsDir = join(FIXTURE_DIR, '.studio', 'runs');
+    const shortId = runId.replace(/-/g, '').slice(0, 8);
+    const jsonlFile = readdirSync(runsDir).find((f) => f.endsWith('.jsonl') && f.includes(shortId));
+    expect(jsonlFile).toBeDefined();
+    const lines = readFileSync(join(runsDir, jsonlFile!), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const mapStarts = lines.filter((l) => l.event === 'map_start');
+    expect(mapStarts.length).toBeGreaterThan(0);
+    expect(mapStarts.find((e) => e.map === 'process-books')?.pipeline).toBe('book-pipeline');
+    expect(mapStarts.find((e) => e.map === 'review-chapters')?.pipeline).toBe('chapter-reviewer');
+
+    rmSync(join(runsDir, jsonlFile!), { force: true });
   }, 15_000);
 });

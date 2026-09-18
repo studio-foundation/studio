@@ -93,7 +93,7 @@ export class MapRenderer {
    * stream still gets the header, per-item failures, and the final summary
    * (ora degrades to non-animated frames on its own).
    */
-  start(mapName: string, total: number, concurrency: number, batch = false, depth = 0): void {
+  start(mapName: string, pipeline: string | undefined, total: number, concurrency: number, batch = false, depth = 0): void {
     this.pad = 2 + depth * 2;
     this.startedAt = Date.now();
     this.mapName = mapName;
@@ -106,7 +106,7 @@ export class MapRenderer {
 
     console.log(
       ' '.repeat(this.pad) +
-        chalk.cyan(`↳ ${mapName}`) +
+        chalk.cyan(`↳ ${mapName}${pipeline ? ` → ${pipeline}` : ''}`) +
         chalk.gray(` — fan-out over ${total} item${total === 1 ? '' : 's'} (concurrency ${concurrency})`) +
         (batch ? chalk.gray(' · batched') : ''),
     );

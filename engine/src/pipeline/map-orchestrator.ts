@@ -239,6 +239,7 @@ export class MapOrchestrator {
 
     this.config.events?.onMapStart?.({
       map_name: map.map,
+      pipeline: map.pipeline,
       total_items: items.length,
       concurrency,
       ...(batchConfig ? { batch: true } : {}),

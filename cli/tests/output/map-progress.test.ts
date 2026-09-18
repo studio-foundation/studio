@@ -46,6 +46,23 @@ describe('ProgressDisplay — fan-out (map) progress', () => {
     expect(out()).toContain('fan-out over 20 items (concurrency 4)');
   });
 
+  it('names the child pipeline in the header when the event carries one (STU-1260)', () => {
+    const d = new ProgressDisplay(false, 'live');
+    const e = d.getEvents();
+    e.onStageStart!({ stage_name: 'generate', stage_index: 1, total_stages: 3, max_attempts: 1 });
+    e.onMapStart!(mapStart({ pipeline: 'classify-one' }));
+    expect(out()).toContain('↳ generate → classify-one — fan-out over 20 items (concurrency 4)');
+  });
+
+  it('omits the arrow when the event carries no pipeline name (older event shape)', () => {
+    const d = new ProgressDisplay(false, 'live');
+    const e = d.getEvents();
+    e.onStageStart!({ stage_name: 'generate', stage_index: 1, total_stages: 3, max_attempts: 1 });
+    e.onMapStart!(mapStart());
+    expect(out()).toContain('↳ generate — fan-out over 20 items (concurrency 4)');
+    expect(out()).not.toContain('→');
+  });
+
   it('shows advancing done/failed counts and in-flight item labels on the live line', () => {
     const d = new ProgressDisplay(false, 'live');
     const e = d.getEvents();
