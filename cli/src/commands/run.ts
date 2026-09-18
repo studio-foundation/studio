@@ -468,11 +468,15 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       }
 
       const mockConfig = yaml.load(mockRaw) as {
-        stages: Record<string, {
+        stages?: Record<string, {
           output: Record<string, unknown>;
           tool_calls: Array<{ name: string; arguments: Record<string, unknown> }>;
         }>;
       };
+      if (!mockConfig || typeof mockConfig.stages !== 'object' || mockConfig.stages === null) {
+        console.error(`Error: ${mockYamlPath} is missing the required 'stages' key (expected { stages: { <stage-name>: { output, tool_calls } } })`);
+        process.exit(1);
+      }
       const stagesMap = new Map(Object.entries(mockConfig.stages));
       const { MockProvider } = await import('@studio-foundation/runner');
       const mockProvider = new MockProvider(stagesMap);
