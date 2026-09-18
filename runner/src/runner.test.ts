@@ -4,7 +4,7 @@ import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
 import type { ResolvedAgentConfig, LLMRequest, LLMResponse } from '@studio-foundation/contracts';
-import type { Provider } from './providers/provider.js';
+import type { Provider, AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './providers/provider.js';
 
 /**
  * A minimal Chat Completions-style provider (NOT AgentLoopProvider).
@@ -496,5 +496,42 @@ describe('runner — prompt cache decision (STU-752)', () => {
     });
 
     expect(provider.flags).toEqual([true, true]);
+  });
+});
+
+/** An AgentLoopProvider (e.g. claude-code) that reports a provider-side failure. */
+class FailingLoopProvider implements AgentLoopProvider {
+  readonly name = 'failing-loop-mock';
+  constructor(private readonly errorMessage: string) {}
+
+  async call(): Promise<LLMResponse> {
+    throw new Error('use runAgentLoop');
+  }
+
+  async runAgentLoop(
+    _request: LLMRequest,
+    _executeTool: (name: string, args: Record<string, unknown>, callId: string) => Promise<ToolCallOutcome>,
+  ): Promise<AgentLoopResult> {
+    return { content: '', tool_calls: [], finish_reason: 'error', error: this.errorMessage };
+  }
+}
+
+describe('runner — AgentLoopProvider error field (STU-1488)', () => {
+  it('returns a failed-attempt result instead of throwing when the provider resolves with error set', async () => {
+    const toolRegistry = new ToolRegistry();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(new FailingLoopProvider('Provider API error: Internal server error'));
+    const agent: ResolvedAgentConfig = { name: 'test-agent', provider: 'failing-loop-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent,
+      task: { description: 'x' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    expect(result.error).toBe('Provider API error: Internal server error');
+    expect(result.output).toBeNull();
   });
 });

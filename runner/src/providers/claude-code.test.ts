@@ -278,7 +278,7 @@ describe('ClaudeCodeProvider', () => {
     await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/claude -p exited/i);
   });
 
-  it('rejects when the result event carries a bare JSON API error envelope (STU-1484)', async () => {
+  it('resolves with error set when the result event carries a bare JSON API error envelope (STU-1484, STU-1488)', async () => {
     const errorEnvelope = JSON.stringify({
       type: 'error',
       error: { type: 'api_error', message: 'Internal server error' },
@@ -287,15 +287,21 @@ describe('ClaudeCodeProvider', () => {
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: errorEnvelope })];
     mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
     const provider = new ClaudeCodeProvider();
-    await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/Internal server error/);
+    // Resolves, not rejects: RALPH only treats a throw as a retry-eligible
+    // failure when it matches its own cancellation signal (ralph/src/loop.ts)
+    // — a reject here would skip every remaining attempt instead of costing
+    // just this one (STU-1488).
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+    expect(result.error).toContain('Internal server error');
   });
 
-  it('rejects when the result event carries a markdown-wrapped "API Error:" envelope (STU-1484)', async () => {
+  it('resolves with error set when the result event carries a markdown-wrapped "API Error:" envelope, including the unbalanced tool_use/tool_result 400 (STU-1484, STU-1488)', async () => {
     const wrapped = '**API Error: 400 {"type":"error","error":{"type":"invalid_request_error","message":"messages.5: `tool_use` ids were found without `tool_result` blocks immediately after: toolu_016vDGjyoHtRjnBbXfMuypkc."}}';
     const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: wrapped })];
     mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
     const provider = new ClaudeCodeProvider();
-    await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/tool_use.*ids were found/);
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+    expect(result.error).toMatch(/tool_use.*ids were found/);
   });
 
   it('does not misfire on a real completion that happens to start with "{"', async () => {
