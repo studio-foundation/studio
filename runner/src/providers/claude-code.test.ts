@@ -278,6 +278,34 @@ describe('ClaudeCodeProvider', () => {
     await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/claude -p exited/i);
   });
 
+  it('rejects when the result event carries a bare JSON API error envelope (STU-1484)', async () => {
+    const errorEnvelope = JSON.stringify({
+      type: 'error',
+      error: { type: 'api_error', message: 'Internal server error' },
+      request_id: 'req_011CVLR7DDp8yjjfKKsdyEcx',
+    });
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: errorEnvelope })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider();
+    await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/Internal server error/);
+  });
+
+  it('rejects when the result event carries a markdown-wrapped "API Error:" envelope (STU-1484)', async () => {
+    const wrapped = '**API Error: 400 {"type":"error","error":{"type":"invalid_request_error","message":"messages.5: `tool_use` ids were found without `tool_result` blocks immediately after: toolu_016vDGjyoHtRjnBbXfMuypkc."}}';
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: wrapped })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider();
+    await expect(provider.runAgentLoop(BASE_REQUEST, vi.fn())).rejects.toThrow(/tool_use.*ids were found/);
+  });
+
+  it('does not misfire on a real completion that happens to start with "{"', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: '{"summary":"all good"}' })];
+    mockSpawn.mockReturnValueOnce(makeFakeProcess(lines));
+    const provider = new ClaudeCodeProvider();
+    const result = await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+    expect(result.content).toBe('{"summary":"all good"}');
+  });
+
   it('aborts child process when signal fires', async () => {
     const controller = new AbortController();
     // Long-running proc that never closes on its own

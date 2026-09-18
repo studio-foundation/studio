@@ -200,6 +200,11 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         logCC('close', { code, ms: Date.now() - startedAt, gotResult: resultContent !== undefined });
         if (signal?.aborted) return;
         if (resultContent !== undefined) {
+          const apiError = parseApiErrorEnvelope(resultContent);
+          if (apiError) {
+            reject(new Error(`Provider API error: ${apiError}`));
+            return;
+          }
           resolve({ content: resultContent, finish_reason: 'stop', usage: resultUsage });
         } else {
           const errDetail = stderrContent.trim() ? `: ${stderrContent.trim()}` : '';
@@ -216,6 +221,45 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
 
 function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * The CLI's `result` event reports `subtype: 'success'` even when what it
+ * actually got back from the API was an error envelope — the underlying
+ * completion failed, but `--print` has no other channel to report it on, so
+ * it hands the error text back as if it were the model's answer. Without this,
+ * Studio stores that text as the agent run's output and marks it `success`,
+ * so the stage fails on contract validation (a schema complaint) rather than
+ * on the provider outage it actually was (STU-1484).
+ *
+ * Two observed shapes: a bare JSON envelope (`{"type":"error","error":{...}}`),
+ * and the same envelope wrapped in a markdown-bolded "API Error: <code>"
+ * prefix. Anything else is a real completion and returns undefined.
+ */
+function parseApiErrorEnvelope(content: string): string | undefined {
+  const trimmed = content.trim();
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { type?: string; error?: { message?: string } };
+      if (parsed.type === 'error' && parsed.error?.message) {
+        return parsed.error.message;
+      }
+    } catch {
+      // Not JSON — a real completion can legitimately start with '{'.
+    }
+    return undefined;
+  }
+
+  const match = trimmed.match(/^\*\*API Error:\s*\d+\s*(\{.*\})/s);
+  if (!match) return undefined;
+  try {
+    const parsed = JSON.parse(match[1]) as { error?: { message?: string } };
+    if (parsed.error?.message) return parsed.error.message;
+  } catch {
+    // Malformed JSON after the prefix — still a provider error, just report the raw text.
+  }
+  return trimmed;
 }
 
 /**
