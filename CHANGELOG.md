@@ -7,6 +7,27 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.20.2] — 2026-09-18
+
+### Engine
+
+- **A stage that exhausts RALPH on a contract rejection now records why.** `ralph()` already returned the last attempt's `failures` on the exhausted path, but nothing consumed it — `stage-executor.ts` only registered `onRetry`, so the rejection reasons were computed and discarded every time. A parent `map` stage then read the child's `agent_run.error`, found none (the agent ran fine; only its output failed validation), and reported `Child run <uuid> failed: no error recorded`. Measured on 0.19.0 across 12 fan-out runs (2202 items): 85 of 92 failures surfaced this way. `onExhausted` now sets the last attempt's error to the joined validation failures, so the existing spawner error-reporting path (unchanged) surfaces the real reason. (STU-1483)
+
+### Runner
+
+- **A provider API error is no longer stored as a successful completion.** When the `claude-code` provider's underlying API call returned an error envelope instead of a real completion, Studio stored the envelope as the agent run's output and marked it `success` — the stage then failed on contract validation (a schema complaint, or nothing at all) for what was really a provider outage. The provider now recognizes both observed error shapes — a bare JSON envelope and one wrapped in a markdown `**API Error: <code>` prefix — and fails the run with the provider's own message. (STU-1484)
+
+### Contracts
+
+- **`ChildStageUsage.attempts` is 0 for a stage that ran no agent, as documented.** It never was: a script stage's `AgentRun` carries a real attempt number from the same RALPH loop an agent stage uses, so a script-only stage always reported `attempts: 1`, over-pricing any consumer that summed attempts to estimate LLM calls. `childStageUsage` (shared by both spawners) now excludes `agent_runs` whose synthetic `agent_name` starts with `script:` from the max-attempt calculation. (STU-1245)
+
+### CLI
+
+- **A malformed `mock.yaml` names the file and the missing key instead of a raw `TypeError`.** A `--provider mock` run against a `mock.yaml` with no top-level `stages:` key died with `Error: Cannot convert undefined or null to object` — no file, no key, no stage. `run.ts` and `replay.ts` (which carry the identical duplicated loading code) now validate `stages` is present before reading it. (STU-1257)
+- **A fan-out's header names the sub-pipeline it runs per item.** Since STU-861 a run can show several fan-outs at different depths at once, so the map name alone didn't say which pass was which. `MapStartEvent` gains an optional `pipeline` field, populated from the already-present `MapStage.pipeline`, rendered as `↳ classify-verdicts → classify-one — fan-out over 12 items (concurrency 2)`. The run's JSONL carries the field too, including under `--json`. Additive — an event consumer that doesn't care is unaffected. (STU-1260)
+- **The `cli` suite no longer goes red under parallel load from a cold module import.** Two tests opened with a cold `await import(...)` of the CLI's module graph, which alone measured 5039–5083 ms on a machine also running a build — over vitest's default 5000 ms `testTimeout`. Raised to 15000 ms; verified with 10 consecutive full-suite runs against concurrent builds, 0 failures. (STU-1243)
+- **The nested run console (STU-861) is now proven on a real run, not only synthetic events.** STU-861 shipped on 16 unit tests driving `ProgressDisplay.getEvents()` with synthetic depth-1/depth-2 sequences — they cover routing, not what a terminal does when several live renderers exist at once. A new fixture (`cli/tests/fixtures/nested-console/`) nests a `map` inside a `call`ed pipeline that itself `map`s, so two inner fan-outs render live at the same time under concurrency; a new integration test runs it in default, `--live` and `--json` modes. No rendering defect found. (STU-1261)
+
 ## [0.20.1] — 2026-09-02
 
 ### Fixes
