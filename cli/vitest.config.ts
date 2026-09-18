@@ -16,5 +16,10 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
+    // vitest's 5000ms default is tight for a test whose first line is a cold
+    // `await import(...)` of the CLI's module graph — on a machine also running
+    // a build, that alone measured 5039-5083ms (STU-1243). 15s gives headroom
+    // for a loaded machine without hiding a genuinely hung test for that long.
+    testTimeout: 15000,
   },
 });
