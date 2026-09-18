@@ -1,0 +1,16 @@
+name: chapter-reviewer
+description: Runs once per chapter (spawned by chapters-pipeline's review-chapters map). An agent stage under mock does the review; a script stage gates on the verdict so exactly one chapter fails, giving the fan-out a real mixed success/failure result.
+version: 1
+stages:
+  - name: review-chapter
+    kind: work
+    agent: reviewer
+    contract: verdict
+    context:
+      include: [input]
+  - name: gate-chapter
+    executor: script
+    runtime: shell
+    script: scripts/gate-chapter.sh
+    context:
+      include: [input]

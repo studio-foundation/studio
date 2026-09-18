@@ -1,0 +1,11 @@
+name: chapters-pipeline
+description: Fans out over one book's chapters (spawned by book-pipeline's review-book call). This is the inner fan-out — live at the same time as another book's, when concurrency > 1.
+version: 1
+stages:
+  - map: review-chapters
+    over: input.book.chapters
+    pipeline: chapter-reviewer
+    concurrency: 2
+    on_item_failure: collect-all
+    input:
+      chapter: '{{item}}'

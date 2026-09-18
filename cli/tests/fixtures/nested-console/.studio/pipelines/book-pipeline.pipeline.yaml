@@ -1,0 +1,6 @@
+name: book-pipeline
+description: Runs once per book (spawned by orchestrate's process-books map). Calls chapters-pipeline, whose own map is the second nested fan-out.
+version: 1
+stages:
+  - call: review-book
+    pipeline: chapters-pipeline
