@@ -77,6 +77,7 @@ describe('Fan-out (map) stage', () => {
 
     const mapStage = result.stages[0];
     expect(mapStage.stage_name).toBe('generate');
+    expect(mapStage.attempts).toBe(1); // STU-1287: a map stage doesn't retry itself
     const out = mapStage.output as any;
     expect(out.total).toBe(3);
     expect(out.succeeded).toBe(3);

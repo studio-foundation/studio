@@ -103,6 +103,16 @@ describe('nested run console on a real run (STU-1261)', () => {
     expect(stdout).toContain('✓ Pipeline completed');
   }, 15_000);
 
+  it('leaves no stray "Thinking..." line above a map stage under --live (STU-1487)', async () => {
+    const { code, stdout } = await run([...RUN_ARGS, '--live']);
+
+    expect(code).toBe(0);
+    // A stage that turns out to be a map fan-out must never print its
+    // "Thinking..." spinner line — it freezes on a non-TTY stream because
+    // ora can't erase a line it already wrote there.
+    expect(stdout).not.toContain('Thinking...');
+  }, 15_000);
+
   it('--json keeps its contract: no human-rendered map text, structured output only', async () => {
     const { code, stdout } = await run([...RUN_ARGS, '--json']);
 

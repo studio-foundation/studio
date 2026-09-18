@@ -12,6 +12,14 @@ export class ProgressDisplay {
   private spinnerText = '';
   private toolSpinner: Ora | null = null;
   private thinkingSpinner: Ora | null = null;
+  /**
+   * A stage that turns out to be a `map` emits onMapStart synchronously right
+   * after onStageStart, in the same tick — so starting the "Thinking…" spinner
+   * eagerly writes a line that onMapStart's own stop() can never erase on a
+   * non-TTY stream (no cursor control there). Deferring the write to the next
+   * tick lets onMapStart cancel it before anything reaches the terminal.
+   */
+  private pendingThinkingSpinner: NodeJS.Immediate | null = null;
   private currentToolText = '';
   private isStreamingTokens = false;
   private stageStartTime = 0;
@@ -95,6 +103,7 @@ export class ProgressDisplay {
 
   /** Stop any spinner that owns the current line before printing a static child line. */
   private stopSpinnersForChildLine(): void {
+    this.cancelPendingThinkingSpinner();
     this.thinkingSpinner?.stop();
     this.thinkingSpinner = null;
     this.toolSpinner?.stop();
@@ -102,6 +111,33 @@ export class ProgressDisplay {
     this.spinner?.stop();
     this.spinner = null;
     this.clearTimer();
+  }
+
+  /** Cancel a "Thinking…" spinner scheduled by scheduleThinkingSpinner() before it writes anything. */
+  private cancelPendingThinkingSpinner(): void {
+    if (this.pendingThinkingSpinner) {
+      clearImmediate(this.pendingThinkingSpinner);
+      this.pendingThinkingSpinner = null;
+    }
+  }
+
+  /**
+   * Defer the "Thinking… (0s)" spinner's first render to the next tick, so a
+   * stage that turns out to be a map (onMapStart fires synchronously, same
+   * tick) can cancel it via cancelPendingThinkingSpinner() before it ever
+   * reaches the terminal.
+   */
+  private scheduleThinkingSpinner(indent: number): void {
+    this.pendingThinkingSpinner = setImmediate(() => {
+      this.pendingThinkingSpinner = null;
+      this.thinkingSpinner = makeSpinner({ text: chalk.dim('Thinking... (0s)'), indent, color: 'gray' }).start();
+      this.resetStageTimer();
+      this.startTimer((elapsed) => {
+        if (this.thinkingSpinner) {
+          this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
+        }
+      });
+    });
   }
 
   /**
@@ -112,13 +148,7 @@ export class ProgressDisplay {
    */
   private startChildThinkingSpinner(depth: number): void {
     if (this.interrupted) return; // in-flight child events must not resurrect the spinner after Ctrl-C
-    this.thinkingSpinner = makeSpinner({ text: chalk.dim('Thinking... (0s)'), indent: depth * 2 + 2, color: 'gray' }).start();
-    this.resetStageTimer();
-    this.startTimer((elapsed) => {
-      if (this.thinkingSpinner) {
-        this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
-      }
-    });
+    this.scheduleThinkingSpinner(depth * 2 + 2);
   }
 
   private startTimer(updateFn: (elapsed: string) => void): void {
@@ -142,6 +172,7 @@ export class ProgressDisplay {
   interrupt(): void {
     this.interrupted = true;
     this.clearTimer();
+    this.cancelPendingThinkingSpinner();
     this.parallelRenderer?.interrupt();
     this.parallelRenderer = null;
     this.isInParallelGroup = false;
@@ -197,13 +228,7 @@ export class ProgressDisplay {
         if (this.live) {
           this.stopSpinnersForChildLine();
           console.log(chalk.cyan(`${formatStageLine(prefix, event.stage_name, '')}...`));
-          this.thinkingSpinner = makeSpinner({ text: chalk.dim('Thinking... (0s)'), indent: 2, color: 'gray' }).start();
-          this.resetStageTimer();
-          this.startTimer((elapsed) => {
-            if (this.thinkingSpinner) {
-              this.thinkingSpinner.text = chalk.dim(`Thinking... (${elapsed})`);
-            }
-          });
+          this.scheduleThinkingSpinner(2);
         } else {
           this.spinnerText = formatStageLine(prefix, event.stage_name, '');
           this.spinner = makeSpinner({ text: this.spinnerText, color: 'cyan' }).start();
@@ -458,6 +483,7 @@ export class ProgressDisplay {
         // Tear down whatever onStageStart spun up for this stage — a map stage
         // is not a single agent call, so the "Thinking…" spinner is wrong here.
         this.clearTimer();
+        this.cancelPendingThinkingSpinner();
         if (this.live) {
           // The "[i/n] map-name…" header line is already persisted to scrollback.
           this.thinkingSpinner?.stop();

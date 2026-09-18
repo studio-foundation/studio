@@ -39,6 +39,12 @@ export interface StageRun {
   // or `map` stage carries the total of the child runs it spawned — those runs
   // are not in `stages`, so a per-run total never double-counts them.
   token_usage?: TokenUsage;
+  // How many RALPH attempts this stage took — already computed for the
+  // `onStageComplete` event, mirrored here so a `--json` caller reads it
+  // instead of re-deriving it from `tasks[].agent_runs[].attempt`. A `call`
+  // or `map` stage does not retry itself (retries happen inside the child
+  // pipeline's own stages), so it is always 1; a condition-skipped stage is 0.
+  attempts?: number;
 }
 
 export interface TaskRun {

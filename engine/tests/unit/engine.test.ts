@@ -455,6 +455,7 @@ describe('PipelineEngine', () => {
     expect(agentRuns[0].error).toBeUndefined(); // retried attempt — not the final word
     expect(agentRuns[1].error).toBeDefined();
     expect(agentRuns[1].error).toContain('summary');
+    expect(result.stages[0].attempts).toBe(2); // STU-1287: exposed on the record, not only the event
   });
 
   it('fails the stage when an external validator rejects the real output', async () => {
@@ -516,6 +517,7 @@ describe('PipelineEngine', () => {
 
     const stage = result.stages[0];
     expect(stage.tasks).toHaveLength(1);
+    expect(stage.attempts).toBe(1); // STU-1287
 
     const task = stage.tasks[0];
     expect(task.task_name).toBe('analysis');

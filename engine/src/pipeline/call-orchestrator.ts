@@ -65,6 +65,7 @@ export class CallOrchestrator {
     ): CallRunResult => {
       stageRun.status = status;
       stageRun.completed_at = new Date().toISOString();
+      stageRun.attempts = 1;
       if (output !== undefined) stageRun.output = output;
       if (skippedReason) stageRun.skipped_reason = skippedReason;
       if (tokenUsage) stageRun.token_usage = tokenUsage;

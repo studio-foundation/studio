@@ -25,14 +25,24 @@ export class MockProvider implements AgentLoopProvider {
     onToken?: (token: string) => void,
     _signal?: AbortSignal
   ): Promise<AgentLoopResult> {
+    // `request.stage_name` is actually the stage's *contract* name (runner.ts
+    // populates it from `task.contract_name`) — mock.yaml is keyed by that, not
+    // by the stage's own `name:`. A stage with no `contract:` field never
+    // reaches this provider with anything to look up.
     if (!request.stage_name) {
-      throw new Error('MockProvider requires stage_name in LLMRequest');
+      throw new Error(
+        "MockProvider requires a 'contract:' on this stage — --provider mock looks up " +
+        "its mock.yaml entry by the contract's name, not the stage's own name. Add " +
+        "'contract: <name>' to the stage, and key mock.yaml with that same name."
+      );
     }
 
     const config = this.stages.get(request.stage_name);
     if (!config) {
       throw new Error(
-        `Unknown mock stage: "${request.stage_name}". Add it to mock.yaml.`
+        `Unknown mock stage: "${request.stage_name}". mock.yaml must be keyed by the ` +
+        `stage's *contract* name, not the stage's own name — add a "${request.stage_name}" ` +
+        `entry to mock.yaml.`
       );
     }
 

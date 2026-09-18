@@ -71,6 +71,7 @@ describe('engine — stage conditions', () => {
     expect(result.stages).toHaveLength(2);
     expect(result.stages[0]?.status).toBe('success');
     expect(result.stages[1]?.status).toBe('skipped');
+    expect(result.stages[1]?.attempts).toBe(0); // STU-1287: skipped ran no RALPH attempts
     // Script was only called once (for always-runs, not conditional-stage)
     expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);
   });
