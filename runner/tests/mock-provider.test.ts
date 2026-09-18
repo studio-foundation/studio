@@ -58,20 +58,20 @@ describe('MockProvider', () => {
     expect(result.tool_calls[0].name).toBe('repo_manager-write_file');
   });
 
-  it('throws a clear error for unknown stage', async () => {
+  it('throws a clear error for unknown stage, naming the contract-keying convention (STU-1486)', async () => {
     const provider = new MockProvider(stagesMap);
 
     await expect(
       provider.runAgentLoop({ model: 'mock', messages: [], stage_name: 'unknown-stage' }, vi.fn())
-    ).rejects.toThrow('Unknown mock stage: "unknown-stage"');
+    ).rejects.toThrow(/Unknown mock stage: "unknown-stage".*contract.*name/s);
   });
 
-  it('throws when stage_name is missing', async () => {
+  it('throws an error naming the missing contract when stage_name is missing (STU-1486)', async () => {
     const provider = new MockProvider(stagesMap);
 
     await expect(
       provider.runAgentLoop({ model: 'mock', messages: [] }, vi.fn())
-    ).rejects.toThrow('MockProvider requires stage_name');
+    ).rejects.toThrow(/'contract:'.*mock\.yaml/s);
   });
 
   it('emits a fake token when onToken is provided', async () => {
