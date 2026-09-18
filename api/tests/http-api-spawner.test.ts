@@ -169,7 +169,7 @@ describe('HttpApiSpawner', () => {
       stage_name: name,
       status,
       started_at: '',
-      tasks: [{ agent_runs: Array.from({ length: attempts }, (_, i) => ({ attempt: i + 1 })) }],
+      tasks: [{ agent_runs: Array.from({ length: attempts }, (_, i) => ({ attempt: i + 1, agent_name: 'test-agent' })) }],
       ...(total ? { token_usage: usage(total) } : {}),
       output: { ok: true },
     });
@@ -252,7 +252,10 @@ describe('HttpApiSpawner', () => {
           stage('a', 'success', 1, 100),
           {
             id: 'b', stage_name: 'b', status: 'failed', started_at: '',
-            tasks: [{ agent_runs: [{ attempt: 1 }, { attempt: 2, error: 'HTTP 400 from create_draft' }] }],
+            tasks: [{ agent_runs: [
+              { attempt: 1, agent_name: 'test-agent' },
+              { attempt: 2, agent_name: 'test-agent', error: 'HTTP 400 from create_draft' },
+            ] }],
             token_usage: usage(60),
           },
         ],

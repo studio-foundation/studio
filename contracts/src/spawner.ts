@@ -81,14 +81,20 @@ export interface RunSpawner {
  * must not depend on whether its children ran in-process or over the API.
  *
  * Attempts come from the agent runs the stage recorded — one per RALPH attempt —
- * so a stage that retried twice reports 3, not 1.
+ * so a stage that retried twice reports 3, not 1. A script stage's `AgentRun`
+ * carries the synthetic `agent_name` `script:<path>` rather than a configured
+ * agent's name; those are excluded, so a stage that ran no agent reports 0
+ * (STU-1245) instead of the one process-level "attempt" its script made.
  */
 export function childStageUsage(stages: StageRun[]): ChildStageUsage[] {
   return stages.map((stage) => ({
     stage: stage.stage_name,
     status: stage.status,
     attempts: stage.tasks.reduce(
-      (max, task) => task.agent_runs.reduce((n, run) => Math.max(n, run.attempt), max),
+      (max, task) => task.agent_runs.reduce(
+        (n, run) => run.agent_name.startsWith('script:') ? n : Math.max(n, run.attempt),
+        max,
+      ),
       0,
     ),
     ...(stage.token_usage ? { token_usage: stage.token_usage } : {}),
