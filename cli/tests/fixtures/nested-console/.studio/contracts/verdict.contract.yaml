@@ -1,0 +1,5 @@
+name: verdict
+version: 1
+schema:
+  required_fields:
+    - verdict

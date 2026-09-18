@@ -1,0 +1,5 @@
+stages:
+  verdict:
+    output:
+      verdict: ok
+    tool_calls: []

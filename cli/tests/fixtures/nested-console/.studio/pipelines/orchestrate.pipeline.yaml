@@ -1,0 +1,11 @@
+name: orchestrate
+description: STU-1261 fixture — proves the nested run console on a call-over-map nesting.
+version: 1
+stages:
+  - map: process-books
+    over: input.books
+    pipeline: book-pipeline
+    concurrency: 2
+    on_item_failure: collect-all
+    input:
+      book: '{{item}}'
