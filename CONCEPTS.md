@@ -727,7 +727,7 @@ Transparent middleware that replaces sensitive data with tokens before sending t
 - Emails → `[EMAIL_1]`
 - Financial data → `[AMOUNT_1]`
 
-A local keymap stored in `.studio/runs/anonymization/<run-id>.keymap.json` lets you reconstruct the original values after the run.
+A local keymap stored in `.studio/runs/anonymization/<run-id>.keymap.json` lets you reconstruct the original values after the run. Keymaps older than 7 days are deleted the next time a run writes one, since the file is a plaintext token-to-PII table.
 
 Activated via `--anonymize` on `studio run`, or `anonymize: true` in agent YAML.
 

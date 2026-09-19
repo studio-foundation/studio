@@ -40,6 +40,9 @@ import { FileSystemMapItemCache } from './pipeline/map-item-cache.js';
 import { CallOrchestrator } from './pipeline/call-orchestrator.js';
 import { join } from 'node:path';
 
+// A keymap is a plaintext token → PII table that only matters while its run's output is being restored.
+export const KEYMAP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface EngineConfig {
   configsDir: string;
   repoPath?: string;
@@ -689,11 +692,16 @@ export class PipelineEngine {
   private async persistKeymap(runId: string, keymap: Record<string, string>): Promise<void> {
     if (Object.keys(keymap).length === 0) return;
     try {
-      const { mkdir, writeFile } = await import('node:fs/promises');
+      const { mkdir, writeFile, readdir, stat, rm } = await import('node:fs/promises');
       const { join } = await import('node:path');
       // configsDir is .studio/ directly — keymap goes in .studio/runs/anonymization/
       const anonDir = join(this.config.configsDir, 'runs', 'anonymization');
       await mkdir(anonDir, { recursive: true });
+      const cutoff = Date.now() - KEYMAP_TTL_MS;
+      for (const name of await readdir(anonDir)) {
+        const file = join(anonDir, name);
+        if (name.endsWith('.keymap.json') && (await stat(file)).mtimeMs < cutoff) await rm(file, { force: true });
+      }
       const keymapPath = join(anonDir, `${runId}.keymap.json`);
       await writeFile(keymapPath, JSON.stringify(keymap, null, 2), 'utf-8');
     } catch {
