@@ -98,7 +98,7 @@ That is the whole level. No file or directory other than `metadata.json` is requ
 **Level 2 — Semantic** (parse + cross-reference):
 - Every `.yaml`/`.yml` file in `pipelines/`, `agents/`, `contracts/` and `tools/` parses, is non-empty, and is a mapping rather than a list.
 - Every pipeline stage's `contract` matches a `<name>.contract.yaml` in `contracts/`.
-- Every pipeline stage's `agent` matches a `<name>.agent.yaml` in `agents/`.
+- Every pipeline stage's `agent` matches a `<name>.agent.yaml` in `agents/`, or a plugin named in `dependencies.plugins.required` or `recommended` (agents ship as plugins in the registry).
 
 Stages nested inside a `group:` are collected and checked like top-level ones.
 
@@ -106,9 +106,9 @@ Stages nested inside a `group:` are collected and checked like top-level ones.
 - `tsconfig.json` present → runs `tsc --noEmit` in the template directory and reports the output as a semantic error on failure.
 - `prisma/schema.prisma` present → emits a warning that migration testing is not automated. It is never validated.
 
-> **Known gap — the validator passes on templates it has not read.** It looks for `pipelines/`, `agents/` and `contracts/` beside `metadata.json`, but a registry template keeps them one level down under `project/`. Pointed at such a template it finds no YAML, has nothing to cross-reference, and reports both levels green. All five templates in studio-community validate clean today for that reason, not because their YAML was checked. Tracked in [STU-696](https://linear.app/studioag/issue/STU-696).
+The YAML directories are read from `project/` when the template has one (the registry layout), otherwise from beside `metadata.json`.
 
-Tools are not validated at any level. An agent's `tools:` list and a contract's `required_tools:` are parsed as YAML and never cross-referenced against `tools/` or against the builtins.
+Tools are deliberately not validated. The builtin list lives in the runner and the rest are marketplace plugins, so a copy here would drift. An agent's `tools:` list and a contract's `required_tools:` are parsed as YAML and never cross-referenced against `tools/` or against the builtins.
 
 Note on naming: contracts use dot format (`repo_manager.write_file`), the engine transforms to dash format (`repo_manager-write_file`) internally.
 

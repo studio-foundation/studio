@@ -148,3 +148,37 @@ describe('validateTemplateDir — Level 2: Semantic', () => {
     expect(result.semanticErrors.some(e => e.includes('ghost-contract'))).toBe(true);
   });
 });
+
+describe('validateTemplateDir — registry layout (project/)', () => {
+  async function makeRegistryTemplate(pipeline: string, plugins: string[] = ['analyst']): Promise<string> {
+    const dir = join(TMP, `reg-${Date.now()}`);
+    await mkdir(join(dir, 'project', 'pipelines'), { recursive: true });
+    await mkdir(join(dir, 'project', 'contracts'), { recursive: true });
+    await writeFile(
+      join(dir, 'metadata.json'),
+      JSON.stringify({ name: 't', version: '1.0.0', description: 'd', dependencies: { plugins: { required: plugins } } }),
+    );
+    await writeFile(join(dir, 'project', 'pipelines', 'p.pipeline.yaml'), pipeline);
+    await writeFile(join(dir, 'project', 'contracts', 'output.contract.yaml'), 'name: output\nversion: 1\n');
+    return dir;
+  }
+
+  it('reads the YAML under project/ and accepts an agent named in required plugins', async () => {
+    const dir = await makeRegistryTemplate('name: p\nstages:\n  - name: s\n    agent: analyst\n    contract: output\n');
+    expect((await validateTemplateDir(dir)).valid).toBe(true);
+  });
+
+  it('fails on a contract that does not exist under project/contracts', async () => {
+    const dir = await makeRegistryTemplate('name: p\nstages:\n  - name: s\n    agent: analyst\n    contract: missing\n');
+    const result = await validateTemplateDir(dir);
+    expect(result.valid).toBe(false);
+    expect(result.semanticErrors.join('\n')).toContain("contract 'missing'");
+  });
+
+  it('fails on an agent that is neither in agents/ nor a required plugin', async () => {
+    const dir = await makeRegistryTemplate('name: p\nstages:\n  - name: s\n    agent: ghost\n    contract: output\n');
+    const result = await validateTemplateDir(dir);
+    expect(result.valid).toBe(false);
+    expect(result.semanticErrors.join('\n')).toContain("agent 'ghost'");
+  });
+});
