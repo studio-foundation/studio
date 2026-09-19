@@ -15,6 +15,7 @@ function dateForFilename(): string {
 export interface RunLogger {
   start(runId: string, pipeline: string): void;
   log(payload: Record<string, unknown>): void;
+  setRedactor(redact: (text: string) => string): void;
   close(): Promise<void>;
   getLogPath(): string;
 }
@@ -23,6 +24,7 @@ export function createRunLogger(cwd: string = process.cwd()): RunLogger {
   let logPath = '';
   let stream: ReturnType<typeof createWriteStream> | null = null;
   let shortRunId = '';
+  let redact = (text: string): string => text;
 
   return {
     start(runId: string, pipeline: string): void {
@@ -40,10 +42,14 @@ export function createRunLogger(cwd: string = process.cwd()): RunLogger {
         ...payload,
         run_id: payload.run_id !== undefined ? runIdShort(String(payload.run_id)) : shortRunId,
       };
-      const out = JSON.stringify(line) + '\n';
+      const out = redact(JSON.stringify(line)) + '\n';
       if (stream?.writable) {
         stream.write(out);
       }
+    },
+
+    setRedactor(fn: (text: string) => string): void {
+      redact = fn;
     },
 
     close(): Promise<void> {

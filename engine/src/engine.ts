@@ -22,6 +22,7 @@ import {
 } from '@studio-foundation/runner';
 import { loadPipelineByName } from './pipeline/loader.js';
 import { executeStartupCommands } from './pipeline/startup-executor.js';
+import { buildTaskInput } from './pipeline/task-input.js';
 import { loadInvariantsFile } from './pipeline/invariants-loader.js';
 import {
   createInitialContext,
@@ -71,6 +72,9 @@ export interface RunInput {
   // Opaque field names to anonymize when `anonymize` is on. Undefined → every
   // field (fail-safe). The engine never interprets these names (INV-04).
   anonymizeFields?: string[];
+  // Receives a redactor once the run's anonymization is live: it maps any text to
+  // the same text with keymapped PII replaced by tokens. For sinks Studio does not own.
+  onRedactor?: (redact: (text: string) => string) => void;
   signal?: AbortSignal;
   depth?: number;        // nesting depth (0 = top-level)
   parentRunId?: string;  // parent run ID if spawned by another pipeline
@@ -250,6 +254,18 @@ export class PipelineEngine {
     const runMiddleware = runAnonymize
       ? new AnonymizationMiddleware(undefined, undefined, input.anonymizeFields)
       : null;
+
+    if (runMiddleware) {
+      // Seed the keymap from the input now, so events emitted before the first
+      // stage tokenizes it are already redactable. Tokens are stable per value.
+      if (typeof input.input === 'string' || typeof input.userInput === 'string') {
+        runMiddleware.anonymize((input.userInput ?? input.input) as string);
+      } else {
+        const fields = buildTaskInput((input.userInput ?? input.input ?? {}) as Record<string, unknown>).fields;
+        if (fields) await runMiddleware.anonymizeFields(fields);
+      }
+      input.onRedactor?.((text) => runMiddleware.redact(text));
+    }
 
     // Persist the run immediately so log_path can be written before terminal states
     await this.config.db?.savePipelineRun(pipelineRun);

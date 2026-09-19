@@ -729,6 +729,8 @@ Transparent middleware that replaces sensitive data with tokens before sending t
 
 A local keymap stored in `.studio/runs/anonymization/<run-id>.keymap.json` lets you reconstruct the original values after the run.
 
+Under `--anonymize`, values in the keymap are also replaced by their tokens in what Studio writes and prints: `.studio/runs/*.jsonl`, `--json` stdout and the final error line. `--include-cleartext` turns that off.
+
 Activated via `--anonymize` on `studio run`, or `anonymize: true` in agent YAML.
 
 ---
