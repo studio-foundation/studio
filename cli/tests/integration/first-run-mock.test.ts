@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 
 const CLI_BIN = resolve(import.meta.dirname, '../../dist/index.js');
@@ -31,12 +31,16 @@ describe('first run with the mock provider', () => {
     } finally {
       process.chdir(cwd);
     }
+    // The search plugin requires ripgrep on PATH; the mock run never invokes it.
+    await mkdir(join(TMP, 'bin'), { recursive: true });
+    await writeFile(join(TMP, 'bin', 'rg'), '#!/bin/sh\n');
+    await chmod(join(TMP, 'bin', 'rg'), 0o755);
     await copyFile(EXAMPLE, join(TMP, '.studio', 'mock.yaml'));
 
     const child = spawn(
       process.execPath,
       [CLI_BIN, 'run', 'quick-edit', '--input', 'x', '--provider', 'mock'],
-      { cwd: TMP, stdio: ['ignore', 'pipe', 'pipe'] },
+      { cwd: TMP, env: { ...process.env, PATH: `${join(TMP, 'bin')}:${process.env.PATH}` }, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     let out = '';
     child.stdout.on('data', (c: Buffer) => { out += c.toString('utf-8'); });
