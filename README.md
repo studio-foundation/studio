@@ -169,7 +169,7 @@ Update along the channel you installed from: `studio upgrade` for the binary,
 `npm i -g @studio-foundation/cli@latest` for npm.
 
 ```bash
-# Create a project directory and initialize from a template
+# Create a project directory and initialize it from a template (init works in the current directory)
 mkdir my-builder && cd my-builder
 studio init my-builder --template software
 ```
@@ -180,10 +180,14 @@ studio init my-builder --template software
 # Configure your provider
 studio config set provider anthropic --api-key $ANTHROPIC_API_KEY
 
-# Install dependencies and run
+# Install dependencies and run (pipeline names are bare: feature-builder, not software/feature-builder)
 npm install
-studio run software/feature-builder --input "Add dark mode support"
+studio run feature-builder --input "Add dark mode support"
 ```
+
+No API key yet? `--provider mock` runs a pipeline with canned output. Copy
+[docs/examples/mock.quick-edit.yaml](./docs/examples/mock.quick-edit.yaml) to `.studio/mock.yaml`, then
+`studio run quick-edit --provider mock --input "x"`. The format is in [CLI.md](./CLI.md#mock-provider-mockyaml).
 
 ---
 

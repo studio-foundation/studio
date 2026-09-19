@@ -80,6 +80,23 @@ studio validate <contract> <output.json>         # Validate output against contr
 studio list pipelines                            # List available pipelines (also: agents, runs)
 ```
 
+### Mock provider (`mock.yaml`)
+
+`--provider mock` answers each stage from `<project>/.studio/mock.yaml` instead of calling a model, so a pipeline runs offline with no key. The file is required; the run fails naming it when it is missing.
+
+```yaml
+stages:
+  quick-edit-output:            # the stage's CONTRACT name, not the stage name
+    output:                     # JSON the stage returns; validated by the contract as usual
+      summary: Mock edit
+      file_changed: src/mock.txt
+    tool_calls:                 # executed and counted; required when the contract has tool_calls.minimum
+      - name: repo_manager-write_file
+        arguments: { path: src/mock.txt, content: "hello\n" }
+```
+
+A stage with no `contract:` has nothing to key on and fails with an error saying so. Working example: [docs/examples/mock.quick-edit.yaml](./docs/examples/mock.quick-edit.yaml), exercised by `cli/tests/integration/first-run-mock.test.ts`.
+
 ## Setup
 
 ```bash
