@@ -7,6 +7,23 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.22.0] — 2026-09-19
+
+### Engine
+
+- **`map` stages accept `anonymize: { keymap: shared }`.** Under `--anonymize`, the child runs of a fan-out tokenize into the parent run's keymap, so one value gets one token across every item and the parent's single keymap file holds them all. The default (`per-run`) is unchanged: children are not handed the middleware. A child that adopts a middleware does not persist its own keymap, and `anonymizeFields` calls on one middleware are now serialized so concurrent children cannot mint colliding tokens. (STU-1527)
+- **Breaking: anonymization keymaps older than 7 days are deleted.** Each keymap write purges `.studio/runs/anonymization/*.keymap.json` files past the TTL. The file is a plaintext token to PII table that nothing ever removed; a run's output can no longer be restored from its keymap after a week. (STU-836)
+- **An agent with `anonymize: true` honours the run's field scope.** The stage-level middleware was built with no scope and tokenized every field, so the same pipeline anonymized differently depending on which switch turned anonymization on. (STU-835)
+
+### CLI
+
+- **Under `--anonymize`, run logs, `--json` output and the final error line carry tokens, not PII.** Values the keymap holds are replaced by their tokens in `.studio/runs/*.jsonl`, the `--json` payload and `Error:` output; the keymap is seeded from the input at run start so events emitted before the first stage are covered. New flag `--include-cleartext` keeps the original values. Only keymapped values are masked, and a value that JSON-escapes (quotes, backslashes) will not match inside serialized JSON. (STU-1528)
+- **`studio template validate` reads the `project/` layout registry templates use.** (STU-696)
+
+### Docs
+
+- **The first run is reachable from the docs and guarded in CI.**
+
 ## [0.21.0] — 2026-09-18
 
 ### Runner
