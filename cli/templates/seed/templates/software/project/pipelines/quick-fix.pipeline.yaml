@@ -14,6 +14,7 @@ stages:
   - name: code-fix
     kind: code
     agent: coder
+    contract: code-output
     ralph:
       max_attempts: 3
     context:

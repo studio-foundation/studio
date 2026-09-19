@@ -1,6 +1,6 @@
 {
   "name": "git-workflow",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Git branching, conventional commits, and PR conventions",
   "author": "studio-core",
   "license": "MIT",
@@ -15,5 +15,5 @@
       "git-workflow"
     ]
   },
-  "studio_version": ">=0.2.0"
+  "studio_version": ">=0.11.2"
 }

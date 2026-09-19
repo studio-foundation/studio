@@ -1,6 +1,6 @@
 {
   "name": "worker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Task execution specialist — executes the planned task matching its own stage name",
   "author": "studio-core",
   "license": "MIT",
@@ -15,5 +15,5 @@
       "worker"
     ]
   },
-  "studio_version": ">=0.2.0"
+  "studio_version": ">=0.11.2"
 }

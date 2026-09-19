@@ -5,8 +5,8 @@ schema:
   required_fields:
     - results
     - summary
-  field_constraints:
-    - field: results
+  fields:
+    results:
       type: array
-    - field: summary
+    summary:
       type: string

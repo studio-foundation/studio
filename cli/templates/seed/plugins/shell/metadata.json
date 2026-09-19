@@ -1,6 +1,6 @@
 {
   "name": "shell",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Execute shell commands in the workspace",
   "author": "studio-core",
   "license": "MIT",
@@ -15,5 +15,5 @@
       "shell"
     ]
   },
-  "studio_version": ">=0.2.0"
+  "studio_version": ">=0.11.2"
 }

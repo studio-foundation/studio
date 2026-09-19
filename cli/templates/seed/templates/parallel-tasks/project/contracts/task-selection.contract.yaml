@@ -4,12 +4,19 @@ version: 1
 schema:
   required_fields:
     - tasks
-  field_constraints:
-    - field: tasks
+  fields:
+    tasks:
       type: array
-      min_items: 5
-      max_items: 5
-      item_fields:
-        - id
-        - name
-        - brief
+      items:
+        type: object
+        required_fields:
+          - id
+          - name
+          - brief
+
+# The pipeline fans out to exactly 5 worker stages — a shorter or longer list
+# starves or drops tasks. Item counts are not expressible in schema.fields.
+validators:
+  - name: exactly-five-tasks
+    command: >-
+      jq '(.tasks | length) as $n | {valid: ($n == 5), errors: (if $n == 5 then [] else ["expected exactly 5 tasks, got \($n)"] end)}'

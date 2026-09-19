@@ -1,0 +1,17 @@
+name: webhook
+version: 1
+description: "Generic HTTP webhook notifications for pipeline events"
+
+config:
+  optional:
+    url: ""
+    events: "pipeline.complete,pipeline.failed"
+    secret: ""
+
+events:
+  emits:
+    - pipeline.complete
+    - pipeline.failed
+    - pipeline.start
+    - stage.complete
+    - stage.failed
