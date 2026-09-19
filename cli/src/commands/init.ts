@@ -660,7 +660,7 @@ export async function initCommand(nameArg?: string, options: InitOptions = {}): 
     // Non-interactive terminal fallback
     if (!process.stdin.isTTY) {
       console.error('stdin is not a TTY. Use flags for non-interactive init:');
-      console.error('  studio init --template <type> --name <project> --provider <provider> --api-key <key>');
+      console.error('  studio init --template <type> <project> --provider <provider> --api-key <key>');
       process.exit(1);
     }
 

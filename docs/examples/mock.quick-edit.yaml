@@ -1,0 +1,17 @@
+# mock.yaml for `studio run quick-edit --provider mock` in a project made by
+# `studio init --template software`. Copy it to <project>/.studio/mock.yaml.
+#
+# Keyed by the stage's CONTRACT name (quick-edit-output), not the stage name.
+# `output` is the JSON the stage returns and must satisfy the contract's schema;
+# `tool_calls` are executed for real and counted, so the contract's
+# tool_calls.minimum passes only if at least one is listed.
+stages:
+  quick-edit-output:
+    output:
+      summary: Mock edit
+      file_changed: src/mock.txt
+    tool_calls:
+      - name: repo_manager-write_file
+        arguments:
+          path: src/mock.txt
+          content: "hello\n"
