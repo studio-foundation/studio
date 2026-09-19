@@ -22,7 +22,9 @@ const RAW_BASE = `https://raw.githubusercontent.com/${REGISTRY_REPO}/main`;
 const API_BASE = `https://api.github.com/repos/${REGISTRY_REPO}`;
 
 async function fetchJson(url) {
-  const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`GET ${url} — HTTP ${res.status}`);
   return res.json();
 }
