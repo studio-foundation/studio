@@ -78,6 +78,9 @@ export interface RunInput {
   // Receives a redactor once the run's anonymization is live: it maps any text to
   // the same text with keymapped PII replaced by tokens. For sinks Studio does not own.
   onRedactor?: (redact: (text: string) => string) => void;
+  // In-process only: an existing run's middleware, adopted instead of creating one.
+  // A `map` stage with `anonymize: { keymap: shared }` hands its own to each child.
+  anonymizationMiddleware?: AnonymizationMiddleware;
   signal?: AbortSignal;
   depth?: number;        // nesting depth (0 = top-level)
   parentRunId?: string;  // parent run ID if spawned by another pipeline
@@ -254,9 +257,10 @@ export class PipelineEngine {
 
     // Create anonymization middleware for this run if requested via RunInput flag
     const runAnonymize = input.anonymize === true;
-    const runMiddleware = runAnonymize
-      ? new AnonymizationMiddleware(undefined, undefined, input.anonymizeFields)
-      : null;
+    const runMiddleware = input.anonymizationMiddleware
+      ?? (runAnonymize ? new AnonymizationMiddleware(undefined, undefined, input.anonymizeFields) : null);
+    // An adopted middleware's keymap belongs to the run that created it.
+    const ownsMiddleware = !input.anonymizationMiddleware;
 
     if (runMiddleware) {
       // Seed the keymap from the input now, so events emitted before the first
@@ -429,7 +433,7 @@ export class PipelineEngine {
             });
           }
           await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
+          if (runMiddleware && ownsMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
           this.events?.onPipelineComplete?.({
@@ -477,6 +481,7 @@ export class PipelineEngine {
           input.depth ?? 0,
           pipeline.name,
           signal,
+          runMiddleware,
         );
 
         // A map stage's own cost is the sum of the child runs it spawned.
@@ -496,7 +501,7 @@ export class PipelineEngine {
             });
           }
           await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
+          if (runMiddleware && ownsMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
           this.events?.onPipelineComplete?.({
@@ -574,7 +579,7 @@ export class PipelineEngine {
             });
           }
           await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
+          if (runMiddleware && ownsMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
           this.events?.onPipelineComplete?.({
@@ -649,7 +654,7 @@ export class PipelineEngine {
             });
           }
           await this.config.db?.savePipelineRun(pipelineRun);
-          if (runMiddleware) {
+          if (runMiddleware && ownsMiddleware) {
             await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
           }
           this.events?.onPipelineComplete?.({
@@ -682,7 +687,7 @@ export class PipelineEngine {
 
     // 6. Persist then emit (DB must be updated before SSE fires, so spawnAndWait GET sees final status)
     await this.config.db?.savePipelineRun(pipelineRun);
-    if (runMiddleware) {
+    if (runMiddleware && ownsMiddleware) {
       await this.persistKeymap(pipelineRun.id, runMiddleware.getKeymap());
     }
     this.events?.onPipelineComplete?.({

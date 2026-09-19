@@ -11,6 +11,9 @@ export class AnonymizationMiddleware {
   private options?: Omit<AnonymizerOptions, 'seedKeymap'>;
   private detector: DetectionProvider;
   private defaultScope?: string[];
+  // Children of a shared-keymap `map` call anonymizeFields concurrently; two calls
+  // reading the same seed would each mint the next token and overwrite the other's.
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
     options?: Omit<AnonymizerOptions, 'seedKeymap'>,
@@ -52,7 +55,16 @@ export class AnonymizationMiddleware {
    * Membership is a set check on opaque names — the kernel never branches on
    * what a name means (INV-04). Async because DetectionProvider.detect is async.
    */
-  async anonymizeFields(
+  anonymizeFields(
+    fields: Record<string, string>,
+    scope?: string[],
+  ): Promise<Record<string, string>> {
+    const run = this.queue.then(() => this.anonymizeFieldsNow(fields, scope));
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async anonymizeFieldsNow(
     fields: Record<string, string>,
     scope?: string[],
   ): Promise<Record<string, string>> {

@@ -169,6 +169,13 @@ export interface MapStage {
    *     stage exactly as it would without this key — correct, just not cheaper.
    */
   batch?: boolean | MapBatchConfig;
+  /**
+   * Token space of the child runs under `--anonymize`. `per-run` (default): each
+   * child has its own keymap, so the same value gets different tokens per item.
+   * `shared`: children tokenize into the parent's keymap, so a token means the
+   * same value across every item.
+   */
+  anonymize?: { keymap?: 'shared' | 'per-run' };
 }
 
 /** Tuning for a `map` stage's batched dispatch. Every field has a default. */

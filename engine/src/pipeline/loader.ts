@@ -18,7 +18,7 @@ const STAGE_FIELDS = [
   'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
-const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume', 'batch'] as const;
+const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume', 'batch', 'anonymize'] as const;
 const MAP_BATCH_FIELDS = ['max_size', 'poll_interval_ms', 'max_wait_ms', 'flush_after_ms'] as const;
 const CALL_FIELDS = ['call', 'condition', 'pipeline', 'input', 'on_failure'] as const;
 const RALPH_FIELDS = ['max_attempts', 'retry_strategy', 'max_tool_calls'] as const;
@@ -287,6 +287,16 @@ function parseMapStage(entry: any, context: string): MapStage {
     throw new Error(`Map stage '${name}' field 'resume' must be a boolean${context}`);
   }
   const batch = parseMapBatch(entry.batch, name, context);
+  if (entry.anonymize !== undefined) {
+    const a = entry.anonymize as Record<string, unknown> | null;
+    if (typeof a !== 'object' || a === null || Array.isArray(a)) {
+      throw new Error(`Map stage '${name}' field 'anonymize' must be an object${context}`);
+    }
+    assertKnownFields(a, ['keymap'] as const, `map stage '${name}' field 'anonymize'`, context);
+    if (a.keymap !== undefined && a.keymap !== 'shared' && a.keymap !== 'per-run') {
+      throw new Error(`Map stage '${name}' field 'anonymize.keymap' must be 'shared' or 'per-run'${context}`);
+    }
+  }
 
   return {
     map: name,
@@ -299,6 +309,7 @@ function parseMapStage(entry: any, context: string): MapStage {
     on_item_failure: onItemFailure,
     ...(entry.resume !== undefined ? { resume: entry.resume } : {}),
     ...(batch !== undefined ? { batch } : {}),
+    ...(entry.anonymize !== undefined ? { anonymize: entry.anonymize } : {}),
   };
 }
 
