@@ -45,6 +45,14 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
+async function readJson(path: string): Promise<Record<string, unknown> | undefined> {
+  try {
+    return JSON.parse(await readFile(path, 'utf-8')) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
 async function listYamlFiles(dir: string): Promise<string[]> {
   try {
     const entries = await readdir(dir);
@@ -80,12 +88,16 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     }
   }
 
-  const pipelinesDir = join(templatePath, 'pipelines');
+  // A registry template keeps its YAML under project/, a flat one beside metadata.json.
+  const projectDir = join(templatePath, 'project');
+  const root = (await pathExists(projectDir)) ? projectDir : templatePath;
 
-  const agentsDir = join(templatePath, 'agents');
+  const pipelinesDir = join(root, 'pipelines');
+
+  const agentsDir = join(root, 'agents');
   const agentFiles = (await listYamlFiles(agentsDir)).filter((f) => f.endsWith('.agent.yaml'));
 
-  const contractsDir = join(templatePath, 'contracts');
+  const contractsDir = join(root, 'contracts');
 
   if (structuralErrors.length > 0) {
     return { valid: false, structuralErrors, semanticErrors: [], warnings };
@@ -96,6 +108,9 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
   const semanticErrors: string[] = [];
 
   const knownAgents = new Set(agentFiles.map((f) => basename(f, '.agent.yaml')));
+  // An agent shipped as a plugin is installed beside the template, so it is named in dependencies, not in agents/.
+  const deps = ((await readJson(metaPath))?.dependencies as { plugins?: { required?: string[]; recommended?: string[] } } | undefined)?.plugins;
+  for (const name of [...(deps?.required ?? []), ...(deps?.recommended ?? [])]) knownAgents.add(name.split(':').pop()!.split('@')[0]);
   const contractFiles = (await listYamlFiles(contractsDir)).filter((f) => f.endsWith('.contract.yaml'));
   const knownContracts = new Set(contractFiles.map((f) => basename(f, '.contract.yaml')));
 
@@ -103,7 +118,7 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
     [pipelinesDir, 'pipelines'],
     [agentsDir, 'agents'],
     [contractsDir, 'contracts'],
-    [join(templatePath, 'tools'), 'tools'],
+    [join(root, 'tools'), 'tools'],
   ];
 
   const parsedPipelines: Array<{ file: string; parsed: Record<string, unknown> }> = [];
@@ -155,18 +170,18 @@ export async function validateTemplateDir(templatePath: string): Promise<Validat
 
   // ── Level 3: Optional TypeScript compilation ─────────────────────────
 
-  const tsConfigPath = join(templatePath, 'tsconfig.json');
+  const tsConfigPath = join(root, 'tsconfig.json');
   if (await pathExists(tsConfigPath)) {
     // spawnSync is intentional: this is a CLI command, not a server.
     // Blocking during tsc --noEmit is acceptable for a validation step.
-    const result = spawnSync('tsc', ['--noEmit'], { cwd: templatePath, encoding: 'utf-8' });
+    const result = spawnSync('tsc', ['--noEmit'], { cwd: root, encoding: 'utf-8' });
     if (result.status !== 0) {
       const output = (result.stdout ?? '') + (result.stderr ?? '');
       semanticErrors.push(`TypeScript compilation failed:\n${output.trim()}`);
     }
   }
 
-  const prismaSchema = join(templatePath, 'prisma', 'schema.prisma');
+  const prismaSchema = join(root, 'prisma', 'schema.prisma');
   if (await pathExists(prismaSchema)) {
     warnings.push('prisma/schema.prisma found (migration testing not automated — run prisma validate manually)');
   }
