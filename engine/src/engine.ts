@@ -294,6 +294,7 @@ export class PipelineEngine {
 
     // Load .studio/invariants.md if present — injected into every agent's system_prompt
     pipelineContext.invariantsContent = await loadInvariantsFile(projectPaths.projectDir);
+    pipelineContext.anonymizeFields = input.anonymizeFields;
 
     // Pre-populate context from prior run if resuming
     const skipSet: Set<string> =
