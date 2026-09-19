@@ -23,6 +23,7 @@ export interface PipelineContext {
   groupFeedback?: GroupFeedback;
   startupContext?: Record<string, string>;
   invariantsContent?: string;
+  anonymizeFields?: string[];
 }
 
 export function createInitialContext(input: PipelineInput, repoPath?: string): PipelineContext {

@@ -247,7 +247,7 @@ export class StageExecutor {
 
     // Create per-stage middleware if agent requests it (and no run-level middleware)
     const stageMiddleware = (!runMiddleware && agentConfig?.anonymize)
-      ? new AnonymizationMiddleware()
+      ? new AnonymizationMiddleware(undefined, undefined, pipelineContext.anonymizeFields)
       : null;
 
     // Run on_stage_start hooks before the ralph loop
