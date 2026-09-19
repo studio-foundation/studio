@@ -37,6 +37,7 @@ interface RunOptions {
   live?: boolean;
   provider?: string;
   anonymize?: boolean;
+  includeCleartext?: boolean;
   streamItems?: boolean;
 }
 
@@ -319,6 +320,7 @@ function warnOnMissingContracts(pipeline: PipelineDefinition, config: StudioConf
 }
 
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
+  let redact = (text: string): string => text;
   try {
     const config = await loadConfig(options.config);
 
@@ -611,6 +613,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
         input,
         anonymize: options.anonymize,
         anonymizeFields,
+        onRedactor: options.includeCleartext ? undefined : (fn) => {
+          redact = fn;
+          runLogger.setRedactor(fn);
+        },
         signal: controller.signal,
       });
     } finally {
@@ -626,7 +632,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     }
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(redact(JSON.stringify(result, null, 2)));
     } else {
       if (result.status === 'cancelled') {
         const lastStage = result.stages[result.stages.length - 1];
@@ -648,7 +654,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     const exitCode = result.status === 'cancelled' ? 130 : result.status === 'success' ? 0 : 1;
     await exitAfterFlush(exitCode);
   } catch (error) {
-    console.error('Error:', error instanceof Error ? error.message : error);
+    console.error('Error:', redact(error instanceof Error ? error.message : String(error)));
     process.exit(1);
   }
 }

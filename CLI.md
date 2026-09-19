@@ -75,6 +75,7 @@ studio run <pipeline> --input-file X.yaml        # Run with input from file
 studio run <pipeline> --live                     # Stream tool calls in real-time
 studio run <pipeline> --provider mock            # Test without API calls
 studio run <pipeline> --anonymize                # Anonymize PII before sending to LLM
+studio run <pipeline> --anonymize --include-cleartext  # Keep original values in --json and the run log
 studio replay <run-id>                           # Replay a completed run
 studio validate <contract> <output.json>         # Validate output against contract
 studio list pipelines                            # List available pipelines (also: agents, runs)

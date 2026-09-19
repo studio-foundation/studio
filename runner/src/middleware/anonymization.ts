@@ -82,6 +82,19 @@ export class AnonymizationMiddleware {
     return deanonymize(text, this.keymap);
   }
 
+  /**
+   * Replace every keymapped PII value in `text` with its token. The inverse of
+   * `deanonymize`, for text Studio itself writes or prints (run logs, --json).
+   */
+  redact(text: string): string {
+    let out = text;
+    const entries = Object.entries(this.keymap).sort(([, a], [, b]) => b.length - a.length);
+    for (const [token, value] of entries) {
+      if (value) out = out.split(value).join(token);
+    }
+    return out;
+  }
+
   getKeymap(): Record<string, string> {
     return { ...this.keymap };
   }
