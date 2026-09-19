@@ -36,6 +36,7 @@ import { ChildRunError, sumTokenUsage } from '@studio-foundation/contracts';
 import {
   BatchWindow,
   BatchingProviderRegistry,
+  type AnonymizationMiddleware,
   DEFAULT_MAX_BATCH_SIZE,
   type ProviderRegistry,
 } from '@studio-foundation/runner';
@@ -115,6 +116,7 @@ export class MapOrchestrator {
     depth: number,
     pipelineName: string,
     signal?: AbortSignal,
+    runMiddleware?: AnonymizationMiddleware | null,
   ): Promise<MapRunResult> {
     const startedAt = new Date().toISOString();
     const stageRun: StageRun = {
@@ -280,6 +282,16 @@ export class MapOrchestrator {
     // decides when the parked calls go out together. Closed in `finally` so a
     // throw mid-fan-out never leaves a request parked forever.
     const baseRegistry = this.config.providerRegistry;
+    const sharedMiddleware = map.anonymize?.keymap === 'shared' && runMiddleware ? runMiddleware : undefined;
+    const overridesFor = (registry?: BatchingProviderRegistry) =>
+      registry || sharedMiddleware
+        ? {
+            overrides: {
+              ...(registry ? { providerRegistry: registry } : {}),
+              ...(sharedMiddleware ? { anonymization: sharedMiddleware } : {}),
+            },
+          }
+        : {};
     const window = batchConfig && baseRegistry
       ? new BatchWindow({
           ...batchConfig,
@@ -371,9 +383,7 @@ export class MapOrchestrator {
             input,
             parentRunId: runId,
             depth: depth + 1,
-            ...(ticket && window && baseRegistry
-              ? { overrides: { providerRegistry: new BatchingProviderRegistry(baseRegistry, ticket, window) } }
-              : {}),
+            ...(overridesFor(ticket && window && baseRegistry ? new BatchingProviderRegistry(baseRegistry, ticket, window) : undefined)),
           });
           itemResult = {
             index: i,

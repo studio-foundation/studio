@@ -34,6 +34,11 @@ export interface SpawnOverrides {
    * of sending them one by one.
    */
   providerRegistry?: unknown;
+  /**
+   * The parent run's anonymization middleware, shared so the child tokenizes
+   * into the parent's keymap. Set by a `map` stage with `anonymize: { keymap: shared }`.
+   */
+  anonymization?: unknown;
 }
 
 export interface SpawnConfig {

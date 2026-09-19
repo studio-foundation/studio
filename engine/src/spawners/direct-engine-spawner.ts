@@ -1,6 +1,6 @@
 import type { RunSpawner, SpawnConfig, SpawnResult, PipelineRun } from '@studio-foundation/contracts';
 import { ChildRunError, childRunErrorMessage, childStageUsage, sumTokenUsage } from '@studio-foundation/contracts';
-import type { ProviderRegistry } from '@studio-foundation/runner';
+import type { AnonymizationMiddleware, ProviderRegistry } from '@studio-foundation/runner';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { createTaggingAdapter, type EngineEvents } from '../events.js';
 
@@ -44,6 +44,7 @@ export class DirectEngineSpawner implements RunSpawner {
       input: config.input,
       parentRunId: config.parentRunId,
       depth: config.depth,
+      anonymizationMiddleware: config.overrides?.anonymization as AnonymizationMiddleware | undefined,
     });
 
     // Built before the failure branch: a child that died still made billed calls.
