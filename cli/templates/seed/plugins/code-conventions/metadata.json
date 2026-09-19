@@ -1,6 +1,6 @@
 {
   "name": "code-conventions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Coding conventions: file organization, TypeScript patterns, testing, error handling",
   "author": "studio-core",
   "license": "MIT",
@@ -15,5 +15,5 @@
       "code-conventions"
     ]
   },
-  "studio_version": ">=0.2.0"
+  "studio_version": ">=0.11.2"
 }

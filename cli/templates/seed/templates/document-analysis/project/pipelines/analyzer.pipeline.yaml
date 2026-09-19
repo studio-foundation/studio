@@ -6,6 +6,7 @@ stages:
   - name: analysis
     kind: analysis
     agent: analyst
+    contract: analysis-output
     ralph:
       max_attempts: 3
     context:

@@ -1,0 +1,35 @@
+name: linear
+version: 1
+description: "Linear webhook trigger + issue status sync"
+
+config:
+  required:
+    - LINEAR_API_KEY
+    - LINEAR_WEBHOOK_SECRET
+  optional:
+    autoTrigger: false
+
+webhook:
+  hmac:
+    header: linear-signature
+    secret_env: LINEAR_WEBHOOK_SECRET
+  handler: linear-webhook
+
+on_failure:
+  handler: linear-failure
+
+events:
+  consumes:
+    - linear.issue.in_progress
+  emits:
+    - pipeline.complete
+    - pipeline.failed
+
+test:
+  type: http
+  endpoint: https://api.linear.app/graphql
+  method: POST
+  auth: bearer:${LINEAR_API_KEY}
+  body: '{"query":"{ viewer { id name } }"}'
+  expect:
+    status: 200

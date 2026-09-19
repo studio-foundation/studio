@@ -1,0 +1,22 @@
+name: slack
+version: 1
+description: "Slack notifications for pipeline events"
+
+config:
+  required:
+    - SLACK_BOT_TOKEN
+  optional:
+    channel: "#studio-runs"
+
+events:
+  emits:
+    - pipeline.complete
+    - pipeline.failed
+
+test:
+  type: http
+  endpoint: https://slack.com/api/auth.test
+  method: POST
+  auth: bearer:${SLACK_BOT_TOKEN}
+  expect:
+    status: 200

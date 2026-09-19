@@ -6,6 +6,7 @@ stages:
   - name: content-generation
     kind: content
     agent: writer
+    contract: content-output
     ralph:
       max_attempts: 3
     context:

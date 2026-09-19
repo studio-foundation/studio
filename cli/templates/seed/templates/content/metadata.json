@@ -1,6 +1,6 @@
 {
   "name": "content",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Content creation and editing with search",
   "author": "studio-core",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "research"
   ],
   "type": "template",
-  "studio_version": ">=0.2.0",
+  "studio_version": ">=0.11.2",
   "dependencies": {
     "plugins": {
       "required": [
