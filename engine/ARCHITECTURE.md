@@ -30,7 +30,7 @@ Charge une pipeline YAML → exécute les stages en séquence (ou en groups avec
 - `pipeline/startup-executor.ts` — `executeStartupCommands()` pour `on_pipeline_start`
 - `pipeline/post-validator.ts` — `postValidate()` (rejection detection)
 - `pipeline/skill-loader.ts` — charge les `.skill.md` files
-- `db/client.ts` — SQLite client (pour WebhookStore, TriggerStore côté api)
+- `db/client.ts` — SQLite client
 - `spawners/direct-engine-spawner.ts` — `DirectEngineSpawner` implémente `RunSpawner`
 
 ## Groups (feedback loops)

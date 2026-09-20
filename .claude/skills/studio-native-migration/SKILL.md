@@ -42,7 +42,7 @@ it — "L1: `scripts/build.py` still decides stage order" — not just the numbe
 | Lint/typecheck run after generation | `hooks.on_stage_complete` with `on_failure: reject` |
 | Pricing a run by parsing provider session files | `token_usage` on every event in `.studio/runs/<run>.jsonl`; `studio status` |
 | A script checking env vars and binaries first | `requires_binaries`, `config.example.yaml`, `studio doctor` |
-| A webhook receiver shelling out to the CLI | `.studio/triggers/*.trigger.yaml` |
+| A webhook receiver shelling out to the CLI | Nothing to migrate: the receiver is the project's job, keep it and call `studio run` |
 
 Before planning, check `studio_version` in `.studio/config.yaml` and the installed CLI:
 half this table is surface that arrived in a specific release, and a plan that assumes a

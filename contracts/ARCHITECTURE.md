@@ -32,7 +32,6 @@ Types et interfaces partagés par tous les packages Studio. ZERO dépendances. Z
 - `tool-plugin.ts` — `ToolPluginDef`, `ToolCommandDef`, `ShellExecute`, `BuiltinExecute`, `ParameterDef`
 - `runner-events.ts` — `RunnerCallbacks`, événements de streaming tool calls et tokens
 - `spawner.ts` — `RunSpawner`, `SpawnConfig`, `SpawnResult`
-- `trigger.ts` — `TriggerDef`
 
 ## Test
 

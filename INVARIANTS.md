@@ -160,11 +160,9 @@ ripgrep). `web_search` fails criterion 2 (which provider?). All of them live in 
 marketplace.
 
 The same reasoning covers *inbound* behaviour. An external system pushing to Studio is
-served by a **trigger** (`.studio/triggers/*.trigger.yaml`): the kernel verifies the
-signature, matches the payload and launches the run, while every product-specific
-choice — which events count, which field becomes which input, what to do on failure —
-is written in the trigger's YAML. Anything a trigger does *outbound* is a tool or an
-MCP server, which the kernel already runs. No vendor's conventions live in kernel code.
+received by the project, which calls `studio run`: the kernel serves no webhook, so no
+vendor's conventions live in kernel code. Anything done *outbound* is a tool or an MCP
+server, which the kernel already runs.
 
 The kernel carries a **seed cache** of the official marketplace under
 `cli/templates/seed/` so a fresh install works with no network. The difference from a
@@ -174,8 +172,8 @@ overridable, pinnable to another version. The kernel carries a blob whose conten
 does not interpret, which is why the seed is exempt from the check below.
 
 **Enforced by:** [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs),
-run as `pnpm check:kernel` and blocking in CI. It fails when a package bundles a
-`.trigger.yaml`, bundles a `.tool.yaml` outside the builtin allowlist, references a tool
+run as `pnpm check:kernel` and blocking in CI. It fails when a package bundles an
+`.integration.yaml`, bundles a `.tool.yaml` outside the builtin allowlist, references a tool
 action that left the kernel, or names a source directory after a product.
 
 That last check reads the *path*, not the contents. Grepping source text for vendor names

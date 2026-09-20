@@ -67,7 +67,6 @@ Nothing imports upward. If you find yourself adding a dep here, you're solving t
 | `tool-plugin.ts` | `ToolPluginDef`, `ToolCommandDef`, `ShellExecute`, `BuiltinExecute`, `ParameterDef` |
 | `runner-events.ts` | `RunnerCallbacks`, `ToolCallStartEvent`, `ToolCallCompleteEvent`, `AgentThinkingEvent`, `AgentProgressEvent`, `AgentTokenEvent` |
 | `spawner.ts` | `RunSpawner`, `SpawnConfig`, `SpawnResult` |
-| `trigger.ts` | `TriggerDef` |
 
 ## Key types
 
