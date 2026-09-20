@@ -31,6 +31,8 @@ import { createPluginCommand } from './commands/plugin.js';
 import { createMarketplaceCommand } from './commands/marketplace.js';
 import { usersCommand } from './commands/users.js';
 import { cacheCleanCommand } from './commands/cache.js';
+import { runsPruneCommand } from './commands/runs.js';
+import type { RunsPruneOptions } from './commands/runs.js';
 import { ollamaCommand } from './commands/ollama.js';
 import { loadConfig } from './config.js';
 import { STUDIO_VERSION } from './version-guard.js';
@@ -194,6 +196,17 @@ cacheCmd
   .option('--pipeline <name>', 'Only clear entries for this parent pipeline')
   .option('--dry-run', 'Show what would be cleared without deleting')
   .action((opts: { pipeline?: string; dryRun?: boolean }) => { void cacheCleanCommand(opts); });
+
+const runsCmd = program.command('runs').description('Manage recorded runs');
+
+runsCmd
+  .command('prune')
+  .description('Delete old run logs (.studio/runs/*.jsonl) and their anonymization keymaps')
+  .option('--keep-last <n>', 'Always keep the N most recent runs')
+  .option('--max-age <duration>', 'Only remove runs older than this, e.g. 30d or 12h')
+  .option('--keep-status <status>', 'Never remove runs with this status (repeatable)', (v: string, prev: string[] = []) => [...prev, v])
+  .option('--dry-run', 'List what would be removed without deleting')
+  .action((opts: RunsPruneOptions) => { void runsPruneCommand(opts); });
 
 const usersCmd = program.command('users').description('Manage users');
 

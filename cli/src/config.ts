@@ -18,6 +18,10 @@ export interface StudioConfig {
     /** Warn when a stage declares no `contract:` and runs unvalidated. Default true. */
     missing_contract?: boolean;
   };
+  runs?: {
+    /** Applied at the end of `studio run`; same rules as `studio runs prune --max-age`. */
+    retention?: { max_age_days?: number };
+  };
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
