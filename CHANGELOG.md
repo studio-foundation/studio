@@ -1,11 +1,30 @@
 # Changelog
 
-All notable changes to Studio. The root and all 7 packages share one version
+All notable changes to Studio. The root and all 6 packages share one version
 ([unified versioning](CLAUDE.md#versioning--releases)) — an entry here covers every package.
 
 Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are marked.
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
+
+## [0.24.0] — 2026-09-20
+
+### Removed
+
+- **Breaking: the `@studio-foundation/api` package is gone**, with `studio api start|stop|status`, `studio users` (it only managed API keys for the server) and `studio install` (it only knew the api extension). Nobody used the HTTP API and its intended consumer was cancelled. `@studio-foundation/api` is not published again; 0.23.1 stays on npm. Studio is now 6 packages, and INV-12 ("the API never chooses what to run") is retired. (STU-1556)
+- **Breaking: `.studio/triggers/*.trigger.yaml` no longer does anything.** The `trigger` content kind is dropped from the registry (a plugin that only ships a trigger now installs nothing and fails with "delivered no installable content"), and `TriggerDef` leaves `contracts`. Inbound webhooks are the project's job: receive the request, call `studio run`. The `software` template in studio-community ships a minimal receiver. (STU-1557, STU-1558)
+
+### Runner
+
+- `resolveRepoPath` and `cloneRepo` now live in `runner` and are exported from its entry, so `studio run` no longer loads an HTTP package to resolve a workspace. (STU-1555)
+
+### Engine
+
+- The condition evaluator's `roots` option, which only trigger payloads used, is removed. The condition syntax is unchanged.
+
+### Fixes
+
+- `studio registry install` refetches the registry index once when a package is not found in the cached one.
 
 ## [0.23.1] — 2026-09-20
 
