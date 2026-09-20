@@ -89,7 +89,7 @@ resolved item input, is.
   status, a contract key, a run field). For a **tool**, all three INV-11 criteria must
   hold: primitive, no domain choice, bootstrap-necessary. `git` and `search` failed this;
   so will most things.
-- **plugin** — real, reusable, but carries a product or vendor opinion. Tools, triggers,
+- **plugin** — real, reusable, but carries a product or vendor opinion. Tools,
   agents, skills, whole templates.
 - **won't-do** — with the reason. The two that recur:
   - *already exists* — name the key and the doc line. Hand it to **studio-native-migration**;

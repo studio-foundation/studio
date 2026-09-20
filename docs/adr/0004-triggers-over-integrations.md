@@ -1,6 +1,6 @@
 # ADR 0004 — Triggers replace integrations
 
-**Status:** Accepted
+**Status:** Superseded. The `api` package and the `.trigger.yaml` surface were removed (STU-1556, STU-1557): inbound webhooks are the project's job, and Studio only exposes the CLI. Kept as history.
 **Date:** 2026-07-28
 **Affects:** `api/src/`, `contracts/src/`, `cli/src/commands/`, `studio-community`
 
