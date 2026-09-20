@@ -92,7 +92,7 @@ export { validateSchema } from '@studio-foundation/ralph';
 // Spawners
 export { DirectEngineSpawner } from './spawners/direct-engine-spawner.js';
 
-// Condition evaluation and {{...}} interpolation, reused by webhook triggers
+// Condition evaluation and {{...}} interpolation
 export { evaluateCondition, resolveContextPath } from './pipeline/condition-evaluator.js';
 export type { ConditionContext } from './pipeline/condition-evaluator.js';
 export { interpolateTemplate } from './pipeline/template-interpolation.js';

@@ -30,15 +30,15 @@ function routedFetch(routes: Array<[RegExp, unknown]>) {
 }
 
 const MOCK_METADATA = {
-  name: 'linear',
+  name: 'coder',
   type: 'plugin',
   version: '1.0.0',
-  description: 'Linear trigger',
+  description: 'Coder agent',
   author: 'studio-core',
   license: 'MIT',
-  tags: ['linear'],
+  tags: ['coder'],
   studio_version: '>=0.1.0',
-  provides: { triggers: ['linear'] },
+  provides: { agents: ['coder'] },
 };
 
 const MOCK_INDEX = {
@@ -47,11 +47,11 @@ const MOCK_INDEX = {
   packages: [{
     ...MOCK_METADATA,
     downloads: 0,
-    source: { type: 'local', path: 'plugins/linear' },
+    source: { type: 'local', path: 'plugins/coder' },
   }],
 };
 
-const FAKE_TRIGGER_CONTENT = 'name: linear\npipeline: feature-builder\n';
+const FAKE_AGENT_CONTENT = 'name: coder\nversion: 1\n';
 
 // Mock syncRegistry to be a no-op (sync already handled), and RegistryCache.read to return mock index
 vi.mock('../../../src/commands/registry/sync.js', () => ({
@@ -70,9 +70,9 @@ vi.mock('../../../src/registry/cache.js', () => {
 beforeEach(async () => {
   await mkdir(STUDIO_DIR, { recursive: true });
   vi.stubGlobal('fetch', routedFetch([
-    [/\/plugins\/linear\/metadata\.json$/, MOCK_METADATA],
-    [/\/contents\/plugins\/linear$/, dirListing('plugins/linear', 'linear.trigger.yaml')],
-    [/x\/linear\.trigger\.yaml$/, FAKE_TRIGGER_CONTENT],
+    [/\/plugins\/coder\/metadata\.json$/, MOCK_METADATA],
+    [/\/contents\/plugins\/coder$/, dirListing('plugins/coder', 'coder.agent.yaml')],
+    [/x\/coder\.agent\.yaml$/, FAKE_AGENT_CONTENT],
     [/x\/metadata\.json$/, JSON.stringify(MOCK_METADATA)],
   ]));
 });
@@ -88,24 +88,24 @@ afterEach(async () => {
 describe('installPackage', () => {
   it('dispatches a plugin payload to the .studio/ dir of its content kind', async () => {
     const { installPackage } = await import('../../../src/commands/registry/install.js');
-    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+    await installPackage('coder', { studioDir: STUDIO_DIR, force: true });
 
-    const dest = resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml');
+    const dest = resolve(STUDIO_DIR, 'agents', 'coder.agent.yaml');
     const content = await readFile(dest, 'utf8');
-    expect(content).toBe(FAKE_TRIGGER_CONTENT);
+    expect(content).toBe(FAKE_AGENT_CONTENT);
   });
 
   it('records the written files in the lockfile', async () => {
     const { installPackage } = await import('../../../src/commands/registry/install.js');
-    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+    await installPackage('coder', { studioDir: STUDIO_DIR, force: true });
 
     const lf = JSON.parse(await readFile(resolve(STUDIO_DIR, 'registry.lock.json'), 'utf8'));
-    expect(lf.installed['linear']).toMatchObject({
+    expect(lf.installed['coder']).toMatchObject({
       version: '1.0.0',
       type: 'plugin',
-      files: ['triggers/linear.trigger.yaml'],
+      files: ['agents/coder.agent.yaml'],
     });
-    expect(lf.installed['linear'].sha256).toBeTruthy();
+    expect(lf.installed['coder'].sha256).toBeTruthy();
   });
 
   it('refetches the index once when the cached one lacks the package', async () => {
@@ -115,10 +115,10 @@ describe('installPackage', () => {
       cachedIndex = MOCK_INDEX;
     });
     const { installPackage } = await import('../../../src/commands/registry/install.js');
-    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+    await installPackage('coder', { studioDir: STUDIO_DIR, force: true });
 
     expect(syncRegistry).toHaveBeenCalledWith({ force: true, silent: true });
-    await expect(readFile(resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml'), 'utf8')).resolves.toBe(FAKE_TRIGGER_CONTENT);
+    await expect(readFile(resolve(STUDIO_DIR, 'agents', 'coder.agent.yaml'), 'utf8')).resolves.toBe(FAKE_AGENT_CONTENT);
   });
 
   it('fails with not found after exactly one refetch when the fresh index lacks it too', async () => {
@@ -126,17 +126,31 @@ describe('installPackage', () => {
     const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
     const { installPackage } = await import('../../../src/commands/registry/install.js');
 
-    await expect(installPackage('linear', { studioDir: STUDIO_DIR, force: true }))
-      .rejects.toThrow("Package 'linear' not found in registry");
+    await expect(installPackage('coder', { studioDir: STUDIO_DIR, force: true }))
+      .rejects.toThrow("Package 'coder' not found in registry");
     expect(vi.mocked(syncRegistry).mock.calls.filter(([o]) => o?.force)).toHaveLength(1);
   });
 
   it('does not refetch when the cached index has the package', async () => {
     const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
     const { installPackage } = await import('../../../src/commands/registry/install.js');
-    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+    await installPackage('coder', { studioDir: STUDIO_DIR, force: true });
 
     expect(vi.mocked(syncRegistry).mock.calls.filter(([o]) => o?.force)).toHaveLength(0);
+  });
+
+  it('installs nothing for a plugin that only ships a .trigger.yaml', async () => {
+    vi.stubGlobal('fetch', routedFetch([
+      [/\/plugins\/coder\/metadata\.json$/, MOCK_METADATA],
+      [/\/contents\/plugins\/coder$/, dirListing('plugins/coder', 'coder.trigger.yaml')],
+      [/x\/coder\.trigger\.yaml$/, 'name: coder\npipeline: p\n'],
+      [/x\/metadata\.json$/, JSON.stringify(MOCK_METADATA)],
+    ]));
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+
+    await expect(installPackage('coder', { studioDir: STUDIO_DIR, force: true })).rejects.toThrow(
+      /delivered no installable content/
+    );
   });
 
   it('refuses a package that requires a newer Studio', async () => {
@@ -146,11 +160,11 @@ describe('installPackage', () => {
     }));
     const { installPackage } = await import('../../../src/commands/registry/install.js');
 
-    await expect(installPackage('linear', { studioDir: STUDIO_DIR, force: true })).rejects.toThrow(
-      /Package 'linear' requires Studio >=99\.0\.0/
+    await expect(installPackage('coder', { studioDir: STUDIO_DIR, force: true })).rejects.toThrow(
+      /Package 'coder' requires Studio >=99\.0\.0/
     );
     await expect(
-      readFile(resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml'), 'utf8')
+      readFile(resolve(STUDIO_DIR, 'agents', 'coder.agent.yaml'), 'utf8')
     ).rejects.toThrow();
   });
 });

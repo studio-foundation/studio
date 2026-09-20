@@ -2,21 +2,14 @@
 // Supported syntax:
 //   input.<field.path>                      compared to a literal
 //   stages.<stage-name>.output.<field.path> compared to a literal
-//   <root>.<field.path>                     for any root passed in `roots`
 // Operators: ===, !==, >=, <=, ==, !=, >, <
 // Returns false for any undefined/invalid path (skip-safe).
 
 import type { PipelineInput } from './context-propagation.js';
 
-/**
- * `roots` lets a caller outside the pipeline evaluate the same condition syntax
- * over its own data — a webhook trigger reads `payload.<path>` this way — without
- * either side reimplementing the comparison rules.
- */
 export interface ConditionContext {
   input: PipelineInput;
   stageOutputs: Map<string, unknown>;
-  roots?: Record<string, unknown>;
 }
 
 // Longest-first to avoid '>' matching inside '>='
@@ -63,19 +56,9 @@ function resolveLhs(lhs: string, context: ConditionContext): unknown {
  * Supported forms:
  *   input.<field.path>
  *   stages.<stage-name>.output.<field.path>
- *   <root>.<field.path> for any root in `context.roots`
  * Returns undefined for any unknown prefix or unreachable path.
  */
 export function resolveContextPath(ref: string, context: ConditionContext): unknown {
-  const dot = ref.indexOf('.');
-  const head = dot === -1 ? ref : ref.slice(0, dot);
-  if (context.roots && head in context.roots) {
-    const root = context.roots[head];
-    if (dot === -1) return root;
-    if (root === null || typeof root !== 'object') return undefined;
-    return traversePath(root as Record<string, unknown>, ref.slice(dot + 1));
-  }
-
   if (ref === 'input') return context.input;
 
   if (ref.startsWith('input.')) {

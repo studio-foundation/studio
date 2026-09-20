@@ -52,12 +52,12 @@ const listing = async (dir) => {
   }
 };
 
-// --- Bundled templates: only the builtins, and never a trigger ---
+// --- Bundled templates: only the builtins, and never an integration ---
 for (const pkg of PACKAGES) {
   for (const file of await listing(join(ROOT, pkg, 'templates'))) {
     const rel = relative(ROOT, file);
-    if (file.endsWith('.trigger.yaml') || file.endsWith('.integration.yaml')) {
-      violations.push(`${rel} — the kernel bundles no trigger`);
+    if (file.endsWith('.integration.yaml')) {
+      violations.push(`${rel} — the kernel bundles no integration`);
     } else if (file.endsWith('.tool.yaml')) {
       const name = file.slice(file.lastIndexOf('/') + 1, -'.tool.yaml'.length);
       if (!BUILTIN_TOOLS.includes(name)) {
