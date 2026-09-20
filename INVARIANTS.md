@@ -4,7 +4,7 @@ Non-negotiable contracts on system behavior. These invariants are enforced by co
 
 **Ground rule:** If you find code that violates one of these invariants, it is an architecture error, not an acceptable exception.
 
-**Declared is not enforced.** An invariant nobody can break by accident is the only kind that holds. INV-04, INV-05, INV-06, INV-10, INV-12 and INV-13 are checked by [scripts/check-invariants.mjs](scripts/check-invariants.mjs) (`pnpm check:invariants`, blocking in CI), INV-10's import direction additionally by ESLint, and INV-11 by [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs). The rest are properties of type signatures and call graphs that no grep can settle; each says so under **Enforced by**. Loosening a check to make a change pass is the same act as violating the invariant.
+**Declared is not enforced.** An invariant nobody can break by accident is the only kind that holds. INV-04, INV-05, INV-06, INV-10 and INV-13 are checked by [scripts/check-invariants.mjs](scripts/check-invariants.mjs) (`pnpm check:invariants`, blocking in CI), INV-10's import direction additionally by ESLint, and INV-11 by [scripts/check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs). The rest are properties of type signatures and call graphs that no grep can settle; each says so under **Enforced by**. Loosening a check to make a change pass is the same act as violating the invariant.
 
 ---
 
@@ -124,7 +124,7 @@ Deriving the directories is not enough — a name written in a YAML file is join
 
 ## INV-10: The dependency graph is a strict DAG
 
-**Description:** Dependencies between packages form a directed acyclic graph (DAG). The order is: `(contracts, anonymizer)` → `(ralph, runner)` → `engine` → `api` → `cli`. No reverse dependencies. `ralph` and `runner` are siblings, neither knows the other. `anonymizer` is a co-leaf with `contracts`: it depends only on `@redactpii/node` (external), not on any `@studio/*` package. Note that `engine` does **not** depend on `anonymizer` — the middleware is instantiated in `runner`, which is where the LLM call it wraps happens.
+**Description:** Dependencies between packages form a directed acyclic graph (DAG). The order is: `(contracts, anonymizer)` → `(ralph, runner)` → `engine` → `cli`. No reverse dependencies. `ralph` and `runner` are siblings, neither knows the other. `anonymizer` is a co-leaf with `contracts`: it depends only on `@redactpii/node` (external), not on any `@studio/*` package. Note that `engine` does **not** depend on `anonymizer` — the middleware is instantiated in `runner`, which is where the LLM call it wraps happens.
 
 The full edge list, which is what the two mechanical checks below encode:
 
@@ -135,16 +135,11 @@ The full edge list, which is what the two mechanical checks below encode:
 | `ralph` | `contracts` |
 | `runner` | `contracts`, `anonymizer` |
 | `engine` | `contracts`, `ralph`, `runner` |
-| `api` | `contracts`, `engine`, `runner` |
-| `cli` | `contracts`, `engine`, `runner`, `api` |
+| `cli` | `contracts`, `engine`, `runner` |
 
 **Enforced by:** three layers, none of which is sufficient alone. `pnpm` detects cycles on install. `ALLOWED_INTERNAL_IMPORTS` in [eslint.config.mjs](eslint.config.mjs) mirrors the table and rejects any `@studio-foundation/*` import outside a package's row — but ESLint reads source, not manifests. [scripts/check-invariants.mjs](scripts/check-invariants.mjs) closes that half: it reads every `package.json` and fails on an internal dependency the table does not allow. Adding an edge means editing the table, the ESLint map, the script's `DAG`, and the package's `package.json` — four deliberate acts, which is the point.
 
-**Documented exception (CLI → API):** `@studio-foundation/cli` depends on `@studio-foundation/api`. This is intentional and not a DAG violation. The `studio api start` command imports `bootstrap` from `@studio-foundation/api` to start the HTTP server directly from the CLI. This dependency follows the flow (cli is the highest layer): `api` does not know `cli`. The DAG remains acyclic.
-
 **Documented exception (CLI → runner):** `@studio-foundation/cli` depends on `@studio-foundation/runner`. This is intentional: the CLI is the **composition root** of the application. It instantiates `ToolRegistry`, `ProviderRegistry`, and `MCPClient` (all types from `runner`) and passes them to `PipelineEngine` via `EngineConfig`. The CLI also handles `studio tools` commands that use runner's tool template utilities. This dependency follows the flow: `runner` does not know `cli`. The DAG remains acyclic.
-
-**Documented exception (API → runner):** `@studio-foundation/api` depends on `@studio-foundation/runner` for the same reason, and it is an exception on the same terms: the API is the composition root when a run is launched over HTTP rather than from a terminal, so it builds the same registries the CLI does. It skips `ralph` and `anonymizer` because it never assembles either — both are reached through `engine` and `runner` respectively. `runner` does not know `api`. The DAG remains acyclic.
 
 **What breaks if violated:** Circular dependency → crash at module initialization. Or coupling that turns a local change into a cascade of modifications across the monorepo.
 
@@ -195,17 +190,9 @@ can only be changed by editing the kernel — which is exactly what a plugin is 
 
 ---
 
-## INV-12: The API never chooses what to run
+## INV-12: Retired
 
-**Description:** `@studio-foundation/api` translates an HTTP request into an engine call and streams the result back. It does not decide *what* the run is. The pipeline a run executes is named by the request or by the `.trigger.yaml` the project authored — [`trigger-runtime.ts`](api/src/trigger-runtime.ts) reads `trigger.pipeline` and never supplies a fallback. The same holds for the agents, contracts and stages that pipeline references: the API hardcodes none of their names.
-
-This is INV-04 restated one layer up, and it is a distinct invariant because the API's exception surface is different. The API is allowed things the engine is not: it is a composition root (INV-10), so it builds tool registries; it resolves the workspace, `git clone` included ([`resolveRepoPath`](runner/src/utils/repo-resolver.ts)), because that is precisely the caller responsibility INV-04 keeps out of the engine. What it may not do is know a project's vocabulary.
-
-The violation this invariant was written for is already gone: `api/src/integrations/` held a tracker webhook that defaulted an unconfigured integration to a template's pipeline name, so a project that installed Studio inherited someone else's vocabulary. STU-698 deleted that subsystem in favour of triggers, which removed the default structurally rather than by fixing it. INV-12 exists so it cannot come back — a `?? 'some-pipeline'` is a one-character-looking change that reads as a kindness.
-
-**Enforced by:** [scripts/check-invariants.mjs](scripts/check-invariants.mjs) fails the build when any file under `api/src/` names a pipeline, contract or stage shipped in a template.
-
-**What breaks if violated:** a webhook launches a pipeline the project never configured, and the failure surfaces as "pipeline not found" — a missing file — rather than "no pipeline configured", a missing setting. The user debugs the wrong thing. More slowly, the kernel accretes one deployment's naming until a project that names its stages differently is a second-class citizen.
+The API package this invariant governed was removed (STU-1556). The number is kept so INV-13 and old references stay stable.
 
 ---
 
@@ -213,7 +200,7 @@ The violation this invariant was written for is already gone: `api/src/integrati
 
 **Description:** `@studio-foundation/cli` prints stage names, statuses and outputs. Every one of those strings is a config author's word, and the CLI treats them all identically: it title-cases, aligns and colours them, and never recognises a particular one. It hardcodes no pipeline, contract or stage name, and does not attribute a generic status to a domain role.
 
-This is the third statement of the same rule — INV-04 for the engine, INV-12 for the API — and it is separate for the same reason INV-12 is: the CLI's exception surface is its own. Unlike the API, the CLI legitimately names things the engine may not. It renders builtin tool names (`repo_manager-read_file` → "Read 3 files") because those are Studio's own primitives, not a project's vocabulary (INV-11), and it shells out to `git diff --numstat` ([`output/file-changes.ts`](cli/src/output/file-changes.ts)) to summarise what a run touched. Both report what actually happened; neither is the CLI knowing a domain.
+This is the same rule INV-04 states for the engine, and it is separate because the CLI's exception surface is its own. Unlike the engine, the CLI legitimately names things the engine may not. It renders builtin tool names (`repo_manager-read_file` → "Read 3 files") because those are Studio's own primitives, not a project's vocabulary (INV-11), and it shells out to `git diff --numstat` ([`output/file-changes.ts`](cli/src/output/file-changes.ts)) to summarise what a run touched. Both report what actually happened; neither is the CLI knowing a domain.
 
 The violations this invariant was written for were real. `cli/src/output/formatters.ts` mapped stage names to display labels through a table whose first four entries were the `software-full` template's stages, so `brief-analysis` rendered as "Analyzing brief" while every other project's stages fell through to plain title-casing — the kernel making one template's pipeline look more finished than everyone else's. And a rejected run printed `✗ rejected by QA`, though `rejected` is produced by any contract's `post_validation.rejection_detection` and nothing about it is QA. STU-710 deleted the table outright: the generic fallback already renders those names fine, and the two verb forms it alone could produce ("Generating code", "Reviewing") were not worth naming a template in the kernel.
 
@@ -240,5 +227,5 @@ Checked mechanically in CI unless the last column says otherwise.
 | INV-09 | Projects are self-contained | engine | `engine/src/pipeline/safe-path.ts` | tests |
 | INV-10 | Strict dependency DAG | all | `*/package.json` | `check:invariants`, ESLint |
 | INV-11 | Kernel implements only primitives | runner, cli | `runner/src/tools/plugin-loader.ts` | `check:kernel` |
-| INV-12 | The API never chooses what to run | api | `api/src/trigger-runtime.ts` | `check:invariants` |
+| INV-12 | Retired (the API was removed) | none | none | none |
 | INV-13 | The CLI renders a project's words | cli | `cli/src/output/formatters.ts` | `check:invariants` |

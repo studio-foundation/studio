@@ -12,7 +12,6 @@ const repoRoot = resolve(dirname(__filename), '..');
 const packages = [
   'package.json',
   'anonymizer/package.json',
-  'api/package.json',
   'cli/package.json',
   'contracts/package.json',
   'engine/package.json',

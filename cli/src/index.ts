@@ -24,12 +24,9 @@ import { toolsCommand } from './commands/tools.js';
 import { templatesCommand } from './commands/templates.js';
 import { templateCommand } from './commands/template/index.js';
 import { projectCommand } from './commands/project.js';
-import { apiStartCommand, apiStopCommand, apiStatusCommand } from './commands/api.js';
-import { installExtensionCommand } from './commands/install.js';
 import { createRegistryCommand } from './commands/registry/index.js';
 import { createPluginCommand } from './commands/plugin.js';
 import { createMarketplaceCommand } from './commands/marketplace.js';
-import { usersCommand } from './commands/users.js';
 import { cacheCleanCommand } from './commands/cache.js';
 import { runsPruneCommand } from './commands/runs.js';
 import { runsShowCommand } from './commands/runs-show.js';
@@ -162,31 +159,6 @@ program
   .option('--description <desc>', 'Project description')
   .action(projectCommand);
 
-program
-  .command('api <action>')
-  .description('Manage the Studio API server (start, stop, status)')
-  .option('--port <port>', 'Port to listen on (default: 3700)')
-  .option('--config <path>', 'Path to config file')
-  .action((action: string, options: { port?: string; config?: string }) => {
-    if (action === 'start') {
-      void apiStartCommand(options);
-    } else if (action === 'stop') {
-      void apiStopCommand();
-    } else if (action === 'status') {
-      void apiStatusCommand(options);
-    } else {
-      console.error(`Unknown api action: ${action}. Use: studio api start|stop|status`);
-      process.exit(1);
-    }
-  });
-
-program
-  .command('install <extension>')
-  .description('Install a Studio extension (api)')
-  .action((extension: string) => {
-    void installExtensionCommand(extension);
-  });
-
 program.addCommand(createRegistryCommand());
 program.addCommand(createMarketplaceCommand());
 program.addCommand(createPluginCommand());
@@ -217,29 +189,6 @@ runsCmd
   .requiredOption('--stage <name>', 'Stage name')
   .option('--json', 'Always emit JSON (string outputs are quoted)')
   .action(runsShowCommand);
-
-const usersCmd = program.command('users').description('Manage users');
-
-usersCmd
-  .command('list')
-  .description('List all users')
-  .action(() => { void usersCommand('list', [], {}); });
-
-usersCmd
-  .command('add <email>')
-  .description('Create a new user')
-  .option('--plan <plan>', 'User plan (free|pro|unlimited)', 'free')
-  .action((email: string, opts: { plan?: string }) => { void usersCommand('add', [email], opts); });
-
-usersCmd
-  .command('remove <email>')
-  .description('Remove a user')
-  .action((email: string) => { void usersCommand('remove', [email], {}); });
-
-usersCmd
-  .command('info <email>')
-  .description("Show user details and today's usage")
-  .action((email: string) => { void usersCommand('info', [email], {}); });
 
 program
   .command('ollama <action> [model]')

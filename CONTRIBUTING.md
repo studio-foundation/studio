@@ -76,7 +76,7 @@ a pipeline instead of TypeScript, it belongs in YAML. This is a rule, not a pref
 Requires Node 22+ and pnpm 10.
 
 ```bash
-pnpm install          # one install at the root, for all 7 packages
+pnpm install          # one install at the root, for all 6 packages
 pnpm build            # builds in dependency order
 pnpm test
 pnpm lint             # blocking in CI
@@ -123,7 +123,6 @@ Checklist:
 | Invariant added or changed | [INVARIANTS.md](./INVARIANTS.md) |
 | New CLI command or flag | [CLI.md](./CLI.md) |
 | New YAML key a config author can write | [CONCEPTS.md](./CONCEPTS.md) + [CLAUDE.md](./CLAUDE.md) |
-| New API route | [API.md](./API.md) + its Swagger schema |
 | Template or distribution change | [TEMPLATES.md](./TEMPLATES.md), [GOVERNANCE.md](./GOVERNANCE.md) |
 | Builtin tool added or removed | [INVARIANTS.md](./INVARIANTS.md) INV-11, `BUILTIN_TOOLS` in [scripts/check-kernel-domain-free.mjs](./scripts/check-kernel-domain-free.mjs), [CLAUDE.md](./CLAUDE.md) |
 

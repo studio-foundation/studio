@@ -11,8 +11,7 @@ const ALLOWED_INTERNAL_IMPORTS = {
   ralph: ['contracts'],
   runner: ['contracts', 'anonymizer'],
   engine: ['contracts', 'ralph', 'runner'],
-  api: ['contracts', 'engine', 'runner'],
-  cli: ['contracts', 'engine', 'runner', 'api'],
+  cli: ['contracts', 'engine', 'runner'],
 };
 
 const dagConfigs = Object.entries(ALLOWED_INTERNAL_IMPORTS).map(([pkg, allowed]) => ({
