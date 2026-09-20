@@ -1,7 +1,5 @@
 // Not in the engine: cloning is a version-control choice, and INV-04 keeps the
-// engine free of those. The CLI imports this through the
-// `@studio-foundation/api/repo-resolver` subpath, so `studio run` does not load
-// the HTTP server.
+// engine free of those.
 
 import { execSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';

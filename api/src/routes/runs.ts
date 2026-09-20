@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ServerDeps } from '../server.js';
-import { resolveRepoPath } from '../utils/repo-resolver.js';
+import { resolveRepoPath } from '@studio-foundation/runner';
 import { loadPipelineByName } from '@studio-foundation/engine';
 
 async function replayJsonl(

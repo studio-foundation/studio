@@ -12,7 +12,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TriggerDef } from '@studio-foundation/contracts';
 import { loadPipelineByName } from '@studio-foundation/engine';
 import type { GroupFeedbackEvent } from '@studio-foundation/engine';
-import { resolveRepoPath } from './utils/repo-resolver.js';
+import { resolveRepoPath } from '@studio-foundation/runner';
 import type { TriggerStore } from './trigger-store.js';
 import type { RunLauncher } from './launcher.js';
 import type { RunEventBus } from './event-bus.js';
