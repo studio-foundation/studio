@@ -25,6 +25,11 @@ async function fetchJson(url) {
   const headers = { Accept: 'application/vnd.github+json' };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   const res = await fetch(url, { headers });
+  if (res.status === 403 || res.status === 429) {
+    throw new Error(
+      `GitHub API rate limit (HTTP ${res.status}) on ${url}. Set GITHUB_TOKEN, or refresh from a local checkout: node scripts/refresh-seed.mjs ../studio-community`,
+    );
+  }
   if (!res.ok) throw new Error(`GET ${url} — HTTP ${res.status}`);
   return res.json();
 }
@@ -64,25 +69,21 @@ const index = localRoot
   ? JSON.parse(await readFile(join(localRoot, 'index.json'), 'utf-8'))
   : await fetchJson(`${RAW_BASE}/index.json`);
 
-await rm(SEED_DIR, { recursive: true, force: true });
-
-const write = async (path, content) => {
-  const dest = join(SEED_DIR, path);
-  await mkdir(dirname(dest), { recursive: true });
-  await writeFile(dest, content, 'utf-8');
-};
-
-await write('index.json', JSON.stringify(index, null, 2) + '\n');
-
-let fileCount = 1;
+// Everything is read before the seed is touched, so a failed fetch leaves the previous one intact.
+const files = [{ path: 'index.json', content: JSON.stringify(index, null, 2) + '\n' }];
 for (const pkg of index.packages) {
-  const files = localRoot
-    ? await readLocalTree(localRoot, pkg.source.path)
-    : await readRemoteTree(pkg.source.path);
-  for (const file of files) await write(file.path, file.content);
-  fileCount += files.length;
+  files.push(
+    ...(localRoot ? await readLocalTree(localRoot, pkg.source.path) : await readRemoteTree(pkg.source.path)),
+  );
+}
+
+await rm(SEED_DIR, { recursive: true, force: true });
+for (const file of files) {
+  const dest = join(SEED_DIR, file.path);
+  await mkdir(dirname(dest), { recursive: true });
+  await writeFile(dest, file.content, 'utf-8');
 }
 
 console.log(
-  `${relative(ROOT, SEED_DIR)} — ${index.packages.length} packages, ${fileCount} files`,
+  `${relative(ROOT, SEED_DIR)} — ${index.packages.length} packages, ${files.length} files`,
 );
