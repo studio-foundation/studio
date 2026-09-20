@@ -14,6 +14,7 @@ import { getAvailableModels } from '../models-cache.js';
 import { toolsAddDirect } from './tools.js';
 import { listAvailableToolTemplates } from '@studio-foundation/runner';
 import { installPackage } from './registry/install.js';
+import { writeMockSkeleton } from '../mock-skeleton.js';
 import { CONFIG_FILE, CONFIG_EXAMPLE_FILE } from '../config-validation.js';
 import { BUNDLED_ASSETS } from '../generated/bundled-assets.js';
 
@@ -134,6 +135,9 @@ export async function createStudioStructure(
   }
 
   await copyTemplateToStudio(studioDir, installedTemplateDir, { withTools });
+
+  // Best effort: a template whose contracts cannot be read still inits; only --provider mock loses its starter file.
+  await writeMockSkeleton(studioDir).catch(() => false);
 
   // Create runs/logs/
   await mkdir(join(studioDir, 'runs', 'logs'), { recursive: true });

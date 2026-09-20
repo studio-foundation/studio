@@ -185,9 +185,9 @@ npm install
 studio run feature-builder --input "Add dark mode support"
 ```
 
-No API key yet? `--provider mock` runs a pipeline with canned output. Copy
-[docs/examples/mock.quick-edit.yaml](./docs/examples/mock.quick-edit.yaml) to `.studio/mock.yaml`, then
-`studio run quick-edit --provider mock --input "x"`. The format is in [CLI.md](./CLI.md#mock-provider-mockyaml).
+No API key yet? `--provider mock` runs a pipeline with canned output. `studio init --template ...` already
+wrote a `.studio/mock.yaml` skeleton, so `studio run quick-edit --provider mock --input "x"` works right away.
+Edit it to change the canned output; the format is in [CLI.md](./CLI.md#mock-provider-mockyaml).
 
 ---
 
