@@ -40,7 +40,7 @@ Non-negotiable contracts on system behavior. These invariants are enforced by co
 
 ## INV-04: `engine` is domain-agnostic
 
-**Description:** The engine contains no references to domain concepts: "code", "git", "QA", "feature", "bug". `StageKind` is defined as `string`, a free value. The engine never branches on the value of `stage.kind`. Nor does it *act* on a domain: resolving a workspace by cloning a repository is a caller responsibility, and lives in [`api/src/utils/repo-resolver.ts`](api/src/utils/repo-resolver.ts) — the API reaches it directly, the CLI through the `@studio-foundation/api/repo-resolver` subpath.
+**Description:** The engine contains no references to domain concepts: "code", "git", "QA", "feature", "bug". `StageKind` is defined as `string`, a free value. The engine never branches on the value of `stage.kind`. Nor does it *act* on a domain: resolving a workspace by cloning a repository is a caller responsibility, and lives in [`runner/src/utils/repo-resolver.ts`](runner/src/utils/repo-resolver.ts), which the API and the CLI both import from `@studio-foundation/runner`.
 
 **Enforced by:** [`contracts/src/stage.ts`](contracts/src/stage.ts): `kind: string`. [`engine/src/engine.ts`](engine/src/engine.ts): `stage_kind` is passed to the runner as opaque metadata, never used in engine logic. [scripts/check-invariants.mjs](scripts/check-invariants.mjs) fails the build when `engine/src/**` shells out to a git subcommand, names a builtin tool, names a pipeline/contract/stage from a template, or says "QA".
 
@@ -116,7 +116,7 @@ pending | running | success | failed | skipped | rejected | cancelled | interrup
 
 Deriving the directories is not enough — a name written in a YAML file is joined onto them, so `skills: ["../../x"]` would escape a project that only derives its paths correctly. [`engine/src/pipeline/safe-path.ts`](engine/src/pipeline/safe-path.ts): `resolveWithin(baseDir, segment, label)` resolves a config-supplied path segment and throws if it leaves `baseDir`, refusing `..`, absolute paths and `~`. Applied to every segment a config author controls: skill names ([`skill-loader.ts`](engine/src/pipeline/skill-loader.ts)), context pack names and their `files[].path` entries ([`context-pack-loader.ts`](engine/src/pipeline/context-pack-loader.ts)).
 
-**Not covered:** the workspace (`repoPath` / `--repo-path`, [`api/src/utils/repo-resolver.ts`](api/src/utils/repo-resolver.ts)) is deliberately outside the project directory — it is the repository the pipeline operates on, chosen by whoever launches the run, not by a config a project may have installed from a registry.
+**Not covered:** the workspace (`repoPath` / `--repo-path`, [`runner/src/utils/repo-resolver.ts`](runner/src/utils/repo-resolver.ts)) is deliberately outside the project directory — it is the repository the pipeline operates on, chosen by whoever launches the run, not by a config a project may have installed from a registry.
 
 **What breaks if violated:** Projects bleed into each other. Modifying one project's configs can affect another. The concept of a project as an isolated, deployable unit disappears, making it impossible to share a project between teams without sharing all configs.
 
@@ -199,7 +199,7 @@ can only be changed by editing the kernel — which is exactly what a plugin is 
 
 **Description:** `@studio-foundation/api` translates an HTTP request into an engine call and streams the result back. It does not decide *what* the run is. The pipeline a run executes is named by the request or by the `.trigger.yaml` the project authored — [`trigger-runtime.ts`](api/src/trigger-runtime.ts) reads `trigger.pipeline` and never supplies a fallback. The same holds for the agents, contracts and stages that pipeline references: the API hardcodes none of their names.
 
-This is INV-04 restated one layer up, and it is a distinct invariant because the API's exception surface is different. The API is allowed things the engine is not: it is a composition root (INV-10), so it builds tool registries; it resolves the workspace, `git clone` included ([`utils/repo-resolver.ts`](api/src/utils/repo-resolver.ts)), because that is precisely the caller responsibility INV-04 keeps out of the engine. What it may not do is know a project's vocabulary.
+This is INV-04 restated one layer up, and it is a distinct invariant because the API's exception surface is different. The API is allowed things the engine is not: it is a composition root (INV-10), so it builds tool registries; it resolves the workspace, `git clone` included ([`resolveRepoPath`](runner/src/utils/repo-resolver.ts)), because that is precisely the caller responsibility INV-04 keeps out of the engine. What it may not do is know a project's vocabulary.
 
 The violation this invariant was written for is already gone: `api/src/integrations/` held a tracker webhook that defaulted an unconfigured integration to a template's pipeline name, so a project that installed Studio inherited someone else's vocabulary. STU-698 deleted that subsystem in favour of triggers, which removed the default structurally rather than by fixing it. INV-12 exists so it cannot come back — a `?? 'some-pipeline'` is a one-character-looking change that reads as a kindness.
 

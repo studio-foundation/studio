@@ -130,9 +130,7 @@ for (const [pattern, what] of ENGINE_DOMAIN) {
 
 // --- INV-12: the API never chooses what to run ---
 // `integrations/` is deliberately included: that is where the last hardcoded
-// default lived. Shelling out to git in utils/repo-resolver.ts is allowed —
-// resolving the workspace is the caller responsibility INV-04 keeps out of the
-// engine — so only the config-artifact pattern applies here.
+// default lived. Only the config-artifact pattern applies here.
 const apiSrc = await walkTs(join(ROOT, 'api', 'src'));
 await forbid(apiSrc, CONFIG_ARTIFACT[0], `INV-12: the API ${CONFIG_ARTIFACT[1]}`);
 

@@ -6,6 +6,10 @@
 export { runAgent } from './runner.js';
 export type { RunAgentConfig, AgentRunResult } from './runner.js';
 
+// Workspace resolution
+export { cloneRepo, resolveRepoPath } from './utils/repo-resolver.js';
+export type { RepoResolveOptions } from './utils/repo-resolver.js';
+
 // Script executor
 export { runScript, resolveRuntime } from './script-executor.js';
 export type { ScriptExecutorConfig } from './script-executor.js';
