@@ -32,6 +32,7 @@ import { createMarketplaceCommand } from './commands/marketplace.js';
 import { usersCommand } from './commands/users.js';
 import { cacheCleanCommand } from './commands/cache.js';
 import { runsPruneCommand } from './commands/runs.js';
+import { runsShowCommand } from './commands/runs-show.js';
 import type { RunsPruneOptions } from './commands/runs.js';
 import { ollamaCommand } from './commands/ollama.js';
 import { loadConfig } from './config.js';
@@ -58,6 +59,8 @@ program
   .option('--live', 'Show live per-tool-call spinners during execution')
   .option('--anonymize', 'Anonymize PII in inputs and outputs before sending to LLM')
   .option('--include-cleartext', 'With --anonymize, keep original values in --json output and the run log instead of tokens')
+  .option('--output-file <path>', "Write the last stage's full output as JSON to <path>")
+  .option('--stage-output <stage=path>', "Write a named stage's full output as JSON to <path> (repeatable)", (v: string, acc: string[] = []) => [...acc, v])
   .option('--stream-items', 'Emit one NDJSON line per map item to stderr as it lands (for a parent process to render)')
   .action(runCommand);
 
@@ -207,6 +210,13 @@ runsCmd
   .option('--keep-status <status>', 'Never remove runs with this status (repeatable)', (v: string, prev: string[] = []) => [...prev, v])
   .option('--dry-run', 'List what would be removed without deleting')
   .action((opts: RunsPruneOptions) => { void runsPruneCommand(opts); });
+
+runsCmd
+  .command('show <run-id>')
+  .description("Print one stage's recorded output as JSON (full, no size cap)")
+  .requiredOption('--stage <name>', 'Stage name')
+  .option('--json', 'Always emit JSON (string outputs are quoted)')
+  .action(runsShowCommand);
 
 const usersCmd = program.command('users').description('Manage users');
 
