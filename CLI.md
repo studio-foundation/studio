@@ -274,6 +274,10 @@ Entries written before this existed carry no `constraints`, which reads as uncon
 studio cache clean                               # Clear the whole map-stage resume cache
 studio cache clean --pipeline my-pipeline        # Only that parent pipeline's entries
 studio cache clean --dry-run                     # Show what would be cleared
+
+studio runs prune --max-age 30d                  # Delete run logs older than 30 days
+studio runs prune --keep-last 20                 # Keep only the 20 newest runs
+studio runs prune --max-age 30d --keep-status failed --dry-run
 ```
 
 The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json` — it's what makes `resume: true` on a `map:` stage skip items already completed in an earlier run. Entries are keyed on the item input, **not** on the provider or model, so a warm re-run under a different provider replays the previous provider's outputs. Clear the cache before any provider or model comparison.
@@ -502,6 +506,8 @@ studio validate software/code-generation output.json       # Validate without LL
 ```
 
 Run logs are stored in `.studio/runs/logs/<timestamp>-<pipeline>-<id>.jsonl` (one JSON object per line).
+
+`studio runs prune` deletes run logs and each run's anonymization keymap. A run is kept when it is among the `--keep-last N` newest or its status matches a `--keep-status` (repeatable); of the rest, `--max-age` (`30d`, `12h`) removes only the older ones. At least one of `--keep-last` / `--max-age` is required, and a log with no `pipeline_complete` yet is treated as live for a day. `--dry-run` lists without deleting. Setting `runs.retention.max_age_days` in `.studio/config.yaml` applies `--max-age` automatically at the end of every `studio run`. Only the `.jsonl` logs and keymaps are removed, not the `runs.db` rows.
 
 ### What a run cost — token usage
 
