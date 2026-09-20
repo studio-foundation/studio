@@ -1,0 +1,14 @@
+name: transaction-analysis
+description: Categorize the transactions of a bank export and total them by category
+version: 1
+
+stages:
+  - name: analyze-transactions
+    kind: analysis
+    agent: financial-analyzer
+    contract: transaction-analysis
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

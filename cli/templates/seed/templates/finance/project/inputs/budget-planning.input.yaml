@@ -1,0 +1,4 @@
+transactions_path: "exports/transactions.csv"
+categories: "housing, groceries, transport, dining, subscriptions, health, other"
+monthly_income_cents: 450000
+goal: "Save 10% of income each month"

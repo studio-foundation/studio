@@ -1,0 +1,2 @@
+data_path: "data/customers.csv"
+schema_path: "schemas/customers.schema.json"

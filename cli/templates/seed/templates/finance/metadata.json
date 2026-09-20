@@ -1,0 +1,22 @@
+{
+  "name": "finance",
+  "version": "1.0.1",
+  "description": "Categorize transactions from a bank export, plan a budget, and split shared expenses between accounts",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "finance",
+    "transactions",
+    "budget",
+    "expenses"
+  ],
+  "type": "template",
+  "studio_version": ">=0.11.2",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "repo-manager"
+      ]
+    }
+  }
+}

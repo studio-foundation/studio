@@ -1,0 +1,15 @@
+name: relationships
+version: 1
+schema:
+  required_fields:
+    - relationships
+  fields:
+    relationships:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - source
+          - target
+          - relation
+          - evidence

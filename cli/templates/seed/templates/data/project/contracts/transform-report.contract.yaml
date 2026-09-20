@@ -1,0 +1,13 @@
+name: transform-report
+version: 1
+schema:
+  required_fields:
+    - output_path
+    - records_in
+    - records_out
+    - changes
+tool_calls:
+  minimum: 2
+  required_tools:
+    - repo_manager.read_file
+    - repo_manager.write_file

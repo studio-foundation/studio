@@ -1,0 +1,3 @@
+data_path: "data/customers.csv"
+framework: "GDPR"
+rules_path: ""

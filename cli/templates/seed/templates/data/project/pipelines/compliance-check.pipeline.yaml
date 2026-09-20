@@ -1,0 +1,14 @@
+name: compliance-check
+description: Check a data file against a compliance framework or a rules file
+version: 1
+
+stages:
+  - name: check-compliance
+    kind: validation
+    agent: compliance-checker
+    contract: compliance-report
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

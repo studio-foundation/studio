@@ -1,0 +1,16 @@
+name: budget-plan
+version: 1
+schema:
+  required_fields:
+    - total_budget_cents
+    - categories
+    - summary
+  fields:
+    categories:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - name
+          - limit_cents
+          - rationale

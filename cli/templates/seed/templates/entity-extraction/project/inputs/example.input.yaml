@@ -1,0 +1,2 @@
+corpus_path: "."
+goal: "List the people and places named in the text and how they relate"

@@ -1,0 +1,34 @@
+name: structure-generation
+description: Extract entities, map the relationships between them, and assemble the structure
+version: 1
+
+stages:
+  - name: extract-entities
+    kind: extraction
+    agent: extractor
+    contract: entities
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+  - name: map-relationships
+    kind: analysis
+    agent: structurer
+    contract: relationships
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+        - previous_stage_output
+  - name: assemble-structure
+    kind: synthesis
+    agent: structurer
+    contract: structure
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+        - all_stage_outputs

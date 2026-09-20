@@ -1,0 +1,14 @@
+name: entity-extraction
+description: List the entities in a corpus, each with a confidence and its evidence
+version: 1
+
+stages:
+  - name: extract-entities
+    kind: extraction
+    agent: extractor
+    contract: entities
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
