@@ -206,7 +206,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
   on_item_failure: collect-all        # fail-fast (default) | collect-all
   resume: true                        # skip items already done in a prior run (default false); or { key_on: [input, agent, contract] }
   batch: true                         # dispatch the items' LLM calls as one batch (default false)
-  anonymize: { keymap: shared }       # one token space across the items (default per-run)
+  anonymize: { keymap: shared }       # one token space across the items (default)
 ```
 
 - **`over`** resolves to a list via the same reference syntax as `condition`: `input.<path>` or `stages.<name>.output(.<path>)`. If it doesn't resolve to an array, the stage fails.
@@ -217,7 +217,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
   - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
 - **`resume`** (default `false`, or `{ key_on: [...] }`) turns on **per-item resume** — see below.
 - **`batch`** (default `false`) turns on **batched dispatch** — see below.
-- **`anonymize.keymap`** (`per-run` default | `shared`) applies under `--anonymize`. `shared` hands the parent run's anonymization to every child, so the same value gets the same token in every item and the parent's one keymap file holds them all. `per-run` leaves the children un-anonymized, as before.
+- **`anonymize.keymap`** (`shared` default | `per-run`) applies under `--anonymize`. `shared` hands the parent run's anonymization to every child, so the same value gets the same token in every item and the parent's one keymap file holds them all. `per-run` is the explicit opt-out: children are not anonymized. `call` stages always hand their child the parent's anonymization. Migration: before this default, children of a map ran un-anonymized under `--anonymize`; a config that relied on that must now set `anonymize: { keymap: per-run }`.
 
 The stage output is structured for the next stage to consume — no scraping:
 
