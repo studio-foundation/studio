@@ -163,4 +163,22 @@ describe('OllamaProvider', () => {
       (e: unknown) => e instanceof DOMException && (e as DOMException).name === 'AbortError',
     );
   });
+
+  describe('json_mode', () => {
+    const base = { model: 'm', messages: [{ role: 'user' as const, content: 'hi' }], json_mode: true };
+    const tool = { name: 't', description: 'd', parameters: { type: 'object', properties: {} } };
+    const okResponse = { choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] };
+
+    it('requests json_object when no tools are offered', async () => {
+      createMock.mockResolvedValueOnce(okResponse);
+      await new OllamaProvider().call(base);
+      expect(createMock.mock.calls[0][0].response_format).toEqual({ type: 'json_object' });
+    });
+
+    it('omits response_format when tools are offered, so tool calls are not emitted as text', async () => {
+      createMock.mockResolvedValueOnce(okResponse);
+      await new OllamaProvider().call({ ...base, tools: [tool] });
+      expect(createMock.mock.calls[0][0].response_format).toBeUndefined();
+    });
+  });
 });
