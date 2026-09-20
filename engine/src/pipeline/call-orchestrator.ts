@@ -13,6 +13,7 @@ import { ChildRunError } from '@studio-foundation/contracts';
 import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { evaluateCondition } from './condition-evaluator.js';
 import { buildCallInput } from './call-input.js';
+import type { AnonymizationMiddleware } from '@studio-foundation/runner';
 import type { PipelineContext } from './context-propagation.js';
 
 export interface CallRunResult {
@@ -46,6 +47,7 @@ export class CallOrchestrator {
     runId: string,
     depth: number,
     signal?: AbortSignal,
+    runMiddleware?: AnonymizationMiddleware | null,
   ): Promise<CallRunResult> {
     const pipeline = call.pipeline ?? call.call;
     const startedAt = new Date().toISOString();
@@ -159,6 +161,7 @@ export class CallOrchestrator {
         input,
         parentRunId: runId,
         depth: depth + 1,
+        ...(runMiddleware ? { overrides: { anonymization: runMiddleware } } : {}),
       });
       // Remember which child run this stage produced so readers can nest it.
       stageRun.child_run_id = spawn.run_id;
