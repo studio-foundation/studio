@@ -7,6 +7,23 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.24.1] — 2026-09-20
+
+### Fixes
+
+- The Ollama provider no longer sends `response_format: json_object` when tools are offered, which made the model answer in JSON instead of calling them. (STU-1554)
+- `studio logs` shows the failure reasons of each `stage_retry` event. (STU-1552)
+- `pnpm seed:refresh` reads everything before touching the seed, so a failed fetch no longer leaves it half-written. (STU-1563)
+
+### Distribution
+
+- The bundled seed is refreshed from studio-community `main`. (STU-1561)
+
+### Docs
+
+- `seed:refresh` documents its token requirement and the weekly drift workflow. (STU-1566)
+- The `bump-version` skill covers six packages and a lagging registry. (STU-1562)
+
 ## [0.24.0] — 2026-09-20
 
 ### Removed
