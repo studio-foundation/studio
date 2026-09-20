@@ -57,9 +57,10 @@ const FAKE_TRIGGER_CONTENT = 'name: linear\npipeline: feature-builder\n';
 vi.mock('../../../src/commands/registry/sync.js', () => ({
   syncRegistry: vi.fn().mockResolvedValue(undefined),
 }));
+let cachedIndex: typeof MOCK_INDEX = MOCK_INDEX;
 vi.mock('../../../src/registry/cache.js', () => {
   class RegistryCache {
-    read() { return Promise.resolve(MOCK_INDEX); }
+    read() { return Promise.resolve(cachedIndex); }
     write() { return Promise.resolve(undefined); }
     isFresh() { return Promise.resolve(true); }
   }
@@ -76,6 +77,8 @@ beforeEach(async () => {
   ]));
 });
 afterEach(async () => {
+  cachedIndex = MOCK_INDEX;
+  vi.clearAllMocks();
   await rm(TMP, { recursive: true, force: true });
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -103,6 +106,37 @@ describe('installPackage', () => {
       files: ['triggers/linear.trigger.yaml'],
     });
     expect(lf.installed['linear'].sha256).toBeTruthy();
+  });
+
+  it('refetches the index once when the cached one lacks the package', async () => {
+    cachedIndex = { ...MOCK_INDEX, packages: [] };
+    const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
+    vi.mocked(syncRegistry).mockResolvedValueOnce(undefined).mockImplementationOnce(async () => {
+      cachedIndex = MOCK_INDEX;
+    });
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+
+    expect(syncRegistry).toHaveBeenCalledWith({ force: true, silent: true });
+    await expect(readFile(resolve(STUDIO_DIR, 'triggers', 'linear.trigger.yaml'), 'utf8')).resolves.toBe(FAKE_TRIGGER_CONTENT);
+  });
+
+  it('fails with not found after exactly one refetch when the fresh index lacks it too', async () => {
+    cachedIndex = { ...MOCK_INDEX, packages: [] };
+    const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+
+    await expect(installPackage('linear', { studioDir: STUDIO_DIR, force: true }))
+      .rejects.toThrow("Package 'linear' not found in registry");
+    expect(vi.mocked(syncRegistry).mock.calls.filter(([o]) => o?.force)).toHaveLength(1);
+  });
+
+  it('does not refetch when the cached index has the package', async () => {
+    const { syncRegistry } = await import('../../../src/commands/registry/sync.js');
+    const { installPackage } = await import('../../../src/commands/registry/install.js');
+    await installPackage('linear', { studioDir: STUDIO_DIR, force: true });
+
+    expect(vi.mocked(syncRegistry).mock.calls.filter(([o]) => o?.force)).toHaveLength(0);
   });
 
   it('refuses a package that requires a newer Studio', async () => {

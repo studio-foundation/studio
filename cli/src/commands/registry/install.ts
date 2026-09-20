@@ -274,9 +274,14 @@ export async function installPackage(ref: string, options: InstallOptions = {}):
 
   await syncRegistry({ force: false, silent: true });
   // `seed: true` — an install with nothing cached is offline, not empty.
-  const { packages, marketplaces } = await loadMergedIndex({ seed: true });
+  let { packages, marketplaces } = await loadMergedIndex({ seed: true });
   if (!entryFor(packages, name, undefined, marketplace)) {
-    throw new Error(`Package '${name}' not found in registry`);
+    // A package published inside the cache TTL is missing from the cached index.
+    await syncRegistry({ force: true, silent: true });
+    ({ packages, marketplaces } = await loadMergedIndex({ seed: true }));
+    if (!entryFor(packages, name, undefined, marketplace)) {
+      throw new Error(`Package '${name}' not found in registry`);
+    }
   }
 
   await doInstallPackage(ref, resolvedOptions, {
