@@ -1,6 +1,6 @@
 # CLI
 
-Studio's primary interface for human use. For machine-to-machine usage (webhooks, CI/CD, bots), see [API.md](./API.md).
+Studio's primary interface for human use.
 
 ---
 
@@ -294,7 +294,6 @@ The cache lives at `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<it
 ### Other
 
 ```bash
-studio api start                                 # Start the HTTP REST API (also: stop, status)
 ```
 
 ---
@@ -360,7 +359,7 @@ API keys can reference environment variables via `${VAR_NAME}`. This file is git
 cp .studio/config.example.yaml .studio/config.yaml
 ```
 
-**Every key left uncommented in the example is required.** `studio run` and `studio api start` check `config.yaml` against it before doing any work and stop with the missing paths:
+**Every key left uncommented in the example is required.** `studio run` checks `config.yaml` against it before doing any work and stop with the missing paths:
 
 ```
 Error: /repo/.studio/config.yaml is missing required key:
@@ -404,7 +403,7 @@ A project declares which Studio versions it works with, the way `package.json` d
 studio_version: ">=0.10.0"
 ```
 
-`studio run` and `studio api start` compare the installed CLI against that range before touching a stage, and stop when it doesn't satisfy it:
+`studio run` compares the installed CLI against that range before touching a stage, and stop when it doesn't satisfy it:
 
 ```
 Error: This project requires Studio >=0.10.0, but you have 0.9.0.

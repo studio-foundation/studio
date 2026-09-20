@@ -163,7 +163,6 @@ studio templates list                          # List available templates
 studio template validate <path>                # Validate a template structure
 
 # API server
-studio api start                               # Start the HTTP REST API server (also: stop, status)
 
 # Validation
 studio validate <contract> <output.json>       # Validate output against a contract (no LLM)
@@ -202,7 +201,6 @@ Sister packages:
 - [`@studio-foundation/ralph`](https://www.npmjs.com/package/@studio-foundation/ralph) — retry loop + validation
 - [`@studio-foundation/runner`](https://www.npmjs.com/package/@studio-foundation/runner) — tool plugin runtime, LLM providers
 - [`@studio-foundation/anonymizer`](https://www.npmjs.com/package/@studio-foundation/anonymizer) — PII anonymization middleware
-- [`@studio-foundation/api`](https://www.npmjs.com/package/@studio-foundation/api) — HTTP REST API
 - [`@studio-foundation/contracts`](https://www.npmjs.com/package/@studio-foundation/contracts) — shared types
 
 ## For contributors
@@ -222,7 +220,7 @@ studio --version
 
 Internal rules:
 
-- `cli` is the composition root, it imports from `engine`, `runner` (ToolRegistry, ProviderRegistry, MCPClient), and `api` (for `studio api start`). This is a documented exception to the package DAG (see [INVARIANTS.md](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)).
+- `cli` is the composition root, it imports from `engine`, `runner` (ToolRegistry, ProviderRegistry, MCPClient). This is a documented exception to the package DAG (see [INVARIANTS.md](https://github.com/studio-foundation/studio/blob/main/INVARIANTS.md)).
 - `cli` never contains business logic, it wires dependencies and delegates.
 - All output rendering is in `output/`, display logic stays separate from command logic.
 - `findStudioDir()` walks up the directory tree, tests must use `/tmp` as base, never a subdirectory of the Studio repo (the repo itself has a `.studio/` at its root).

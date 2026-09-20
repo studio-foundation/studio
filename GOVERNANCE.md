@@ -78,14 +78,12 @@ As GitHub, GitLab, and Bitbucket are to `git`: products built on a free tool wit
 
 ## Technical architecture
 
-Studio is a monorepo of seven packages, plus a template system. All packages share one version, bumped in lockstep.
+Studio is a monorepo of six packages, plus a template system. All packages share one version, bumped in lockstep.
 
 ```
 @studio-foundation/cli          Terminal interface
     │
-    └── @studio-foundation/api          HTTP REST API (Fastify)
-            │
-            └── @studio-foundation/engine       Pipeline orchestration, state machine, persistence
+    └── @studio-foundation/engine       Pipeline orchestration, state machine, persistence
                     │
                     ├── @studio-foundation/ralph        RALPH loop: execute → validate → retry if fail
                     │

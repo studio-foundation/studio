@@ -798,7 +798,6 @@ Switch models without changing pipeline logic. The orchestration layer depends o
 @studio-foundation/runner       → Tool plugin runtime, LLM providers. Depends only on contracts.
 @studio-foundation/anonymizer   → PII middleware. Depends only on contracts.
 @studio-foundation/engine       → Pipeline orchestration. Depends on ralph + runner + anonymizer + contracts.
-@studio-foundation/api          → HTTP REST API. Depends on engine + contracts.
 @studio-foundation/cli          → Terminal interface. Depends on engine + contracts.
 ```
 

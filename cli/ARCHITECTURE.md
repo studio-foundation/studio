@@ -8,7 +8,7 @@ Interface terminal pour Studio. Composition root — câble toutes les dépendan
 - Le CLI est le **composition root** : il instancie `ProviderRegistry`, `ToolRegistry`, `MCPClient`, `PipelineEngine`. Exception documentée au DAG dans INVARIANTS.md.
 - Pretty output pour humains (`--live`), JSON pour machines (`--json`)
 - `findStudioDir()` remonte l'arbre de dossiers — les tests doivent utiliser `/tmp`, jamais un sous-dossier du repo Studio (qui a lui-même un `.studio/`)
-- Dépend de : `@studio-foundation/engine`, `@studio-foundation/runner`, `@studio-foundation/contracts` (+ `@studio-foundation/api` pour `studio api start`)
+- Dépend de : `@studio-foundation/engine`, `@studio-foundation/runner`, `@studio-foundation/contracts`
 
 ## Fichiers clés
 
@@ -23,7 +23,6 @@ Interface terminal pour Studio. Composition root — câble toutes les dépendan
 - `commands/templates.ts` — `studio templates`
 - `commands/template/` — `studio template validate`
 - `commands/project.ts` — `studio project`
-- `commands/api.ts` — `studio api start`
 - `commands/validate.ts` — `studio validate <contract> <output.json>`
 - `output/` — formatter, logger, progress/spinner, file-changes renderer
 - `utils/input-wizard.ts` — prompts interactifs pour `studio run` sans `--input`

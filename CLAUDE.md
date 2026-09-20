@@ -2,7 +2,7 @@
 
 Studio is a declarative YAML runtime for AI agents. It orchestrates multi-stage agent workflows with structured output validation and automatic retry. The engine is domain-agnostic — it knows nothing about code, files, or QA. All domain comes from YAML configs.
 
-## Architecture — 7 packages, 1 monorepo
+## Architecture — 6 packages, 1 monorepo
 
 ```
 Studio/
@@ -11,20 +11,19 @@ Studio/
 ├── ralph/        # @studio-foundation/ralph — retry loop + validation
 ├── runner/       # @studio-foundation/runner — tool plugin runtime, LLM providers
 ├── engine/       # @studio-foundation/engine — pipeline orchestration, state machine
-├── api/          # @studio-foundation/api — HTTP REST API (Fastify)
 └── cli/          # @studio-foundation/cli — terminal interface
 ```
 
 Project templates are registry packages, not files in this repo — see [TEMPLATES.md](TEMPLATES.md).
 
 ```
-cli ──→ api ──→ engine ──→ ralph ──────→ contracts
- │       │        │                        ▲  ▲
- │       │        └──────→ runner ─────────┘  │
- └───────┴───────────────────────┴─→ anonymizer (co-leaf, zero internal deps)
+cli ──→ engine ──→ ralph ──────→ contracts
+ │        │                        ▲  ▲
+ │        └──────→ runner ─────────┘  │
+ └────────────────────────┴─→ anonymizer (co-leaf, zero internal deps)
 ```
 
-**Strict dependencies:** contracts is a leaf. anonymizer is a co-leaf — it depends on `@redactpii/node` and nothing internal. ralph depends on contracts. runner depends on contracts + anonymizer. **engine depends on contracts + ralph + runner — not anonymizer**, which is instantiated in runner where the LLM call it wraps happens. api depends on contracts + engine + runner. cli depends on contracts + engine + runner + api. The `→ runner` edges from api and cli are documented composition-root exceptions ([INVARIANTS.md](INVARIANTS.md) INV-10), not drift.
+**Strict dependencies:** contracts is a leaf. anonymizer is a co-leaf — it depends on `@redactpii/node` and nothing internal. ralph depends on contracts. runner depends on contracts + anonymizer. **engine depends on contracts + ralph + runner — not anonymizer**, which is instantiated in runner where the LLM call it wraps happens. cli depends on contracts + engine + runner. The `→ runner` edge from cli is a documented composition-root exception ([INVARIANTS.md](INVARIANTS.md) INV-10), not drift.
 
 **No inverted dependencies.** ralph doesn't know runner. runner doesn't know engine. If you find yourself importing "upward", it's an architecture error.
 
@@ -80,9 +79,9 @@ cli ──→ api ──→ engine ──→ ralph ──────→ contrac
 
 **Seed cache** — `cli/templates/seed/` is a pre-fetched snapshot of the official marketplace, bundled through the same `BUNDLED_ASSETS` step as the templates. It mirrors the marketplace layout verbatim (`index.json` plus each package's `source.path` tree), so every lookup is a path lookup and no kernel code names a package. `studio init` and `studio registry install` fall back to it when the network is unreachable, which is what lets `git`, `search` and the vendor triggers leave the kernel without making a fresh install require connectivity (INV-11). A seeded package is an ordinary package — removable, overridable, superseded by the live registry the moment one answers. The seeded index is deliberately never written to the 24-hour cache, or the next online run would skip its sync. Refresh with `pnpm seed:refresh` ([scripts/refresh-seed.mjs](scripts/refresh-seed.mjs)).
 
-**Runtime version guard (`studio_version`)** — A semver range in `.studio/config.yaml` (`studio_version: ">=0.10.0"`), analogous to `package.json`'s `engines`. `studio run` and `studio api start` compare the installed CLI against it and fail-fast before any stage; `studio registry install` applies the same check to a package's `studio_version`. Absent key = no check. See CLI.md.
+**Runtime version guard (`studio_version`)** — A semver range in `.studio/config.yaml` (`studio_version: ">=0.10.0"`), analogous to `package.json`'s `engines`. `studio run` compares the installed CLI against it and fail-fast before any stage; `studio registry install` applies the same check to a package's `studio_version`. Absent key = no check. See CLI.md.
 
-**Config contract (.studio/config.example.yaml)** — Committed twin of the gitignored `config.yaml`. Every key left uncommented in the example is required in `config.yaml`; `studio run` and `studio api start` check it first and fail with the missing dotted paths instead of dying mid-run. Presence only — the value may come from `${VAR}`. No example = no contract = never blocked. See CLI.md.
+**Config contract (.studio/config.example.yaml)** — Committed twin of the gitignored `config.yaml`. Every key left uncommented in the example is required in `config.yaml`; `studio run` checks it first and fail with the missing dotted paths instead of dying mid-run. Presence only — the value may come from `${VAR}`. No example = no contract = never blocked. See CLI.md.
 
 **Required binaries (`requires_binaries`)** — Declared in `.studio/config.yaml` (project-wide) and in `constraints.requires_binaries` of any `.tool.yaml` (per plugin). `studio run` checks every entry against PATH before the first stage and exits with the missing ones. An entry may carry a semver range (`"node >=18 <=22"`), in which case `<binary> --version` is probed too. `studio registry install` warns instead of blocking. See CLI.md.
 
@@ -122,9 +121,9 @@ Most of these are checked by `pnpm check:invariants`, blocking in CI. Loosening 
 
 ## Versioning & Releases
 
-Studio uses **unified (lockstep) versioning**: the root and all 7 packages always share one version. There is no independent per-package versioning — "which version is anonymizer?" is the wrong question; it's always the current Studio version.
+Studio uses **unified (lockstep) versioning**: the root and all 6 packages always share one version. There is no independent per-package versioning — "which version is anonymizer?" is the wrong question; it's always the current Studio version.
 
-- **One version, bumped together.** Never hand-edit a single package's `version`. Run `pnpm version:bump <semver>` ([scripts/bump-version.mjs](scripts/bump-version.mjs)), which rewrites all 8 `package.json` files (root + 7 packages) to the same number. `studio --version` reads it from `cli/package.json`.
+- **One version, bumped together.** Never hand-edit a single package's `version`. Run `pnpm version:bump <semver>` ([scripts/bump-version.mjs](scripts/bump-version.mjs)), which rewrites all 7 `package.json` files (root + 6 packages) to the same number. `studio --version` reads it from `cli/package.json`.
 - **`workspace:*` for internal deps.** Packages never pin each other's version, so a bump needs no cross-package coordination.
 - **Bump at release time, not per PR.** Feature and fix PRs do NOT touch the version. When publishing to npm, a dedicated `chore: bump version to X.Y.Z` commit batches all merged work into one bump.
 - **Semver rule (pre-1.0 / 0.x).** Classify by **reachable surface, not by lines added.** The whole rule reduces to one question about a change:
@@ -147,7 +146,7 @@ _Worked examples:_
 Use the `bump-version` skill. Two rules it exists to protect, both learned by breaking them:
 
 - **The baseline is npm, not git tags.** `npm view @studio-foundation/cli version` is the last version that actually shipped. Tags exist for versions that never published (`v0.5.0`, `v0.5.1`), so diffing from the last tag gives the wrong commit range.
-- **Publish, then release.** `gh workflow run npm-publish.yml -f version=X.Y.Z`, verify all 7 packages on npm, and only then cut the GitHub release. Releases are immutable here — a tag name is reserved permanently, so a release cut before npm accepts destroys that version number.
+- **Publish, then release.** `gh workflow run npm-publish.yml -f version=X.Y.Z`, verify all 6 packages on npm, and only then cut the GitHub release. Releases are immutable here — a tag name is reserved permanently, so a release cut before npm accepts destroys that version number.
 - **Draft the release, attach the binaries, then publish it.** Immutability also means a published release rejects asset uploads, so `release-binaries.yml` has to run against a draft. Publishing first leaves `install.sh` broken for that version.
 
 ### Recommending a bump
@@ -367,7 +366,6 @@ Same PR as the code, not a later cleanup pass:
 | Invariant added/changed | [INVARIANTS.md](INVARIANTS.md) (source of truth) |
 | New CLI command or flag | [CLI.md](CLI.md) |
 | New YAML key a config author can write | [CONCEPTS.md](CONCEPTS.md) + CLAUDE.md key concepts |
-| New API route | [API.md](API.md) + its Swagger schema |
 | Template or distribution change | [TEMPLATES.md](TEMPLATES.md), [GOVERNANCE.md](GOVERNANCE.md) |
 | Builtin tool added or removed | [INVARIANTS.md](INVARIANTS.md) INV-11, `BUILTIN_TOOLS` in [check-kernel-domain-free.mjs](scripts/check-kernel-domain-free.mjs), CLAUDE.md builtin table |
 | Internal dependency edge added | `DAG` in [check-invariants.mjs](scripts/check-invariants.mjs), `ALLOWED_INTERNAL_IMPORTS` in [eslint.config.mjs](eslint.config.mjs), INV-10 table, CLAUDE.md graph |
@@ -381,7 +379,6 @@ Same PR as the code, not a later cleanup pass:
 **See also:**
 - **[CONCEPTS.md](CONCEPTS.md)** — Core concepts explained
 - **[CLI.md](CLI.md)** — CLI reference
-- **[API.md](API.md)** — REST API reference
 - **[TEMPLATES.md](TEMPLATES.md)** — Project templates and what each one ships
 - **[INVARIANTS.md](INVARIANTS.md)** — Non-negotiable kernel rules
 - **[PHILOSOPHY.md](PHILOSOPHY.md)** — Design principles
