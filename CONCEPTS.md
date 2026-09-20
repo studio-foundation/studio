@@ -812,7 +812,7 @@ Switch models without changing pipeline logic. The orchestration layer depends o
 
 ## Run retention (`runs.retention`)
 
-Nothing else prunes `.studio/runs/`, so logs accumulate. `runs.retention.max_age_days` in `.studio/config.yaml` deletes run logs (and their anonymization keymaps) older than that many days at the end of each `studio run`; `studio runs prune` does the same on demand with `--keep-last`, `--max-age` and `--keep-status`. See CLI.md.
+Nothing else prunes `.studio/runs/`, so logs accumulate. `runs.retention.max_age_days` in `.studio/config.yaml` deletes run logs (and their anonymization keymaps and `runs.db` rows) older than that many days at the end of each `studio run`; `studio runs prune` does the same on demand with `--keep-last`, `--max-age` and `--keep-status`. See CLI.md.
 
 ```yaml
 runs:

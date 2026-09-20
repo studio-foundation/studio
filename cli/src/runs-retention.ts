@@ -1,6 +1,6 @@
-import { readdir, readFile, stat, rm } from 'node:fs/promises';
+import { access, readdir, readFile, stat, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { keymapDir, purgeKeymaps } from '@studio-foundation/engine';
+import { SQLiteRunStore, keymapDir, purgeKeymaps } from '@studio-foundation/engine';
 import type { StudioConfig } from './config.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -23,6 +23,7 @@ export interface PrunedRun {
 export interface PruneResult {
   runs: PrunedRun[];
   keymaps: number;
+  rows: number;
 }
 
 export function parseDuration(text: string): number {
@@ -46,8 +47,19 @@ async function readStatus(file: string): Promise<string> {
   return status;
 }
 
+/** Skips a project with no runs.db rather than creating one. */
+async function purgeRunStoreRows(dbPath: string, match: (runId: string) => boolean, dryRun: boolean): Promise<number> {
+  if (!(await access(dbPath).then(() => true, () => false))) return 0;
+  const store = new SQLiteRunStore(dbPath);
+  try {
+    return store.purgePipelineRuns(match, dryRun).length;
+  } finally {
+    store.close();
+  }
+}
+
 /**
- * Delete run logs (and each run's anonymization keymap) that no rule protects.
+ * Delete run logs (and each run's anonymization keymap and run-store row) that no rule protects.
  * A run is kept when it is among the `keepLast` newest or its status is in
  * `keepStatus`; of the rest, `maxAgeMs` (when set) removes only the older ones.
  * A run with no `pipeline_complete` yet is treated as live for a day.
@@ -62,7 +74,7 @@ export async function pruneRuns(studioDir: string, options: PruneOptions): Promi
   try {
     names = (await readdir(runsDir)).filter((n) => LOG_NAME.test(n));
   } catch {
-    return { runs: [], keymaps: 0 };
+    return { runs: [], keymaps: 0, rows: 0 };
   }
 
   const logs = await Promise.all(
@@ -83,15 +95,14 @@ export async function pruneRuns(studioDir: string, options: PruneOptions): Promi
 
   const shortIds = new Set(doomed.map((log) => LOG_NAME.exec(log.name)![1].toLowerCase()));
   if (!dryRun) await Promise.all(doomed.map((log) => rm(log.file, { force: true })));
-  const keymaps = await purgeKeymaps(
-    keymapDir(studioDir),
-    (runId) => shortIds.has(runId.replace(/-/g, '').slice(0, 8).toLowerCase()),
-    dryRun,
-  );
+  const isDoomed = (runId: string) => shortIds.has(runId.replace(/-/g, '').slice(0, 8).toLowerCase());
+  const keymaps = await purgeKeymaps(keymapDir(studioDir), isDoomed, dryRun);
+  const rows = await purgeRunStoreRows(join(runsDir, 'runs.db'), isDoomed, dryRun);
 
   return {
     runs: doomed.map((log) => ({ file: log.name, status: log.status, ageDays: Math.floor((now - log.mtimeMs) / DAY_MS) })),
     keymaps: keymaps.length,
+    rows,
   };
 }
 

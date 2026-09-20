@@ -221,6 +221,15 @@ export class SQLiteRunStore implements RunStore {
     return row?.log_path ?? null;
   }
 
+  /** Deletes the rows whose run id `match` accepts and returns those ids; with `dryRun`, only reports them. */
+  purgePipelineRuns(match: (runId: string) => boolean, dryRun = false): string[] {
+    const ids = (this.db.prepare('SELECT id FROM pipeline_runs').all() as Array<{ id: string }>)
+      .map((row) => row.id)
+      .filter(match);
+    if (!dryRun) for (const id of ids) this.db.prepare('DELETE FROM pipeline_runs WHERE id = ?').run(id);
+    return ids;
+  }
+
   close(): void {
     this.db.close();
   }
