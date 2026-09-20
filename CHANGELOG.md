@@ -7,6 +7,16 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.23.1] — 2026-09-20
+
+### CLI
+
+- **`studio runs prune` and `runs.retention` also delete the pruned runs' `runs.db` rows.** A run whose log was removed no longer shows in `studio status` or `studio list runs`; `--dry-run` reports the row count. Map-cache entries stay with `studio cache clean`. (STU-1539)
+
+### Tests
+
+- **Coverage for `runs.retention` at the end of `studio run` and for `mock.yaml` generation** (empty contract, unloadable contract, every seeded template). (STU-1538, STU-1540)
+
 ## [0.23.0] — 2026-09-19
 
 ### Engine
