@@ -8,6 +8,7 @@ import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient } from '@studio-foundation/runner';
 import { resolveRepoPath } from '@studio-foundation/api/repo-resolver';
 import { loadConfig } from '../config.js';
+import { applyRunRetention } from '../runs-retention.js';
 import type { StudioConfig } from '../config.js';
 import {
   SUPPRESS_HINT,
@@ -651,6 +652,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       console.log(chalk.gray(`View details: studio status ${progress.runId}`));
     }
 
+    await applyRunRetention(config);
     const exitCode = result.status === 'cancelled' ? 130 : result.status === 'success' ? 0 : 1;
     await exitAfterFlush(exitCode);
   } catch (error) {

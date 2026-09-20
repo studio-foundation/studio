@@ -2,6 +2,7 @@
 
 // Main engine
 export { PipelineEngine } from './engine.js';
+export { KEYMAP_TTL_MS, keymapDir, purgeKeymaps } from './keymap-store.js';
 export type { EngineConfig, RunInput } from './engine.js';
 
 // Events

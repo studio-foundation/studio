@@ -729,7 +729,7 @@ Transparent middleware that replaces sensitive data with tokens before sending t
 - Emails → `[EMAIL_1]`
 - Financial data → `[AMOUNT_1]`
 
-A local keymap stored in `.studio/runs/anonymization/<run-id>.keymap.json` lets you reconstruct the original values after the run. Keymaps older than 7 days are deleted the next time a run writes one, since the file is a plaintext token-to-PII table.
+A local keymap stored in `.studio/runs/anonymization/<run-id>.keymap.json` lets you reconstruct the original values after the run. Keymaps older than 7 days are deleted the next time a run writes one, since the file is a plaintext token-to-PII table. `studio runs prune` also removes a pruned run's keymap.
 
 Under `--anonymize`, values in the keymap are also replaced by their tokens in what Studio writes and prints: `.studio/runs/*.jsonl`, `--json` stdout and the final error line. `--include-cleartext` turns that off.
 
@@ -798,3 +798,12 @@ Switch models without changing pipeline logic. The orchestration layer depends o
 ## Gotchas
 
 **Tool naming: dot vs dash.** In contract YAML, tools use dot notation (`repo_manager.write_file`). The engine transforms to dash notation (`repo_manager-write_file`) at runtime, and that's the form you'll see in logs, hook matchers, and validation errors. Both refer to the same tool.
+
+## Run retention (`runs.retention`)
+
+Nothing else prunes `.studio/runs/`, so logs accumulate. `runs.retention.max_age_days` in `.studio/config.yaml` deletes run logs (and their anonymization keymaps) older than that many days at the end of each `studio run`; `studio runs prune` does the same on demand with `--keep-last`, `--max-age` and `--keep-status`. See CLI.md.
+
+```yaml
+runs:
+  retention: { max_age_days: 30 }
+```
