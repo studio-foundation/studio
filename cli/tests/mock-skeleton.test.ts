@@ -47,6 +47,11 @@ describe('buildMockSkeleton', () => {
     expect(tool_calls.map((c) => c.name)).toEqual(['repo_manager-write_file', 'shell-run_command']);
   });
 
+  it('emits an empty output when required_fields is empty', () => {
+    const { output } = buildMockSkeleton({ name: 'c', version: 1, schema: { required_fields: [] } });
+    expect(output).toEqual({});
+  });
+
   it('pads to the minimum when required_tools is absent, and emits none without a minimum', () => {
     expect(buildMockSkeleton({ name: 'c', version: 1, tool_calls: { minimum: 2 } }).tool_calls).toHaveLength(2);
     expect(buildMockSkeleton({ name: 'c', version: 1 }).tool_calls).toEqual([]);
@@ -78,5 +83,11 @@ describe('writeMockSkeleton', () => {
     await writeFile(join(studio, 'mock.yaml'), 'stages: {}\n');
     expect(await writeMockSkeleton(studio)).toBe(false);
     expect(await readFile(join(studio, 'mock.yaml'), 'utf-8')).toBe('stages: {}\n');
+  });
+
+  it('rejects when a referenced contract cannot be loaded', async () => {
+    const studio = await project();
+    await rm(join(studio, 'contracts', 'out.contract.yaml'));
+    await expect(writeMockSkeleton(studio)).rejects.toThrow();
   });
 });
