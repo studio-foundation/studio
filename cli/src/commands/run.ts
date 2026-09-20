@@ -24,6 +24,7 @@ import { createRunLogger } from '../run-logger.js';
 import { FileChangeCollector, formatFileChanges } from '../output/file-changes.js';
 import { formatResult } from '../output/formatter.js';
 import { validateInputSchema, collectStructuredInput } from '../utils/input-wizard.js';
+import { buildStageOutputTargets, writeStageOutputs } from '../stage-output.js';
 import { createRunStore } from '../run-store-factory.js';
 import type { AnyRunStore } from '@studio-foundation/engine';
 
@@ -40,6 +41,8 @@ interface RunOptions {
   anonymize?: boolean;
   includeCleartext?: boolean;
   streamItems?: boolean;
+  outputFile?: string;
+  stageOutput?: string[];
 }
 
 /**
@@ -323,6 +326,7 @@ function warnOnMissingContracts(pipeline: PipelineDefinition, config: StudioConf
 export async function runCommand(pipelineName: string, options: RunOptions): Promise<void> {
   let redact = (text: string): string => text;
   try {
+    const outputTargets = buildStageOutputTargets(options.outputFile, options.stageOutput);
     const config = await loadConfig(options.config);
 
     const versionError = checkStudioVersion(config.studio_version, 'This project');
@@ -630,6 +634,10 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       await runStore?.close?.();
       // Stop all MCP servers (even if pipeline failed)
       await Promise.allSettled(mcpClients.map((c) => c.close()));
+    }
+
+    for (const stage of await writeStageOutputs(result.stages, outputTargets, redact)) {
+      console.error(chalk.yellow(`⚠ No output to write for stage '${stage}'`));
     }
 
     if (options.json) {

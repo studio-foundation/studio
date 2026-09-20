@@ -76,10 +76,19 @@ studio run <pipeline> --live                     # Stream tool calls in real-tim
 studio run <pipeline> --provider mock            # Test without API calls
 studio run <pipeline> --anonymize                # Anonymize PII before sending to LLM
 studio run <pipeline> --anonymize --include-cleartext  # Keep original values in --json and the run log
+studio run <pipeline> --output-file out.json     # Last stage's full output, as JSON
+studio run <pipeline> --stage-output draft=d.json  # A named stage's output (repeatable)
+studio runs show <run-id> --stage draft --json   # A recorded stage output, after the fact
 studio replay <run-id>                           # Replay a completed run
 studio validate <contract> <output.json>         # Validate output against contract
 studio list pipelines                            # List available pipelines (also: agents, runs)
 ```
+
+### Getting a stage's output back
+
+A caller that spawns `studio run` per item should not scrape stdout. `--output-file <path>` writes the last stage's output and `--stage-output <stage>=<path>` (repeatable) writes a named stage's, each as whole JSON with no size cap. The files come from that run's in-memory result, never from a glob over `.studio/runs/`, so concurrent runs cannot read each other's output. The exit code is unchanged; a stage with no output (or an unknown name) is a warning on stderr and no file is written. Under `--anonymize` the files carry tokens, like `--json`, unless `--include-cleartext` is set. A malformed `--stage-output` fails before the run starts.
+
+After the fact, `studio runs show <run-id> --stage <name> --json` prints the output recorded in the run log (`.studio/runs/`). A string output prints raw unless `--json` is given.
 
 ### Mock provider (`mock.yaml`)
 
