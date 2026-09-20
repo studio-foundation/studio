@@ -1,16 +1,14 @@
 /**
- * STU-410: the path a newcomer takes must keep working — init the software
- * template with no network, drop in the documented example mock.yaml, and run
- * a pipeline with `--provider mock` to success. Guards the quickstart in the
- * README and the example under docs/examples/.
+ * STU-410 / STU-1529: the path a newcomer takes must keep working. Init the
+ * software template with no network and run a pipeline with `--provider mock`
+ * to success on the mock.yaml that init generated. Guards the README quickstart.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { chmod, copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 
 const CLI_BIN = resolve(import.meta.dirname, '../../dist/index.js');
-const EXAMPLE = resolve(import.meta.dirname, '../../../docs/examples/mock.quick-edit.yaml');
 const TMP = resolve('/tmp', '.studio-first-run-mock-test');
 
 afterEach(async () => {
@@ -19,7 +17,7 @@ afterEach(async () => {
 });
 
 describe('first run with the mock provider', () => {
-  it('inits offline, follows the documented mock.yaml, and succeeds', async () => {
+  it('inits offline, runs on the generated mock.yaml, and succeeds', async () => {
     await mkdir(TMP, { recursive: true });
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('getaddrinfo ENOTFOUND')));
 
@@ -35,7 +33,6 @@ describe('first run with the mock provider', () => {
     await mkdir(join(TMP, 'bin'), { recursive: true });
     await writeFile(join(TMP, 'bin', 'rg'), '#!/bin/sh\n');
     await chmod(join(TMP, 'bin', 'rg'), 0o755);
-    await copyFile(EXAMPLE, join(TMP, '.studio', 'mock.yaml'));
 
     const child = spawn(
       process.execPath,

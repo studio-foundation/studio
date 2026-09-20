@@ -83,7 +83,7 @@ studio list pipelines                            # List available pipelines (als
 
 ### Mock provider (`mock.yaml`)
 
-`--provider mock` answers each stage from `<project>/.studio/mock.yaml` instead of calling a model, so a pipeline runs offline with no key. The file is required; the run fails naming it when it is missing.
+`--provider mock` answers each stage from `<project>/.studio/mock.yaml` instead of calling a model, so a pipeline runs offline with no key. `studio init --template <name>` generates it with one entry per contract a pipeline stage references (every `schema.required_fields` name filled with a typed placeholder, one placeholder call per `tool_calls.required_tools` entry, padded to `tool_calls.minimum`); an existing file is never overwritten. The file is required; the run fails naming it when it is missing.
 
 ```yaml
 stages:
