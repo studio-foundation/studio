@@ -1,0 +1,49 @@
+name: Seed drift
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Refresh cli/templates/seed
+    runs-on: ubuntu-24.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Refresh the seed from the published marketplace
+        run: node scripts/refresh-seed.mjs > /dev/null
+
+      - name: Open a PR when the seed drifted
+        run: |
+          changed=$(git status --porcelain --untracked-files=all -- cli/templates/seed)
+          [ -z "$changed" ] && exit 0
+          echo "Seed drifted:"
+          echo "$changed"
+          branch=chore/seed-refresh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add cli/templates/seed
+          git commit -s -m "chore(cli): refresh the bundled seed"
+          git push --force origin "$branch"
+          gh pr list --head "$branch" --state open --json number --jq '.[0].number' | grep -q . && exit 0
+          gh pr create --base main --head "$branch" \
+            --title "chore(cli): refresh the bundled seed" \
+            --body "The bundled seed no longer matches the published marketplace. Changed paths:
+
+          \`\`\`
+          $changed
+          \`\`\`"
