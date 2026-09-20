@@ -101,6 +101,8 @@ export interface StageGroup {
  * scrape the log" glue — the child runs are spawned in-process via the engine's
  * RunSpawner and their last-stage output is returned directly (no scraping).
  */
+export type MapResumeKey = 'input' | 'agent' | 'contract';
+
 export interface MapStage {
   map: string;                              // the fan-out stage name (discriminant)
   condition?: string;                       // skip the whole fan-out if false
@@ -141,8 +143,15 @@ export interface MapStage {
    * The cache lives on disk under `.studio/runs/map-cache/…`, keyed by parent
    * pipeline + stage + sub-pipeline + item-input hash, so it survives a process
    * restart between runs.
+   *
+   * The object form widens the key: `{ key_on: [input, agent, contract] }`
+   * (`input` is the default, so `true` equals `{ key_on: [input] }` and existing
+   * caches stay valid). `agent` adds a hash of the sub-pipeline's parsed agent
+   * documents plus their resolved skills and the project invariants; `contract`
+   * adds a hash of the parsed contracts. Comments and key order never change a
+   * hash, only content does.
    */
-  resume?: boolean;
+  resume?: boolean | { key_on?: MapResumeKey[] };
   /**
    * Dispatch this fan-out's LLM calls as batches instead of one synchronous
    * request per item (default: off). `true` takes every default below.

@@ -44,6 +44,7 @@ import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
 import { buildItemInput, mapItemLabel } from './map-input.js';
 import type { PipelineContext } from './context-propagation.js';
+import { computeResumeFingerprint, resolveKeyOn } from './map-resume-key.js';
 import { hashItemInput, type MapItemCache, type MapCacheNamespace, type CachedMapItem } from './map-item-cache.js';
 
 export interface MapItemResult {
@@ -92,6 +93,9 @@ export interface MapOrchestratorConfig {
   cache?: MapItemCache;
   /** The engine's providers. Absent → `batch:` is a no-op (there is nothing to wrap). */
   providerRegistry?: ProviderRegistry;
+  /** Project `.studio/` directory: where a `resume.key_on` fingerprint reads agents, contracts and skills. */
+  configsDir?: string;
+  pluginSkills?: Record<string, string[]>;
 }
 
 function errorMessage(err: unknown): string {
@@ -270,13 +274,25 @@ export class MapOrchestrator {
     // misses (see MapStage.resume docs). Failures are never cached, so they
     // retry next run; a cache-served item counts as a success and never trips
     // fail-fast.
-    const resumeEnabled = map.resume === true && this.config.cache !== undefined;
+    const resumeEnabled = !!map.resume && this.config.cache !== undefined;
     const cache = this.config.cache;
     const namespace: MapCacheNamespace = {
       pipeline: pipelineName,
       stage: map.map,
       subPipeline: map.pipeline,
     };
+    let fingerprint: Record<string, string> | null = null;
+    if (resumeEnabled && this.config.configsDir) {
+      try {
+        fingerprint = await computeResumeFingerprint(
+          resolveKeyOn(map.resume), map.pipeline, this.config.configsDir, this.config.pluginSkills,
+        );
+      } catch (err) {
+        return failTechnical(`Map stage '${map.map}': cannot compute resume key: ${errorMessage(err)}`);
+      }
+    }
+    const itemKey = (itemInput: unknown): string =>
+      hashItemInput(fingerprint ? { input: itemInput, ...fingerprint } : itemInput);
 
     // The batch window lives for the whole fan-out: every item joins it, and it
     // decides when the parked calls go out together. Closed in `finally` so a
@@ -331,7 +347,7 @@ export class MapOrchestrator {
         if (resumeEnabled && cache) {
           try {
             itemInput = buildItemInput(map, items[i], i, context.input);
-            cached = await cache.get(namespace, hashItemInput(itemInput));
+            cached = await cache.get(namespace, itemKey(itemInput));
           } catch {
             itemInput = undefined;
             cached = undefined;
@@ -396,7 +412,7 @@ export class MapOrchestrator {
           // Only successful items are cached — a failure stays un-cached so it
           // retries next run.
           if (resumeEnabled && cache) {
-            await cache.set(namespace, hashItemInput(input), {
+            await cache.set(namespace, itemKey(input), {
               output: spawn.output,
               run_id: spawn.run_id,
               cached_at: new Date().toISOString(),
