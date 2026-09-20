@@ -5,7 +5,6 @@ packages:
   - "engine"
   - "cli"
   - "anonymizer"
-  - "api"
 
 onlyBuiltDependencies:
   - esbuild

@@ -20,8 +20,7 @@ const DAG = {
   ralph: ['contracts'],
   runner: ['contracts', 'anonymizer'],
   engine: ['contracts', 'ralph', 'runner'],
-  api: ['contracts', 'engine', 'runner'],
-  cli: ['contracts', 'engine', 'runner', 'api'],
+  cli: ['contracts', 'engine', 'runner'],
 };
 
 /**
@@ -128,12 +127,6 @@ for (const [pattern, what] of ENGINE_DOMAIN) {
   await forbid(engineSrc, pattern, `INV-04: the engine ${what}`);
 }
 
-// --- INV-12: the API never chooses what to run ---
-// `integrations/` is deliberately included: that is where the last hardcoded
-// default lived. Only the config-artifact pattern applies here.
-const apiSrc = await walkTs(join(ROOT, 'api', 'src'));
-await forbid(apiSrc, CONFIG_ARTIFACT[0], `INV-12: the API ${CONFIG_ARTIFACT[1]}`);
-
 // --- INV-13: the CLI renders a project's words, it does not know them ---
 // Two of ENGINE_DOMAIN's patterns are deliberately left off: the CLI renders
 // builtin tool names (`repo_manager-read_file` → "Read 3 files") and shells out
@@ -175,6 +168,6 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `Invariants: ${engineSrc.length + apiSrc.length + cliSrc.length} source files and ` +
+  `Invariants: ${engineSrc.length + cliSrc.length} source files and ` +
     `${Object.keys(DAG).length} manifests clean.`
 );

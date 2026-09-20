@@ -13,7 +13,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PACKAGES = ['contracts', 'anonymizer', 'ralph', 'runner', 'engine', 'api', 'cli'];
+const PACKAGES = ['contracts', 'anonymizer', 'ralph', 'runner', 'engine', 'cli'];
 const BUILTIN_TOOLS = ['repo-manager', 'shell'];
 
 /** Tool actions the kernel no longer implements — a reference means a stale caller. */
