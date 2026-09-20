@@ -284,7 +284,18 @@ function parseMapStage(entry: any, context: string): MapStage {
     throw new Error(`Map stage '${name}' field 'on_item_failure' must be 'fail-fast' or 'collect-all'${context}`);
   }
   if (entry.resume !== undefined && typeof entry.resume !== 'boolean') {
-    throw new Error(`Map stage '${name}' field 'resume' must be a boolean${context}`);
+    const r = entry.resume as Record<string, unknown> | null;
+    if (typeof r !== 'object' || r === null || Array.isArray(r)) {
+      throw new Error(`Map stage '${name}' field 'resume' must be a boolean or an object with 'key_on'${context}`);
+    }
+    assertKnownFields(r, ['key_on'] as const, `map stage '${name}' field 'resume'`, context);
+    if (r.key_on !== undefined) {
+      const ok = Array.isArray(r.key_on) && r.key_on.length > 0 &&
+        r.key_on.every((k) => k === 'input' || k === 'agent' || k === 'contract');
+      if (!ok) {
+        throw new Error(`Map stage '${name}' field 'resume.key_on' must be a non-empty list of 'input' | 'agent' | 'contract'${context}`);
+      }
+    }
   }
   const batch = parseMapBatch(entry.batch, name, context);
   if (entry.anonymize !== undefined) {

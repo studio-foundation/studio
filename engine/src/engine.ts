@@ -204,6 +204,8 @@ export class PipelineEngine {
       cache: new FileSystemMapItemCache(join(config.configsDir, 'runs', 'map-cache')),
       // Needed to wrap the child runs' providers when a map stage sets `batch:`.
       providerRegistry: config.providerRegistry,
+      configsDir: config.configsDir,
+      pluginSkills: config.pluginSkills,
     });
     this.callOrchestrator = new CallOrchestrator({
       events,
