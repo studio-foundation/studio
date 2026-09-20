@@ -27,7 +27,7 @@ stages:
       retry_strategy: none
 `);
 
-async function runMap(keymap: 'shared' | 'per-run') {
+async function runMap(keymap?: 'shared' | 'per-run') {
   const provider = {
     name: 'anthropic',
     call: vi.fn(async () => ({
@@ -45,7 +45,7 @@ async function runMap(keymap: 'shared' | 'per-run') {
   const result = await engine.run({
     pipelineDef: {
       name: 'parent', description: 'parent', version: 1,
-      stages: [{ map: 'fan', over: 'input.items', pipeline: 'child', input: { email: '{{item}}' }, anonymize: { keymap } }],
+      stages: [{ map: 'fan', over: 'input.items', pipeline: 'child', input: { email: '{{item}}' }, ...(keymap ? { anonymize: { keymap } } : {}) }],
     } as never,
     input: { items: ['jane@example.com', 'bob@example.org', 'jane@example.com'] },
     anonymize: true,
@@ -67,10 +67,49 @@ describe('map anonymize.keymap', () => {
       .toEqual(['bob@example.org', 'jane@example.com']);
   });
 
-  it('per-run (default): children are not handed the parent middleware', async () => {
+  it('default: children of a map are anonymized with the parent keymap, no anonymize key needed', async () => {
+    const { result, prompts } = await runMap();
+    expect(result.status).toBe('success');
+    expect(prompts.join('')).not.toContain('jane@example.com');
+    const tokens = prompts.map((p) => p.match(/EMAIL_\d+/)?.[0]);
+    expect(tokens[0]).toBeDefined();
+    expect(tokens[0]).toBe(tokens[2]);
+  });
+
+  it('per-run (explicit opt-out): children are not handed the parent middleware', async () => {
     const { prompts } = await runMap('per-run');
-    // today's behaviour: children are not handed the middleware, so they are not tokenized
     expect(prompts.join('')).toContain('jane@example.com');
     expect(prompts.join('')).not.toContain('EMAIL_');
+  });
+});
+
+describe('call under --anonymize', () => {
+  it('the child of a call stage is anonymized with the parent keymap by default', async () => {
+    const provider = {
+      name: 'anthropic',
+      call: vi.fn(async () => ({
+        content: '{}', tool_calls: [], finish_reason: 'stop',
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      })),
+    };
+    const config = {
+      configsDir: PROJECT_DIR,
+      providerRegistry: { get: vi.fn().mockReturnValue(provider), register: vi.fn() } as never,
+      toolRegistry: new ToolRegistry(),
+      db: new InMemoryRunStore(),
+    };
+    const engine = new PipelineEngine({ ...config, spawner: new DirectEngineSpawner(config) });
+    const result = await engine.run({
+      pipelineDef: {
+        name: 'parent', description: 'parent', version: 1,
+        stages: [{ call: 'child', input: { email: '{{input.email}}' } }],
+      } as never,
+      input: { email: 'jane@example.com' },
+      anonymize: true,
+    });
+    expect(result.status).toBe('success');
+    const prompt = JSON.stringify(provider.call.mock.calls);
+    expect(prompt).not.toContain('jane@example.com');
+    expect(prompt).toMatch(/EMAIL_\d+/);
   });
 });

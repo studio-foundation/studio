@@ -298,7 +298,7 @@ export class MapOrchestrator {
     // decides when the parked calls go out together. Closed in `finally` so a
     // throw mid-fan-out never leaves a request parked forever.
     const baseRegistry = this.config.providerRegistry;
-    const sharedMiddleware = map.anonymize?.keymap === 'shared' && runMiddleware ? runMiddleware : undefined;
+    const sharedMiddleware = map.anonymize?.keymap !== 'per-run' && runMiddleware ? runMiddleware : undefined;
     const overridesFor = (registry?: BatchingProviderRegistry) =>
       registry || sharedMiddleware
         ? {

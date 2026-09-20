@@ -556,6 +556,7 @@ export class PipelineEngine {
           pipelineRun.id,
           input.depth ?? 0,
           signal,
+          runMiddleware,
         );
 
         this.addPipelineUsage(callResult.tokenUsage);
