@@ -7,6 +7,27 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.23.0] — 2026-09-19
+
+### Engine
+
+- **Breaking: under `--anonymize`, `map` children are anonymized by default, and `call` children always are.** Children share the parent run's keymap, so one value gets one token across the run. Before, a `map` child reached the LLM un-anonymized unless the stage set `anonymize: { keymap: shared }`. A config that relied on that must now set `anonymize: { keymap: per-run }`. (STU-1533)
+- **`map` `resume` accepts `key_on: [input, agent, contract]`.** The per-item cache key can be widened to a hash of the parsed agent, skill, invariant and contract documents, so editing one invalidates the cached items. (STU-1526)
+
+### Runner
+
+- **Under anonymization, the prompt no longer echoes the input in clear.** The `## Additional Context` block rendered the run input next to a tokenized `## Task`; it is now omitted when a middleware is active. (STU-1532)
+
+### CLI
+
+- **`studio run` and `studio runs show` take `--output-file` and `--stage-output`.** (STU-1525)
+- **`studio init` writes a `mock.yaml` skeleton.** (STU-1529)
+- **`studio runs prune` and `runs.retention.max_age_days`.** Delete run logs and keymaps past an age or count.
+
+### CI
+
+- **A workflow opens a PR when the bundled seed drifts from the marketplace.** (STU-1531)
+
 ## [0.22.0] — 2026-09-19
 
 ### Engine
