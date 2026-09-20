@@ -175,11 +175,17 @@ async function runAgentAttempt(
     }
   }
 
+  // The context block renders the same input in clear; the Task section already
+  // carries it (tokenized or, out of scope, verbatim).
+  const contextForPrompt = mw && context.input !== undefined
+    ? { ...context, additional_context: undefined }
+    : context;
+
   // Build initial prompt
   const messages = buildPrompt({
     agent,
     task: taskForPrompt,
-    context,
+    context: contextForPrompt,
     executionContext,
     outputContract: config.outputContract,
     promptSnippets,
