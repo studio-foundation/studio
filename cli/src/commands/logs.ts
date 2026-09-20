@@ -13,7 +13,12 @@ function runIdShort(runId: string): string {
   return runId.replace(/-/g, '').slice(0, 8);
 }
 
-function formatEventLine(record: Record<string, unknown>): string {
+function retryReasons(record: Record<string, unknown>): string {
+  const failures = Array.isArray(record.failures) ? (record.failures as string[]) : [];
+  return failures.length > 0 ? failures.join('; ') : 'unknown';
+}
+
+export function formatEventLine(record: Record<string, unknown>): string {
   const event = record.event as string;
   const ts = record.ts as string;
   const time = ts ? new Date(ts).toISOString().slice(11, 19) : '';
@@ -37,9 +42,7 @@ function formatEventLine(record: Record<string, unknown>): string {
       return chalk.gray(`  ${time} ${icon} ${record.stage} ${status}${attempts}${duration}`);
     }
     case 'stage_retry':
-      return chalk.yellow(
-        `  ${time} ↻ Retry #${record.attempt}: ${record.failure_reason ?? 'unknown'}`
-      );
+      return chalk.yellow(`  ${time} ↻ Retry #${record.attempt}: ${retryReasons(record)}`);
     case 'group_start':
       return chalk.gray(`  ${time} Group ${record.group} (max ${record.max_iterations} iterations)`);
     case 'group_iteration':
