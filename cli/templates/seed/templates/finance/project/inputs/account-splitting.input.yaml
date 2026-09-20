@@ -1,0 +1,2 @@
+transactions_path: "exports/transactions.csv"
+accounts: "alex, sam"

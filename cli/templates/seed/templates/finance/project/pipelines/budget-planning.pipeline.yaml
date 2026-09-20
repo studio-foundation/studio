@@ -1,0 +1,24 @@
+name: budget-planning
+description: Analyze past spending, then plan a budget against income and goals
+version: 1
+
+stages:
+  - name: analyze-transactions
+    kind: analysis
+    agent: financial-analyzer
+    contract: transaction-analysis
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+  - name: plan-budget
+    kind: planning
+    agent: budget-planner
+    contract: budget-plan
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input
+        - previous_stage_output

@@ -1,0 +1,14 @@
+name: transformation
+description: Transform a data file into a new file and report what changed
+version: 1
+
+stages:
+  - name: transform
+    kind: transformation
+    agent: transformer
+    contract: transform-report
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

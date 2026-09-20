@@ -1,0 +1,22 @@
+{
+  "name": "data",
+  "version": "1.0.1",
+  "description": "Validate data files against a schema, transform them, and check them against compliance rules",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "data",
+    "validation",
+    "etl",
+    "compliance"
+  ],
+  "type": "template",
+  "studio_version": ">=0.11.2",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "repo-manager"
+      ]
+    }
+  }
+}

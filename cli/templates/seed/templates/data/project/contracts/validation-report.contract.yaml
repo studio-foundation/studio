@@ -1,0 +1,29 @@
+name: validation-report
+version: 1
+schema:
+  required_fields:
+    - status
+    - summary
+    - errors
+  fields:
+    errors:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - location
+          - field
+          - message
+tool_calls:
+  minimum: 2
+  required_tools:
+    - repo_manager.read_file
+post_validation:
+  rejection_detection:
+    field: status
+    approved_values:
+      - valid
+    rejected_values:
+      - invalid
+    details_field: errors
+    summary_field: summary

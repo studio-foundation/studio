@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T19:17:34.645Z",
+  "generated_at": "2026-09-20T13:51:25.880Z",
   "version": "1",
   "packages": [
     {
@@ -30,6 +30,33 @@
       }
     },
     {
+      "name": "data",
+      "type": "template",
+      "version": "1.0.1",
+      "description": "Validate data files against a schema, transform them, and check them against compliance rules",
+      "author": "studio-core",
+      "license": "MIT",
+      "tags": [
+        "data",
+        "validation",
+        "etl",
+        "compliance"
+      ],
+      "studio_version": ">=0.11.2",
+      "downloads": 0,
+      "dependencies": {
+        "plugins": {
+          "required": [
+            "repo-manager"
+          ]
+        }
+      },
+      "source": {
+        "type": "local",
+        "path": "templates/data"
+      }
+    },
+    {
       "name": "document-analysis",
       "type": "template",
       "version": "1.2.1",
@@ -54,6 +81,60 @@
       "source": {
         "type": "local",
         "path": "templates/document-analysis"
+      }
+    },
+    {
+      "name": "entity-extraction",
+      "type": "template",
+      "version": "1.0.1",
+      "description": "Extract entities from a corpus, map the relationships between them, and assemble an interconnected structure",
+      "author": "studio-core",
+      "license": "MIT",
+      "tags": [
+        "extraction",
+        "entities",
+        "relationships",
+        "knowledge-graph"
+      ],
+      "studio_version": ">=0.11.2",
+      "downloads": 0,
+      "dependencies": {
+        "plugins": {
+          "required": [
+            "repo-manager"
+          ]
+        }
+      },
+      "source": {
+        "type": "local",
+        "path": "templates/entity-extraction"
+      }
+    },
+    {
+      "name": "finance",
+      "type": "template",
+      "version": "1.0.1",
+      "description": "Categorize transactions from a bank export, plan a budget, and split shared expenses between accounts",
+      "author": "studio-core",
+      "license": "MIT",
+      "tags": [
+        "finance",
+        "transactions",
+        "budget",
+        "expenses"
+      ],
+      "studio_version": ">=0.11.2",
+      "downloads": 0,
+      "dependencies": {
+        "plugins": {
+          "required": [
+            "repo-manager"
+          ]
+        }
+      },
+      "source": {
+        "type": "local",
+        "path": "templates/finance"
       }
     },
     {
@@ -87,7 +168,7 @@
     {
       "name": "software",
       "type": "template",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "description": "Code generation with repo, shell and search tools",
       "author": "studio-core",
       "license": "MIT",
@@ -318,33 +399,6 @@
       }
     },
     {
-      "name": "linear",
-      "type": "plugin",
-      "version": "1.0.1",
-      "description": "Triggers pipelines from Linear webhook events and syncs issue status on pipeline completion or failure",
-      "author": "studio-core",
-      "license": "MIT",
-      "tags": [
-        "linear",
-        "issues",
-        "project-management",
-        "webhooks",
-        "triggers"
-      ],
-      "studio_version": ">=0.11.2",
-      "downloads": 0,
-      "dependencies": {},
-      "source": {
-        "type": "local",
-        "path": "plugins/linear"
-      },
-      "provides": {
-        "integrations": [
-          "linear"
-        ]
-      }
-    },
-    {
       "name": "planner",
       "type": "plugin",
       "version": "1.0.1",
@@ -501,32 +555,6 @@
       }
     },
     {
-      "name": "slack",
-      "type": "plugin",
-      "version": "1.0.1",
-      "description": "Sends Slack notifications to a configured channel when pipeline events occur, such as completion or failure",
-      "author": "studio-core",
-      "license": "MIT",
-      "tags": [
-        "slack",
-        "notifications",
-        "messaging",
-        "alerts"
-      ],
-      "studio_version": ">=0.11.2",
-      "downloads": 0,
-      "dependencies": {},
-      "source": {
-        "type": "local",
-        "path": "plugins/slack"
-      },
-      "provides": {
-        "integrations": [
-          "slack"
-        ]
-      }
-    },
-    {
       "name": "studio-run",
       "type": "plugin",
       "version": "1.0.1",
@@ -573,33 +601,6 @@
       "provides": {
         "tools": [
           "web-search"
-        ]
-      }
-    },
-    {
-      "name": "webhook",
-      "type": "plugin",
-      "version": "1.0.1",
-      "description": "Sends generic HTTP webhook notifications for pipeline and stage lifecycle events including start, completion, and failure",
-      "author": "studio-core",
-      "license": "MIT",
-      "tags": [
-        "webhook",
-        "http",
-        "notifications",
-        "events",
-        "generic"
-      ],
-      "studio_version": ">=0.11.2",
-      "downloads": 0,
-      "dependencies": {},
-      "source": {
-        "type": "local",
-        "path": "plugins/webhook"
-      },
-      "provides": {
-        "integrations": [
-          "webhook"
         ]
       }
     },

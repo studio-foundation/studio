@@ -1,0 +1,28 @@
+name: split-settlement
+version: 1
+schema:
+  required_fields:
+    - shares
+    - transfers
+    - summary
+  fields:
+    shares:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - account
+          - paid_cents
+          - owed_cents
+    transfers:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - from
+          - to
+          - amount_cents
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager.read_file

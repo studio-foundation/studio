@@ -1,0 +1,31 @@
+name: compliance-report
+version: 1
+schema:
+  required_fields:
+    - status
+    - framework
+    - summary
+    - findings
+  fields:
+    findings:
+      type: array
+      items:
+        type: object
+        required_fields:
+          - rule
+          - location
+          - severity
+          - message
+tool_calls:
+  minimum: 1
+  required_tools:
+    - repo_manager.read_file
+post_validation:
+  rejection_detection:
+    field: status
+    approved_values:
+      - compliant
+    rejected_values:
+      - non_compliant
+    details_field: findings
+    summary_field: summary

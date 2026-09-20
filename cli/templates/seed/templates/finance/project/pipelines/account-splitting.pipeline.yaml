@@ -1,0 +1,14 @@
+name: account-splitting
+description: Work out who owes whom for shared expenses across accounts
+version: 1
+
+stages:
+  - name: split-expenses
+    kind: analysis
+    agent: financial-analyzer
+    contract: split-settlement
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

@@ -1,0 +1,14 @@
+name: schema-validation
+description: Validate a data file against a schema
+version: 1
+
+stages:
+  - name: validate
+    kind: validation
+    agent: validator
+    contract: validation-report
+    ralph:
+      max_attempts: 3
+    context:
+      include:
+        - input

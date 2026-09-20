@@ -1,0 +1,22 @@
+{
+  "name": "entity-extraction",
+  "version": "1.0.1",
+  "description": "Extract entities from a corpus, map the relationships between them, and assemble an interconnected structure",
+  "author": "studio-core",
+  "license": "MIT",
+  "tags": [
+    "extraction",
+    "entities",
+    "relationships",
+    "knowledge-graph"
+  ],
+  "type": "template",
+  "studio_version": ">=0.11.2",
+  "dependencies": {
+    "plugins": {
+      "required": [
+        "repo-manager"
+      ]
+    }
+  }
+}
