@@ -35,7 +35,7 @@ export async function runsPruneCommand(options: RunsPruneOptions): Promise<void>
     for (const run of result.runs) {
       console.log(chalk.gray(`  ${run.file}  ${run.status}  ${run.ageDays}d old`));
     }
-    const summary = `${result.runs.length} run log(s) and ${result.keymaps} anonymization keymap(s)`;
+    const summary = `${result.runs.length} run log(s) and ${result.keymaps} anonymization keymap(s) and ${result.rows} run-store row(s)`;
     console.log(options.dryRun ? chalk.yellow(`Would remove ${summary}`) : chalk.green(`✓ Removed ${summary}`));
   } catch (error) {
     console.error(chalk.red(error instanceof Error ? error.message : String(error)));

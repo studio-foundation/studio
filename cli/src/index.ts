@@ -204,7 +204,7 @@ const runsCmd = program.command('runs').description('Manage recorded runs');
 
 runsCmd
   .command('prune')
-  .description('Delete old run logs (.studio/runs/*.jsonl) and their anonymization keymaps')
+  .description('Delete old run logs (.studio/runs/*.jsonl), their anonymization keymaps and run-store rows')
   .option('--keep-last <n>', 'Always keep the N most recent runs')
   .option('--max-age <duration>', 'Only remove runs older than this, e.g. 30d or 12h')
   .option('--keep-status <status>', 'Never remove runs with this status (repeatable)', (v: string, prev: string[] = []) => [...prev, v])

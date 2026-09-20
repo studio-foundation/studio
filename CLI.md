@@ -516,7 +516,7 @@ studio validate software/code-generation output.json       # Validate without LL
 
 Run logs are stored in `.studio/runs/logs/<timestamp>-<pipeline>-<id>.jsonl` (one JSON object per line).
 
-`studio runs prune` deletes run logs and each run's anonymization keymap. A run is kept when it is among the `--keep-last N` newest or its status matches a `--keep-status` (repeatable); of the rest, `--max-age` (`30d`, `12h`) removes only the older ones. At least one of `--keep-last` / `--max-age` is required, and a log with no `pipeline_complete` yet is treated as live for a day. `--dry-run` lists without deleting. Setting `runs.retention.max_age_days` in `.studio/config.yaml` applies `--max-age` automatically at the end of every `studio run`. Only the `.jsonl` logs and keymaps are removed, not the `runs.db` rows.
+`studio runs prune` deletes run logs and each run's anonymization keymap and `runs.db` row. A run is kept when it is among the `--keep-last N` newest or its status matches a `--keep-status` (repeatable); of the rest, `--max-age` (`30d`, `12h`) removes only the older ones. At least one of `--keep-last` / `--max-age` is required, and a log with no `pipeline_complete` yet is treated as live for a day. `--dry-run` lists without deleting. Setting `runs.retention.max_age_days` in `.studio/config.yaml` applies `--max-age` automatically at the end of every `studio run`. Map-cache entries are not part of run retention: they are keyed on the item input, not on a run, so `studio cache clean` owns them.
 
 ### What a run cost — token usage
 
