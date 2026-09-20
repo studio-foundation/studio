@@ -55,7 +55,7 @@ export class OllamaProvider implements Provider {
       tools: this.buildTools(request),
       temperature: request.temperature,
       max_tokens: request.max_tokens,
-      response_format: request.json_mode ? { type: 'json_object' } : undefined,
+      response_format: this.buildResponseFormat(request),
     }, { signal });
 
     const choice = completion.choices[0];
@@ -94,7 +94,7 @@ export class OllamaProvider implements Provider {
       tools: this.buildTools(request),
       temperature: request.temperature,
       max_tokens: request.max_tokens,
-      response_format: request.json_mode ? { type: 'json_object' } : undefined,
+      response_format: this.buildResponseFormat(request),
       stream: true as const,
     }, { signal }) as unknown as AsyncIterable<ChatCompletionChunk>;
 
@@ -139,6 +139,13 @@ export class OllamaProvider implements Provider {
       if (msg.role === 'assistant') return { role: 'assistant', content: msg.content };
       throw new Error(`Unsupported message role: ${msg.role}`);
     });
+  }
+
+  // json_object makes Ollama constrain the reply to JSON, so a tool call comes back as
+  // message content instead of tool_calls and never executes.
+  private buildResponseFormat(request: LLMRequest): { type: 'json_object' } | undefined {
+    if (!request.json_mode || request.tools?.length) return undefined;
+    return { type: 'json_object' };
   }
 
   private buildTools(request: LLMRequest): ChatCompletionTool[] | undefined {
