@@ -204,7 +204,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
     book_context: "{{input.book_context}}"
   concurrency: 4                      # max items in flight (default 1)
   on_item_failure: collect-all        # fail-fast (default) | collect-all
-  resume: true                        # skip items already done in a prior run (default false)
+  resume: true                        # skip items already done in a prior run (default false); or { key_on: [input, agent, contract] }
   batch: true                         # dispatch the items' LLM calls as one batch (default false)
   anonymize: { keymap: shared }       # one token space across the items (default per-run)
 ```
@@ -215,7 +215,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
 - **`on_item_failure`** is the per-item failure policy:
   - `fail-fast` (default): stop launching new items on the first failure; the stage fails. In-flight items still finish.
   - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
-- **`resume`** (default `false`) turns on **per-item resume** — see below.
+- **`resume`** (default `false`, or `{ key_on: [...] }`) turns on **per-item resume** — see below.
 - **`batch`** (default `false`) turns on **batched dispatch** — see below.
 - **`anonymize.keymap`** (`per-run` default | `shared`) applies under `--anonymize`. `shared` hands the parent run's anonymization to every child, so the same value gets the same token in every item and the parent's one keymap file holds them all. `per-run` leaves the children un-anonymized, as before.
 
@@ -250,7 +250,18 @@ A fan-out over hundreds of network-bound items is a run measured in hours. Witho
 
 The cache is a JSON file per completed item under `.studio/runs/map-cache/<pipeline>/<stage>/<sub-pipeline>/<item-input-hash>.json`, so it survives a process restart between runs. It is best-effort: a read error is a miss and a write error is swallowed (the item simply re-runs) — resume never fails the stage. Cache-served items are flagged `cached: true` in the `map_item_complete` event and counted in the output's `resumed`.
 
-The key covers the item input and the target pipeline, **not the provider or the model** — so a warm re-run under a different provider replays the first provider's outputs. Clear the cache first when comparing providers: `studio cache clean` (whole cache) or `studio cache clean --pipeline <name>` (one parent pipeline). See [CLI.md](CLI.md).
+**Widening the key (`resume: { key_on: [...] }`).** By default the key is the item input alone, so editing an agent prompt, a skill or a contract serves stale results. `key_on` opts more into the key: `input` (always the default), `agent`, `contract`. `resume: true` is exactly `key_on: [input]`, and that key is unchanged, so caches written before this option stay valid.
+
+```yaml
+  resume:
+    key_on: [input, agent, contract]
+```
+
+- **`agent`** hashes the parsed agent documents of every stage in the sub-pipeline (and pipelines it maps or calls), plus the skill files each agent resolves, plugin skills and `invariants.md`.
+- **`contract`** hashes the parsed contracts those stages reference.
+- Hashing runs on the **parsed** document with keys sorted, so a comment-only or key-order edit is still a hit; a changed value re-runs every item, since the whole cache namespace moves.
+
+The key covers the item input and the target pipeline (and whatever `key_on` adds), **not the provider or the model** — so a warm re-run under a different provider replays the first provider's outputs. Clear the cache first when comparing providers: `studio cache clean` (whole cache) or `studio cache clean --pipeline <name>` (one parent pipeline). See [CLI.md](CLI.md).
 
 ### Batched dispatch (`batch: true`)
 
