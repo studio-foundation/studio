@@ -5,7 +5,7 @@ description: Use when releasing Studio to npm — choosing the next version numb
 
 # Bump Version
 
-Studio uses unified versioning: the root and all 7 packages always share one number. The level is derived from the commits since the last **published npm version**, never from git tags — a burned tag is not evidence a version shipped.
+Studio uses unified versioning: the root and all 6 packages always share one number. The level is derived from the commits since the last **published npm version**, never from git tags — a burned tag is not evidence a version shipped.
 
 **Publish before you release.** Releases are immutable in this repo: a tag name stays reserved forever, even after its release is deleted. A GitHub release cut before npm accepts the packages destroys that version number permanently. `v0.5.0` and `v0.5.1` were both lost this way.
 
@@ -39,7 +39,7 @@ State the proposed level with the specific commits that justify it, then confirm
 ```bash
 git checkout main && git pull
 git checkout -b chore/bump-X.Y.Z
-pnpm version:bump X.Y.Z    # rewrites all 8 package.json — never hand-edit one
+pnpm version:bump X.Y.Z    # rewrites all 7 package.json — never hand-edit one
 pnpm build
 ```
 
@@ -56,23 +56,25 @@ merge. The bump and its changelog entry ride alone — no source changes in the 
 After the bump PR merges:
 
 ```bash
+gh run list --workflow npm-publish.yml --limit 3   # a dispatch may already be running or done
 gh workflow run npm-publish.yml -f version=X.Y.Z
 gh run watch <run-id> --exit-status
 ```
 
-A failed publish costs nothing — fix and re-run the same version. Never cut the release to "retry" a publish.
+A failed publish costs nothing — fix and re-run the same version. Never cut the release to "retry" a publish. But dispatch once: a second run after a successful one fails with `E409 Cannot publish over previously staged version` on the first per-platform package. That failure is harmless (nothing new is published), but it means the first run already shipped.
 
-Verify all 7 landed before going further:
+Verify all 14 landed before going further — the 6 core packages and the per-platform `cli-*` binaries `scripts/platforms.mjs` names:
 
 ```bash
-for p in contracts anonymizer ralph runner engine api cli; do
-  echo "$p $(npm view @studio-foundation/$p@X.Y.Z version)"
+for p in contracts anonymizer ralph runner engine cli \
+  $(node -e 'import("./scripts/platforms.mjs").then(m=>console.log(Object.keys(m.PLATFORMS).map(k=>"cli-"+k).join(" ")))'); do
+  echo "$p $(npm view @studio-foundation/$p@X.Y.Z version 2>&1 | tail -1)"
 done
 ```
 
 ## 5. Cut the release — draft, attach binaries, then publish
 
-Only once npm shows all 7. Releases are **immutable** in this repo: a published release
+Only once npm shows all 14. Releases are **immutable** in this repo: a published release
 rejects asset uploads with `HTTP 422: Cannot upload assets to an immutable release`, and
 the tag can never be reused. So the standalone binaries must land while the release is
 still a draft.
@@ -111,18 +113,19 @@ version.
   explicit pattern list; a workflow using anything else dies with `startup_failure` and no
   job logs. Check `gh api repos/studio-foundation/studio/actions/permissions/selected-actions`.
 - **Calling a breaking change MAJOR.** Pre-1.0, breaking is MINOR.
-- **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 8 move together.
+- **Hand-editing one `package.json`.** Use `pnpm version:bump`; all 7 move together.
 - **Bumping inside a feature PR.** Bumps are their own commit, at release time.
 - **Shipping a version with no `CHANGELOG.md` entry.** Write it in the bump commit; after the release is cut nobody comes back for it.
 - **Committing the bump without a sign-off.** The DCO check blocks the merge on any commit
   with no `Signed-off-by` trailer matching its author, so an unsigned bump costs a
   force-push on the one branch you least want to rewrite. `git commit -s`.
-- **Reading a fresh publish through `npm view`.** `npm view <pkg>@X.Y.Z` can answer `E404`
+- **Reading a fresh publish through one endpoint.** `npm view <pkg>@X.Y.Z` can answer `E404`
   for minutes after a publish the workflow reported as successful — it is CDN cache, not a
-  partial publish. Confirm against the registry itself before diagnosing anything:
-  `curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`.
-  That endpoint lags too, and reliably: `runner` and `api` read `false` for a few minutes
-  after a green publish on 0.18.0, 0.19.0 **and** 0.20.0 — the same two packages every
-  time. Poll until all 7 answer rather than concluding a package did not ship; 0.20.0 took
-  eight 20-second rounds.
+  partial publish. The registry document
+  (`curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`)
+  lags too, and for longer: `runner` and the removed `api` read `false` for a few minutes
+  on 0.18.0 to 0.20.0, and `ralph` read `false` for over ten minutes on 0.24.0 while
+  `npm view` already answered `X.Y.Z`. Trust whichever says yes: one endpoint answering
+  with the version is proof, the other saying no is lag. The publish step's own log
+  (`+ @studio-foundation/<pkg>@X.Y.Z`) settles it if both stay silent.
 - **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.
