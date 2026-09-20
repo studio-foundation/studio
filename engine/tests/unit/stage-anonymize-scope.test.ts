@@ -49,7 +49,7 @@ function runWith(anonymizeFields: string[] | undefined) {
   });
   return engine
     .run({ pipeline: 'anon', input: { email: 'jane@example.com', note: 'contact bob@example.org' } as never, anonymizeFields })
-    .then(() => JSON.stringify(provider.call.mock.calls).split('## Task')[1]);
+    .then(() => JSON.stringify(provider.call.mock.calls));
 }
 
 describe('agent-level anonymize honours the run field scope', () => {

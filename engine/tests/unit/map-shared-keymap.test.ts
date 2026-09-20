@@ -50,7 +50,7 @@ async function runMap(keymap: 'shared' | 'per-run') {
     input: { items: ['jane@example.com', 'bob@example.org', 'jane@example.com'] },
     anonymize: true,
   });
-  const prompts = provider.call.mock.calls.map((c) => JSON.stringify(c).split('## Task')[1]);
+  const prompts = provider.call.mock.calls.map((c) => JSON.stringify(c));
   return { result, prompts };
 }
 
