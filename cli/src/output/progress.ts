@@ -101,6 +101,17 @@ export class ProgressDisplay {
     return '  '.repeat(depth);
   }
 
+  /** Run a prompt with the live spinners stopped, so they do not redraw over it, then restart the ones that were running. */
+  async withSpinnersPaused<T>(prompt: () => Promise<T>): Promise<T> {
+    const running = [this.thinkingSpinner, this.toolSpinner, this.spinner].filter((s): s is Ora => !!s?.isSpinning);
+    for (const s of running) s.stop();
+    try {
+      return await prompt();
+    } finally {
+      for (const s of running) s.start();
+    }
+  }
+
   /** Stop any spinner that owns the current line before printing a static child line. */
   private stopSpinnersForChildLine(): void {
     this.cancelPendingThinkingSpinner();

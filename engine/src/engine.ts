@@ -62,6 +62,7 @@ export interface EngineConfig {
   defaultProvider?: string;  // fallback when agent YAML omits provider
   defaultModel?: string;     // fallback when agent YAML omits model
   runtimes?: Record<string, string>;  // script-stage interpreters, keyed by runtime
+  askHuman?: (question: string) => Promise<boolean>;  // answers `on_failure: ask` hooks; absent = non-interactive, ask means reject
 }
 
 export interface RunInput {
@@ -188,6 +189,7 @@ export class PipelineEngine {
       defaultProvider: config.defaultProvider,
       defaultModel: config.defaultModel,
       runtimes: config.runtimes,
+      askHuman: config.askHuman,
     });
     this.groupOrchestrator = new GroupOrchestrator({
       events,

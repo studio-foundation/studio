@@ -429,6 +429,7 @@ Each hook has an `on_failure` behavior:
 - **`warn`** (default): log and continue
 - **`reject`**: stage becomes `rejected`, can trigger group retry
 - **`fail`**: stage becomes `failed`, pipeline stops
+- **`ask`** (`pre_tool_use` only): a failing hook puts its message (stderr, else stdout) to the human as a yes/no question instead of blocking. Yes lets the call through, no blocks it with `denied by the human: <message>` as the tool error the agent sees. Nobody to ask (`--json`, or stdin/stdout not a TTY) means `ask` behaves as `reject`, without hanging. Each answer is a `hook_ask` line in the run log (`answer`: `yes`, `no` or `unavailable`). The engine only carries the question; the hook decides what is worth asking about.
 
 ```yaml
 hooks:

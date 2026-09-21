@@ -85,6 +85,39 @@ export async function runToolHook(
   return execHook(command, cwd, toolArgEnv(toolArgs));
 }
 
+export interface PreToolDecision {
+  blocked: boolean;
+  error?: string;
+}
+
+/**
+ * Run the pre_tool_use hooks matching one tool call. Fail-fast: the first failing hook blocks
+ * the call and the rest are skipped. A failing hook with `on_failure: ask` puts its message to
+ * the human instead: yes lets the call through to the next hook, no blocks it, and no one to
+ * ask (askHuman absent, a non-interactive run) blocks it like a plain failure.
+ */
+export async function runPreToolHooks(
+  hooks: ToolHookDef[],
+  event: { params: Record<string, unknown> },
+  cwd: string,
+  opts: {
+    askHuman?: (question: string) => Promise<boolean>;
+    onAsk?: (ask: { question: string; answer: 'yes' | 'no' | 'unavailable' }) => void;
+  } = {}
+): Promise<PreToolDecision> {
+  for (const hook of hooks) {
+    const hookResult = await runToolHook(hook, event.params, cwd);
+    if (hookResult.success) continue;
+    const message = hookResult.stderr || hookResult.stdout;
+    if (hook.on_failure !== 'ask') return { blocked: true, error: `Pre-hook failed: ${message}` };
+    const yes = opts.askHuman ? await opts.askHuman(message) : undefined;
+    opts.onAsk?.({ question: message, answer: yes === undefined ? 'unavailable' : yes ? 'yes' : 'no' });
+    if (yes) continue;
+    return { blocked: true, error: `Pre-hook failed: ${yes === undefined ? message : `denied by the human: ${message}`}` };
+  }
+  return { blocked: false };
+}
+
 async function execHook(
   command: string,
   cwd: string,
