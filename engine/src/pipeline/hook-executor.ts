@@ -19,9 +19,10 @@ export interface HookResult {
  * Arrays in outputContext are space-joined for CLI argument passing.
  * Unknown keys → empty string.
  *
- * Note: values are substituted verbatim into the command string.
- * Hook commands are authored by pipeline owners (trusted), not end users.
- * Do not use with untrusted input sources.
+ * Note: values are substituted verbatim into the command string, so a value
+ * the agent controls (a shell command, a path) runs as part of the hook's own
+ * command line. Tool hooks should read `$STUDIO_TOOL_ARG_<argName>` instead
+ * (see toolArgEnv); {{tool.argName}} remains for trusted values only.
  */
 export function renderHookCommand(
   command: string,
@@ -42,6 +43,21 @@ export function renderHookCommand(
 }
 
 /**
+ * Tool arguments as STUDIO_TOOL_ARG_<name> environment variables, the channel
+ * a hook can read without the value being parsed as shell.
+ */
+export function toolArgEnv(toolArgs: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(toolArgs)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [
+        `STUDIO_TOOL_ARG_${key}`,
+        typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value),
+      ])
+  );
+}
+
+/**
  * Run a stage-level hook command (on_stage_start, on_stage_complete).
  * outputContext provides {{output.<field>}} substitution values.
  * on_stage_start hooks omit outputContext (no output available before the stage runs).
@@ -57,7 +73,8 @@ export async function runStageHook(
 
 /**
  * Run a tool-level hook command (pre_tool_use, post_tool_use).
- * The command may reference tool arguments via {{tool.argName}}.
+ * The arguments reach the command as $STUDIO_TOOL_ARG_<argName> (safe for agent-controlled
+ * values) and, for trusted values only, as {{tool.argName}} spliced into the text.
  */
 export async function runToolHook(
   hook: ToolHookDef,
@@ -65,13 +82,18 @@ export async function runToolHook(
   cwd: string
 ): Promise<HookResult> {
   const command = renderHookCommand(hook.command, toolArgs);
-  return execHook(command, cwd);
+  return execHook(command, cwd, toolArgEnv(toolArgs));
 }
 
-async function execHook(command: string, cwd: string): Promise<HookResult> {
+async function execHook(
+  command: string,
+  cwd: string,
+  env: Record<string, string> = {}
+): Promise<HookResult> {
   try {
     const { stdout, stderr } = await execAsync(command, {
       cwd,
+      env: { ...process.env, ...env },
       timeout: HOOK_TIMEOUT_MS,
       maxBuffer: 1024 * 1024 * 10,
     });

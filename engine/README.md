@@ -68,8 +68,8 @@ The engine executes stage hooks at four deterministic points:
 |------|------|---------------|
 | `on_stage_start` | Before ralph loop | None |
 | `on_stage_complete` | After stage succeeds | `{{output.field}}` |
-| `pre_tool_use` | Before a tool call (matcher-gated) | `{{tool.argName}}` |
-| `post_tool_use` | After a tool call (matcher-gated) | `{{tool.argName}}` |
+| `pre_tool_use` | Before a tool call (matcher-gated) | `$STUDIO_TOOL_ARG_argName`, `{{tool.argName}}` |
+| `post_tool_use` | After a tool call (matcher-gated) | `$STUDIO_TOOL_ARG_argName`, `{{tool.argName}}` |
 
 Hook failure semantics via `on_failure`:
 - `warn` (default): log and continue
