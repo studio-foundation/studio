@@ -7,6 +7,13 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.25.0] — 2026-09-21
+
+### Hooks
+
+- `pre_tool_use` hooks accept `on_failure: ask`: a failing hook's message is put to the human as a yes/no question instead of blocking. Yes lets the call through, no blocks it with `denied by the human`. A non-interactive run (`--json`, or stdin/stdout not a TTY) treats `ask` as `reject` without hanging. Each answer is a `hook_ask` line in the run log and an `onHookAsk` engine event. (STU-1604)
+- Tool hooks receive each tool argument as a `STUDIO_TOOL_ARG_<name>` environment variable, the channel that never parses an agent-controlled value as shell. `{{tool.arg}}` still works but is documented as safe for trusted values only. (STU-1620)
+
 ## [0.24.1] — 2026-09-20
 
 ### Fixes
