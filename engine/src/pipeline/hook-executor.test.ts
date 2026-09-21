@@ -2,7 +2,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { renderHookCommand, runStageHook, runToolHook } from './hook-executor.js';
+import { renderHookCommand, runPreToolHooks, runStageHook, runToolHook } from './hook-executor.js';
 
 describe('renderHookCommand', () => {
   it('substitutes {{tool.argName}} with tool argument value', () => {
@@ -145,5 +145,51 @@ describe('runToolHook', () => {
       '/tmp'
     );
     expect(result.success).toBe(false);
+  });
+});
+
+describe('runPreToolHooks', () => {
+  const ask = { matcher: 'shell-run_command', command: 'echo "delete the build dir?" >&2; exit 1', on_failure: 'ask' as const };
+  const reject = { matcher: 'shell-run_command', command: 'echo nope >&2; exit 1', on_failure: 'reject' as const };
+
+  it('lets the call through on yes and records the answer', async () => {
+    const asked: unknown[] = [];
+    const decision = await runPreToolHooks([ask], { params: {} }, '/tmp', {
+      askHuman: async () => true,
+      onAsk: (a) => asked.push(a),
+    });
+    expect(decision).toEqual({ blocked: false });
+    expect(asked).toEqual([{ question: 'delete the build dir?', answer: 'yes' }]);
+  });
+
+  it('blocks on no, naming the human and the hook message', async () => {
+    const asked: unknown[] = [];
+    const decision = await runPreToolHooks([ask], { params: {} }, '/tmp', {
+      askHuman: async () => false,
+      onAsk: (a) => asked.push(a),
+    });
+    expect(decision).toEqual({ blocked: true, error: 'Pre-hook failed: denied by the human: delete the build dir?' });
+    expect(asked).toEqual([{ question: 'delete the build dir?', answer: 'no' }]);
+  });
+
+  it('treats ask as reject when nobody can be asked, without hanging', async () => {
+    const asked: unknown[] = [];
+    const decision = await runPreToolHooks([ask], { params: {} }, '/tmp', { onAsk: (a) => asked.push(a) });
+    expect(decision).toEqual({ blocked: true, error: 'Pre-hook failed: delete the build dir?' });
+    expect(asked).toEqual([{ question: 'delete the build dir?', answer: 'unavailable' }]);
+  });
+
+  it('never asks about a hook that passes, nor about a plain reject', async () => {
+    let calls = 0;
+    const askHuman = async () => { calls++; return true; };
+    const pass = { matcher: 'x', command: 'true', on_failure: 'ask' as const };
+    expect(await runPreToolHooks([pass], { params: {} }, '/tmp', { askHuman })).toEqual({ blocked: false });
+    expect(await runPreToolHooks([reject], { params: {} }, '/tmp', { askHuman })).toEqual({ blocked: true, error: 'Pre-hook failed: nope' });
+    expect(calls).toBe(0);
+  });
+
+  it('stops at the first hook that blocks, and keeps going after a yes', async () => {
+    const decision = await runPreToolHooks([ask, reject], { params: {} }, '/tmp', { askHuman: async () => true });
+    expect(decision).toEqual({ blocked: true, error: 'Pre-hook failed: nope' });
   });
 });

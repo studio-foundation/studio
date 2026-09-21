@@ -75,8 +75,9 @@ Hook failure semantics via `on_failure`:
 - `warn` (default): log and continue
 - `reject`: stage → `rejected` (can trigger group retry)
 - `fail`: stage → `failed` (stops pipeline)
+- `ask` (`pre_tool_use` only): put the failing hook's message to the human; yes lets the call through, no blocks it. Without an `askHuman` handler in the engine config (non-interactive) it blocks like a failure. The CLI supplies one when stdin and stdout are TTYs and `--json` is off.
 
-`pre_tool_use` hooks with any failure block the tool call. Hook commands run in `repoPath` (or `configsDir` as fallback). Implemented in `pipeline/hook-executor.ts`.
+`pre_tool_use` hooks with any failure block the tool call, unless `on_failure: ask` and the human says yes. Hook commands run in `repoPath` (or `configsDir` as fallback). Implemented in `pipeline/hook-executor.ts`.
 
 ## on_pipeline_start
 

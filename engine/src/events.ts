@@ -117,6 +117,13 @@ export interface BatchDispatchEvent {
   round: number;
 }
 
+/** A `pre_tool_use` hook with `on_failure: ask` put its message to the human. `unavailable` = no one to ask (non-interactive run), treated as a rejection. */
+export interface HookAskEvent {
+  tool: string;
+  question: string;
+  answer: 'yes' | 'no' | 'unavailable';
+}
+
 export interface BatchCompleteEvent extends BatchDispatchEvent {
   succeeded: number;
   failed: number;
@@ -208,6 +215,7 @@ export interface EngineEvents {
   onMapItemComplete?: (event: MapItemCompleteEvent, ctx?: EventContext) => void;
   onMapComplete?: (event: MapCompleteEvent, ctx?: EventContext) => void;
   onBatchDispatch?: (event: BatchDispatchEvent, ctx?: EventContext) => void;
+  onHookAsk?: (event: HookAskEvent, ctx?: EventContext) => void;
   onBatchComplete?: (event: BatchCompleteEvent, ctx?: EventContext) => void;
   onStageContext?: (event: StageContextEvent, ctx?: EventContext) => void;
   // Real-time tool call streaming (used by --live mode)

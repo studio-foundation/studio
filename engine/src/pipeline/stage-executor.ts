@@ -43,7 +43,7 @@ import { buildTaskInput } from './task-input.js';
 import { loadAgentProfile } from './agent-loader.js';
 import { loadContract } from './contract-loader.js';
 import { loadSkillFiles, type SkillContent } from './skill-loader.js';
-import { runStageHook, runToolHook } from './hook-executor.js';
+import { runPreToolHooks, runStageHook, runToolHook } from './hook-executor.js';
 import {
   getContextForStage,
   buildContextKeys,
@@ -96,6 +96,7 @@ export interface StageExecutorConfig {
   defaultProvider?: string;
   defaultModel?: string;
   runtimes?: Record<string, string>;
+  askHuman?: (question: string) => Promise<boolean>;
 }
 
 export class StageExecutor {
@@ -304,14 +305,10 @@ export class StageExecutor {
     const onPreToolUse = stageHooks?.pre_tool_use?.length
       ? async (event: { tool: string; params: Record<string, unknown>; timestamp: number }) => {
           const matchingHooks = stageHooks!.pre_tool_use!.filter(h => h.matcher === event.tool);
-          // Fail-fast: first matching hook that fails blocks the tool call; remaining hooks are skipped
-          for (const hook of matchingHooks) {
-            const hookResult = await runToolHook(hook, event.params, hookCwd);
-            if (!hookResult.success) {
-              return { blocked: true, error: `Pre-hook failed: ${hookResult.stderr || hookResult.stdout}` };
-            }
-          }
-          return { blocked: false };
+          return runPreToolHooks(matchingHooks, event, hookCwd, {
+            askHuman: this.config.askHuman,
+            onAsk: (ask) => this.config.events?.onHookAsk?.({ tool: event.tool, ...ask }),
+          });
         }
       : undefined;
 

@@ -57,7 +57,7 @@ cli ──→ engine ──→ ralph ──────→ contracts
 
 **on_pipeline_start** — Shell commands executed at pipeline startup before any stage. Their stdout is injected into stage context.
 
-**Lifecycle hooks** — Configurable shell commands in YAML that execute at deterministic lifecycle points: `on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`. Each has `on_failure`: `warn` (default), `reject`, or `fail`.
+**Lifecycle hooks** — Configurable shell commands in YAML that execute at deterministic lifecycle points: `on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`. Each has `on_failure`: `warn` (default), `reject`, or `fail`; a `pre_tool_use` hook may also use `ask`, which puts the hook's message to the human as a yes/no question (non-interactive: rejects).
 
 **Skills (.skill.md)** — Markdown files in `.studio/skills/` describing procedural context. Auto-injected into agent system prompts via `skills: [name]` in agent YAML.
 
@@ -302,6 +302,7 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | `onGroupFeedback` | Group rejects | `rejection_reason`, `rejection_details` |
 | `onGroupComplete` | Group ends | `iterations`, `status` |
 | `onMapItemComplete` | Fan-out item ends | `map_name`, `index`, `status`, `output`, `token_usage`, `stages` |
+| `onHookAsk` | A `pre_tool_use` hook with `on_failure: ask` put its message to the human | `tool`, `question`, `answer` (`yes`/`no`/`unavailable`) |
 | `onBatchDispatch` | A batched map stage submits a batch | `map_name`, `provider`, `size`, `round` |
 | `onBatchComplete` | That batch returns | `succeeded`, `failed`, `duration_ms` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |

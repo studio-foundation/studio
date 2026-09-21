@@ -275,6 +275,15 @@ export function mergeEvents(
         duration_ms: e.duration_ms,
       });
     },
+    onHookAsk: (e, ctx) => {
+      progressEvents.onHookAsk?.(e, ctx);
+      log(ctx, {
+        event: 'hook_ask',
+        tool: e.tool,
+        question: e.question,
+        answer: e.answer,
+      });
+    },
     onToolCallStart: (e, ctx) => {
       progressEvents.onToolCallStart?.(e, ctx);
       log(ctx, {
@@ -581,6 +590,14 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       defaultModel: config.defaults?.model,
       runtimes: config.runtimes,
       ...(options.provider ? { providerOverride: options.provider } : {}),
+      ...(process.stdin.isTTY && process.stdout.isTTY && !options.json
+        ? {
+            askHuman: async (question: string) => {
+              const { confirm } = await import('@inquirer/prompts');
+              return progress.withSpinnersPaused(() => confirm({ message: question, default: false }));
+            },
+          }
+        : {}),
     };
 
     const spawner = new DirectEngineSpawner(engineConfig, events);
