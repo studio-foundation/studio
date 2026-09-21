@@ -422,8 +422,8 @@ Shell commands that run at deterministic points in the pipeline lifecycle:
 |------|------|----------------|
 | `on_stage_start` | Before stage executes | — |
 | `on_stage_complete` | After stage succeeds | `{{output.field}}` |
-| `pre_tool_use` | Before a specific tool call | `{{tool.argName}}` |
-| `post_tool_use` | After a specific tool call | `{{tool.argName}}` |
+| `pre_tool_use` | Before a specific tool call | `$STUDIO_TOOL_ARG_argName`, `{{tool.argName}}` |
+| `post_tool_use` | After a specific tool call | `$STUDIO_TOOL_ARG_argName`, `{{tool.argName}}` |
 
 Each hook has an `on_failure` behavior:
 - **`warn`** (default): log and continue
@@ -440,6 +440,17 @@ hooks:
       command: "echo 'Writing: {{tool.path}}'"
       on_failure: warn
 ```
+
+**Tool arguments: read the environment, not the template.** `{{tool.argName}}` is spliced into the command text, so an argument the agent controls (a shell command, a path) is parsed as shell by the hook itself. A guard should read the same value from `$STUDIO_TOOL_ARG_argName`, which the shell never re-parses:
+
+```yaml
+pre_tool_use:
+  - matcher: shell-run_command
+    command: 'case "$STUDIO_TOOL_ARG_command" in *"rm -rf"*) echo "Blocked: recursive delete" >&2; exit 1;; esac'
+    on_failure: reject
+```
+
+Use `{{tool.argName}}` only for values you trust. Non-string arguments arrive JSON-encoded.
 
 Hooks are how you add static analysis, linting, or custom validation without writing TypeScript. The YAML is the configuration surface. The shell is the execution surface.
 

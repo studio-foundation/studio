@@ -1,3 +1,6 @@
+import { existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { renderHookCommand, runStageHook, runToolHook } from './hook-executor.js';
 
@@ -108,6 +111,31 @@ describe('runToolHook', () => {
     );
     expect(result.success).toBe(true);
     expect(result.stdout).toBe('/tmp/test.ts');
+  });
+
+  it('hands an argument to the hook through the environment, intact and unexecuted', async () => {
+    const marker = join(tmpdir(), `studio-hook-env-${process.pid}`);
+    rmSync(marker, { force: true });
+    const hostile = `'; touch ${marker}; '\nSTUDIO_GUARD\n$(touch ${marker})`;
+    const result = await runToolHook(
+      { matcher: 'shell-run_command', command: 'printf %s "$STUDIO_TOOL_ARG_command"', on_failure: 'reject' },
+      { command: hostile },
+      '/tmp'
+    );
+    expect(result.stdout).toBe(hostile.trim());
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it('shows the same argument executing when it is spliced in with {{tool.arg}}', async () => {
+    const marker = join(tmpdir(), `studio-hook-splice-${process.pid}`);
+    rmSync(marker, { force: true });
+    await runToolHook(
+      { matcher: 'shell-run_command', command: 'echo {{tool.command}}', on_failure: 'warn' },
+      { command: `x; touch ${marker}` },
+      '/tmp'
+    );
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker, { force: true });
   });
 
   it('returns failure when rendered command exits non-zero', async () => {

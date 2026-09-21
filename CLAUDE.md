@@ -326,7 +326,7 @@ stages:
           on_failure: warn
 ```
 
-**Substitutions:** `{{output.field}}` (in on_stage_complete), `{{tool.argName}}` (in pre/post_tool_use).
+**Substitutions:** `{{output.field}}` (in on_stage_complete), `{{tool.argName}}` (in pre/post_tool_use, trusted values only). Tool arguments also arrive as `$STUDIO_TOOL_ARG_argName` environment variables, the safe channel for values the agent controls.
 
 ## Linting
 
