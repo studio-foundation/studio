@@ -612,7 +612,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       defaultModel: config.defaults?.model,
       runtimes: config.runtimes,
       ...(options.provider ? { providerOverride: options.provider } : {}),
-      ...(process.stdin.isTTY && process.stdout.isTTY && !options.json
+      ...(process.stdin.isTTY && process.stdout.isTTY && !options.json && config.interactive !== false
         ? {
             askHuman: async (question: string) =>
               serialized(async () => {

@@ -7,6 +7,13 @@ import { findStudioDir } from './studio-dir.js';
 export { resolveEnvVars };
 
 export interface StudioConfig {
+  /**
+   * Forces `on_failure: ask` and stage `approval:` pauses down their
+   * non-interactive path regardless of whether a real TTY is attached.
+   * No pipeline YAML can override this — it lives outside any pipeline file.
+   * Default true (interactive, subject to the existing TTY check).
+   */
+  interactive?: boolean;
   /** semver range this project requires of Studio itself, e.g. ">=0.10.0" */
   studio_version?: string;
   /** Binaries this project needs: `"git"`, or `"node >=18 <=22"` for a range. */
