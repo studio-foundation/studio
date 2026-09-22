@@ -1,0 +1,11 @@
+stages:
+  ask-output:
+    output:
+      summary: done
+    tool_calls:
+      - name: noop-run_command
+        arguments: {}
+  approval-output:
+    output:
+      summary: done
+    tool_calls: []

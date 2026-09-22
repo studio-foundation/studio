@@ -1,0 +1,5 @@
+name: runner
+description: Calls the no-op tool.
+tools:
+  - noop-run_command
+system_prompt: 'Call the noop tool, then report done.'

@@ -1,0 +1,7 @@
+providers: {}
+defaults:
+  provider: mock
+  model: claude-sonnet-4-5
+warnings:
+  missing_contract: false
+interactive: false
