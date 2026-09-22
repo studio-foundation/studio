@@ -146,6 +146,51 @@ stages:
         - previous_stage_output
 `);
 
+  writeFileSync(join(PIPELINES_DIR, 'approval-fail.pipeline.yaml'), `
+name: approval-fail
+description: Two-stage pipeline where stage-1 pauses for approval, default on_unavailable (STU-1653)
+version: 1
+stages:
+  - name: stage-1
+    kind: analysis
+    agent: test-agent
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+    approval: {}
+  - name: stage-2
+    kind: planning
+    agent: test-agent
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+        - previous_stage_output
+`);
+
+  writeFileSync(join(PIPELINES_DIR, 'approval-auto.pipeline.yaml'), `
+name: approval-auto
+description: Single-stage pipeline where stage-1 pauses for approval, auto-approve on_unavailable (STU-1653)
+version: 1
+stages:
+  - name: stage-1
+    kind: analysis
+    agent: test-agent
+    ralph:
+      max_attempts: 1
+      retry_strategy: none
+    context:
+      include:
+        - input
+    approval:
+      on_unavailable: auto-approve
+`);
+
   writeFileSync(join(AGENTS_DIR, 'test-agent.agent.yaml'), `
 name: test-agent
 provider: anthropic
@@ -966,6 +1011,89 @@ describe('PipelineEngine', () => {
 
     expect(result.status).toBe('success');
     expect(result.stages[0].status).toBe('success');
+  });
+});
+
+describe('PipelineEngine — stage approval pause (STU-1653)', () => {
+  it('substitutes the edited output into downstream context and reports both on onStagePause', async () => {
+    const events: unknown[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as unknown as EngineConfig['providerRegistry'],
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+        reviewStageOutput: async (_stageName: string, output: unknown) => ({
+          decision: 'edited' as const,
+          output: { ...(output as Record<string, unknown>), summary: 'EDITED BY HUMAN' },
+        }),
+      },
+      { onStagePause: (e) => events.push(e) }
+    );
+
+    const result = await engine.run({ pipeline: 'approval-fail', input: 'test approval edit' });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0].status).toBe('success');
+    expect((result.stages[0].output as Record<string, unknown>).summary).toBe('EDITED BY HUMAN');
+    expect(events).toEqual([
+      expect.objectContaining({
+        stage_name: 'stage-1',
+        decision: 'edited',
+        resolved_output: expect.objectContaining({ summary: 'EDITED BY HUMAN' }),
+        original_output: expect.objectContaining({ summary: 'Test summary' }),
+      }),
+    ]);
+  });
+
+  it('fails the stage without hanging when no reviewer is available (default on_unavailable: fail)', async () => {
+    const engine = createTestEngine();
+
+    const result = await engine.run({ pipeline: 'approval-fail', input: 'test approval unavailable' });
+
+    expect(result.stages[0].status).toBe('failed');
+  });
+
+  it("auto-approves and keeps the original output when on_unavailable: auto-approve", async () => {
+    const events: unknown[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as unknown as EngineConfig['providerRegistry'],
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+      },
+      { onStagePause: (e) => events.push(e) }
+    );
+
+    const result = await engine.run({ pipeline: 'approval-auto', input: 'test auto approve' });
+
+    expect(result.status).toBe('success');
+    expect(result.stages[0].status).toBe('success');
+    expect((result.stages[0].output as Record<string, unknown>).summary).toBe('Test summary');
+    expect(events).toEqual([
+      expect.objectContaining({ stage_name: 'stage-1', decision: 'auto_approved' }),
+    ]);
+  });
+
+  it('finalizes the stage as failed, not an uncaught rejection, when reviewStageOutput throws', async () => {
+    const events: unknown[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: createMockProviderRegistry() as unknown as EngineConfig['providerRegistry'],
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+        reviewStageOutput: async () => {
+          throw new Error('ExitPromptError: User force closed the prompt');
+        },
+      },
+      { onStagePause: (e) => events.push(e) }
+    );
+
+    const result = await engine.run({ pipeline: 'approval-fail', input: 'test approval throws' });
+
+    expect(result.stages[0].status).toBe('failed');
+    expect(events).toEqual([
+      expect.objectContaining({ stage_name: 'stage-1', decision: 'failed' }),
+    ]);
   });
 });
 
