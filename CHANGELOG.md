@@ -7,6 +7,26 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.26.0] — 2026-09-22
+
+### Engine
+
+- Agent `compact: { threshold_tokens, summarizer }` compacts a stage's context once it nears the model's token limit, replacing older turns with one summary turn from a dedicated summarizer agent. (STU-1605)
+- Stage-level `approval:` pauses a pipeline after that stage succeeds so a human can approve its output as-is or edit it before the next stage runs, with the (possibly edited) text substituted into pipeline context — the editable-text counterpart to `pre_tool_use`'s `ask`. Non-interactive resolution is `approval.on_unavailable: fail` (default) or `auto-approve`, so a run never hangs. Emits `onStagePause`, logged as a `stage_pause` line in the run JSONL. (STU-1653)
+
+### CLI
+
+- `.studio/config.yaml` gains `interactive: false`, forcing `on_failure: ask` and `approval:` down their non-interactive path project-wide regardless of whether a real TTY is attached — no pipeline YAML can override it. (STU-1675)
+
+### Fixes
+
+- `on_failure: ask` under `--live` no longer has its prompt swallowed by the map renderer's own spinner, and two map items hitting an `ask` hook concurrently no longer race over the same stdin/stdout. (STU-1640)
+- `pre_tool_use` hooks honor `on_failure: warn` (including the unset, documented-default case): the call now goes through with a logged warning instead of being blocked, matching `post_tool_use` and `on_stage_complete`.
+
+### Docs
+
+- Corrected the builtin tools table in CLAUDE.md.
+
 ## [0.25.0] — 2026-09-21
 
 ### Hooks
