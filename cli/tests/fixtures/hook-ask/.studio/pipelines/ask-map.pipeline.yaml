@@ -1,0 +1,11 @@
+name: ask-map
+description: STU-1640 fixture — a map stage, concurrency 2, where two items each hit an ask hook.
+version: 1
+stages:
+  - map: ask-each
+    over: input.items
+    pipeline: ask-live
+    concurrency: 2
+    on_item_failure: collect-all
+    input:
+      dummy: '{{item}}'
