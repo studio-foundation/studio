@@ -699,6 +699,38 @@ at no premium) ignore the setting.
 
 ---
 
+## Context compaction (`compact`)
+
+A stage's standard multi-turn tool-calling loop (Chat Completions style: ollama,
+anthropic, openai) appends every tool result to the conversation, forever, capped only
+by `maxToolCalls` (default 20). A stage that reads or writes several files can grow that
+history past what the model accepts, and the call then fails outright rather than
+degrading. Claude Code compacts old turns into a summary; `compact` is the runner's
+equivalent, off by default:
+
+```yaml
+# .studio/agents/coder.agent.yaml
+name: coder
+compact:
+  threshold_tokens: 6000      # required, no default, so the feature stays off until set
+  keep_last_turns: 2          # optional, default 2
+  summarizer: history-summarizer   # required: an agent name, resolved like any other
+```
+
+Once a turn's prompt tokens (as the provider itself reported them, never estimated)
+reach `threshold_tokens`, the runner replaces every turn older than the last
+`keep_last_turns` with one summary message from a single call to `summarizer`. The
+system prompt and the original task are never summarized away: without the task, the
+agent has nothing left to continue toward. The summarization call's own cost is folded
+into the stage's `token_usage`, so it is never a free operation.
+
+**Only the standard multi-turn loop compacts.** A provider that owns its full agent loop
+internally (`AgentLoopProvider`: the mock provider, `claude-code`, OpenAI's Responses
+API) manages its own context, and `compact` has no effect there: there is no
+per-turn message list on this side of that boundary to summarize.
+
+---
+
 ## PII anonymization
 
 Transparent middleware that replaces sensitive data with tokens before sending to the LLM:
