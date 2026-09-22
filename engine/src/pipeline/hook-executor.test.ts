@@ -192,4 +192,11 @@ describe('runPreToolHooks', () => {
     const decision = await runPreToolHooks([ask, reject], { params: {} }, '/tmp', { askHuman: async () => true });
     expect(decision).toEqual({ blocked: true, error: 'Pre-hook failed: nope' });
   });
+
+  it('warns and lets the call through on a failing warn hook, and treats an unset on_failure the same', async () => {
+    const warn = { matcher: 'shell-run_command', command: 'echo nope >&2; exit 1', on_failure: 'warn' as const };
+    const unset = { matcher: 'shell-run_command', command: 'echo nope >&2; exit 1' };
+    expect(await runPreToolHooks([warn], { params: {} }, '/tmp')).toEqual({ blocked: false });
+    expect(await runPreToolHooks([unset], { params: {} }, '/tmp')).toEqual({ blocked: false });
+  });
 });
