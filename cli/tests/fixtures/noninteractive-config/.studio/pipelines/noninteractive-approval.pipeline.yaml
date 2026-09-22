@@ -1,0 +1,12 @@
+name: noninteractive-approval
+description: STU-1675 fixture — interactive:false must suppress the approval prompt even under a real TTY.
+version: 1
+stages:
+  - name: touch
+    kind: run
+    agent: runner
+    contract: approval-output
+    approval:
+      on_unavailable: auto-approve
+    context:
+      include: [input]

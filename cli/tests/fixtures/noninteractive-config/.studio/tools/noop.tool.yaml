@@ -1,0 +1,11 @@
+name: noop
+description: A no-op command, for a pre_tool_use hook to guard in tests.
+version: 1
+
+commands:
+  - name: noop-run_command
+    description: Does nothing.
+    parameters: {}
+    execute:
+      type: shell
+      command: 'true'
