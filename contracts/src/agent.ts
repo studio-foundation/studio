@@ -13,7 +13,7 @@ export type PromptCacheMode = 'auto' | 'on' | 'off';
 
 /**
  * Policy for compacting a stage's own multi-turn tool-calling loop once it grows
- * past a token threshold. Absent means off — an agent that never sets `compact`
+ * past a token threshold. Absent means off: an agent that never sets `compact`
  * behaves exactly as before.
  */
 export interface CompactionConfig {

@@ -484,7 +484,7 @@ async function runAgentAttempt(
     }
 
     // Compact once the prompt that produced this response crossed the configured
-    // threshold — checked on real provider-reported usage, never an estimate. This
+    // threshold, checked on real provider-reported usage, never an estimate. This
     // turn's own assistant/tool-result messages are appended after compacting, so
     // they count toward "last N turns" going forward rather than being summarized
     // away the moment they're created.

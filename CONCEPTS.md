@@ -712,12 +712,12 @@ equivalent, off by default:
 # .studio/agents/coder.agent.yaml
 name: coder
 compact:
-  threshold_tokens: 6000      # required — no default, so the feature stays off until set
+  threshold_tokens: 6000      # required, no default, so the feature stays off until set
   keep_last_turns: 2          # optional, default 2
-  summarizer: history-summarizer   # required — an agent name, resolved like any other
+  summarizer: history-summarizer   # required: an agent name, resolved like any other
 ```
 
-Once a turn's prompt tokens — as the provider itself reported them, never estimated —
+Once a turn's prompt tokens (as the provider itself reported them, never estimated)
 reach `threshold_tokens`, the runner replaces every turn older than the last
 `keep_last_turns` with one summary message from a single call to `summarizer`. The
 system prompt and the original task are never summarized away: without the task, the
@@ -726,7 +726,7 @@ into the stage's `token_usage`, so it is never a free operation.
 
 **Only the standard multi-turn loop compacts.** A provider that owns its full agent loop
 internally (`AgentLoopProvider`: the mock provider, `claude-code`, OpenAI's Responses
-API) manages its own context, and `compact` has no effect there — there is no
+API) manages its own context, and `compact` has no effect there: there is no
 per-turn message list on this side of that boundary to summarize.
 
 ---

@@ -764,7 +764,7 @@ describe('runner — provider throws are retry-eligible failed attempts (STU-148
 
 /**
  * A Chat Completions-style provider whose reported prompt_tokens escalate turn by
- * turn — the shape a stage grows into as its tool-calling loop keeps going.
+ * turn: the shape a stage grows into as its tool-calling loop keeps going.
  * Calls 1-4 make a tool call (usage.prompt_tokens: 10, 30, 60, 20); call 5 is final.
  */
 class GrowingProvider implements Provider {
@@ -809,7 +809,7 @@ class SummarizerProvider implements Provider {
   }
 }
 
-describe('runner — context compaction (STU-1605)', () => {
+describe('runner: context compaction (STU-1605)', () => {
   it('compacts exactly once the threshold is crossed, keeping the system prompt, the task and the last N turns verbatim', async () => {
     const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
     const growingProvider = new GrowingProvider();
@@ -833,7 +833,7 @@ describe('runner — context compaction (STU-1605)', () => {
       compactAgent,
     });
 
-    // Compaction fires once — on the response that crossed the threshold (call 3, 60 tokens) —
+    // Compaction fires once, on the response that crossed the threshold (call 3, 60 tokens),
     // not on every turn after.
     expect(summarizerProvider.callCount).toBe(1);
 
@@ -846,7 +846,7 @@ describe('runner — context compaction (STU-1605)', () => {
     expect(turn4Messages.some(m => m.content.includes('call-2'))).toBe(true);  // kept (last turn as of compaction)
     expect(turn4Messages.some(m => m.content.includes('call-3'))).toBe(true);  // this turn's own
 
-    // The audit trail of tool calls is untouched by compaction — only the LLM-visible
+    // The audit trail of tool calls is untouched by compaction: only the LLM-visible
     // conversation is summarized.
     expect(result.tool_calls).toHaveLength(4);
 
