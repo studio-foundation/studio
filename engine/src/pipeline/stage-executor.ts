@@ -187,11 +187,18 @@ export class StageExecutor {
         projectSkills = await loadSkillFiles(agentConfig.skills, paths.skillsDir);
       }
       if (agentConfig.compact?.summarizer) {
-        compactAgentConfig = await loadAgentProfile(agentConfig.compact.summarizer, paths.agentsDir);
+        const summarizerName = agentConfig.compact.summarizer;
+        compactAgentConfig = await loadAgentProfile(summarizerName, paths.agentsDir);
         if (!compactAgentConfig.provider) compactAgentConfig.provider = this.config.defaultProvider;
         if (!compactAgentConfig.model) compactAgentConfig.model = this.config.defaultModel;
         if (this.config.providerOverride) {
           compactAgentConfig.provider = this.config.providerOverride;
+        }
+        if (!compactAgentConfig.provider) {
+          throw new Error(`Agent '${summarizerName}' (compact.summarizer) has no provider and no default is configured. Run: studio config set provider <name>`);
+        }
+        if (!compactAgentConfig.model) {
+          throw new Error(`Agent '${summarizerName}' (compact.summarizer) has no model and no default is configured. Run: studio config set defaults.model <model>`);
         }
       }
     }
