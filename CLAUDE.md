@@ -59,6 +59,8 @@ cli ──→ engine ──→ ralph ──────→ contracts
 
 **Lifecycle hooks** — Configurable shell commands in YAML that execute at deterministic lifecycle points: `on_stage_start`, `on_stage_complete`, `pre_tool_use`, `post_tool_use`. Each has `on_failure`: `warn` (default), `reject`, or `fail`; a `pre_tool_use` hook may also use `ask`, which puts the hook's message to the human as a yes/no question (non-interactive: rejects).
 
+**Stage pause (`approval`)** — A stage-level YAML key, modeled on `pre_tool_use`'s `ask`: pauses a stage after it succeeds so a human can approve its output as-is or edit it before the next stage runs, with the (possibly edited) text substituted into pipeline context in place of the stage's own output. On an interactive run the CLI prints the output and offers an approve/edit prompt; non-interactive resolves per `approval.on_unavailable` (`'fail'`, the default, fails the stage; `'auto-approve'` keeps the original output) — a run never hangs waiting for a human that isn't there. Emits `onStagePause` with both the original and resolved output, logged as a `stage_pause` line in the run JSONL. Implemented inside `StageExecutor.execute()` ([stage-executor.ts](engine/src/pipeline/stage-executor.ts)) rather than `engine.ts`, so it covers simple stages, group stages, and map/call child-pipeline stages from one insertion point.
+
 **Skills (.skill.md)** — Markdown files in `.studio/skills/` describing procedural context. Auto-injected into agent system prompts via `skills: [name]` in agent YAML.
 
 **Project Invariants (.studio/invariants.md)** — Optional markdown file documenting project domain invariants. Auto-injected into every agent's system prompt at runtime.
@@ -302,6 +304,7 @@ A `success` return code proves the agent *finished*, not that it produced its ar
 | `onGroupComplete` | Group ends | `iterations`, `status` |
 | `onMapItemComplete` | Fan-out item ends | `map_name`, `index`, `status`, `output`, `token_usage`, `stages` |
 | `onHookAsk` | A `pre_tool_use` hook with `on_failure: ask` put its message to the human | `tool`, `question`, `answer` (`yes`/`no`/`unavailable`) |
+| `onStagePause` | A stage with `approval:` finished and its output was reviewed | `stage_name`, `original_output`, `resolved_output`, `decision` (`approved`/`edited`/`auto_approved`/`failed`) |
 | `onBatchDispatch` | A batched map stage submits a batch | `map_name`, `provider`, `size`, `round` |
 | `onBatchComplete` | That batch returns | `succeeded`, `failed`, `duration_ms` |
 | `onToolCallStart` | Tool call starts | `tool`, `params` |

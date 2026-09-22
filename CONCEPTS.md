@@ -457,6 +457,38 @@ Hooks are how you add static analysis, linting, or custom validation without wri
 
 ---
 
+## Stage approval (pause for human review)
+
+A stage-level `approval` key pauses the pipeline after that stage succeeds, so a human
+can approve its output as-is or edit it before the next stage runs — the editable-text
+counterpart to `pre_tool_use`'s `ask` (above), which is only a yes/no gate on one tool
+call.
+
+```yaml
+stages:
+  - name: plan
+    agent: planner
+    contract: plan-output
+    approval:
+      on_unavailable: fail   # or auto-approve — default: fail
+```
+
+On an interactive run (a real TTY, not `--json`) the CLI prints the stage's output and
+offers to approve it unedited or open it in `$EDITOR`; whichever text results —
+unchanged or edited — replaces the stage's own output in pipeline context, so a
+downstream `context.include: [previous_stage_output]` sees the human's version, not the
+agent's. On a non-interactive run `on_unavailable` decides, since nobody can be asked:
+`'fail'` (default) fails the stage; `'auto-approve'` keeps the original output. Either
+way the run never hangs. Both the original and resolved output are always logged, as a
+`stage_pause` line in the run JSONL, whether an actual edit happened or not.
+
+The engine only knows a stage produced output and that a human may change it — same as
+`ask`, it never interprets what the text means. Presence of `approval:` on a stage is
+what triggers the pause; an absent key runs the stage straight through, unchanged from
+before this existed.
+
+---
+
 ## Skills
 
 Markdown files (`.skill.md`) in `.studio/skills/` that describe procedural context: conventions, architectural patterns, step-by-step guides.
