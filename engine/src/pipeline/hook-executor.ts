@@ -91,10 +91,11 @@ export interface PreToolDecision {
 }
 
 /**
- * Run the pre_tool_use hooks matching one tool call. Fail-fast: the first failing hook blocks
- * the call and the rest are skipped. A failing hook with `on_failure: ask` puts its message to
- * the human instead: yes lets the call through to the next hook, no blocks it, and no one to
- * ask (askHuman absent, a non-interactive run) blocks it like a plain failure.
+ * Run the pre_tool_use hooks matching one tool call. Fail-fast: the first blocking failure
+ * stops the call and the rest are skipped. `on_failure: warn` (the default) logs and lets the
+ * call through. `reject` blocks it. `ask` puts the message to the human instead: yes lets the
+ * call through to the next hook, no blocks it, and no one to ask (askHuman absent, a
+ * non-interactive run) blocks it like a plain failure.
  */
 export async function runPreToolHooks(
   hooks: ToolHookDef[],
@@ -109,7 +110,12 @@ export async function runPreToolHooks(
     const hookResult = await runToolHook(hook, event.params, cwd);
     if (hookResult.success) continue;
     const message = hookResult.stderr || hookResult.stdout;
-    if (hook.on_failure !== 'ask') return { blocked: true, error: `Pre-hook failed: ${message}` };
+    const onFailure = hook.on_failure ?? 'warn';
+    if (onFailure === 'warn') {
+      console.warn(`[pre_tool_use] hook failed for "${hook.matcher}": ${message}`);
+      continue;
+    }
+    if (onFailure !== 'ask') return { blocked: true, error: `Pre-hook failed: ${message}` };
     const yes = opts.askHuman ? await opts.askHuman(message) : undefined;
     opts.onAsk?.({ question: message, answer: yes === undefined ? 'unavailable' : yes ? 'yes' : 'no' });
     if (yes) continue;
