@@ -161,6 +161,7 @@ export class StageExecutor {
 
     // Load agent profile — only for LLM stages (script stages have no agent)
     let agentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
+    let compactAgentConfig: Awaited<ReturnType<typeof loadAgentProfile>> | null = null;
     let pluginSkills: string[] = [];
     let projectSkills: SkillContent[] = [];
     if (stageDef.agent) {
@@ -184,6 +185,14 @@ export class StageExecutor {
       }
       if (agentConfig.skills?.length) {
         projectSkills = await loadSkillFiles(agentConfig.skills, paths.skillsDir);
+      }
+      if (agentConfig.compact?.summarizer) {
+        compactAgentConfig = await loadAgentProfile(agentConfig.compact.summarizer, paths.agentsDir);
+        if (!compactAgentConfig.provider) compactAgentConfig.provider = this.config.defaultProvider;
+        if (!compactAgentConfig.model) compactAgentConfig.model = this.config.defaultModel;
+        if (this.config.providerOverride) {
+          compactAgentConfig.provider = this.config.providerOverride;
+        }
       }
     }
 
@@ -363,6 +372,7 @@ export class StageExecutor {
               task: taskInput,
               context: agentContext,
               executionContext: runnerExecContext,
+              compactAgent: compactAgentConfig as ResolvedAgentConfig | undefined,
               resolvedContext: { input: pipelineContext.input },
               toolRegistry: toolRegistry!,
               providerRegistry: this.config.providerRegistry,
