@@ -6,6 +6,7 @@ import type { ResolvedAgentConfig, ToolCall, LLMResponse, Message, OutputContrac
 import { accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import { buildPrompt, hasFields, type TaskInput, type AgentContext, type ExecutionContext } from './prompt-builder.js';
 import { shouldCachePrompt } from './prompt-cache.js';
+import { compactMessages } from './compact.js';
 import type { ToolRegistry } from './tools/tool-registry.js';
 import { ToolExecutor } from './tools/tool-executor.js';
 import type { ProviderRegistry } from './providers/registry.js';
@@ -26,6 +27,8 @@ export interface RunAgentConfig {
   resolvedContext?: unknown;
   toolRegistry: ToolRegistry;
   providerRegistry: ProviderRegistry;
+  /** Resolved config of the agent named in `agent.compact.summarizer`, if `compact` is set. */
+  compactAgent?: ResolvedAgentConfig;
   outputContract?: OutputContract;
   /** Markdown chunks from the plugins the agent declares. */
   pluginSkills?: string[];
@@ -80,6 +83,7 @@ export interface AgentRunResult {
 }
 
 const DEFAULT_MAX_TOOL_CALLS = 20; // Safety limit for tool calling loop
+const DEFAULT_KEEP_LAST_TURNS = 2; // Turns kept verbatim by compaction when unset
 
 /**
  * Run an agent task with LLM + tool execution
@@ -342,7 +346,7 @@ async function runAgentAttempt(
   }
 
   // --- Standard multi-turn loop (Chat Completions style) ---
-  const currentMessages: Message[] = messages;
+  let currentMessages: Message[] = messages;
   let iterations = 0;
   let lastResponse: LLMResponse | null = null;
 
@@ -477,6 +481,22 @@ async function runAgentAttempt(
           appendMessages.set(tc.id, postResult.append_message);
         }
       }
+    }
+
+    // Compact once the prompt that produced this response crossed the configured
+    // threshold — checked on real provider-reported usage, never an estimate. This
+    // turn's own assistant/tool-result messages are appended after compacting, so
+    // they count toward "last N turns" going forward rather than being summarized
+    // away the moment they're created.
+    if (agent.compact && config.compactAgent && (response.usage?.prompt_tokens ?? 0) >= agent.compact.threshold_tokens) {
+      const compacted = await compactMessages(
+        currentMessages,
+        agent.compact.keep_last_turns ?? DEFAULT_KEEP_LAST_TURNS,
+        config.compactAgent,
+        providerRegistry,
+      );
+      currentMessages = compacted.messages;
+      if (compacted.usage) accumulateTokenUsage(tokenAccumulator, compacted.usage);
     }
 
     // Add assistant message with tool calls to conversation
