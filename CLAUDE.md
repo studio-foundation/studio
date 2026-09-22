@@ -173,17 +173,16 @@ Tools are YAML plugins (`.tool.yaml`). The runner is a tool plugin runtime.
 
 | Tool | Description |
 |------|-------------|
-| `repo_manager-read_file` | Read a workspace file |
-| `repo_manager-write_file` | Write/create a file |
-| `repo_manager-list_files` | List files |
-| `shell-run_command` | Execute a shell command |
-| `repo_manager-apply_patch` | Apply a unified diff |
 | `studio_run-run_pipeline` | Spawn a sub-pipeline |
 
-That is the whole list. `git`, `search` and `web-search` are
-marketplace plugins, not builtins — see INV-11 for the three criteria a tool must meet
-to live in the kernel, and the **Seed cache** entry below for how they still install
-with no network.
+That is the whole list. A fresh project has no other tool available — an agent listing
+`repo_manager-read_file` fails with `Unknown tool or plugin` until its plugin is installed.
+`repo-manager` (`repo_manager-read_file`, `repo_manager-write_file`, `repo_manager-list_files`,
+`repo_manager-apply_patch`), `shell` (`shell-run_command`), `git`, `search` and `web-search`
+are marketplace plugins, not builtins — see INV-11 for the three criteria a tool must meet
+to live in the kernel, and the **Seed cache** entry below for how they still install with no
+network. Install what a project needs before its first run, e.g.
+`studio registry install repo-manager shell`.
 
 **Tool name format:** Dashes (`-`), not dots (`.`). Example: `repo_manager-write_file`.
 
