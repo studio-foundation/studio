@@ -127,6 +127,70 @@ stages:
   });
 });
 
+describe('parsePipelineYaml — stage approval (STU-1653)', () => {
+  it('parses approval.on_unavailable', () => {
+    const yaml = `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: plan
+    kind: plan
+    agent: planner
+    approval:
+      on_unavailable: auto-approve
+`;
+    const result = parsePipelineYaml(yaml);
+    const stage = result.stages[0] as StageDefinition;
+    expect(stage.approval).toEqual({ on_unavailable: 'auto-approve' });
+  });
+
+  it('defaults on_unavailable to fail when approval is present but empty', () => {
+    const yaml = `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: plan
+    kind: plan
+    agent: planner
+    approval: {}
+`;
+    const result = parsePipelineYaml(yaml);
+    const stage = result.stages[0] as StageDefinition;
+    expect(stage.approval).toEqual({ on_unavailable: 'fail' });
+  });
+
+  it('returns undefined approval when stage has none', () => {
+    const result = parsePipelineYaml(`
+name: test-pipeline
+description: test
+version: 1
+stages:
+${MINIMAL_STAGE}
+`);
+    const stage = result.stages[0] as StageDefinition;
+    expect(stage.approval).toBeUndefined();
+  });
+
+  it('throws on an invalid on_unavailable value', () => {
+    const yaml = `
+name: test-pipeline
+description: test
+version: 1
+stages:
+  - name: plan
+    kind: plan
+    agent: planner
+    approval:
+      on_unavailable: maybe
+`;
+    expect(() => parsePipelineYaml(yaml)).toThrow(
+      "field 'approval.on_unavailable' must be 'fail' or 'auto-approve'"
+    );
+  });
+});
+
 describe('parsePipelineYaml — context.include directives (STU-593)', () => {
   const withInclude = (include: string) => `
 name: test-pipeline

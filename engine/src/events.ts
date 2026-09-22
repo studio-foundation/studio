@@ -124,6 +124,19 @@ export interface HookAskEvent {
   answer: 'yes' | 'no' | 'unavailable';
 }
 
+/**
+ * A stage with an `approval` block finished and its output was reviewed —
+ * either by a human (interactive run) or auto-resolved from `on_unavailable`
+ * (non-interactive). `resolved_output` is what reached the next stage's
+ * context; it differs from `original_output` only on `decision: 'edited'`.
+ */
+export interface StagePauseEvent {
+  stage_name: string;
+  original_output: unknown;
+  resolved_output: unknown;
+  decision: 'approved' | 'edited' | 'auto_approved' | 'failed';
+}
+
 export interface BatchCompleteEvent extends BatchDispatchEvent {
   succeeded: number;
   failed: number;
@@ -216,6 +229,7 @@ export interface EngineEvents {
   onMapComplete?: (event: MapCompleteEvent, ctx?: EventContext) => void;
   onBatchDispatch?: (event: BatchDispatchEvent, ctx?: EventContext) => void;
   onHookAsk?: (event: HookAskEvent, ctx?: EventContext) => void;
+  onStagePause?: (event: StagePauseEvent, ctx?: EventContext) => void;
   onBatchComplete?: (event: BatchCompleteEvent, ctx?: EventContext) => void;
   onStageContext?: (event: StageContextEvent, ctx?: EventContext) => void;
   // Real-time tool call streaming (used by --live mode)

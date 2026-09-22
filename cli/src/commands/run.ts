@@ -284,6 +284,16 @@ export function mergeEvents(
         answer: e.answer,
       });
     },
+    onStagePause: (e, ctx) => {
+      progressEvents.onStagePause?.(e, ctx);
+      log(ctx, {
+        event: 'stage_pause',
+        stage: e.stage_name,
+        original_output: e.original_output,
+        resolved_output: e.resolved_output,
+        decision: e.decision,
+      });
+    },
     onToolCallStart: (e, ctx) => {
       progressEvents.onToolCallStart?.(e, ctx);
       log(ctx, {
@@ -586,6 +596,11 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
     // them one at a time; queuing after a rejection still lets the next asker
     // go instead of wedging the queue on the first hook's failure.
     let askQueue: Promise<void> = Promise.resolve();
+    const serialized = <T>(fn: () => Promise<T>): Promise<T> => {
+      const turn = askQueue.then(() => progress.withSpinnersPaused(fn));
+      askQueue = turn.then(() => undefined, () => undefined);
+      return turn;
+    };
     const engineConfig = {
       configsDir,
       repoPath,
@@ -599,16 +614,30 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       ...(options.provider ? { providerOverride: options.provider } : {}),
       ...(process.stdin.isTTY && process.stdout.isTTY && !options.json
         ? {
-            askHuman: async (question: string) => {
-              const turn = askQueue.then(() =>
-                progress.withSpinnersPaused(async () => {
-                  const { confirm } = await import('@inquirer/prompts');
-                  return confirm({ message: question, default: false });
-                })
-              );
-              askQueue = turn.then(() => undefined, () => undefined);
-              return turn;
-            },
+            askHuman: async (question: string) =>
+              serialized(async () => {
+                const { confirm } = await import('@inquirer/prompts');
+                return confirm({ message: question, default: false });
+              }),
+            reviewStageOutput: async (stageName: string, output: unknown) =>
+              serialized(async () => {
+                const { confirm, editor } = await import('@inquirer/prompts');
+                const text = JSON.stringify(output, null, 2);
+                console.log(`\nStage "${stageName}" output:\n${text}\n`);
+                const approved = await confirm({ message: 'Approve as-is?', default: true });
+                if (approved) return { decision: 'approved' as const, output };
+                const edited = await editor({
+                  message: 'Edit the stage output, then save and close.',
+                  default: text,
+                });
+                let parsed: unknown = edited;
+                try {
+                  parsed = JSON.parse(edited);
+                } catch {
+                  // Not JSON — keep the raw edited text; output is opaque to the engine either way.
+                }
+                return { decision: 'edited' as const, output: parsed };
+              }),
           }
         : {}),
     };

@@ -56,6 +56,17 @@ export interface StageHooks {
   post_tool_use?: ToolHookDef[];
 }
 
+/**
+ * Pauses a stage after it succeeds so a human can approve or edit its output
+ * before the next stage runs — modeled on `on_failure: ask`. `on_unavailable`
+ * decides what a non-interactive run does when nobody can be asked: `'fail'`
+ * (default) fails the stage, `'auto-approve'` keeps the original output. Either
+ * way the run never hangs.
+ */
+export interface StageApprovalConfig {
+  on_unavailable?: 'fail' | 'auto-approve';  // default: 'fail'
+}
+
 export interface StageDefinition {
   name: string;
   condition?: string;   // e.g. "input.meals_count >= 6" or "stages.foo.output.count > 0"
@@ -81,6 +92,7 @@ export interface StageDefinition {
     required?: string[];
   };
   hooks?: StageHooks;
+  approval?: StageApprovalConfig;
 }
 
 // A pipeline entry is either a stage, a group of stages, a fan-out over a list,
