@@ -489,6 +489,32 @@ before this existed.
 
 ---
 
+## Disabling interactive prompts (`interactive: false`)
+
+Both `ask` (above) and `approval:` activate purely on TTY detection — any pipeline YAML,
+including one installed from a marketplace, can declare either and it will pause the run
+and prompt whoever is at the terminal. Studio's main use case is automating pipelines
+unattended, and there was no way for a project to say no to a pipeline pausing on a
+human, regardless of who happens to be at the terminal when it runs.
+
+```yaml
+# .studio/config.yaml
+interactive: false
+```
+
+Set at the project level, this forces every `ask`/`approval` resolution down its
+existing non-interactive path — the same fallback that already fires when there's no
+TTY (`ask` → rejected as `unavailable`; `approval` → `on_unavailable`) — regardless of
+whether stdin/stdout actually are a real terminal. `studio run` reads it once at
+startup and simply never wires up the interactive callbacks when it's set; the
+enforcement point is the same TTY check both features already use, with one more
+condition on it. No pipeline YAML can override it, since the key lives outside any
+pipeline file — a marketplace-installed pipeline has no way to turn it back on.
+Default `true` (interactive, subject to the existing TTY check) — an absent key changes
+nothing.
+
+---
+
 ## Skills
 
 Markdown files (`.skill.md`) in `.studio/skills/` that describe procedural context: conventions, architectural patterns, step-by-step guides.
