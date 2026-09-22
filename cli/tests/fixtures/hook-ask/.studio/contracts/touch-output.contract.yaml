@@ -1,0 +1,5 @@
+name: touch-output
+version: 1
+schema:
+  required_fields:
+    - summary

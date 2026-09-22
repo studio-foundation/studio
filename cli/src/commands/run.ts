@@ -579,6 +579,13 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       };
     }
 
+    // A `map` stage with concurrency > 1 can have several items hit an `ask`
+    // hook at once. Each would otherwise open its own @inquirer/prompts
+    // confirm() concurrently, and two prompts racing over the same stdin/stdout
+    // garble each other's rendering and reads. Chaining onto `askQueue` runs
+    // them one at a time; queuing after a rejection still lets the next asker
+    // go instead of wedging the queue on the first hook's failure.
+    let askQueue: Promise<void> = Promise.resolve();
     const engineConfig = {
       configsDir,
       repoPath,
@@ -593,8 +600,14 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       ...(process.stdin.isTTY && process.stdout.isTTY && !options.json
         ? {
             askHuman: async (question: string) => {
-              const { confirm } = await import('@inquirer/prompts');
-              return progress.withSpinnersPaused(() => confirm({ message: question, default: false }));
+              const turn = askQueue.then(() =>
+                progress.withSpinnersPaused(async () => {
+                  const { confirm } = await import('@inquirer/prompts');
+                  return confirm({ message: question, default: false });
+                })
+              );
+              askQueue = turn.then(() => undefined, () => undefined);
+              return turn;
             },
           }
         : {}),

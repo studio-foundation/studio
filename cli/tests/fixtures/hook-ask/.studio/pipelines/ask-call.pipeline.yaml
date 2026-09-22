@@ -1,0 +1,8 @@
+name: ask-call
+description: STU-1640 fixture — a call stage whose child hits an ask hook.
+version: 1
+stages:
+  - call: run-child
+    pipeline: ask-live
+    input:
+      note: '{{input}}'

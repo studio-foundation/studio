@@ -1,0 +1,15 @@
+name: ask-live
+description: STU-1640 fixture — a single stage guarded by an on_failure ask pre_tool_use hook.
+version: 1
+stages:
+  - name: touch
+    kind: run
+    agent: runner
+    contract: touch-output
+    hooks:
+      pre_tool_use:
+        - matcher: noop-run_command
+          command: 'echo "run the noop command?" >&2; exit 1'
+          on_failure: ask
+    context:
+      include: [input]
