@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, MapBatchConfig, CallStage, StartupCommand, StageHooks } from '@studio-foundation/contracts';
+import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, MapBatchConfig, CallStage, StartupCommand, StageHooks, StageApprovalConfig } from '@studio-foundation/contracts';
 import { assertKnownFields, suggestClosest } from './strict-fields.js';
 import { CONTEXT_INCLUDE_DIRECTIVES } from './context-propagation.js';
 
@@ -15,7 +15,7 @@ const PIPELINE_FIELDS = [
 ] as const;
 const STAGE_FIELDS = [
   'name', 'condition', 'kind', 'agent', 'executor', 'script', 'runtime',
-  'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks',
+  'timeout_ms', 'contract', 'ralph', 'context', 'tools', 'hooks', 'approval',
 ] as const;
 const GROUP_FIELDS = ['group', 'max_iterations', 'mode', 'on_failure', 'stages'] as const;
 const MAP_FIELDS = ['map', 'condition', 'over', 'pipeline', 'input', 'as', 'concurrency', 'on_item_failure', 'resume', 'batch', 'anonymize'] as const;
@@ -27,6 +27,7 @@ const TOOLS_FIELDS = ['required'] as const;
 const HOOKS_FIELDS = ['on_stage_start', 'on_stage_complete', 'pre_tool_use', 'post_tool_use'] as const;
 const STAGE_HOOK_FIELDS = ['command', 'on_failure'] as const;
 const TOOL_HOOK_FIELDS = ['matcher', 'command', 'on_failure'] as const;
+const APPROVAL_FIELDS = ['on_unavailable'] as const;
 const STARTUP_COMMAND_FIELDS = ['command', 'inject_as'] as const;
 const REPO_FIELDS = ['url', 'branch'] as const;
 const INPUT_SCHEMA_FIELDS = ['type', 'fields'] as const;
@@ -83,6 +84,13 @@ function checkStageFields(stage: any, context: string): void {
         checkBlock(entry, allowed, `hooks.${point} entry ${inStage}`, context);
       }
     }
+  }
+  checkBlock(stage.approval, APPROVAL_FIELDS, `approval ${inStage}`, context);
+  const onUnavailable = stage.approval?.on_unavailable;
+  if (onUnavailable !== undefined && onUnavailable !== 'fail' && onUnavailable !== 'auto-approve') {
+    throw new Error(
+      `Stage '${stage.name}' field 'approval.on_unavailable' must be 'fail' or 'auto-approve'${context}`
+    );
   }
 }
 
@@ -176,13 +184,13 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
         max_iterations: maxIterations,
         ...(mode ? { mode } : {}),
         ...(entry.on_failure ? { on_failure: entry.on_failure } : {}),
-        stages: entry.stages.map((s: any) => ({ ...s, hooks: parseStageHooks(s) })),
+        stages: entry.stages.map((s: any) => ({ ...s, hooks: parseStageHooks(s), approval: parseApprovalConfig(s) })),
       } as StageGroup);
     } else {
       // Simple stage
       validateStageFields(entry, context);
       checkStageFields(entry, context);
-      stages.push({ ...entry, hooks: parseStageHooks(entry) } as StageDefinition);
+      stages.push({ ...entry, hooks: parseStageHooks(entry), approval: parseApprovalConfig(entry) } as StageDefinition);
     }
   }
 
@@ -246,6 +254,11 @@ function parseStageHooks(entry: any): StageHooks | undefined {
   const hasAny = result.on_stage_start || result.on_stage_complete
     || result.pre_tool_use || result.post_tool_use;
   return hasAny ? result : undefined;
+}
+
+function parseApprovalConfig(entry: { approval?: { on_unavailable?: unknown } }): StageApprovalConfig | undefined {
+  if (!entry.approval || typeof entry.approval !== 'object') return undefined;
+  return { on_unavailable: (entry.approval.on_unavailable as StageApprovalConfig['on_unavailable']) ?? 'fail' };
 }
 
 function validateStageFields(stage: any, context: string): void {
