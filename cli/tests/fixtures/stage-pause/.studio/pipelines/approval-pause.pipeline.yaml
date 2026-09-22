@@ -1,0 +1,11 @@
+name: approval-pause
+description: STU-1653 fixture — a single stage that pauses for human approval before the pipeline finishes.
+version: 1
+stages:
+  - name: touch
+    kind: run
+    agent: runner
+    contract: touch-output
+    approval: {}
+    context:
+      include: [input]

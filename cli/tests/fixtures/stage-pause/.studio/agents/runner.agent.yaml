@@ -1,0 +1,3 @@
+name: runner
+description: Reports done.
+system_prompt: 'Report done.'

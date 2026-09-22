@@ -1,0 +1,5 @@
+stages:
+  touch-output:
+    output:
+      summary: done
+    tool_calls: []
