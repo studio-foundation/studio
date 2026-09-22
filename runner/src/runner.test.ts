@@ -3,7 +3,7 @@ import { runAgent } from './runner.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import { ProviderRegistry } from './providers/registry.js';
 import { MockProvider } from './providers/mock.js';
-import type { ResolvedAgentConfig, LLMRequest, LLMResponse } from '@studio-foundation/contracts';
+import type { ResolvedAgentConfig, LLMRequest, LLMResponse, Message } from '@studio-foundation/contracts';
 import type { Provider, AgentLoopProvider, AgentLoopResult, ToolCallOutcome } from './providers/provider.js';
 
 /**
@@ -759,5 +759,116 @@ describe('runner — provider throws are retry-eligible failed attempts (STU-148
       providerRegistry: registryOf(provider),
       signal: controller.signal,
     })).rejects.toThrow('Aborted');
+  });
+});
+
+/**
+ * A Chat Completions-style provider whose reported prompt_tokens escalate turn by
+ * turn — the shape a stage grows into as its tool-calling loop keeps going.
+ * Calls 1-4 make a tool call (usage.prompt_tokens: 10, 30, 60, 20); call 5 is final.
+ */
+class GrowingProvider implements Provider {
+  readonly name = 'growing-mock';
+  public callCount = 0;
+  public receivedMessagesPerCall: Message[][] = [];
+  private readonly promptTokens = [10, 30, 60, 20];
+
+  async call(request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    this.receivedMessagesPerCall.push(request.messages as Message[]);
+    if (this.callCount <= 4) {
+      const promptTokens = this.promptTokens[this.callCount - 1];
+      return {
+        content: '',
+        tool_calls: [{ id: `call-${this.callCount}`, name: 'repo_manager-write_file', arguments: { path: '/tmp/foo.ts', content: 'hi' } }],
+        finish_reason: 'tool_calls',
+        usage: { prompt_tokens: promptTokens, completion_tokens: 5, total_tokens: promptTokens + 5 },
+      };
+    }
+    return {
+      content: JSON.stringify({ summary: 'done' }),
+      tool_calls: [],
+      finish_reason: 'stop',
+      usage: { prompt_tokens: 15, completion_tokens: 5, total_tokens: 20 },
+    };
+  }
+}
+
+class SummarizerProvider implements Provider {
+  readonly name = 'summarizer-mock';
+  public callCount = 0;
+
+  async call(_request: LLMRequest): Promise<LLMResponse> {
+    this.callCount++;
+    return {
+      content: 'Summary: wrote foo.ts once.',
+      tool_calls: [],
+      finish_reason: 'stop',
+      usage: { prompt_tokens: 40, completion_tokens: 10, total_tokens: 50 },
+    };
+  }
+}
+
+describe('runner — context compaction (STU-1605)', () => {
+  it('compacts exactly once the threshold is crossed, keeping the system prompt, the task and the last N turns verbatim', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const growingProvider = new GrowingProvider();
+    const summarizerProvider = new SummarizerProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(growingProvider);
+    providerRegistry.register(summarizerProvider);
+
+    const compactAgent: ResolvedAgentConfig = { name: 'summarizer', provider: 'summarizer-mock', model: 'mock' };
+
+    const result = await runAgent({
+      agent: {
+        ...agent,
+        provider: 'growing-mock',
+        compact: { threshold_tokens: 50, keep_last_turns: 1, summarizer: 'summarizer' },
+      },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+      compactAgent,
+    });
+
+    // Compaction fires once — on the response that crossed the threshold (call 3, 60 tokens) —
+    // not on every turn after.
+    expect(summarizerProvider.callCount).toBe(1);
+
+    // Turn 4's outgoing request is the first one built from the compacted history.
+    const turn4Messages = growingProvider.receivedMessagesPerCall[3];
+    expect(turn4Messages[0]).toEqual(growingProvider.receivedMessagesPerCall[0][0]); // system prompt, verbatim
+    expect(turn4Messages[1]).toEqual(growingProvider.receivedMessagesPerCall[0][1]); // original task, verbatim
+    expect(turn4Messages.some(m => m.content.includes('Summary: wrote foo.ts once.'))).toBe(true);
+    expect(turn4Messages.some(m => m.content.includes('call-1'))).toBe(false); // summarized away
+    expect(turn4Messages.some(m => m.content.includes('call-2'))).toBe(true);  // kept (last turn as of compaction)
+    expect(turn4Messages.some(m => m.content.includes('call-3'))).toBe(true);  // this turn's own
+
+    // The audit trail of tool calls is untouched by compaction — only the LLM-visible
+    // conversation is summarized.
+    expect(result.tool_calls).toHaveLength(4);
+
+    // The summarizer's own cost is folded into the run's total.
+    expect(result.token_usage?.total_tokens).toBe(15 + 35 + 65 + 25 + 20 + 50);
+  });
+
+  it('never compacts when the agent has no compact policy', async () => {
+    const { agent, toolRegistry } = makeConfig('repo_manager-write_file', { path: '', content: '' });
+    const growingProvider = new GrowingProvider();
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(growingProvider);
+
+    await runAgent({
+      agent: { ...agent, provider: 'growing-mock' },
+      task: { description: 'test' },
+      context: {},
+      toolRegistry,
+      providerRegistry,
+    });
+
+    const turn4Messages = growingProvider.receivedMessagesPerCall[3];
+    expect(turn4Messages.some(m => m.content.includes('call-1'))).toBe(true); // nothing dropped
   });
 });
