@@ -101,14 +101,24 @@ export class ProgressDisplay {
     return '  '.repeat(depth);
   }
 
-  /** Run a prompt with the live spinners stopped, so they do not redraw over it, then restart the ones that were running. */
+  /**
+   * Run a prompt with the live spinners stopped, so they do not redraw over
+   * it, then restart the ones that were running. The active fan-out's own
+   * spinner (only the last entry in `mapStack` draws — see its comment) ticks
+   * on its own interval independently of these three, and without pausing it
+   * too its "X in flight" line kept redrawing over the prompt and swallowing
+   * the keystrokes meant for it (STU-1640).
+   */
   async withSpinnersPaused<T>(prompt: () => Promise<T>): Promise<T> {
     const running = [this.thinkingSpinner, this.toolSpinner, this.spinner].filter((s): s is Ora => !!s?.isSpinning);
     for (const s of running) s.stop();
+    const activeMap = this.mapStack[this.mapStack.length - 1]?.renderer;
+    activeMap?.suspend();
     try {
       return await prompt();
     } finally {
       for (const s of running) s.start();
+      activeMap?.resume();
     }
   }
 
