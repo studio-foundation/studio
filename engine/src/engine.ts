@@ -63,6 +63,9 @@ export interface EngineConfig {
   defaultModel?: string;     // fallback when agent YAML omits model
   runtimes?: Record<string, string>;  // script-stage interpreters, keyed by runtime
   askHuman?: (question: string) => Promise<boolean>;  // answers `on_failure: ask` hooks; absent = non-interactive, ask means reject
+  // Answers a stage's `approval` pause. Absent = non-interactive, resolved per the
+  // stage's `approval.on_unavailable` ('fail' by default, never hangs).
+  reviewStageOutput?: (stageName: string, output: unknown) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
 }
 
 export interface RunInput {
@@ -190,6 +193,7 @@ export class PipelineEngine {
       defaultModel: config.defaultModel,
       runtimes: config.runtimes,
       askHuman: config.askHuman,
+      reviewStageOutput: config.reviewStageOutput,
     });
     this.groupOrchestrator = new GroupOrchestrator({
       events,

@@ -97,6 +97,7 @@ export interface StageExecutorConfig {
   defaultModel?: string;
   runtimes?: Record<string, string>;
   askHuman?: (question: string) => Promise<boolean>;
+  reviewStageOutput?: (stageName: string, output: unknown) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
 }
 
 export class StageExecutor {
@@ -601,6 +602,40 @@ export class StageExecutor {
             console.warn(`[on_stage_complete] hook failed for stage "${stageDef.name}": ${hookResult.stderr}`);
           }
         }
+      }
+    }
+
+    // Modeled on `on_failure: ask` — the engine only knows a human may change
+    // the output, never what it means.
+    if (stageStatus === 'success' && stageDef.approval) {
+      const originalOutput = ralphResult.status === 'success' ? ralphResult.result?.output : undefined;
+      const emitPause = (decision: 'approved' | 'edited' | 'auto_approved' | 'failed', resolvedOutput: unknown) =>
+        this.config.events?.onStagePause?.({
+          stage_name: stageDef.name,
+          original_output: originalOutput,
+          resolved_output: resolvedOutput,
+          decision,
+        });
+      if (this.config.reviewStageOutput) {
+        // A rejection here (Ctrl+C, a crashed $EDITOR) must still finalize the
+        // stage — every phase before this one runs inside ralph()'s own
+        // try/catch, but this phase runs after it exits, unprotected.
+        try {
+          const review = await this.config.reviewStageOutput(stageDef.name, originalOutput);
+          emitPause(review.decision, review.output);
+          if (ralphResult.status === 'success' && ralphResult.result) {
+            ralphResult.result.output = review.output;
+          }
+        } catch {
+          stageStatus = 'failed';
+          emitPause('failed', undefined);
+        }
+      } else if (stageDef.approval.on_unavailable === 'auto-approve') {
+        emitPause('auto_approved', originalOutput);
+      } else {
+        // 'fail' (default) — nobody to ask, never hang.
+        stageStatus = 'failed';
+        emitPause('failed', undefined);
       }
     }
 
