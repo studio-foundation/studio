@@ -494,6 +494,7 @@ async function runAgentAttempt(
         agent.compact.keep_last_turns ?? DEFAULT_KEEP_LAST_TURNS,
         config.compactAgent,
         providerRegistry,
+        signal,
       );
       currentMessages = compacted.messages;
       if (compacted.usage) accumulateTokenUsage(tokenAccumulator, compacted.usage);
