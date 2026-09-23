@@ -1,0 +1,7 @@
+name: no-summarizer
+provider: fake
+model: fake-model
+system_prompt: Do the thing.
+tools: []
+compact:
+  threshold_tokens: 1000

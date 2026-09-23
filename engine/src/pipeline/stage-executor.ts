@@ -187,7 +187,10 @@ export class StageExecutor {
       if (agentConfig.skills?.length) {
         projectSkills = await loadSkillFiles(agentConfig.skills, paths.skillsDir);
       }
-      if (agentConfig.compact?.summarizer) {
+      if (agentConfig.compact) {
+        if (!agentConfig.compact.summarizer) {
+          throw new Error(`Agent '${stageDef.agent}' sets 'compact.threshold_tokens' but no 'compact.summarizer' in stage '${stageDef.name}' — compaction cannot run without a summarizer agent.`);
+        }
         const summarizerName = agentConfig.compact.summarizer;
         compactAgentConfig = await loadAgentProfile(summarizerName, paths.agentsDir);
         if (!compactAgentConfig.provider) compactAgentConfig.provider = this.config.defaultProvider;
