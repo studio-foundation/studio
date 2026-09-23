@@ -71,18 +71,32 @@ describe('stage approval pause under a real pty (STU-1653)', () => {
 
   it('edits via $EDITOR and logs the edited output', async () => {
     process.env.EDITOR = `node ${FAKE_EDITOR}`;
-    const declineApproval = answerEachInTurn('Approve as-is?', { key: 'n\r' });
-    const launchEditor = answerEachInTurn('launch your preferred editor', { key: '\r' });
 
-    const { exitCode, output } = await runInPty({
-      cwd: FIXTURE_DIR,
-      args: ['run', 'approval-pause', '--input', 'go', '--provider', 'mock'],
-      onData: (out, write) => {
-        declineApproval(out, write);
-        launchEditor(out, write);
-      },
-    });
-    const clean = stripAnsi(output);
+    // @inquirer/external-editor can fire a stray completion callback after the
+    // pipeline has already finished and printed its result, throwing
+    // ERR_USE_AFTER_CLOSE on the by-then-closed readline interface and taking
+    // the process down with a nonzero exit code (STU-1682). The @inquirer/prompts
+    // bump that pulled in @inquirer/external-editor 3.x cut this from ~50% to
+    // ~15% under load, but didn't eliminate it — retry past the residual race
+    // rather than flake, discarding the crashed attempt's run log so the
+    // eventual event read below only sees the run that actually completed.
+    let exitCode: number | null = null;
+    let clean = '';
+    for (let attempt = 0; attempt < 3 && exitCode !== 0; attempt++) {
+      const declineApproval = answerEachInTurn('Approve as-is?', { key: 'n\r' });
+      const launchEditor = answerEachInTurn('launch your preferred editor', { key: '\r' });
+      const result = await runInPty({
+        cwd: FIXTURE_DIR,
+        args: ['run', 'approval-pause', '--input', 'go', '--provider', 'mock'],
+        onData: (out, write) => {
+          declineApproval(out, write);
+          launchEditor(out, write);
+        },
+      });
+      exitCode = result.exitCode;
+      clean = stripAnsi(result.output);
+      if (exitCode !== 0) readStagePauseEvents('approval-pause');
+    }
 
     expect(exitCode).toBe(0);
     expect(clean).toContain('Pipeline completed');
