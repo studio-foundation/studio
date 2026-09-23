@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import type { PipelineDefinition } from '@studio-foundation/contracts';
+import type { PipelineDefinition, OutputContract } from '@studio-foundation/contracts';
 import type { EngineEvents, EventContext, MapItemCompleteEvent } from '@studio-foundation/engine';
-import { PipelineEngine, loadPipelineByName, DirectEngineSpawner } from '@studio-foundation/engine';
+import { PipelineEngine, loadPipelineByName, DirectEngineSpawner, validateSchema } from '@studio-foundation/engine';
 import { createDefaultRegistry, ToolRegistry, loadProjectTools, loadPlugins, MCPClient, resolveRepoPath } from '@studio-foundation/runner';
 import { loadConfig } from '../config.js';
 import { applyRunRetention } from '../runs-retention.js';
@@ -619,7 +619,7 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
                 const { confirm } = await import('@inquirer/prompts');
                 return confirm({ message: question, default: false });
               }),
-            reviewStageOutput: async (stageName: string, output: unknown) =>
+            reviewStageOutput: async (stageName: string, output: unknown, contract: OutputContract | null) =>
               serialized(async () => {
                 const { confirm, editor } = await import('@inquirer/prompts');
                 const text = JSON.stringify(output, null, 2);
@@ -629,6 +629,24 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
                 const edited = await editor({
                   message: 'Edit the stage output, then save and close.',
                   default: text,
+                  // Reuses the same schema check the stage's own output already
+                  // passed — an edit that drops a required field or changes a
+                  // type must not reach the next stage's context unvalidated
+                  // (STU-1673). @inquirer/prompts re-opens the editor on a
+                  // string return until this passes.
+                  validate: (value: string) => {
+                    if (!contract) return true;
+                    let candidate: unknown = value;
+                    try {
+                      candidate = JSON.parse(value);
+                    } catch {
+                      // Not JSON — validateSchema rejects it below if the contract expects an object.
+                    }
+                    const { valid, errors } = validateSchema(candidate, contract);
+                    return valid
+                      ? true
+                      : `Edited output doesn't satisfy stage "${stageName}"'s contract:\n${errors.map((e) => `  - ${e}`).join('\n')}`;
+                  },
                 });
                 let parsed: unknown = edited;
                 try {

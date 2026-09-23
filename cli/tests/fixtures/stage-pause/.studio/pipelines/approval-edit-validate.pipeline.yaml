@@ -1,0 +1,11 @@
+name: approval-edit-validate
+description: STU-1673 fixture — an edit that drops a required field must be rejected and re-prompted, not reach the next stage's context.
+version: 1
+stages:
+  - name: touch
+    kind: run
+    agent: runner
+    contract: edit-validate-output
+    approval: {}
+    context:
+      include: [input]

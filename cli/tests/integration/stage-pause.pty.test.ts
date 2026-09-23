@@ -18,6 +18,7 @@ import { runInPty, answerEachInTurn, stripAnsi } from '../utils/pty-run.js';
 
 const FIXTURE_DIR = resolve(import.meta.dirname, '../fixtures/stage-pause');
 const FAKE_EDITOR = resolve(FIXTURE_DIR, 'fake-editor.mjs');
+const FAKE_EDITOR_TOGGLE = resolve(FIXTURE_DIR, 'fake-editor-toggle.mjs');
 
 interface StagePauseEvent {
   event: string;
@@ -93,6 +94,36 @@ describe('stage approval pause under a real pty (STU-1653)', () => {
       decision: 'edited',
       original_output: { summary: 'done' },
       resolved_output: { summary: 'EDITED BY HUMAN' },
+    });
+  });
+
+  it('rejects an edit that drops a required field and re-prompts until it is fixed (STU-1673)', async () => {
+    process.env.EDITOR = `node ${FAKE_EDITOR_TOGGLE}`;
+    const declineApproval = answerEachInTurn('Approve as-is?', { key: 'n\r' });
+    const launchEditor = answerEachInTurn('launch your preferred editor', { key: '\r' });
+
+    const { exitCode, output } = await runInPty({
+      cwd: FIXTURE_DIR,
+      args: ['run', 'approval-edit-validate', '--input', 'go', '--provider', 'mock'],
+      onData: (out, write) => {
+        declineApproval(out, write);
+        launchEditor(out, write);
+      },
+    });
+    const clean = stripAnsi(output);
+
+    expect(exitCode).toBe(0);
+    expect(clean).toContain('Pipeline completed');
+    expect(clean).toContain("doesn't satisfy stage \"touch\"'s contract");
+    expect(clean).toContain('Missing required field: requirements');
+
+    const events = readStagePauseEvents('approval-edit-validate');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      stage: 'touch',
+      decision: 'edited',
+      original_output: { summary: 'done', requirements: ['a', 'b'] },
+      resolved_output: { summary: 'done', requirements: ['fixed'] },
     });
   });
 });

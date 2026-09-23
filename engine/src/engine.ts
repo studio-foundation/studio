@@ -11,6 +11,7 @@ import type {
   StageRun,
   TokenUsage,
   ToolCall,
+  OutputContract,
 } from '@studio-foundation/contracts';
 import { isStageGroup, isMapStage, isCallStage, accumulateTokenUsage, emptyTokenUsage } from '@studio-foundation/contracts';
 import {
@@ -65,7 +66,7 @@ export interface EngineConfig {
   askHuman?: (question: string) => Promise<boolean>;  // answers `on_failure: ask` hooks; absent = non-interactive, ask means reject
   // Answers a stage's `approval` pause. Absent = non-interactive, resolved per the
   // stage's `approval.on_unavailable` ('fail' by default, never hangs).
-  reviewStageOutput?: (stageName: string, output: unknown) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
+  reviewStageOutput?: (stageName: string, output: unknown, contract: OutputContract | null) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
 }
 
 export interface RunInput {

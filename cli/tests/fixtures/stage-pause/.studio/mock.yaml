@@ -3,3 +3,10 @@ stages:
     output:
       summary: done
     tool_calls: []
+  edit-validate-output:
+    output:
+      summary: done
+      requirements:
+        - a
+        - b
+    tool_calls: []

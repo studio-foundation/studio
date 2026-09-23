@@ -97,7 +97,7 @@ export interface StageExecutorConfig {
   defaultModel?: string;
   runtimes?: Record<string, string>;
   askHuman?: (question: string) => Promise<boolean>;
-  reviewStageOutput?: (stageName: string, output: unknown) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
+  reviewStageOutput?: (stageName: string, output: unknown, contract: OutputContract | null) => Promise<{ decision: 'approved' | 'edited'; output: unknown }>;
 }
 
 export class StageExecutor {
@@ -624,7 +624,7 @@ export class StageExecutor {
         // stage — every phase before this one runs inside ralph()'s own
         // try/catch, but this phase runs after it exits, unprotected.
         try {
-          const review = await this.config.reviewStageOutput(stageDef.name, originalOutput);
+          const review = await this.config.reviewStageOutput(stageDef.name, originalOutput, contract);
           emitPause(review.decision, review.output);
           if (ralphResult.status === 'success' && ralphResult.result) {
             ralphResult.result.output = review.output;
