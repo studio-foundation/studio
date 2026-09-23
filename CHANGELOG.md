@@ -7,6 +7,17 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.27.0] — 2026-09-23
+
+### Engine
+
+- **Breaking:** agent `compact.threshold_tokens` now requires `compact.summarizer` — a stage that set one without the other used to silently disable compaction, with the stage's context growing unbounded until the provider's own limit rejected the call. It now throws at load time, naming the offending agent and stage. (STU-1672)
+
+### Fixes
+
+- `compactMessages`' summarizer call now includes the system prompt and original task alongside the turns being dropped, so the model has an objective to judge the summary against, and honors the run's abort signal. (STU-1670, STU-1671)
+- A human's edit to a paused stage's output is now re-validated against the stage's own contract before the pipeline resumes, instead of being accepted as-is once it parsed as JSON. (STU-1673)
+
 ## [0.26.0] — 2026-09-22
 
 ### Engine
