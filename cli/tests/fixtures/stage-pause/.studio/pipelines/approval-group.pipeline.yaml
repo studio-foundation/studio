@@ -1,0 +1,20 @@
+name: approval-group
+description: STU-1674 fixture — a stage inside a group pauses for human approval, proving group-orchestrator.ts reuses the same StageExecutor.
+version: 1
+stages:
+  - group: review
+    max_iterations: 1
+    stages:
+      - name: prep
+        kind: run
+        agent: runner
+        contract: touch-output
+        context:
+          include: [input]
+      - name: touch
+        kind: run
+        agent: runner
+        contract: touch-output
+        approval: {}
+        context:
+          include: [input]

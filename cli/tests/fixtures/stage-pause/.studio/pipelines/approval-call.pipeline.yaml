@@ -1,0 +1,8 @@
+name: approval-call
+description: STU-1674 fixture — a call stage whose child pauses for human approval.
+version: 1
+stages:
+  - call: run-child
+    pipeline: approval-pause
+    input:
+      note: '{{input}}'

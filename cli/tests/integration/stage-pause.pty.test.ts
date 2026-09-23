@@ -126,4 +126,72 @@ describe('stage approval pause under a real pty (STU-1653)', () => {
       resolved_output: { summary: 'done', requirements: ['fixed'] },
     });
   });
+
+  it('pauses from a call stage child, and the prompt reaches the terminal', async () => {
+    const { exitCode, output } = await runInPty({
+      cwd: FIXTURE_DIR,
+      args: ['run', 'approval-call', '--input', 'go', '--provider', 'mock'],
+      onData: answerEachInTurn('Approve as-is?'),
+    });
+    const clean = stripAnsi(output);
+
+    expect(exitCode).toBe(0);
+    expect(clean).toContain('Pipeline completed');
+
+    const events = readStagePauseEvents('approval-call');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      stage: 'touch',
+      decision: 'approved',
+      original_output: { summary: 'done' },
+      resolved_output: { summary: 'done' },
+    });
+    // The pause happened inside the called child, not the root pipeline.
+    expect(events[0].depth).toBeGreaterThan(0);
+  });
+
+  it('pauses for two map items in turn, never overlapping their prompts', async () => {
+    const { exitCode, output } = await runInPty({
+      cwd: FIXTURE_DIR,
+      args: ['run', 'approval-map', '--input-file', 'items.input.yaml', '--provider', 'mock'],
+      onData: answerEachInTurn('Approve as-is?'),
+    });
+    const clean = stripAnsi(output);
+
+    expect(exitCode).toBe(0);
+    expect(clean).toContain('Pipeline completed');
+
+    const events = readStagePauseEvents('approval-map');
+    expect(events).toHaveLength(2);
+    for (const e of events) {
+      expect(e).toMatchObject({
+        stage: 'touch',
+        decision: 'approved',
+        original_output: { summary: 'done' },
+        resolved_output: { summary: 'done' },
+      });
+      expect(e.depth).toBeGreaterThan(0);
+    }
+  });
+
+  it('pauses from a stage nested in a group, reusing the same StageExecutor', async () => {
+    const { exitCode, output } = await runInPty({
+      cwd: FIXTURE_DIR,
+      args: ['run', 'approval-group', '--input', 'go', '--provider', 'mock'],
+      onData: answerEachInTurn('Approve as-is?'),
+    });
+    const clean = stripAnsi(output);
+
+    expect(exitCode).toBe(0);
+    expect(clean).toContain('Pipeline completed');
+
+    const events = readStagePauseEvents('approval-group');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      stage: 'touch',
+      decision: 'approved',
+      original_output: { summary: 'done' },
+      resolved_output: { summary: 'done' },
+    });
+  });
 });

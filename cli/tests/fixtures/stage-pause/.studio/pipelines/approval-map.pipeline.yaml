@@ -1,0 +1,11 @@
+name: approval-map
+description: STU-1674 fixture — a map stage, concurrency 2, where two items each pause for human approval.
+version: 1
+stages:
+  - map: approve-each
+    over: input.items
+    pipeline: approval-pause
+    concurrency: 2
+    on_item_failure: collect-all
+    input:
+      dummy: '{{item}}'
