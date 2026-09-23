@@ -21,6 +21,21 @@ class RecordingProvider implements Provider {
   }
 }
 
+/** Never resolves on its own — only reacts to the abort signal, like runner.test.ts's HangingProvider. */
+class HangingProvider implements Provider {
+  readonly name = 'hanging-mock';
+  public sawAbort = false;
+
+  call(_request: LLMRequest, _onToken?: (token: string) => void, signal?: AbortSignal): Promise<LLMResponse> {
+    return new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => {
+        this.sawAbort = true;
+        reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+    });
+  }
+}
+
 const summarizer: ResolvedAgentConfig = { name: 'summarizer', provider: 'summarizer-mock', model: 'mock' };
 
 function turn(id: string): Message[] {
@@ -87,5 +102,46 @@ describe('compactMessages', () => {
     // same-role messages outright.
     expect(alternates(result.messages)).toBe(true);
     expect(alternates(provider.receivedMessages)).toBe(true);
+  });
+
+  it('gives the summarizer the system prompt and original task, not just the terse turns (STU-1670)', async () => {
+    const messages: Message[] = [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'Refactor the auth module to use the new session store.' },
+      ...turn('call-1'),
+      ...turn('call-2'),
+      ...turn('call-3'),
+    ];
+    const provider = new RecordingProvider();
+    const registry = new ProviderRegistry();
+    registry.register(provider);
+
+    await compactMessages(messages, 1, summarizer, registry);
+
+    // None of the dropped turns restate the task — only head does.
+    expect(provider.receivedMessages.some(m => m.content.includes('Refactor the auth module'))).toBe(true);
+    expect(provider.receivedMessages.some(m => m.content === 'sys')).toBe(true);
+    expect(alternates(provider.receivedMessages)).toBe(true);
+  });
+
+  it('aborts the summarizer call immediately when the signal fires mid-call (STU-1671)', async () => {
+    const messages: Message[] = [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'task' },
+      ...turn('call-1'),
+      ...turn('call-2'),
+      ...turn('call-3'),
+    ];
+    const provider = new HangingProvider();
+    const registry = new ProviderRegistry();
+    registry.register(provider);
+    const hangingSummarizer: ResolvedAgentConfig = { name: 'summarizer', provider: 'hanging-mock', model: 'mock' };
+    const controller = new AbortController();
+
+    const resultPromise = compactMessages(messages, 1, hangingSummarizer, registry, controller.signal);
+    controller.abort();
+
+    await expect(resultPromise).rejects.toThrow('Aborted');
+    expect(provider.sawAbort).toBe(true);
   });
 });

@@ -23,6 +23,11 @@ const SUMMARY_INSTRUCTION =
  * summary is a full (assistant, user) turn, not a single message dropped in after
  * `head`, which already ends on 'user'.
  *
+ * The summarizer's own request is also given `head` (system prompt + original task),
+ * not just `toSummarize` — otherwise the model producing the summary has no idea what
+ * the actual objective was, only the terse tool-call turns being dropped. `head` ends
+ * on 'user' and `toSummarize` starts on 'assistant', so prepending it keeps alternation.
+ *
  * A no-op (returns `messages` unchanged, no summarizer call) when there aren't enough
  * older turns to drop yet.
  */
@@ -31,6 +36,7 @@ export async function compactMessages(
   keepLastTurns: number,
   summarizer: ResolvedAgentConfig,
   providerRegistry: ProviderRegistry,
+  signal?: AbortSignal,
 ): Promise<CompactionResult> {
   const head = messages.slice(0, 2);
   const turns = messages.slice(2);
@@ -48,17 +54,22 @@ export async function compactMessages(
   // a separate 'user' message here would be two 'user' turns back to back.
   const lastMessage = toSummarize[toSummarize.length - 1];
   const summaryRequest: Message[] = [
+    ...head,
     ...toSummarize.slice(0, -1),
     { ...lastMessage, content: `${lastMessage.content}\n\n${SUMMARY_INSTRUCTION}` },
   ];
 
   const provider = providerRegistry.get(summarizer.provider);
-  const response = await provider.call({
-    model: summarizer.model,
-    messages: summaryRequest,
-    temperature: summarizer.temperature,
-    max_tokens: summarizer.max_tokens,
-  });
+  const response = await provider.call(
+    {
+      model: summarizer.model,
+      messages: summaryRequest,
+      temperature: summarizer.temperature,
+      max_tokens: summarizer.max_tokens,
+    },
+    undefined,
+    signal,
+  );
 
   const summaryTurn: Message[] = [
     { role: 'assistant', content: '' },
