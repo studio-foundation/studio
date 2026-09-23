@@ -1,0 +1,5 @@
+name: summarizer
+provider: fake
+model: fake-model
+system_prompt: Summarize the transcript so far.
+tools: []
