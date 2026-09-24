@@ -7,6 +7,17 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.28.0] — 2026-09-24
+
+### Engine
+
+- A stage's relative `script:` path now resolves against the directory holding `.studio/`, not the `--repo` workspace, so a project's script stages run against another repository. The script still runs with the workspace as its cwd. **Breaking:** a project run with `--repo` set to a directory that carried its own copy of the script now uses the project's copy. (STU-1698)
+- `STUDIO_PROJECT_DIR`, the directory holding `.studio/`, is in the environment of `on_pipeline_start` commands, lifecycle hooks and script stages, so a command can reach the project's own files from the workspace. (STU-1698)
+
+### CLI
+
+- `studio run` creates its run store after the pipeline loads, so a run that fails on a missing pipeline or input no longer leaves `.studio/runs/` behind in a directory that is not a project. (STU-1699)
+
 ## [0.27.0] — 2026-09-23
 
 ### Engine
