@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { PipelineEngine, type EngineConfig } from '../engine.js';
 import { DirectEngineSpawner } from '../spawners/direct-engine-spawner.js';
 import type { PipelineDefinition } from '@studio-foundation/contracts';
@@ -64,8 +64,34 @@ describe('engine — script stage execution', () => {
     expect(vi.mocked(runScript)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(runScript)).toHaveBeenCalledWith(
       expect.objectContaining({
-        scriptPath: 'scripts/parse.py',
+        scriptPath: resolve(dirname(FIXTURES_DIR), 'scripts/parse.py'),
         runtime: 'python',
+      }),
+    );
+  });
+
+  // `--repo` points the agent's workspace elsewhere; the script still ships with
+  // the project, so it resolves from the directory holding `.studio/`. (STU-1698)
+  it('resolves the script against the project and runs it in --repo', async () => {
+    vi.mocked(runScript).mockResolvedValue({
+      output: { title: 'My Book', chapters: 3 },
+      tool_calls: [],
+      tool_calls_count: 0,
+      duration_ms: 50,
+    });
+
+    const engine = new PipelineEngine({
+      configsDir: FIXTURES_DIR,
+      repoPath: '/tmp/some-other-repo',
+      providerRegistry: new ProviderRegistry(),
+    });
+    await engine.run({ pipelineDef: SCRIPT_PIPELINE, userInput: 'parse book.epub' });
+
+    expect(vi.mocked(runScript)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scriptPath: resolve(dirname(FIXTURES_DIR), 'scripts/parse.py'),
+        cwd: '/tmp/some-other-repo',
+        env: { STUDIO_PROJECT_DIR: dirname(FIXTURES_DIR) },
       }),
     );
   });

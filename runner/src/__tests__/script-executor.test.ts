@@ -85,6 +85,20 @@ describe('runScript', () => {
     expect(result.duration_ms).toBeGreaterThanOrEqual(0);
   });
 
+  it('adds the given env to the child on top of the runtime env', async () => {
+    makeSpawnMock({ stdout: '{}', exitCode: 0 });
+
+    await runScript({
+      scriptPath: 'scripts/parse.py',
+      runtime: 'python',
+      context: makeContext(),
+      env: { STUDIO_PROJECT_DIR: '/the/project' },
+    });
+
+    const spawnOpts = vi.mocked(cp.spawn).mock.calls[0]?.[2] as { env: Record<string, string> };
+    expect(spawnOpts.env.STUDIO_PROJECT_DIR).toBe('/the/project');
+  });
+
   it('sets error when script exits with non-zero code', async () => {
     makeSpawnMock({ stdout: '', stderr: 'FileNotFoundError', exitCode: 1 });
 

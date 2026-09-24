@@ -9,7 +9,8 @@ const COMMAND_TIMEOUT_MS = 10_000;
 
 export async function executeStartupCommands(
   commands: StartupCommand[],
-  cwd?: string
+  cwd?: string,
+  env: Record<string, string> = {}
 ): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
 
@@ -17,6 +18,7 @@ export async function executeStartupCommands(
     try {
       const { stdout } = await execAsync(cmd.command, {
         cwd,
+        env: { ...process.env, ...env },
         timeout: COMMAND_TIMEOUT_MS,
         maxBuffer: 1024 * 1024 * 10,
       });

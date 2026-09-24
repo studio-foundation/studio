@@ -72,6 +72,16 @@ describe('renderHookCommand', () => {
 });
 
 describe('runStageHook', () => {
+  it('exposes the given env to the command', async () => {
+    const result = await runStageHook(
+      { command: 'printf "$STUDIO_PROJECT_DIR"', on_failure: 'warn' },
+      '/tmp',
+      {},
+      { STUDIO_PROJECT_DIR: '/the/project' }
+    );
+    expect(result.stdout).toBe('/the/project');
+  });
+
   it('returns success with stdout when command exits 0', async () => {
     const result = await runStageHook(
       { command: 'echo hello', on_failure: 'warn' },

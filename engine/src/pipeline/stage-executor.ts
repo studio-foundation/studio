@@ -2,7 +2,7 @@
 // Handles the execution of a single pipeline stage: ralph loop, validation, hooks, observability.
 
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type {
   StageDefinition,
   StageRun,
@@ -59,7 +59,7 @@ import { checkExpectedOutputs } from './output-checker.js';
 import { loadContextPacks } from './context-pack-loader.js';
 import type { EngineEvents, StageContextEvent } from '../events.js';
 import { PipelineEventEmitter } from '../events.js';
-import type { ProjectPaths, StageResult } from './types.js';
+import { resolveProjectRoot, type ProjectPaths, type StageResult } from './types.js';
 
 // Module-level helpers — verbatim from engine.ts lines 73-95
 
@@ -214,6 +214,8 @@ export class StageExecutor {
 
     const stageHooks = stageDef.hooks;
     const hookCwd = this.config.repoPath ?? this.config.configsDir;
+    const projectRoot = resolveProjectRoot(this.config.configsDir);
+    const hookEnv = { STUDIO_PROJECT_DIR: projectRoot };
 
     // Load output contract if specified
     let contract: OutputContract | null = null;
@@ -274,7 +276,7 @@ export class StageExecutor {
     // Run on_stage_start hooks before the ralph loop
     if (stageHooks?.on_stage_start?.length) {
       for (const hook of stageHooks.on_stage_start) {
-        const hookResult = await runStageHook(hook, hookCwd);
+        const hookResult = await runStageHook(hook, hookCwd, {}, hookEnv);
         if (!hookResult.success) {
           const onFailure = hook.on_failure ?? 'warn';
           if (onFailure === 'fail') {
@@ -326,6 +328,7 @@ export class StageExecutor {
       ? async (event: { tool: string; params: Record<string, unknown>; timestamp: number }) => {
           const matchingHooks = stageHooks!.pre_tool_use!.filter(h => h.matcher === event.tool);
           return runPreToolHooks(matchingHooks, event, hookCwd, {
+            env: hookEnv,
             askHuman: this.config.askHuman,
             onAsk: (ask) => this.config.events?.onHookAsk?.({ tool: event.tool, ...ask }),
           });
@@ -336,7 +339,7 @@ export class StageExecutor {
       ? async (event: { tool: string; params: Record<string, unknown>; result: unknown; error?: string; timestamp: number }) => {
           const matchingHooks = stageHooks!.post_tool_use!.filter(h => h.matcher === event.tool);
           for (const hook of matchingHooks) {
-            const hookResult = await runToolHook(hook, event.params, hookCwd);
+            const hookResult = await runToolHook(hook, event.params, hookCwd, hookEnv);
             if (!hookResult.success) {
               const onFailure = hook.on_failure ?? 'warn';
               if (onFailure === 'reject') {
@@ -418,10 +421,11 @@ export class StageExecutor {
               },
             })
           : await runScript({
-              scriptPath: stageDef.script!,
+              scriptPath: resolve(projectRoot, stageDef.script!),
               runtime: stageDef.runtime ?? 'shell',
               context: agentContext,
               cwd: this.config.repoPath ?? this.config.configsDir,
+              env: hookEnv,
               timeoutMs: stageDef.timeout_ms,
               runtimes: this.config.runtimes,
             });
@@ -581,7 +585,7 @@ export class StageExecutor {
         ? (ralphResult.result?.output as Record<string, unknown> ?? {})
         : {};
       for (const hook of stageHooks.on_stage_complete) {
-        const hookResult = await runStageHook(hook, hookCwd, stageOutput);
+        const hookResult = await runStageHook(hook, hookCwd, stageOutput, hookEnv);
         if (!hookResult.success) {
           const onFailure = hook.on_failure ?? 'warn';
           if (onFailure === 'reject') {

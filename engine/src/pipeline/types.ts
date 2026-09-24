@@ -1,7 +1,7 @@
 // engine/src/pipeline/types.ts
 // Shared local types for pipeline execution — used by engine, StageExecutor, GroupOrchestrator
 
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { StageRun, StageStatus, TokenUsage, ToolCall } from '@studio-foundation/contracts';
 import type { PostValidationResult } from './post-validator.js';
 import type { PipelineContext } from './context-propagation.js';
@@ -22,6 +22,11 @@ export function resolveProjectPaths(configsDir: string): ProjectPaths {
     contractsDir: join(configsDir, 'contracts'),
     skillsDir: join(configsDir, 'skills'),
   };
+}
+
+/** The directory holding `.studio/`, which relative `script:` paths and hook commands are written against. */
+export function resolveProjectRoot(configsDir: string): string {
+  return dirname(configsDir);
 }
 
 export interface StageResult {

@@ -9,6 +9,8 @@ export interface ScriptExecutorConfig {
   runtime: 'python' | 'node' | 'shell';
   context: AgentContext;
   cwd?: string;
+  /** Extra environment for the child, on top of the resolved runtime's. */
+  env?: Record<string, string>;
   timeoutMs?: number;
   /** Interpreters the project declared in `.studio/config.yaml`, keyed by runtime. */
   runtimes?: Record<string, string>;
@@ -68,7 +70,8 @@ export async function runScript(config: ScriptExecutorConfig): Promise<AgentRunR
   const startTime = Date.now();
   const cwd = config.cwd ?? process.cwd();
   const timeoutMs = config.timeoutMs ?? 30_000;
-  const { command: cmd, env } = resolveRuntime(config.runtime, cwd, config.runtimes);
+  const { command: cmd, env: runtimeEnv } = resolveRuntime(config.runtime, cwd, config.runtimes);
+  const env = { ...runtimeEnv, ...config.env };
   const stdin = JSON.stringify(config.context);
 
   return new Promise((resolve) => {

@@ -65,10 +65,11 @@ export function toolArgEnv(toolArgs: Record<string, unknown>): Record<string, st
 export async function runStageHook(
   hook: StageHookDef,
   cwd: string,
-  outputContext: Record<string, unknown> = {}
+  outputContext: Record<string, unknown> = {},
+  env: Record<string, string> = {}
 ): Promise<HookResult> {
   const command = renderHookCommand(hook.command, {}, outputContext);
-  return execHook(command, cwd);
+  return execHook(command, cwd, env);
 }
 
 /**
@@ -79,10 +80,11 @@ export async function runStageHook(
 export async function runToolHook(
   hook: ToolHookDef,
   toolArgs: Record<string, unknown>,
-  cwd: string
+  cwd: string,
+  env: Record<string, string> = {}
 ): Promise<HookResult> {
   const command = renderHookCommand(hook.command, toolArgs);
-  return execHook(command, cwd, toolArgEnv(toolArgs));
+  return execHook(command, cwd, { ...env, ...toolArgEnv(toolArgs) });
 }
 
 export interface PreToolDecision {
@@ -102,12 +104,13 @@ export async function runPreToolHooks(
   event: { params: Record<string, unknown> },
   cwd: string,
   opts: {
+    env?: Record<string, string>;
     askHuman?: (question: string) => Promise<boolean>;
     onAsk?: (ask: { question: string; answer: 'yes' | 'no' | 'unavailable' }) => void;
   } = {}
 ): Promise<PreToolDecision> {
   for (const hook of hooks) {
-    const hookResult = await runToolHook(hook, event.params, cwd);
+    const hookResult = await runToolHook(hook, event.params, cwd, opts.env);
     if (hookResult.success) continue;
     const message = hookResult.stderr || hookResult.stdout;
     const onFailure = hook.on_failure ?? 'warn';

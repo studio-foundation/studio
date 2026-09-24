@@ -19,7 +19,7 @@ stages:
   - name: leaf-stage
     executor: script
     runtime: shell
-    script: scripts/leaf.sh
+    script: .studio/scripts/leaf.sh
 `;
 
 const MID = `name: mid
@@ -39,12 +39,13 @@ stages:
 `;
 
 function writeConfigs(root: string): void {
-  mkdirSync(join(root, 'pipelines'), { recursive: true });
-  writeFileSync(join(root, 'pipelines', 'leaf.pipeline.yaml'), LEAF);
-  writeFileSync(join(root, 'pipelines', 'mid.pipeline.yaml'), MID);
-  writeFileSync(join(root, 'pipelines', 'parent.pipeline.yaml'), PARENT);
-  mkdirSync(join(root, 'scripts'), { recursive: true });
-  writeFileSync(join(root, 'scripts', 'leaf.sh'), '#!/bin/sh\necho \'{"ok": true}\'\n', { mode: 0o755 });
+  const studio = join(root, '.studio');
+  mkdirSync(join(studio, 'pipelines'), { recursive: true });
+  writeFileSync(join(studio, 'pipelines', 'leaf.pipeline.yaml'), LEAF);
+  writeFileSync(join(studio, 'pipelines', 'mid.pipeline.yaml'), MID);
+  writeFileSync(join(studio, 'pipelines', 'parent.pipeline.yaml'), PARENT);
+  mkdirSync(join(studio, 'scripts'), { recursive: true });
+  writeFileSync(join(studio, 'scripts', 'leaf.sh'), '#!/bin/sh\necho \'{"ok": true}\'\n', { mode: 0o755 });
 }
 
 describe('nested call — spawner handoff (STU-615)', () => {
@@ -53,7 +54,7 @@ describe('nested call — spawner handoff (STU-615)', () => {
     try {
       writeConfigs(root);
       const engineConfig = {
-        configsDir: root,
+        configsDir: join(root, '.studio'),
         repoPath: root,
         providerRegistry: { get: () => undefined, register: () => undefined } as any,
         db: new InMemoryRunStore(),
@@ -82,7 +83,7 @@ describe('nested call — spawner handoff (STU-615)', () => {
     try {
       writeConfigs(root);
       const engineConfig = {
-        configsDir: root,
+        configsDir: join(root, '.studio'),
         repoPath: root,
         providerRegistry: { get: () => undefined, register: () => undefined } as any,
         db: new InMemoryRunStore(),
@@ -115,7 +116,7 @@ describe('nested call — spawner handoff (STU-615)', () => {
     try {
       writeConfigs(root);
       const engineConfig = {
-        configsDir: root,
+        configsDir: join(root, '.studio'),
         repoPath: root,
         providerRegistry: { get: () => undefined, register: () => undefined } as any,
         db: new InMemoryRunStore(),
