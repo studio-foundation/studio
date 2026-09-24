@@ -365,14 +365,6 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       (config.requires_binaries ?? []).map((entry) => ({ entry, declaredBy: 'this project' }))
     );
 
-    // Create run store — fail-silent so a broken SQLite never blocks a run
-    let runStore: AnyRunStore | null = null;
-    try {
-      runStore = await createRunStore(config);
-    } catch (err) {
-      console.warn(chalk.yellow(`⚠ Run store unavailable: ${err instanceof Error ? err.message : String(err)}. Continuing with JSONL logging only.`));
-    }
-
     // Resolve configs dir and parse project/pipeline
     const configsDir = config.paths?.configs
       ? resolve(config.paths.configs)
@@ -601,6 +593,16 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
       askQueue = turn.then(() => undefined, () => undefined);
       return turn;
     };
+    // Created this late so a run that dies on a missing pipeline or input leaves no
+    // `.studio/runs/` behind in a directory that is not a project.
+    // Create run store — fail-silent so a broken SQLite never blocks a run
+    let runStore: AnyRunStore | null = null;
+    try {
+      runStore = await createRunStore(config);
+    } catch (err) {
+      console.warn(chalk.yellow(`⚠ Run store unavailable: ${err instanceof Error ? err.message : String(err)}. Continuing with JSONL logging only.`));
+    }
+
     const engineConfig = {
       configsDir,
       repoPath,
