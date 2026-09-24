@@ -34,7 +34,7 @@ import {
 import type { AnyRunStore } from './state/run-store.js';
 import type { EngineEvents } from './events.js';
 import { PipelineEventEmitter } from './events.js';
-import { resolveProjectPaths } from './pipeline/types.js';
+import { resolveProjectPaths, resolveProjectRoot } from './pipeline/types.js';
 import { StageExecutor } from './pipeline/stage-executor.js';
 import { GroupOrchestrator } from './pipeline/group-orchestrator.js';
 import { MapOrchestrator } from './pipeline/map-orchestrator.js';
@@ -320,7 +320,8 @@ export class PipelineEngine {
       const cwd = this.config.repoPath ?? this.config.configsDir;
       pipelineContext.startupContext = await executeStartupCommands(
         pipeline.on_pipeline_start,
-        cwd
+        cwd,
+        { STUDIO_PROJECT_DIR: resolveProjectRoot(this.config.configsDir) }
       );
     }
 

@@ -34,4 +34,13 @@ describe('executeStartupCommands', () => {
     ]);
     expect(result.val).toBe('trimmed');
   });
+
+  it('passes the given environment to the command', async () => {
+    const result = await executeStartupCommands(
+      [{ command: 'printf "$STUDIO_PROJECT_DIR"', inject_as: 'dir' }],
+      undefined,
+      { STUDIO_PROJECT_DIR: '/the/project' },
+    );
+    expect(result.dir).toBe('/the/project');
+  });
 });

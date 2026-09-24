@@ -412,6 +412,8 @@ on_pipeline_start:
 
 The stdout of each command becomes available in every stage's context under the `inject_as` key. This is how pipelines get fresh state (git status, environment info, recent changes) without hardcoding it.
 
+Commands and hooks run in the `--repo` workspace (the current directory by default), which is not necessarily where the project's own files live. `STUDIO_PROJECT_DIR`, the directory holding `.studio/`, is in the environment of every startup command, hook and script stage, so a project script is `node "$STUDIO_PROJECT_DIR/.studio/scripts/x.mjs"`. A stage's `script:` path is resolved against that directory for you and the script still runs in the workspace.
+
 ---
 
 ## Lifecycle hooks
