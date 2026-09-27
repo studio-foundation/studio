@@ -7,6 +7,12 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.29.0] — 2026-09-27
+
+### Providers
+
+- `providers.ollama.reasoningEffort` (`none | low | medium | high`) is sent as `reasoning_effort` on every Ollama request. Reasoning models think before every answer unless the request says otherwise, and a Modelfile cannot turn it off; on long prompts the hidden reasoning can outrun a caller's timeout. `none` switches thinking off where a model supports it, and gpt-oss needs `low`. Unset or empty sends nothing. (#364)
+
 ## [0.28.0] — 2026-09-24
 
 ### Engine
