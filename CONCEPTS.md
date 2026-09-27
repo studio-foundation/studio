@@ -847,6 +847,15 @@ defaults:
 
 Switch models without changing pipeline logic. The orchestration layer depends on the work being done correctly, not on who does it.
 
+**Ollama reasoning (`providers.ollama.reasoningEffort`)** — Reasoning models served by Ollama think before every answer unless the request says otherwise, and a model's Modelfile cannot turn it off. On a long prompt the hidden reasoning can run several times the length of the answer and exceed a caller's timeout. `reasoningEffort` is sent on every Ollama request as `reasoning_effort`: `none` turns thinking off for models that support it, `low`/`medium`/`high` bound it (some models, gpt-oss among them, ignore `none` and need `low`). Unset, or an empty `${VAR}`, sends nothing and leaves each model's default.
+
+```yaml
+providers:
+  ollama:
+    baseUrl: http://localhost:11434
+    reasoningEffort: none
+```
+
 ---
 
 ## Package boundaries

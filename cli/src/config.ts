@@ -32,7 +32,7 @@ export interface StudioConfig {
   providers?: {
     openai?: { apiKey: string };
     anthropic?: { apiKey: string };
-    ollama?: { baseUrl?: string };
+    ollama?: { baseUrl?: string; reasoningEffort?: 'none' | 'low' | 'medium' | 'high' };
     'claude-code'?: Record<string, never>;
   };
   paths?: {

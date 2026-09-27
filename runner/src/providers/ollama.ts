@@ -7,6 +7,7 @@ import type { LLMRequest, LLMResponse } from '@studio-foundation/contracts';
 import { withModel } from '@studio-foundation/contracts';
 import type { Provider } from './provider.js';
 import OpenAI from 'openai';
+import type { ReasoningEffort } from 'openai/resources/shared';
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionChunk } from 'openai/resources/chat/completions';
 
 function isConnectionRefused(err: unknown): boolean {
@@ -18,13 +19,19 @@ function isConnectionRefused(err: unknown): boolean {
   return false;
 }
 
+export type OllamaReasoningEffort = 'none' | 'low' | 'medium' | 'high';
+
 export class OllamaProvider implements Provider {
   readonly name = 'ollama';
   private client: OpenAI;
   private baseUrl: string;
+  private reasoningEffort?: OllamaReasoningEffort;
 
-  constructor(baseUrl = 'http://localhost:11434') {
+  // Reasoning models think before answering unless told otherwise, and Ollama only takes
+  // that per request, not from a Modelfile. gpt-oss ignores 'none' and needs 'low'.
+  constructor(baseUrl = 'http://localhost:11434', reasoningEffort?: OllamaReasoningEffort) {
     this.baseUrl = baseUrl;
+    this.reasoningEffort = reasoningEffort || undefined;
     this.client = new OpenAI({
       baseURL: `${baseUrl}/v1`,
       apiKey: 'ollama', // required by SDK, ignored by Ollama
@@ -48,6 +55,11 @@ export class OllamaProvider implements Provider {
     }
   }
 
+  // The SDK types reasoning_effort as OpenAI's own values; 'none' is Ollama's addition.
+  private reasoningParam(): { reasoning_effort?: ReasoningEffort } {
+    return this.reasoningEffort ? { reasoning_effort: this.reasoningEffort as ReasoningEffort } : {};
+  }
+
   private async callNonStreaming(request: LLMRequest, signal?: AbortSignal): Promise<LLMResponse> {
     const completion = await this.client.chat.completions.create({
       model: request.model,
@@ -56,6 +68,7 @@ export class OllamaProvider implements Provider {
       temperature: request.temperature,
       max_tokens: request.max_tokens,
       response_format: this.buildResponseFormat(request),
+      ...this.reasoningParam(),
     }, { signal });
 
     const choice = completion.choices[0];
@@ -95,6 +108,7 @@ export class OllamaProvider implements Provider {
       temperature: request.temperature,
       max_tokens: request.max_tokens,
       response_format: this.buildResponseFormat(request),
+      ...this.reasoningParam(),
       stream: true as const,
     }, { signal }) as unknown as AsyncIterable<ChatCompletionChunk>;
 

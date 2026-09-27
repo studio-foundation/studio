@@ -6,7 +6,7 @@ import type { Provider } from './provider.js';
 import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OpenAIResponsesProvider } from './openai-responses.js';
-import { OllamaProvider } from './ollama.js';
+import { OllamaProvider, type OllamaReasoningEffort } from './ollama.js';
 import { ClaudeCodeProvider } from './claude-code.js';
 
 export class ProviderRegistry {
@@ -87,7 +87,7 @@ export function createDefaultRegistry(config: {
   openai?: { apiKey: string; baseUrl?: string };
   anthropic?: { apiKey: string };
   openaiResponses?: { apiKey: string };
-  ollama?: { baseUrl?: string };
+  ollama?: { baseUrl?: string; reasoningEffort?: OllamaReasoningEffort };
   claudeCode?: { model?: string };
 }): ProviderRegistry {
   const registry = new ProviderRegistry();
@@ -111,8 +111,8 @@ export function createDefaultRegistry(config: {
   }
 
   if (config.ollama) {
-    const { baseUrl } = config.ollama;
-    registry.registerLazy('ollama', () => new OllamaProvider(baseUrl));
+    const { baseUrl, reasoningEffort } = config.ollama;
+    registry.registerLazy('ollama', () => new OllamaProvider(baseUrl, reasoningEffort));
   }
 
   if (config.claudeCode) {

@@ -83,6 +83,8 @@ cli ──→ engine ──→ ralph ──────→ contracts
 
 **Runtime version guard (`studio_version`)** — A semver range in `.studio/config.yaml` (`studio_version: ">=0.10.0"`), analogous to `package.json`'s `engines`. `studio run` compares the installed CLI against it and fail-fast before any stage; `studio registry install` applies the same check to a package's `studio_version`. Absent key = no check. See CLI.md.
 
+**Ollama reasoning (`providers.ollama.reasoningEffort`)** — `none | low | medium | high`, sent as `reasoning_effort` on every Ollama request ([ollama.ts](runner/src/providers/ollama.ts)). Reasoning models think before every answer by default and a Modelfile cannot switch it off, so the knob lives in config. Unset or empty sends nothing. See CONCEPTS.md.
+
 **Config contract (.studio/config.example.yaml)** — Committed twin of the gitignored `config.yaml`. Every key left uncommented in the example is required in `config.yaml`; `studio run` checks it first and fails with the missing dotted paths instead of dying mid-run. Presence only — the value may come from `${VAR}`. No example = no contract = never blocked. See CLI.md.
 
 **Required binaries (`requires_binaries`)** — Declared in `.studio/config.yaml` (project-wide) and in `constraints.requires_binaries` of any `.tool.yaml` (per plugin). `studio run` checks every entry against PATH before the first stage and exits with the missing ones. An entry may carry a semver range (`"node >=18 <=22"`), in which case `<binary> --version` is probed too. `studio registry install` warns instead of blocking. See CLI.md.

@@ -64,6 +64,22 @@ describe('OllamaProvider', () => {
     expect(result.usage?.total_tokens).toBe(30);
   });
 
+  it('sends reasoning_effort when configured, and omits it otherwise', async () => {
+    const reply = { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }] };
+    createMock.mockResolvedValue(reply);
+    const request = { model: 'qwen3', messages: [{ role: 'user' as const, content: 'hi' }] };
+
+    await new OllamaProvider('http://localhost:11434', 'none').call(request);
+    expect(createMock.mock.calls[0][0].reasoning_effort).toBe('none');
+
+    await new OllamaProvider().call(request);
+    expect(createMock.mock.calls[1][0]).not.toHaveProperty('reasoning_effort');
+
+    // An unset ${VAR} interpolates to '', which must not reach Ollama as a value.
+    await new OllamaProvider('http://localhost:11434', '' as never).call(request);
+    expect(createMock.mock.calls[2][0]).not.toHaveProperty('reasoning_effort');
+  });
+
   it('streaming: does NOT send stream_options', async () => {
     async function* fakeStream() {
       yield { choices: [{ delta: { content: 'hi' }, finish_reason: null }] };
