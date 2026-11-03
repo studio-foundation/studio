@@ -109,6 +109,12 @@ describe('ClaudeCodeProvider', () => {
     expect(args).toContain('--model');
     expect(args).toContain('claude-sonnet-4-5');
     expect(args).toContain('--mcp-config');
+    // The declared tools arrive over MCP; the CLI's built-ins (Bash, Write,
+    // WebFetch, ...) stay off for an agent that has tools too (STU-2040).
+    const toolsIdx = args.indexOf('--tools');
+    expect(toolsIdx).toBeGreaterThanOrEqual(0);
+    expect(args[toolsIdx + 1]).toBe('');
+    expect(args[toolsIdx + 2]).toMatch(/^--/);
     // --strict-mcp-config pins the spawned claude to ONLY the studio MCP server,
     // ignoring the user's global MCP servers (claude.ai Gmail/Drive/Linear/etc.)
     // whose startup handshake otherwise hangs the subprocess and balloons cost.
