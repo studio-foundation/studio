@@ -90,13 +90,16 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         '--print',
         '--output-format', 'stream-json',
         '--model', model,
-        // With tools: expose them via the MCP server. Without tools: disable the
-        // CLI's built-in tools (`--tools ""`) so this is a single-turn pure
-        // completion — otherwise claude would run an unbounded agentic loop
-        // (reading files, running commands) instead of just answering.
+        // An agent gets the tools it declares, through the MCP server, and none of
+        // the CLI's built-ins (`--tools ""`), with or without MCP. Agents read text
+        // anyone can write (an inbound email), and run under
+        // --dangerously-skip-permissions: left on, the built-ins gave a drafter
+        // Bash, Write and WebFetch it never declared, and it called Bash 93 times
+        // on apollon (STU-2040).
         // `--tools` is variadic, so it must be followed by another flag (--verbose),
         // never by the positional prompt.
-        ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : ['--tools', '']),
+        ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : []),
+        '--tools', '',
         // --strict-mcp-config: use ONLY the MCP servers we pass (the studio server,
         // or none for tool-less agents) and ignore the user's GLOBAL MCP servers
         // (claude.ai Gmail/Drive/Linear/Notion/Figma/…). Without this, the spawned
