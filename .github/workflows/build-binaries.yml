@@ -18,7 +18,7 @@ jobs:
             platforms: linux-x64 linux-x64-baseline linux-x64-musl linux-arm64 linux-arm64-musl win-x64
           # macOS refuses to launch an unsigned Mach-O binary, so those are built on
           # a macOS runner where `codesign` is available.
-          - os: macos-14
+          - os: macos-latest
             platforms: darwin-arm64 darwin-x64
     steps:
       - uses: actions/checkout@v7
@@ -63,7 +63,7 @@ jobs:
       # printed version against cli/package.json — a stale inlined version starts fine.
       #
       # Unverified, no runner here can execute them: linux-arm64, linux-arm64-musl,
-      # win-x64 (cross-compiled from Linux) and darwin-x64 (macos-14 is Apple Silicon,
+      # win-x64 (cross-compiled from Linux) and darwin-x64 (macos-latest is Apple Silicon,
       # without Rosetta).
       - name: Smoke-test compiled binaries
         shell: bash
