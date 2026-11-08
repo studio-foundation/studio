@@ -53,12 +53,14 @@ export class DirectEngineSpawner implements RunSpawner {
 
     if (result.status === 'failed' || result.status === 'rejected' || result.status === 'cancelled') {
       const stageError = childRunErrorMessage(result.stages);
+      const lastOutput = [...result.stages].reverse().find(s => s.output !== undefined)?.output;
       throw new ChildRunError(
         `Child run ${result.id} ${result.status}: ${stageError ?? 'no error recorded'}`,
         result.id,
         result.status,
         stages,
         token_usage,
+        lastOutput,
       );
     }
 

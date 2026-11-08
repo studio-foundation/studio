@@ -88,7 +88,7 @@ export class CallOrchestrator {
 
     // Technical/child failure — record the reason as a failed task so it surfaces
     // in `studio status`, the run JSONL, and the CLI's "Errors:" line.
-    const failWith = (reason: string, tokenUsage?: TokenUsage): CallRunResult => {
+    const failWith = (reason: string, tokenUsage?: TokenUsage, output?: unknown): CallRunResult => {
       const now = new Date().toISOString();
       const taskRun: TaskRun = {
         id: randomUUID(),
@@ -108,7 +108,7 @@ export class CallOrchestrator {
         }],
       };
       stageRun.tasks = [taskRun];
-      return finish('failed', undefined, undefined, tokenUsage);
+      return finish('failed', output, undefined, tokenUsage);
     };
 
     this.config.events?.onStageStart?.({
@@ -175,7 +175,7 @@ export class CallOrchestrator {
       // letting the stage read as free.
       if (err instanceof ChildRunError) {
         stageRun.child_run_id = err.run_id;
-        return failWith(err.message, err.token_usage);
+        return failWith(err.message, err.token_usage, err.output);
       }
       return failWith(errorMessage(err));
     }

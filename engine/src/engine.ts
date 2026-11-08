@@ -573,9 +573,10 @@ export class PipelineEngine {
         pipelineRun.stages.push(callResult.stageRun);
 
         // A tolerated failure (`on_failure: continue`) is recorded as a failed
-        // stage but does not stop the run: no output is propagated, so a
-        // downstream stage sees this stage name absent from its context and
-        // applies its own safe default. Cancellation is never tolerated.
+        // stage but does not stop the run: whatever the child's last stage
+        // emitted is propagated, and a child that emitted nothing leaves this
+        // stage name absent from the context so a downstream stage applies its
+        // own safe default. Cancellation is never tolerated.
         const failureTolerated =
           callResult.status === 'failed' && entry.on_failure === 'continue';
 

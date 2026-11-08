@@ -321,3 +321,25 @@ describe('DirectEngineSpawner — per-stage breakdown (STU-1064)', () => {
     expect(result.stages).toEqual([{ stage: 'final', status: 'success', attempts: 0 }]);
   });
 });
+
+describe('DirectEngineSpawner failed child output (STU-1761)', () => {
+  it('carries the last stage output on the ChildRunError', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const failedRun = makeSuccessRun({
+      id: 'child-out',
+      status: 'failed',
+      stages: [
+        { id: 's1', stage_name: 'fanout', status: 'success', started_at: '', tasks: [], output: { total: 2 } },
+        { id: 's2', stage_name: 'last', status: 'failed', started_at: '', tasks: [], output: { partial: true } },
+      ],
+    });
+    vi.mocked(PipelineEngine).mockImplementation(function () { return {
+      run: vi.fn().mockResolvedValue(failedRun),
+    }; });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    const err = await spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 }).catch((e) => e);
+    expect(err).toBeInstanceOf(ChildRunError);
+    expect(err.output).toEqual({ partial: true });
+  });
+});

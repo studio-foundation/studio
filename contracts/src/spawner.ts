@@ -70,6 +70,8 @@ export class ChildRunError extends Error {
     public run_status: string,
     public stages: ChildStageUsage[],
     public token_usage?: TokenUsage,
+    /** What the child's last stage emitted before it died, when it emitted anything. */
+    public output?: unknown,
   ) {
     super(message);
     this.name = 'ChildRunError';
