@@ -7,6 +7,25 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.30.0] — 2026-11-08
+
+### Providers
+
+- **Breaking:** the `claude-code` provider passes `--tools ""` to every agent, so an agent that declares tools reaches only those, through the MCP server, and no longer also gets the CLI's built-ins (Bash, Read, Write, Edit, WebFetch, WebSearch) under `--dangerously-skip-permissions`. A config that relied on a built-in it never declared must declare a tool for it. (#367, STU-2040)
+- The `claude-code` provider sends the system messages as an appended system prompt file (`--append-system-prompt-file`) instead of folding them into the user message, so the stable prefix of a prompt can be read back from the CLI's cache by the next session. (#374, STU-2129)
+
+### Engine
+
+- **Breaking:** a `map:` stage with `batch: true` and no `concurrency` defaults to `min(items, max_size)` only when a provider its sub-pipeline's agents resolve to has a batch endpoint. On one without (claude-code, ollama, mock) it now runs one item at a time instead of launching every item at once. (#372, STU-2100)
+- A batch-capable provider paired with an explicit `concurrency` below the item count prints one warning naming the map, the cap and the item count: that cap is also the largest batch. (#372)
+- A `call:` stage that fails under `on_failure: continue` passes its child's last stage output on to the next stage, and stays `failed`. (#371, STU-1761)
+- A child run that ends `rejected` reports the rejecting stage's reason in its error, instead of `no error recorded`. The stage run records it as `rejection_reason`. (#370, STU-1759)
+
+### CLI
+
+- Each stage reports `llm_turns`, `llm_ms` and `tool_ms` (model calls, time in them, time in tool execution, summed over attempts) on `stage_complete` in the run JSONL, in `studio status` and in its `--json`. A provider that owns its loop reports only what it can see; the rest is absent, never zero. (#373, STU-2101)
+- A map stage's `--live` progress prints one `K/N done` line per settled item when stdout is not a TTY, instead of one frame that never updates. (#369, STU-2010)
+
 ## [0.29.0] — 2026-09-27
 
 ### Providers
