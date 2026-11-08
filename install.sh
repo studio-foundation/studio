@@ -22,7 +22,7 @@ command -v curl >/dev/null 2>&1 || fail "curl is required"
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux)  os=linux ;;
-  *)      fail "unsupported OS: $(uname -s). Install with: npm i -g @studio-foundation/cli" ;;
+  *)      fail "unsupported OS: $(uname -s). Binaries ship for macOS and Linux; on Windows use install.ps1" ;;
 esac
 
 case "$(uname -m)" in

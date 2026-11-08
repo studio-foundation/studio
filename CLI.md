@@ -6,14 +6,12 @@ Studio's primary interface for human use.
 
 ## Install
 
-Two channels, same binary.
+Studio ships as a standalone binary on GitHub Releases. The last npm release is 0.29.0;
+later versions are not published there.
 
 ```bash
-# Standalone binary — no Node.js required at runtime
+# No Node.js required at runtime
 curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
-
-# npm — pulls the binary in as a per-platform optional dependency
-npm install -g @studio-foundation/cli
 ```
 
 On Windows, PowerShell:
@@ -32,18 +30,17 @@ Windows binaries are unsigned, so SmartScreen may warn the first time you run `s
 Choose "More info" → "Run anyway"; the checksum the installer verified is the integrity
 guarantee.
 
-Updating follows the channel it came from: `studio upgrade` for the binary,
-`npm i -g @studio-foundation/cli@latest` for npm. See [Updating](#updating--studio-upgrade).
+Update with `studio upgrade`. See [Updating](#updating--studio-upgrade).
 
 Binaries ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glibc and
-musl each), and `win-x64`. On any other platform the npm package falls back to the
-JavaScript build, which needs Node.js >= 22.13.
+musl each), and `win-x64`. There is no other build: on any other platform, build from
+source.
 
 The x64 build assumes AVX2, which CPUs older than roughly 2013 lack — there it would die
 on an illegal instruction with no message at all. `linux-x64-baseline` is the same CLI
-compiled without that assumption, and the launcher reads `/proc/cpuinfo` to pick between
-them. npm installs both, since `cpu: ["x64"]` is as specific as a package can be about a
-processor. A musl host without AVX2 has no baseline package and runs the JavaScript build.
+compiled without that assumption. `install.sh` does not pick it: on such a CPU, download
+`studio-linux-x64-baseline` from the release by hand. A musl host without AVX2 has no
+baseline build.
 
 Building them locally needs [Bun](https://bun.sh):
 
@@ -497,6 +494,9 @@ Studio 0.11.1 was installed through npm — npm owns the update.
 
 Run:  npm i -g @studio-foundation/cli@latest
 ```
+
+npm stops at 0.29.0, so that command no longer reaches a newer release. Switch to the
+binary with `install.sh`, then `npm uninstall -g @studio-foundation/cli`.
 
 The `studio_version` mismatch error names whichever of the two applies to the running
 install.
