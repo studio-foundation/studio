@@ -3,6 +3,7 @@ import { ClaudeCodeProvider } from './claude-code.js';
 import type { LLMRequest } from '@studio-foundation/contracts';
 import { EventEmitter } from 'node:events';
 import { Readable, Writable } from 'node:stream';
+import { writeFile, unlink } from 'node:fs/promises';
 
 const { mockSpawn, MockClaudeCodeMcpServer } = vi.hoisted(() => {
   const mockSpawn = vi.fn();
@@ -162,9 +163,38 @@ describe('ClaudeCodeProvider', () => {
     expect(args.at(-1)).toBe('--dangerously-skip-permissions');
     expect(options.stdio[0]).toBe('pipe');
     expect(proc.stdinWritten).toContain('Hello');
-    expect(proc.stdinWritten).toContain('You are helpful.');
     // claude blocks forever on a pipe nobody closes; end() is what delivers the EOF.
     expect(proc.stdin.writableEnded).toBe(true);
+  });
+
+  it('hands the system messages over as an appended system prompt file, not in the user message (STU-2129)', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    const proc = makeFakeProcess(lines);
+    mockSpawn.mockReturnValueOnce(proc);
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    await provider.runAgentLoop(BASE_REQUEST, vi.fn());
+
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    const flag = args.indexOf('--append-system-prompt-file');
+    expect(flag).toBeGreaterThan(-1);
+    const systemPath = args[flag + 1];
+    // The file, not argv, carries the text (one argv entry cannot hold 128 KiB, STU-561).
+    expect(args.some(arg => arg.includes('You are helpful.'))).toBe(false);
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(systemPath, 'You are helpful.', 'utf-8');
+    expect(proc.stdinWritten).toBe('Hello');
+    expect(vi.mocked(unlink)).toHaveBeenCalledWith(systemPath);
+  });
+
+  it('passes no system prompt file when the request has no system message', async () => {
+    const lines = [JSON.stringify({ type: 'result', subtype: 'success', result: 'ok' })];
+    const proc = makeFakeProcess(lines);
+    mockSpawn.mockReturnValueOnce(proc);
+    const provider = new ClaudeCodeProvider({ model: 'claude-sonnet-4-5' });
+    await provider.runAgentLoop({ model: 'claude-sonnet-4-5', messages: [{ role: 'user', content: 'Hello' }] }, vi.fn());
+
+    const [, args] = mockSpawn.mock.calls[0] as [string, string[]];
+    expect(args).not.toContain('--append-system-prompt-file');
+    expect(vi.mocked(writeFile)).not.toHaveBeenCalled();
   });
 
   it('a prompt past MAX_ARG_STRLEN reaches a real process on stdin and cannot on argv', async () => {
