@@ -156,6 +156,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
 
       let resultContent: string | undefined;
       let resultUsage: TokenUsage | undefined;
+      let resultTurns: number | undefined;
       let stderrContent = '';
       let buffer = '';
 
@@ -186,6 +187,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
               // stage timestamps (STU-750).
               resultUsage = parseResultUsage(event, model);
               logCC('usage', resultUsage ?? null);
+              if (typeof event.num_turns === 'number') resultTurns = event.num_turns;
             }
           } catch {
             // ignore non-JSON lines
@@ -215,7 +217,12 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
             resolve({ content: '', finish_reason: 'error', error: `Provider API error: ${apiError}` });
             return;
           }
-          resolve({ content: resultContent, finish_reason: 'stop', usage: resultUsage });
+          resolve({
+            content: resultContent,
+            finish_reason: 'stop',
+            usage: resultUsage,
+            ...(resultTurns !== undefined ? { turns: resultTurns } : {}),
+          });
         } else {
           const errDetail = stderrContent.trim() ? `: ${stderrContent.trim()}` : '';
           reject(new Error(`claude -p exited with code ${code}${errDetail}`));

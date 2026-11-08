@@ -44,6 +44,8 @@ export interface AgentLoopResult {
   finish_reason: string;
   /** Summed over every turn the provider ran internally. */
   usage?: TokenUsage;
+  /** Model calls the provider made internally, when its stream says so. */
+  turns?: number;
   /**
    * A provider-reported failure the runner should treat as a normal
    * retry-eligible failed attempt (RALPH's `errorCheck`), not a stage-ending

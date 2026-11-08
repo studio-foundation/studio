@@ -4,7 +4,7 @@
 
 // Main runner function
 export { runAgent } from './runner.js';
-export type { RunAgentConfig, AgentRunResult } from './runner.js';
+export type { RunAgentConfig, AgentRunResult, LoopTiming } from './runner.js';
 
 // Workspace resolution
 export { cloneRepo, resolveRepoPath } from './utils/repo-resolver.js';

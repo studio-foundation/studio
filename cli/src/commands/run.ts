@@ -142,6 +142,9 @@ export function mergeEvents(
         // writes are billed at their own rates, and `by_model` is what makes a
         // per-model cost breakdown a jq one-liner over this file (STU-750).
         tokens: e.token_usage,
+        ...(e.llm_turns !== undefined ? { llm_turns: e.llm_turns } : {}),
+        ...(e.llm_ms !== undefined ? { llm_ms: e.llm_ms } : {}),
+        ...(e.tool_ms !== undefined ? { tool_ms: e.tool_ms } : {}),
         tool_calls: e.tool_calls,
         output: e.output,
         ...(e.rejection_reason ? { rejection_reason: e.rejection_reason } : {}),

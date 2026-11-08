@@ -53,6 +53,10 @@ export interface StageCompleteEvent {
   output?: unknown;
   tool_calls?: ToolCall[];
   token_usage?: TokenUsage;
+  /** Model calls, time in them, and time in tool execution, summed over attempts. */
+  llm_turns?: number;
+  llm_ms?: number;
+  tool_ms?: number;
   rejection_reason?: string;
   rejection_details?: string[];
   skipped_reason?: string;

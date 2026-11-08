@@ -61,6 +61,8 @@ import type { EngineEvents, StageContextEvent } from '../events.js';
 import { PipelineEventEmitter } from '../events.js';
 import { resolveProjectRoot, type ProjectPaths, type StageResult } from './types.js';
 
+const TIMING_KEYS = ['llm_turns', 'llm_ms', 'tool_ms'] as const;
+
 // Module-level helpers — verbatim from engine.ts lines 73-95
 
 function summarizeOutput(output: unknown): string {
@@ -360,6 +362,8 @@ export class StageExecutor {
     // generic — it never learns what a token is (INV-02).
     const stageUsage: TokenUsage = emptyTokenUsage();
     let stageUsageReported = false;
+    // Summed the same way; a field no attempt reported stays unset, never zero.
+    const stageTiming: Partial<Record<(typeof TIMING_KEYS)[number], number>> = {};
 
     // Execute ralph loop — catch unexpected executor throws (network errors, etc.)
     // and convert them to a failed stage rather than crashing the pipeline.
@@ -452,6 +456,9 @@ export class StageExecutor {
         if (result.token_usage) {
           accumulateTokenUsage(stageUsage, result.token_usage);
           stageUsageReported = true;
+        }
+        for (const key of TIMING_KEYS) {
+          if (result[key] !== undefined) stageTiming[key] = (stageTiming[key] ?? 0) + result[key]!;
         }
 
         return result;
@@ -669,6 +676,7 @@ export class StageExecutor {
     if (stageStatus === 'rejected' && postResult?.rejection_reason) {
       stageRun.rejection_reason = postResult.rejection_reason;
     }
+    Object.assign(stageRun, stageTiming);
     const stageDurationMs = stageRun.completed_at && stageRun.started_at
       ? new Date(stageRun.completed_at).getTime() - new Date(stageRun.started_at).getTime()
       : 0;
@@ -686,6 +694,7 @@ export class StageExecutor {
       output: lastResult?.output,
       tool_calls: lastResult ? lastResult.tool_calls : undefined,
       token_usage: stageUsageReported ? stageUsage : undefined,
+      ...stageTiming,
       rejection_reason: postResult?.rejection_reason,
       rejection_details: postResult?.rejection_details,
     });

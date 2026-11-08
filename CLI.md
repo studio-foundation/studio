@@ -556,3 +556,9 @@ this landed carry the older `{prompt, completion, total}` shape; `studio status`
 
 A stage that reports no `tokens` is a stage nothing was measured for (a script stage,
 the mock provider) — never a stage that was free.
+
+`stage_complete` also carries `llm_turns` (model calls), `llm_ms` (time inside them) and
+`tool_ms` (time inside tool execution, hooks excluded), summed over every RALPH attempt,
+and `studio status` prints them on the stage line (`--json` has them on the stage). A
+provider that owns its loop reports what it can see: `claude-code` gives `llm_turns` and
+`tool_ms` but no `llm_ms`. A field it cannot split out is absent, never `0`.

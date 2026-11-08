@@ -135,3 +135,27 @@ describe('getRunFromJsonl — token usage (STU-750)', () => {
     expect(run!.stages[0].token_usage).toBeUndefined();
   });
 });
+
+describe('getRunFromJsonl — LLM and tool time (STU-2101)', () => {
+  it('reads turns and time onto the stage, and leaves them off a stage that logged none', async () => {
+    const runId = 'cc33dd44';
+    writeLog(
+      `2026-01-01T00h00m-timed-${runId}.jsonl`,
+      jsonl([
+        { event: 'pipeline_start', run_id: runId, pipeline: 'timed' },
+        {
+          event: 'stage_complete', stage: 'build', status: 'success', attempts: 2,
+          duration_ms: 9000, llm_turns: 5, llm_ms: 7000, tool_ms: 1500, run_id: runId,
+        },
+        { event: 'stage_complete', stage: 'notes', status: 'success', attempts: 1, duration_ms: 100, run_id: runId },
+        { event: 'pipeline_complete', run_id: runId, status: 'success' },
+      ])
+    );
+
+    const run = await getRunFromJsonl(runId, dir);
+
+    expect(run!.stages[0]).toMatchObject({ llm_turns: 5, llm_ms: 7000, tool_ms: 1500 });
+    expect(run!.stages[1]).not.toHaveProperty('llm_turns');
+    expect(run!.stages[1]).not.toHaveProperty('tool_ms');
+  });
+});

@@ -715,7 +715,9 @@ Where it lands: on `StageRun.token_usage`, on the `stage_complete` / `stage_retr
 `map_item_complete` / `pipeline_complete` events, and in `.studio/runs/<run>.jsonl`
 under `tokens`. A `map` item additionally carries `stages` — the child run's
 per-stage breakdown, so how many attempts bought that number is readable without
-correlating the child's own journal. `studio status <run-id>` aggregates it per stage and per model. See
+correlating the child's own journal. Wall clock has the same shape: `llm_turns`,
+`llm_ms` and `tool_ms` on the stage and its `stage_complete`, summed over attempts and
+left unset where the provider cannot split model time from tool time. `studio status <run-id>` aggregates it per stage and per model. See
 [CLI.md](CLI.md) for the jq recipes.
 
 ---

@@ -101,18 +101,20 @@ function printStages(
       ? `  ${chalk.gray(`${formatTokenCount(stageUsage.total_tokens)} tok`)}`
       : '';
 
+    const timingText = stageTimingText(stage);
+
     if (stage.status === 'success') {
       const attemptText = agentRuns !== undefined ? ` (${agentRuns} attempt${agentRuns !== 1 ? 's' : ''})` : '';
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')}${attemptText}${durationText}${tokensText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.green('✓')}${attemptText}${durationText}${tokensText}${timingText}`
       );
     } else if (stage.status === 'rejected') {
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ REJECTED')}${durationText}${tokensText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ REJECTED')}${durationText}${tokensText}${timingText}`
       );
     } else if (stage.status === 'failed') {
       console.log(
-        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ FAILED')} (${attempts} attempts exhausted)${durationText}${tokensText}`
+        `${indent}${index} ${name} ${chalk.gray(dots)} ${chalk.red('✗ FAILED')} (${attempts} attempts exhausted)${durationText}${tokensText}${timingText}`
       );
       // Show errors from the last agent run
       const lastAgentRun = stage.tasks[0]?.agent_runs.at(-1);
@@ -168,6 +170,15 @@ export function formatCompactDuration(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
   const remainingSeconds = Math.floor((ms % 60_000) / 1000);
   return `${minutes}m${remainingSeconds.toString().padStart(2, '0')}s`;
+}
+
+/** `3 turns, llm 41s, tools 8s` — only the parts the provider could report. */
+export function stageTimingText(stage: PipelineRun['stages'][number]): string {
+  const parts: string[] = [];
+  if (stage.llm_turns !== undefined) parts.push(`${stage.llm_turns} turn${stage.llm_turns === 1 ? '' : 's'}`);
+  if (stage.llm_ms !== undefined) parts.push(`llm ${formatCompactDuration(stage.llm_ms)}`);
+  if (stage.tool_ms !== undefined) parts.push(`tools ${formatCompactDuration(stage.tool_ms)}`);
+  return parts.length ? `  ${chalk.gray(parts.join(', '))}` : '';
 }
 
 /**
