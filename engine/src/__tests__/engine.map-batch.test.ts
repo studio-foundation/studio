@@ -1,7 +1,7 @@
 // End-to-end cover for `map: … batch:` — the fan-out still runs ordinary child
 // runs; what changes is that their LLM calls leave as one batched job.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { resolve } from 'node:path';
 import type { LLMRequest, LLMResponse, PipelineDefinition } from '@studio-foundation/contracts';
 import {
@@ -237,6 +237,73 @@ describe('map stage — batched dispatch', () => {
     expect(plain.calls).toHaveLength(2);   // ordinary single calls
     expect(dispatches).toHaveLength(0);    // nothing was ever batched
     expect(mapStarts[0]).toMatchObject({ batch: true });
+  });
+
+  it('keeps a provider with no batch endpoint at one child run at a time when concurrency is unset (STU-2100)', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const plain = new PlainProvider();
+    const call = plain.call.bind(plain);
+    plain.call = async (request) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return call(request);
+    };
+    const { events, mapStarts } = collectEvents();
+    const engine = makeEngine(plain, events);
+
+    await engine.run({
+      pipelineDef: pipelineWith(true),
+      input: { things: Array.from({ length: 10 }, (_, i) => `t${i}`) },
+    });
+
+    expect(mapStarts[0]).toMatchObject({ batch: true, concurrency: 1 });
+    expect(peak).toBe(1);
+  });
+
+  it('batches all items together on a batch-capable provider when concurrency is unset (STU-2100)', async () => {
+    const { events, dispatches } = collectEvents();
+    const engine = makeEngine(provider, events);
+
+    await engine.run({
+      pipelineDef: pipelineWith(true),
+      input: { things: Array.from({ length: 10 }, (_, i) => `t${i}`) },
+    });
+
+    expect(dispatches.map((d) => d.size)).toEqual([10]);
+  });
+
+  it('warns once when a batch-capable provider is paired with a concurrency below the item count (STU-2100)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const engine = makeEngine(provider);
+      await engine.run({
+        pipelineDef: pipelineWith(true, { concurrency: 4 }),
+        input: { things: Array.from({ length: 10 }, (_, i) => `t${i}`) },
+      });
+      const caps = warn.mock.calls.filter((c) => String(c[0]).includes('caps each batch at 4'));
+      expect(caps).toHaveLength(1);
+      expect(String(caps[0][0])).toContain('[map:items]');
+      expect(String(caps[0][0])).toContain('10 items');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('does not warn about the cap when concurrency covers every item', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const engine = makeEngine(provider);
+      await engine.run({
+        pipelineDef: pipelineWith(true, { concurrency: 4 }),
+        input: { things: ['a', 'b', 'c', 'd'] },
+      });
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes('caps each batch'))).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('leaves an unbatched map stage sequential by default', async () => {

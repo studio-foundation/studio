@@ -213,6 +213,8 @@ export class PipelineEngine {
       providerRegistry: config.providerRegistry,
       configsDir: config.configsDir,
       pluginSkills: config.pluginSkills,
+      defaultProvider: config.defaultProvider,
+      providerOverride: config.providerOverride,
     });
     this.callOrchestrator = new CallOrchestrator({
       events,

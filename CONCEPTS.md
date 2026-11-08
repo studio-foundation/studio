@@ -293,7 +293,7 @@ The window sends a batch when nothing live can still add to it — every in-flig
 
 **What it does change, and you should expect:**
 
-- **`concurrency` defaults to `min(items, max_size)`** here instead of `1` — items have to be in flight together to share a batch. An explicit `concurrency` is still honoured and caps the batch at that size; it is also how you bound how many child runs exist at once over a very long list.
+- **`concurrency` defaults to `min(items, max_size)`** here instead of `1` — items have to be in flight together to share a batch — but only when a provider the sub-pipeline's agents resolve to has a batch endpoint; otherwise it stays `1`. An explicit `concurrency` is still honoured and caps the batch at that size (the run warns once when that cap is below the item count); it is also how you bound how many child runs exist at once over a very long list.
 - **Nothing streams.** A batched response arrives whole, so `--live` shows no tokens for these items. It does show each batch leaving and returning (`⇢ batch #1 — 40 requests submitted`), because a batch can take an hour and "queued at half price" and "hung" look identical otherwise. The `batch_dispatch` / `batch_complete` events are in the run JSONL.
 - **Latency is the trade.** There is no per-call timeout to set; `max_wait_ms` is the whole-stage budget that replaces one.
 - **A provider with no batch endpoint runs the stage unchanged** — correct, just not cheaper. Today only `anthropic` batches; `mock`, `ollama` and `claude-code` fall back with a warning naming the provider. Batching also does not apply to a provider that owns its own agent loop, where there is no single call to intercept.

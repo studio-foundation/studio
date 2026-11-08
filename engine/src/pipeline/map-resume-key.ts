@@ -33,6 +33,20 @@ async function collectPipelines(
   }
 }
 
+/** Every agent named by the sub-pipeline's stages, including pipelines it maps or calls. */
+export async function collectSubPipelineAgents(subPipeline: string, pipelinesDir: string): Promise<string[]> {
+  const pipelines = new Map<string, PipelineDefinition>();
+  await collectPipelines(subPipeline, pipelinesDir, pipelines);
+  const agents = new Set<string>();
+  for (const def of pipelines.values()) {
+    for (const entry of def.stages) {
+      const stages = isStageGroup(entry) ? entry.stages : isMapStage(entry) || isCallStage(entry) ? [] : [entry];
+      for (const stage of stages) if (stage.agent) agents.add(stage.agent);
+    }
+  }
+  return [...agents];
+}
+
 /**
  * Fingerprint of what the sub-pipeline's agents and contracts resolve to.
  * Hashes the parsed documents (canonical JSON), so comments and key order do
