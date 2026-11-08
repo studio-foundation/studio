@@ -36,6 +36,8 @@ import { ChildRunError, sumTokenUsage } from '@studio-foundation/contracts';
 import {
   BatchWindow,
   BatchingProviderRegistry,
+  isAgentLoopProvider,
+  isBatchProvider,
   type AnonymizationMiddleware,
   DEFAULT_MAX_BATCH_SIZE,
   type ProviderRegistry,
@@ -44,7 +46,9 @@ import type { EngineEvents, PipelineEventEmitter } from '../events.js';
 import { resolveContextPath, evaluateCondition } from './condition-evaluator.js';
 import { buildItemInput, mapItemLabel } from './map-input.js';
 import type { PipelineContext } from './context-propagation.js';
-import { computeResumeFingerprint, resolveKeyOn } from './map-resume-key.js';
+import { collectSubPipelineAgents, computeResumeFingerprint, resolveKeyOn } from './map-resume-key.js';
+import { loadAgentProfile } from './agent-loader.js';
+import { resolveProjectPaths } from './types.js';
 import { hashItemInput, type MapItemCache, type MapCacheNamespace, type CachedMapItem } from './map-item-cache.js';
 
 export interface MapItemResult {
@@ -96,6 +100,9 @@ export interface MapOrchestratorConfig {
   /** Project `.studio/` directory: where a `resume.key_on` fingerprint reads agents, contracts and skills. */
   configsDir?: string;
   pluginSkills?: Record<string, string[]>;
+  /** Same fallback and override the stage executor applies when an agent names no provider. */
+  defaultProvider?: string;
+  providerOverride?: string;
 }
 
 function errorMessage(err: unknown): string {
@@ -110,6 +117,39 @@ function resolveBatchConfig(batch: MapStage['batch']): MapBatchConfig | undefine
 
 export class MapOrchestrator {
   constructor(private config: MapOrchestratorConfig) {}
+
+  /**
+   * Whether any provider the sub-pipeline's agents resolve to has a batch
+   * endpoint. When that cannot be told (no agents readable, no default) the
+   * answer is yes, so a batched map keeps its batched sizing.
+   */
+  private async canBatch(subPipeline: string): Promise<boolean> {
+    const { providerRegistry: registry, providerOverride, defaultProvider, configsDir } = this.config;
+    if (!registry) return false;
+    const names = new Set<string>();
+    if (providerOverride) {
+      names.add(providerOverride);
+    } else {
+      if (configsDir) {
+        try {
+          const paths = resolveProjectPaths(configsDir);
+          for (const agent of await collectSubPipelineAgents(subPipeline, paths.pipelinesDir)) {
+            const name = (await loadAgentProfile(agent, paths.agentsDir)).provider ?? defaultProvider;
+            if (name) names.add(name);
+          }
+        } catch {
+          // Unreadable here; each child run reports its own config error.
+        }
+      }
+      if (names.size === 0 && defaultProvider) names.add(defaultProvider);
+    }
+    if (names.size === 0) return true;
+    return [...names].some((name) => {
+      if (!registry.has(name)) return false;
+      const provider = registry.get(name);
+      return isBatchProvider(provider) && !isAgentLoopProvider(provider);
+    });
+  }
 
   async run(
     map: MapStage,
@@ -235,13 +275,22 @@ export class MapOrchestrator {
 
     // Items have to be in flight together to share a batch, so a batched
     // fan-out defaults to "as many as fit in one batch" rather than the
-    // sequential default. An explicit `concurrency` still wins — it is also the
-    // way to cap how many child runs exist at once on a very long list.
+    // sequential default, but only when a provider can actually batch: on one
+    // that cannot, the same default would launch every item at once as full-price
+    // requests. An explicit `concurrency` still wins — it is also the way to cap
+    // how many child runs exist at once on a very long list.
+    const batchable = batchConfig !== undefined && await this.canBatch(map.pipeline);
     const concurrency = map.concurrency !== undefined
       ? Math.max(1, map.concurrency)
-      : batchConfig
+      : batchable
         ? Math.max(1, Math.min(items.length, maxBatchSize))
         : 1;
+    if (batchable && map.concurrency !== undefined && concurrency < items.length) {
+      console.warn(
+        `[map:${map.map}] concurrency: ${concurrency} caps each batch at ${concurrency} requests ` +
+        `(${items.length} items). Omit it to batch up to ${maxBatchSize}.`
+      );
+    }
     const failFast = (map.on_item_failure ?? 'fail-fast') === 'fail-fast';
 
     this.config.events?.onMapStart?.({
