@@ -119,5 +119,5 @@ export function childRunErrorMessage(stages: StageRun[]): string | undefined {
   return lastFailed?.tasks
     .flatMap((t) => t.agent_runs)
     .reverse()
-    .find((a) => a.error)?.error;
+    .find((a) => a.error)?.error ?? lastFailed?.rejection_reason;
 }

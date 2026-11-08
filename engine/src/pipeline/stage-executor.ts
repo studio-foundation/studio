@@ -295,6 +295,7 @@ export class StageExecutor {
             return { stageRun, status: 'failed' };
           } else if (onFailure === 'reject') {
             stageRun.status = 'rejected';
+            stageRun.rejection_reason = `on_stage_start hook failed: ${hook.command}`;
             stageRun.completed_at = new Date().toISOString();
             stageRun.tasks = [];
             this.config.events?.onStageComplete?.({
@@ -664,6 +665,9 @@ export class StageExecutor {
     }
     if (stageUsageReported) {
       stageRun.token_usage = stageUsage;
+    }
+    if (stageStatus === 'rejected' && postResult?.rejection_reason) {
+      stageRun.rejection_reason = postResult.rejection_reason;
     }
     const stageDurationMs = stageRun.completed_at && stageRun.started_at
       ? new Date(stageRun.completed_at).getTime() - new Date(stageRun.started_at).getTime()
