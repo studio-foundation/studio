@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { ChildRunError } from '@studio-foundation/contracts';
 import { PipelineEngine } from '../../src/engine.js';
 import { InMemoryRunStore } from '../../src/state/run-store.js';
 import type { EngineEvents } from '../../src/events.js';
@@ -171,6 +172,29 @@ describe('Call (one-shot sub-pipeline) stage', () => {
     expect(result.stages[0].tasks[0].agent_runs[0].error).toContain('child boom');
     // Distinguishable: failed (tolerated) vs skipped (condition) in one run.
     expect((result.stages[1] as any).skipped_reason).toContain('condition not met');
+  });
+
+  it('on_failure: continue — hands the failed child\'s last output to the next stage', async () => {
+    const spawner = new FakeSpawner((c) => {
+      if (c.pipeline === 'flaky') {
+        throw new ChildRunError('Child run r rejected: nope', 'r', 'rejected', [], undefined, { spent: 7 });
+      }
+      return ok('r', { ok: true });
+    });
+    const engine = createEngine(spawner);
+
+    const pipelineDef: PipelineDefinition = {
+      name: 'tolerated-failure-output', description: 'd', version: 1,
+      stages: [
+        { call: 'a', pipeline: 'flaky', on_failure: 'continue' },
+        { call: 'b', pipeline: 'child', input: { spent: '{{stages.a.output.spent}}' } },
+      ],
+    };
+    const result = await engine.run({ pipelineDef, input: {} });
+
+    expect(result.stages[0].status).toBe('failed');
+    expect(result.stages[0].output).toEqual({ spent: 7 });
+    expect(spawner.calls[1].input.spent).toBe(7);
   });
 
   it('on_failure: continue does not tolerate cancellation', async () => {
