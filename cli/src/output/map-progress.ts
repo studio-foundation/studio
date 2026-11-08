@@ -176,6 +176,9 @@ export class MapRenderer {
       }
     }
     if (this.spinner) this.spinner.text = this.statusText();
+    // ora draws one frame and stops when stdout is a file or pipe, so a logged
+    // run would read "0/N done" for the whole fan-out.
+    if (!process.stdout.isTTY) this.persist(' '.repeat(this.pad) + `- ${this.statusText()}`);
   }
 
   /**
