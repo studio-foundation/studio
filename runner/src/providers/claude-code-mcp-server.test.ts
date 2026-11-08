@@ -86,7 +86,18 @@ describe('ClaudeCodeMcpServer', () => {
       { path: 'src/foo.ts' },
       expect.any(String)
     );
-    expect(res.result.content[0].text).toBe(JSON.stringify('file contents'));
+    expect(res.result.content[0].text).toBe('file contents');
+  });
+
+  it('renders file content raw so escape sequences are not doubled', async () => {
+    const content = 'const a = `x\\ny\\t`;';
+    executeTool.mockResolvedValueOnce({ result: { path: 'a.ts', content } });
+    const port = await server.start();
+    const res = await jsonRpc(port, 'tools/call', {
+      name: 'repo_manager-read_file',
+      arguments: { path: 'a.ts' },
+    });
+    expect(res.result.content[0].text).toBe(`{"path":"a.ts"}\n${content}`);
   });
 
   it('returns MCP error content when executeTool returns an error', async () => {

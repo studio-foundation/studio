@@ -127,13 +127,23 @@ export class ClaudeCodeMcpServer {
       }
       return {
         result: {
-          content: [{ type: 'text', text: JSON.stringify(outcome.result) }],
+          content: [{ type: 'text', text: renderResult(outcome.result) }],
         },
       };
     }
 
     return { error: { code: -32601, message: `Method not found: ${method}` } };
   }
+}
+
+// JSON-escaping file text makes the model read `\n` as `\\n` and write the doubled form back.
+function renderResult(result: unknown): string {
+  if (typeof result === 'string') return result;
+  if (result && typeof result === 'object' && typeof (result as { content?: unknown }).content === 'string') {
+    const { content, ...rest } = result as { content: string };
+    return `${JSON.stringify(rest)}\n${content}`;
+  }
+  return JSON.stringify(result);
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
