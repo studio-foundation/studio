@@ -1164,6 +1164,32 @@ describe('PipelineEngine — token usage (STU-750)', () => {
     expect(retryEvents[0].token_usage?.total_tokens).toBe(110);
   });
 
+  it('sums LLM turns and time across attempts onto the stage and its event (STU-2101)', async () => {
+    const provider = createRetryingProvider();
+    const inner = provider.call;
+    provider.call = vi.fn().mockImplementation(async (...args: unknown[]) => {
+      await new Promise((r) => setTimeout(r, 10));
+      return inner(...args);
+    });
+    const stageEvents: StageCompleteEvent[] = [];
+    const engine = new PipelineEngine(
+      {
+        configsDir: PROJECT_DIR,
+        providerRegistry: providerRegistryOf(provider),
+        toolRegistry: createMockToolRegistry() as unknown as EngineConfig['toolRegistry'],
+      },
+      { onStageComplete: (e) => stageEvents.push(e) },
+    );
+
+    const result = await engine.run({ pipeline: 'simple', input: 'retry then succeed' });
+
+    const stage = result.stages[0];
+    expect(stage.llm_turns).toBe(2); // one model call per attempt
+    expect(stage.llm_ms).toBeGreaterThanOrEqual(18);
+    expect(stage.tool_ms).toBe(0);
+    expect(stageEvents[0]).toMatchObject({ llm_turns: 2, llm_ms: stage.llm_ms, tool_ms: 0 });
+  });
+
   it('reports the run total on pipeline_complete, cache split included', async () => {
     const pipelineEvents: PipelineCompleteEvent[] = [];
     const engine = new PipelineEngine(

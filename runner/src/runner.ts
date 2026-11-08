@@ -59,9 +59,23 @@ export interface RunAgentConfig {
 interface AttemptProgress {
   tool_calls: ToolCall[];
   token_usage: TokenUsage;
+  timing?: LoopTiming;
 }
 
-export interface AgentRunResult {
+/**
+ * Where an agent run's wall clock went. A field is absent, never zero, when the
+ * provider owns that part of the loop and cannot split it out.
+ */
+export interface LoopTiming {
+  /** Model calls made. */
+  llm_turns?: number;
+  /** Summed time inside model calls. */
+  llm_ms?: number;
+  /** Summed time inside tool execution, hooks excluded. */
+  tool_ms?: number;
+}
+
+export interface AgentRunResult extends LoopTiming {
   output: unknown;
   tool_calls: ToolCall[];
   tool_calls_count: number;
@@ -129,6 +143,7 @@ export async function runAgent(config: RunAgentConfig): Promise<AgentRunResult> 
       tool_calls_count: progress.tool_calls.filter(tc => !tc.error).length,
       duration_ms: Date.now() - startTime,
       token_usage: progress.token_usage.total_tokens > 0 ? progress.token_usage : undefined,
+      ...progress.timing,
       error: timeoutController?.signal.aborted
         ? `Agent timed out after ${timeoutMs}ms`
         : `Agent execution failed: ${describeThrown(err)}`,
@@ -228,6 +243,10 @@ async function runAgentAttempt(
 
   // --- Delegate to provider if it owns the full agent loop (e.g. Responses API) ---
   if (isAgentLoopProvider(provider)) {
+    // The provider owns the model calls, so only tool time is ours to measure;
+    // turns come from the provider when it reports them.
+    const timing: LoopTiming = { tool_ms: 0 };
+    progress.timing = timing;
     const loopResult = await provider.runAgentLoop(
       {
         model: agent.model,
@@ -261,7 +280,9 @@ async function runAgentAttempt(
           }
         }
 
+        const executeStart = Date.now();
         const executed = await toolExecutor.execute({ id: callId, name, arguments: args }, config.resolvedContext);
+        timing.tool_ms! += Date.now() - executeStart;
         allToolCalls.push(executed);
 
         // Hallucination guard: tool not in whitelist → terminal stage error (RALPH fails, not retries)
@@ -311,6 +332,7 @@ async function runAgentAttempt(
     if (loopResult.usage) {
       accumulateTokenUsage(tokenAccumulator, loopResult.usage);
     }
+    if (loopResult.turns !== undefined) timing.llm_turns = loopResult.turns;
 
     const duration = Date.now() - startTime;
 
@@ -324,6 +346,7 @@ async function runAgentAttempt(
         tool_calls_count: allToolCalls.filter(tc => !tc.error).length,
         duration_ms: duration,
         token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+        ...timing,
         error: loopResult.error,
       };
     }
@@ -342,6 +365,7 @@ async function runAgentAttempt(
       },
       duration_ms: duration,
       token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+      ...timing,
     };
   }
 
@@ -349,6 +373,8 @@ async function runAgentAttempt(
   let currentMessages: Message[] = messages;
   let iterations = 0;
   let lastResponse: LLMResponse | null = null;
+  const timing: LoopTiming = { llm_turns: 0, llm_ms: 0, tool_ms: 0 };
+  progress.timing = timing;
 
   while (iterations < maxToolCalls) {
     // Check for cancellation before calling LLM
@@ -357,6 +383,7 @@ async function runAgentAttempt(
     }
 
     // Call LLM
+    const llmStart = Date.now();
     const response = await provider.call({
       model: agent.model,
       messages: currentMessages,
@@ -367,6 +394,8 @@ async function runAgentAttempt(
       json_mode: !!task.contract_name,
       cache_prompt: cachePrompt,
     }, onToken, signal);
+    timing.llm_ms! += Date.now() - llmStart;
+    timing.llm_turns!++;
 
     lastResponse = response;
 
@@ -424,11 +453,13 @@ async function runAgentAttempt(
       }
 
       if (!wasBlocked) {
+        const executeStart = Date.now();
         executed = await toolExecutor.execute({
           id: tc.id,
           name: tc.name,
           arguments: tc.arguments,
         }, config.resolvedContext);
+        timing.tool_ms! += Date.now() - executeStart;
 
         // Hallucination guard: tool not in whitelist → terminal stage error
         if (executed.error?.startsWith('Tool not found:')) {
@@ -450,6 +481,7 @@ async function runAgentAttempt(
             raw_response: lastResponse!,
             duration_ms: duration,
             token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+            ...timing,
             error: unauthorizedError,
           };
         }
@@ -541,6 +573,7 @@ async function runAgentAttempt(
       raw_response: lastResponse!,
       duration_ms: duration,
       token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+      ...timing,
       error: `Maximum tool calling iterations (${maxToolCalls}) reached. Possible infinite loop.`,
     };
   }
@@ -562,6 +595,7 @@ async function runAgentAttempt(
     raw_response: lastResponse,
     duration_ms: duration,
     token_usage: tokenAccumulator.total_tokens > 0 ? tokenAccumulator : undefined,
+    ...timing,
   };
 }
 

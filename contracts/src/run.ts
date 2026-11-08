@@ -48,6 +48,12 @@ export interface StageRun {
   // or `map` stage does not retry itself (retries happen inside the child
   // pipeline's own stages), so it is always 1; a condition-skipped stage is 0.
   attempts?: number;
+  // Where the stage's wall clock went, summed over every RALPH attempt: model
+  // calls made, time inside them, time inside tool execution. A field is
+  // absent when the provider owns that part of the loop and cannot split it.
+  llm_turns?: number;
+  llm_ms?: number;
+  tool_ms?: number;
 }
 
 export interface TaskRun {

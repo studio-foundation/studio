@@ -106,6 +106,9 @@ export async function getRunFromJsonl(
       duration_ms?: number;
       completed_at?: string;
       token_usage?: TokenUsage;
+      llm_turns?: number;
+      llm_ms?: number;
+      tool_ms?: number;
     }> = [];
 
     for (const r of records) {
@@ -126,6 +129,9 @@ export async function getRunFromJsonl(
           duration_ms: typeof r.duration_ms === 'number' ? r.duration_ms : undefined,
           completed_at: ts,
           token_usage: parseLoggedUsage(r.tokens),
+          ...(typeof r.llm_turns === 'number' ? { llm_turns: r.llm_turns } : {}),
+          ...(typeof r.llm_ms === 'number' ? { llm_ms: r.llm_ms } : {}),
+          ...(typeof r.tool_ms === 'number' ? { tool_ms: r.tool_ms } : {}),
         });
       }
     }
@@ -159,6 +165,9 @@ export async function getRunFromJsonl(
         completed_at: stageCompletedAt,
         skipped_reason: s.skipped_reason,
         ...(s.token_usage ? { token_usage: s.token_usage } : {}),
+        ...(s.llm_turns !== undefined ? { llm_turns: s.llm_turns } : {}),
+        ...(s.llm_ms !== undefined ? { llm_ms: s.llm_ms } : {}),
+        ...(s.tool_ms !== undefined ? { tool_ms: s.tool_ms } : {}),
         tasks: [
           {
             id: `task-${i}`,

@@ -366,6 +366,24 @@ describe('formatResult — token usage (STU-750)', () => {
     expect(output.find((l) => l.includes('review'))).toContain('5.0k tok');
   });
 
+  it('shows turns and LLM-vs-tool time on the stage line, only for what was reported (STU-2101)', () => {
+    const base = makeRun();
+    formatResult({
+      ...base,
+      stages: [
+        { ...base.stages[0], stage_name: 'build', llm_turns: 3, llm_ms: 41_000, tool_ms: 8_000 },
+        { ...base.stages[0], id: 'stage-2', stage_name: 'loopy', tool_ms: 2_500 },
+        { ...base.stages[0], id: 'stage-3', stage_name: 'plain' },
+      ],
+    });
+
+    expect(output.find((l) => l.includes('build'))).toContain('3 turns, llm 41.0s, tools 8.0s');
+    const loopy = output.find((l) => l.includes('loopy'));
+    expect(loopy).toContain('tools 2.5s');
+    expect(loopy).not.toContain('turns');
+    expect(output.find((l) => l.includes('plain'))).not.toContain('tools');
+  });
+
   it('breaks the total down per model, heaviest first', () => {
     formatResult(runWithUsage());
 
