@@ -49,36 +49,53 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
     signal?: AbortSignal
   ): Promise<AgentLoopResult> {
     const tools = request.tools ?? [];
-    const prompt = buildPrompt(request);
+    const { system, user: prompt } = splitPrompt(request);
     const model = this.resolveModel(request);
 
-    // No tools → no MCP server. Attaching the HTTP MCP server makes the claude CLI
-    // hang on the streamable-http handshake, and a tool-less agent has nothing to
-    // call anyway, so run a plain --print invocation with no --mcp-config.
-    if (tools.length === 0) {
-      const result = await this.spawnClaude(model, prompt, undefined, onToken, signal);
-      return { ...result, tool_calls: [] };
+    // The system messages go to the CLI as its system prompt, not into the user
+    // message. The CLI caches up to the end of the system prompt, so the part of a
+    // Studio prompt that repeats across sessions (agent, skills, invariants) is
+    // read back by the next session instead of rewritten with the input that
+    // follows it (STU-2129). A file, because one argv entry cannot hold 128 KiB
+    // (STU-561). Appended, so the CLI's default prompt keeps shaping the agent.
+    let systemPromptPath: string | undefined;
+    if (system) {
+      systemPromptPath = join(tmpdir(), `studio-system-${randomUUID()}.md`);
+      await writeFile(systemPromptPath, system, 'utf-8');
     }
 
-    const mcpServer = new ClaudeCodeMcpServer(tools, executeTool);
-    const port = await mcpServer.start();
-
-    const mcpConfig = { mcpServers: { studio: { type: 'http', url: `http://127.0.0.1:${port}` } } };
-    const mcpConfigPath = join(tmpdir(), `studio-mcp-${randomUUID()}.json`);
-    await writeFile(mcpConfigPath, JSON.stringify(mcpConfig), 'utf-8');
-
     try {
-      const result = await this.spawnClaude(model, prompt, mcpConfigPath, onToken, signal);
-      return { ...result, tool_calls: mcpServer.getToolCalls() };
+      // No tools → no MCP server. Attaching the HTTP MCP server makes the claude CLI
+      // hang on the streamable-http handshake, and a tool-less agent has nothing to
+      // call anyway, so run a plain --print invocation with no --mcp-config.
+      if (tools.length === 0) {
+        const result = await this.spawnClaude(model, prompt, systemPromptPath, undefined, onToken, signal);
+        return { ...result, tool_calls: [] };
+      }
+
+      const mcpServer = new ClaudeCodeMcpServer(tools, executeTool);
+      const port = await mcpServer.start();
+
+      const mcpConfig = { mcpServers: { studio: { type: 'http', url: `http://127.0.0.1:${port}` } } };
+      const mcpConfigPath = join(tmpdir(), `studio-mcp-${randomUUID()}.json`);
+      await writeFile(mcpConfigPath, JSON.stringify(mcpConfig), 'utf-8');
+
+      try {
+        const result = await this.spawnClaude(model, prompt, systemPromptPath, mcpConfigPath, onToken, signal);
+        return { ...result, tool_calls: mcpServer.getToolCalls() };
+      } finally {
+        await mcpServer.stop();
+        await unlink(mcpConfigPath).catch(() => {});
+      }
     } finally {
-      await mcpServer.stop();
-      await unlink(mcpConfigPath).catch(() => {});
+      if (systemPromptPath) await unlink(systemPromptPath).catch(() => {});
     }
   }
 
   private spawnClaude(
     model: string,
     prompt: string,
+    systemPromptPath: string | undefined,
     mcpConfigPath: string | undefined,
     onToken: ((token: string) => void) | undefined,
     signal: AbortSignal | undefined
@@ -99,6 +116,7 @@ export class ClaudeCodeProvider implements AgentLoopProvider {
         // `--tools` is variadic, so it must be followed by another flag (--verbose),
         // never by the positional prompt.
         ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : []),
+        ...(systemPromptPath ? ['--append-system-prompt-file', systemPromptPath] : []),
         '--tools', '',
         // --strict-mcp-config: use ONLY the MCP servers we pass (the studio server,
         // or none for tool-less agents) and ignore the user's GLOBAL MCP servers
@@ -373,8 +391,9 @@ function logCC(stage: string, detail: unknown): void {
   process.stderr.write(`[claude-code] ${stage} ${rendered}\n`);
 }
 
-function buildPrompt(request: LLMRequest): string {
-  const system = request.messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
-  const user = request.messages.filter(m => m.role !== 'system').map(m => m.content).join('\n\n');
-  return system ? `<system>\n${system}\n</system>\n\n${user}` : user;
+function splitPrompt(request: LLMRequest): { system: string; user: string } {
+  return {
+    system: request.messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n'),
+    user: request.messages.filter(m => m.role !== 'system').map(m => m.content).join('\n\n'),
+  };
 }
