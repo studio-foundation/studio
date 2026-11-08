@@ -150,6 +150,29 @@ describe('DirectEngineSpawner', () => {
       spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 })
     ).rejects.toThrow('Child run child-fail-2 failed: no error recorded');
   });
+
+  it('reports the rejection reason when a stage is rejected by post-validation', async () => {
+    const { PipelineEngine } = await import('../src/engine.js');
+    const rejectedRun = makeSuccessRun({
+      id: 'child-rej-2',
+      status: 'rejected',
+      stages: [{
+        id: 'qa', stage_name: 'qa', status: 'rejected', started_at: new Date().toISOString(),
+        tasks: [{ id: 't', task_name: 't', status: 'success', started_at: '', agent_runs: [
+          { id: 'a', agent_name: 'qa', attempt: 1, status: 'success', tool_calls: 0, started_at: '' },
+        ] }],
+        rejection_reason: 'Rejected: status = "rejected" (expected: approved)',
+      }],
+    } as Partial<PipelineRun>);
+    vi.mocked(PipelineEngine).mockImplementation(function () { return {
+      run: vi.fn().mockResolvedValue(rejectedRun),
+    }; });
+
+    const spawner = new DirectEngineSpawner({} as EngineConfig);
+    await expect(
+      spawner.spawnAndWait({ pipeline: 'bad', input: {}, parentRunId: 'p1', depth: 1 })
+    ).rejects.toThrow('Child run child-rej-2 rejected: Rejected: status = "rejected" (expected: approved)');
+  });
 });
 
 describe('DirectEngineSpawner nesting (STU-615)', () => {

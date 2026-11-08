@@ -79,6 +79,16 @@ describe('childRunErrorMessage', () => {
     expect(childRunErrorMessage([stage('b', 'cancelled', [run(1, 'aborted')])])).toBe('aborted');
   });
 
+  it('falls back to the rejection reason when post-validation rejected a stage whose agent runs all succeeded', () => {
+    const rejected = { ...stage('qa', 'rejected', [run(1)]), rejection_reason: 'Rejected: status = "rejected"' } as StageRun;
+    expect(childRunErrorMessage([stage('draft', 'success', [run(1)]), rejected])).toBe('Rejected: status = "rejected"');
+  });
+
+  it('prefers an agent error over the rejection reason', () => {
+    const rejected = { ...stage('qa', 'rejected', [run(1, 'boom')]), rejection_reason: 'nope' } as StageRun;
+    expect(childRunErrorMessage([rejected])).toBe('boom');
+  });
+
   it('is undefined when no stage failed', () => {
     expect(childRunErrorMessage([stage('a', 'success', [run(1)])])).toBeUndefined();
   });

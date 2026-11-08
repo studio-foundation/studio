@@ -31,6 +31,9 @@ export interface StageRun {
   tasks: TaskRun[];
   output?: unknown;  // final output of the stage (populated by engine for observability)
   skipped_reason?: string;  // reason why stage was skipped (populated by resume loop)
+  // Why a `rejected` stage was rejected. A post-validation rejection leaves every
+  // agent run at `success` with no `error`, so this is the only record of the cause.
+  rejection_reason?: string;
   // For a `call` stage: the run id of the child pipeline it spawned. Lets a
   // reader (e.g. `studio status`) load and nest the child's own stages instead
   // of hand-mapping interleaved run logs.
