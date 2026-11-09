@@ -1,22 +1,24 @@
 ---
 name: bump-version
-description: Use when releasing Studio to npm — choosing the next version number, bumping the monorepo, publishing the packages, or cutting the GitHub release.
+description: Use when releasing Studio — choosing the next version number, bumping the monorepo, and cutting the GitHub release with its binaries
 ---
 
 # Bump Version
 
-Studio uses unified versioning: the root and all 6 packages always share one number. The level is derived from the commits since the last **published npm version**, never from git tags — a burned tag is not evidence a version shipped.
+Studio uses unified versioning: the root and all 6 packages always share one number. The level is derived from the commits since the last **published GitHub release**, never from git tags — a burned tag is not evidence a version shipped.
 
-**Publish before you release.** Releases are immutable in this repo: a tag name stays reserved forever, even after its release is deleted. A GitHub release cut before npm accepts the packages destroys that version number permanently. `v0.5.0` and `v0.5.1` were both lost this way.
+Studio ships as GitHub Release binaries only. npm stopped at 0.29.0 (its token expires every 90 days and the passkey blocks automating a renewal); `npm-publish.yml` stays in the repo, unused.
+
+**The release is the publish.** Releases are immutable in this repo: a published release rejects asset uploads, and a tag name stays reserved forever, even after its release is deleted. A release published with a missing binary cannot be fixed, only skipped. `v0.5.0` and `v0.5.1` were burned this way. So the order is: draft, attach binaries, prove the asset list, then publish.
 
 ## 1. Find the real baseline
 
 ```bash
-npm view @studio-foundation/cli version          # last PUBLISHED version
-git log --oneline --no-merges "v$(npm view @studio-foundation/cli version)..HEAD"
+gh release list --limit 1 --json tagName,isDraft,publishedAt     # last PUBLISHED release
+git log --oneline --no-merges "<tagName>..origin/main"
 ```
 
-If no tag matches the published version (it may have been deleted), fall back to the last tag that does exist, and say which baseline you used.
+If the tag was deleted or never matched a release, fall back to the last tag that exists, and say which baseline you used.
 
 ## 2. Classify the level
 
@@ -37,8 +39,8 @@ State the proposed level with the specific commits that justify it, then confirm
 ## 3. Bump
 
 ```bash
-git checkout main && git pull
-git checkout -b chore/bump-X.Y.Z
+git fetch origin
+git worktree add --no-track -b chore/bump-X.Y.Z .worktrees/bump-X.Y.Z origin/main
 pnpm version:bump X.Y.Z    # rewrites all 7 package.json — never hand-edit one
 pnpm build
 ```
@@ -51,52 +53,32 @@ time it stays a one-minute job, deferred it never happens.
 Commit as `chore: bump version to X.Y.Z` with `git commit -s`, open the PR, wait for
 merge. The bump and its changelog entry ride alone — no source changes in the same PR.
 
-## 4. Publish, then verify
+## 4. Draft the release, attach the binaries, then publish it
 
-After the bump PR merges:
-
-```bash
-gh run list --workflow npm-publish.yml --limit 3   # a dispatch may already be running or done
-gh workflow run npm-publish.yml -f version=X.Y.Z
-gh run watch <run-id> --exit-status
-```
-
-A failed publish costs nothing — fix and re-run the same version. Never cut the release to "retry" a publish. But dispatch once: a second run after a successful one fails with `E409 Cannot publish over previously staged version` on the first per-platform package. That failure is harmless (nothing new is published), but it means the first run already shipped.
-
-Verify all 14 landed before going further — the 6 core packages and the per-platform `cli-*` binaries `scripts/platforms.mjs` names:
-
-```bash
-for p in contracts anonymizer ralph runner engine cli \
-  $(node -e 'import("./scripts/platforms.mjs").then(m=>console.log(Object.keys(m.PLATFORMS).map(k=>"cli-"+k).join(" ")))'); do
-  echo "$p $(npm view @studio-foundation/$p@X.Y.Z version 2>&1 | tail -1)"
-done
-```
-
-## 5. Cut the release — draft, attach binaries, then publish
-
-Only once npm shows all 14. Releases are **immutable** in this repo: a published release
-rejects asset uploads with `HTTP 422: Cannot upload assets to an immutable release`, and
-the tag can never be reused. So the standalone binaries must land while the release is
-still a draft.
-
-The notes are the `CHANGELOG.md` section written at step 3, expanded — grouped by area
-(Distribution, Preflight, CLI, Engine, Fixes, Docs), not a commit dump. Then:
+Only after the bump PR has merged. The notes are the `CHANGELOG.md` section written at
+step 3, expanded — grouped by area, not a commit dump — and they open with an upgrade
+section when a **Breaking** entry exists.
 
 ```bash
 gh release create vX.Y.Z --target main --title "vX.Y.Z" --draft --notes-file notes.md
 gh workflow run release-binaries.yml -f tag=vX.Y.Z
 gh run watch <run-id> --exit-status
-gh release edit vX.Y.Z --draft=false --latest
 ```
 
-Before that last line, prove the assets are complete — the release is immutable once
+Before publishing, prove the assets are complete — the release is immutable once
 published, so a missing binary cannot be added afterwards. Do not count them by hand;
-`scripts/platforms.mjs` is what the build reads, so ask it — **from a checkout that has the
-code being released**, which is usually the bump worktree, not the main checkout:
+`scripts/platforms.mjs` is what the build reads, so ask it, from a checkout that has the
+code being released:
 
 ```bash
 diff <(gh release view vX.Y.Z --json assets --jq '.assets[].name' | sort) \
      <(node -e 'import("./scripts/platforms.mjs").then(m=>console.log([...Object.keys(m.PLATFORMS).map(m.assetName),"SHA256SUMS"].sort().join("\n")))')
+```
+
+No output means complete. Then:
+
+```bash
+gh release edit vX.Y.Z --draft=false --latest
 ```
 
 `install.sh` and `install.ps1` download `studio-<platform>` and `SHA256SUMS` from the
@@ -105,10 +87,13 @@ version.
 
 ## Common mistakes
 
-- **Reading the baseline from `git tag`.** Tags exist for versions that never published. Ask npm.
-- **Cutting the release first.** Burns the version if publish fails. Publish is the gate.
+- **Reading the baseline from `git tag`.** Tags exist for versions that never published. Ask `gh release list`.
 - **Publishing the release before the binaries are attached.** Immutable releases reject
-  asset uploads once published, and the tag is spent. Draft first.
+  asset uploads once published, and the tag is spent. Draft first, diff the assets, then publish.
+- **A stale runner label.** A matrix entry naming a retired runner (`macos-14` on 2026-11-08)
+  never gets a machine: the job is cancelled with `The configuration '…' is not supported`
+  and the jobs behind it are skipped. Use `macos-latest`. Nothing is published by a
+  cancelled run, so a re-dispatch after the fix is safe.
 - **Third-party actions blocked at startup.** The repo allows GitHub-owned actions plus an
   explicit pattern list; a workflow using anything else dies with `startup_failure` and no
   job logs. Check `gh api repos/studio-foundation/studio/actions/permissions/selected-actions`.
@@ -119,13 +104,5 @@ version.
 - **Committing the bump without a sign-off.** The DCO check blocks the merge on any commit
   with no `Signed-off-by` trailer matching its author, so an unsigned bump costs a
   force-push on the one branch you least want to rewrite. `git commit -s`.
-- **Reading a fresh publish through one endpoint.** `npm view <pkg>@X.Y.Z` can answer `E404`
-  for minutes after a publish the workflow reported as successful — it is CDN cache, not a
-  partial publish. The registry document
-  (`curl -s https://registry.npmjs.org/@studio-foundation/<pkg> | jq '.versions["X.Y.Z"] != null'`)
-  lags too, and for longer: `runner` and the removed `api` read `false` for a few minutes
-  on 0.18.0 to 0.20.0, and `ralph` read `false` for over ten minutes on 0.24.0 while
-  `npm view` already answered `X.Y.Z`. Trust whichever says yes: one endpoint answering
-  with the version is proof, the other saying no is lag. The publish step's own log
-  (`+ @studio-foundation/<pkg>@X.Y.Z`) settles it if both stay silent.
-- **npm token expiry.** Granular tokens cap at 90 days and fail only at publish time. A `403` mentioning 2FA means the token lacks the bypass flag; a `404` on `PUT` means it is expired or unscoped.
+- **Assuming the x64 binary runs everywhere.** It assumes AVX2, and `install.sh` has no check
+  for it; a CPU without AVX2 needs `studio-linux-x64-baseline` downloaded by hand.

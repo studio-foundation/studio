@@ -96,7 +96,7 @@ cli ──→ engine ──→ ralph ──────→ contracts
 - **Nothing bundled may be read from disk.** There is no `import.meta.dirname` inside the binary, so `cli/templates/` and `runner/templates/` are inlined into `<pkg>/src/generated/bundled-assets.ts` by [scripts/gen-bundled-assets.mjs](scripts/gen-bundled-assets.mjs) (a `prebuild` step, gitignored) and read from `BUNDLED_ASSETS`. Adding a template needs no code change; reading one with `readFile` does — it will pass in dev and fail in the binary. `STUDIO_VERSION` comes from the same module.
 - **SQLite is opened through `openDatabase()`** (`engine/src/state/sqlite.ts`). Bun ships `bun:sqlite` and no `node:sqlite`; the two have the same synchronous API under different module names.
 
-Distribution: GitHub Releases (+ `install.sh` for `curl | sh`, `install.ps1` for `irm | iex` on Windows) and npm, where per-platform packages (`@studio-foundation/cli-<platform>`) are optional dependencies of `@studio-foundation/cli` and `cli/bin/studio.mjs` runs whichever one installed, falling back to the JS build. `studio upgrade` (`cli/src/upgrade.ts`) is the update path for the binary channel only — it detects an npm-owned install from `process.execPath` and refuses, since overwriting a file npm tracks breaks the next `npm i -g`. See CLI.md.
+Distribution: GitHub Releases only, since 0.30.0 (`install.sh` for `curl | sh`, `install.ps1` for `irm | iex` on Windows). npm stopped at 0.29.0: its token expires every 90 days and the passkey blocks automating a renewal. `npm-publish.yml` and the `cli/bin/studio.mjs` launcher stay in the repo, unused. `studio upgrade` (`cli/src/upgrade.ts`) updates the binary channel only — it detects an npm-owned install from `process.execPath` and refuses, since overwriting a file npm tracks breaks the next `npm i -g`. `install.sh` has no AVX2 check: a CPU without it needs `studio-linux-x64-baseline` by hand. See CLI.md.
 
 ## State Machine
 
@@ -129,7 +129,7 @@ Studio uses **unified (lockstep) versioning**: the root and all 6 packages alway
 
 - **One version, bumped together.** Never hand-edit a single package's `version`. Run `pnpm version:bump <semver>` ([scripts/bump-version.mjs](scripts/bump-version.mjs)), which rewrites all 7 `package.json` files (root + 6 packages) to the same number. `studio --version` reads it from `cli/package.json`.
 - **`workspace:*` for internal deps.** Packages never pin each other's version, so a bump needs no cross-package coordination.
-- **Bump at release time, not per PR.** Feature and fix PRs do NOT touch the version. When publishing to npm, a dedicated `chore: bump version to X.Y.Z` commit batches all merged work into one bump.
+- **Bump at release time, not per PR.** Feature and fix PRs do NOT touch the version. When releasing, a dedicated `chore: bump version to X.Y.Z` commit batches all merged work into one bump.
 - **Semver rule (pre-1.0 / 0.x).** Classify by **reachable surface, not by lines added.** The whole rule reduces to one question about a change:
 
   > **Could an existing `.studio/` config author now write something they couldn't before, or does their current config break?**
@@ -149,9 +149,8 @@ _Worked examples:_
 
 Use the `bump-version` skill. Two rules it exists to protect, both learned by breaking them:
 
-- **The baseline is npm, not git tags.** `npm view @studio-foundation/cli version` is the last version that actually shipped. Tags exist for versions that never published (`v0.5.0`, `v0.5.1`), so diffing from the last tag gives the wrong commit range.
-- **Publish, then release.** `gh workflow run npm-publish.yml -f version=X.Y.Z`, verify all 6 packages on npm, and only then cut the GitHub release. Releases are immutable here — a tag name is reserved permanently, so a release cut before npm accepts destroys that version number.
-- **Draft the release, attach the binaries, then publish it.** Immutability also means a published release rejects asset uploads, so `release-binaries.yml` has to run against a draft. Publishing first leaves `install.sh` broken for that version.
+- **The baseline is the latest published GitHub release, not git tags.** `gh release list --limit 1` names the last version that actually shipped. Tags exist for versions that never published (`v0.5.0`, `v0.5.1`), so diffing from the last tag gives the wrong commit range.
+- **Draft the release, attach the binaries, check them, then publish it.** Releases are immutable here: a published release rejects asset uploads and its tag is reserved permanently. So `release-binaries.yml` runs against a draft, the asset list is diffed against `scripts/platforms.mjs`, and only then is the release published. Publishing first leaves `install.sh` broken for that version.
 
 ### Recommending a bump
 

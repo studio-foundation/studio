@@ -20,18 +20,14 @@ If you've ever wrapped the Anthropic or OpenAI API in a script and watched it cl
 
 ## Install
 
-```bash
-npm install -g @studio-foundation/cli
-# or
-pnpm add -g @studio-foundation/cli
-```
-
-This installs a `studio` binary on your `PATH`. Without a Node.js toolchain, install the
-same binary straight from GitHub Releases — no npm, no runtime:
+Studio ships as a standalone binary on GitHub Releases, with no runtime to install
+(the last npm release is 0.29.0):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
 ```
+
+On Windows, use `install.ps1` from the same repository (`irm … | iex`).
 
 ```bash
 studio --version

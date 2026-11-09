@@ -138,7 +138,7 @@ State machine: `pending → running → success | failed | rejected | skipped`. 
 
 ## Quick start
 
-Install the standalone binary — no Node.js, no npm, no native compilation:
+Install the standalone binary — no Node.js, no native compilation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
@@ -157,16 +157,8 @@ Windows), and verify the download against the release's `SHA256SUMS` before inst
 Binaries ship for linux x64 and arm64 (glibc and musl each), macOS arm64 and x64, and
 Windows x64.
 
-If you already live in a JS toolchain, npm installs the same binary through a per-platform
-optional dependency, and falls back to the JavaScript build on platforms without one
-(needs Node.js >= 22.13):
-
-```bash
-npm install -g @studio-foundation/cli
-```
-
-Update along the channel you installed from: `studio upgrade` for the binary,
-`npm i -g @studio-foundation/cli@latest` for npm.
+Update with `studio upgrade`. Studio is published as GitHub Release binaries only: the
+last npm release is 0.29.0.
 
 ```bash
 # Create a project directory and initialize it from a template (init works in the current directory)

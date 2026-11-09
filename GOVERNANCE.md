@@ -197,7 +197,7 @@ Money is a means of sustainability, never an end.
 
 ## How to contribute
 
-Studio is in active development, published on npm as `@studio-foundation/cli` and as standalone binaries. The version line is `0.x`: the YAML surface still moves, and `1.0` will only mean that an existing `.studio/` config keeps working until a major bump.
+Studio is in active development, distributed as standalone binaries on GitHub Releases (the last npm release is 0.29.0). The version line is `0.x`: the YAML surface still moves, and `1.0` will only mean that an existing `.studio/` config keeps working until a major bump.
 
 Three ways to participate now:
 
@@ -211,7 +211,7 @@ Three ways to participate now:
 
 ## Status
 
-Studio is in pre-launch. The kernel is installable (npm, `curl | sh`, `irm | iex`) and the registry is open, but there is no public promotion, no hosted API, and no version 1.0.
+Studio is in pre-launch. The kernel is installable (`curl | sh`, `irm | iex`) and the registry is open, but there is no public promotion, no hosted API, and no version 1.0.
 
 Two products already run on it and are the kernel's real-world test:
 
