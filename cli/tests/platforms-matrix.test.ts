@@ -10,10 +10,10 @@ const WORKFLOW = fileURLToPath(
 );
 
 describe('the build matrix', () => {
-  it('compiles every platform the npm packaging expects', () => {
-    // build-npm-packages.mjs copies one binary per PLATFORMS key and dies on ENOENT,
-    // so a platform added here and not to the matrix fails at publish time — after
-    // the version bump has already merged.
+  it('compiles every platform a release ships', () => {
+    // The release check diffs the draft's assets against PLATFORMS, so a platform added
+    // here and not to the matrix fails at release time — after the version bump has
+    // already merged.
     const compiled = new Set(
       readFileSync(WORKFLOW, 'utf-8')
         .split('\n')

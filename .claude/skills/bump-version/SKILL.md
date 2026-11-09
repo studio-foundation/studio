@@ -7,7 +7,7 @@ description: Use when releasing Studio — choosing the next version number, bum
 
 Studio uses unified versioning: the root and all 6 packages always share one number. The level is derived from the commits since the last **published GitHub release**, never from git tags — a burned tag is not evidence a version shipped.
 
-Studio ships as GitHub Release binaries only. npm stopped at 0.29.0 (its token expires every 90 days and the passkey blocks automating a renewal); `npm-publish.yml` stays in the repo, unused.
+Studio ships as GitHub Release binaries only. npm stopped at 0.29.0 (its token expires every 90 days and the passkey blocks automating a renewal), and its publish workflow was removed.
 
 **The release is the publish.** Releases are immutable in this repo: a published release rejects asset uploads, and a tag name stays reserved forever, even after its release is deleted. A release published with a missing binary cannot be fixed, only skipped. `v0.5.0` and `v0.5.1` were burned this way. So the order is: draft, attach binaries, prove the asset list, then publish.
 
