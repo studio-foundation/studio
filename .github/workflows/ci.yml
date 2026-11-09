@@ -50,6 +50,9 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Test which binary install.sh picks
+        run: pnpm test:install
+
   workflows:
     name: Lint the workflow files
     runs-on: ubuntu-24.04

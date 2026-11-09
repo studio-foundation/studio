@@ -104,5 +104,5 @@ version.
 - **Committing the bump without a sign-off.** The DCO check blocks the merge on any commit
   with no `Signed-off-by` trailer matching its author, so an unsigned bump costs a
   force-push on the one branch you least want to rewrite. `git commit -s`.
-- **Assuming the x64 binary runs everywhere.** It assumes AVX2, and `install.sh` has no check
-  for it; a CPU without AVX2 needs `studio-linux-x64-baseline` downloaded by hand.
+- **Dropping `linux-x64-baseline` from a release.** The x64 binary assumes AVX2, and
+  `install.sh` sends every CPU without it to the baseline asset.
