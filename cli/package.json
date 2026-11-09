@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "studio": "./bin/studio.mjs"
+    "studio": "./dist/index.js"
   },
   "scripts": {
     "prebuild": "node ../scripts/gen-bundled-assets.mjs",
@@ -18,7 +18,6 @@
     "test:watch": "vitest"
   },
   "files": [
-    "bin",
     "dist"
   ],
   "keywords": [

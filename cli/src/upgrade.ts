@@ -10,9 +10,9 @@ export const REPO = 'studio-foundation/studio';
 export type Install = { kind: 'binary'; path: string } | { kind: 'npm' };
 
 /**
- * The npm install resolves through `cli/bin/studio.mjs`, which either runs under Node
- * (JS build) or spawns the binary from a `@studio-foundation/cli-<platform>` package
- * inside `node_modules`. Neither is ours to overwrite.
+ * An npm install (0.29.0 and earlier) either runs the JS build under Node or spawns a
+ * binary from a `@studio-foundation/cli-<platform>` package inside `node_modules`.
+ * Neither is ours to overwrite.
  */
 export function detectInstall(execPath: string = process.execPath): Install {
   const segments = execPath.split(/[/\\]/);
