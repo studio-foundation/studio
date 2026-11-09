@@ -17,6 +17,7 @@
     "build:binary": "node scripts/build-binary.mjs",
     "check:kernel": "node scripts/check-kernel-domain-free.mjs",
     "check:invariants": "node scripts/check-invariants.mjs",
+    "test:install": "sh scripts/test-install.sh",
     "seed:refresh": "node scripts/refresh-seed.mjs",
     "clean": "pnpm -r run clean",
     "lint": "eslint . --max-warnings 225",
