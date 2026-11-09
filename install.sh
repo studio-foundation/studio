@@ -39,7 +39,15 @@ if [ "$os" = linux ] && ldd --version 2>&1 | grep -qi musl; then
   libc="-musl"
 fi
 
-platform="${os}-${arch}${libc}"
+# The x64 build assumes AVX2; without it the binary dies on an illegal instruction
+# with no message. STUDIO_CPUINFO exists for the installer's own test.
+variant=""
+if [ "$os" = linux ] && [ "$arch" = x64 ] && ! grep -qw avx2 "${STUDIO_CPUINFO:-/proc/cpuinfo}"; then
+  [ -z "$libc" ] || fail "this CPU has no AVX2 and no musl baseline build ships; build from source"
+  variant="-baseline"
+fi
+
+platform="${os}-${arch}${libc}${variant}"
 asset="studio-${platform}"
 
 version="${STUDIO_VERSION:-}"

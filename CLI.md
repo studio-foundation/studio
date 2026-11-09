@@ -38,9 +38,8 @@ source.
 
 The x64 build assumes AVX2, which CPUs older than roughly 2013 lack — there it would die
 on an illegal instruction with no message at all. `linux-x64-baseline` is the same CLI
-compiled without that assumption. `install.sh` does not pick it: on such a CPU, download
-`studio-linux-x64-baseline` from the release by hand. A musl host without AVX2 has no
-baseline build.
+compiled without that assumption. `install.sh` picks it when `/proc/cpuinfo` lists no
+`avx2` flag. A musl host without AVX2 has no baseline build, and the installer says so.
 
 Building them locally needs [Bun](https://bun.sh):
 
