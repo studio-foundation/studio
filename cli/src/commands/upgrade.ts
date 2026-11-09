@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { chmod, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import chalk from 'chalk';
-import { REPO, assetName, checksumFor, detectInstall, platformKey, resolveLatestTag } from '../upgrade.js';
+import { NPM_UNINSTALL, REPO, assetName, checksumFor, detectInstall, installCommand, platformKey, resolveLatestTag } from '../upgrade.js';
 import { STUDIO_VERSION } from '../version-guard.js';
 
 function fail(message: string, ...hints: string[]): never {
@@ -39,8 +39,9 @@ async function swapBinary(path: string, replacement: string): Promise<void> {
 export async function upgradeCommand(tag?: string): Promise<void> {
   const install = detectInstall();
   if (install.kind === 'npm') {
-    console.log(`\n  Studio ${STUDIO_VERSION} was installed through npm — npm owns the update.\n`);
-    console.log(`  Run:  ${chalk.cyan('npm i -g @studio-foundation/cli@latest')}\n`);
+    console.log(`\n  Studio ${STUDIO_VERSION} was installed through npm, which stopped at 0.29.0.\n`);
+    console.log(`  Install the binary:  ${chalk.cyan(installCommand())}`);
+    console.log(`  Then remove npm's:   ${chalk.cyan(NPM_UNINSTALL)}\n`);
     return;
   }
 

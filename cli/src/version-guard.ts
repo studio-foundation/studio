@@ -1,16 +1,16 @@
 import semver from 'semver';
 import { PACKAGE_VERSION } from './generated/bundled-assets.js';
-import { detectInstall } from './upgrade.js';
+import { NPM_UNINSTALL, detectInstall, installCommand } from './upgrade.js';
 import type { Install } from './upgrade.js';
 
 /** The running Studio version — the single source is cli/package.json, inlined at build time. */
 export const STUDIO_VERSION: string = PACKAGE_VERSION;
 
 /** The update command for the channel this install came from — the two are not interchangeable. */
-export function upgradeHint(install: Install = detectInstall()): string {
+export function upgradeHint(install: Install = detectInstall(), platform: string = process.platform): string {
   return install.kind === 'binary'
     ? '  Upgrade:  studio upgrade'
-    : '  Upgrade:  npm i -g @studio-foundation/cli@latest';
+    : `  Upgrade:  ${installCommand(platform)}\n  Then:     ${NPM_UNINSTALL}`;
 }
 
 /**
