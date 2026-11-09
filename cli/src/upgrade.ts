@@ -22,6 +22,15 @@ export function detectInstall(execPath: string = process.execPath): Install {
   return { kind: 'binary', path: execPath };
 }
 
+const RAW = `https://raw.githubusercontent.com/${REPO}/main`;
+
+/** The installer one-liner for this OS: npm stopped at 0.29.0, so an npm install moves to the binary through it. */
+export function installCommand(platform: string = process.platform): string {
+  return platform === 'win32' ? `irm ${RAW}/install.ps1 | iex` : `curl -fsSL ${RAW}/install.sh | sh`;
+}
+
+export const NPM_UNINSTALL = 'npm uninstall -g @studio-foundation/cli';
+
 /**
  * The release asset suffix for this machine, or null when no binary ships for it.
  * Mirrors the platform table in scripts/platforms.mjs.

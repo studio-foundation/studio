@@ -8,8 +8,19 @@ describe('upgradeHint', () => {
     );
   });
 
-  it('points an npm install at npm', () => {
-    expect(upgradeHint({ kind: 'npm' })).toBe('  Upgrade:  npm i -g @studio-foundation/cli@latest');
+  it('moves an npm install to the binary installer, since npm stopped at 0.29.0', () => {
+    const hint = upgradeHint({ kind: 'npm' }, 'linux');
+    expect(hint).toBe(
+      '  Upgrade:  curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh\n' +
+        '  Then:     npm uninstall -g @studio-foundation/cli'
+    );
+    expect(hint).not.toContain('npm i -g');
+  });
+
+  it('gives Windows the PowerShell installer', () => {
+    expect(upgradeHint({ kind: 'npm' }, 'win32')).toContain(
+      'irm https://raw.githubusercontent.com/studio-foundation/studio/main/install.ps1 | iex'
+    );
   });
 });
 
@@ -28,10 +39,11 @@ describe('checkStudioVersion', () => {
   });
 
   it('reports the range, the installed version and the upgrade command', () => {
-    expect(checkStudioVersion('>=0.10.0', 'This project', '0.9.0')).toBe(
-      'This project requires Studio >=0.10.0, but you have 0.9.0.\n' +
-        '  Upgrade:  npm i -g @studio-foundation/cli@latest'
-    );
+    // Under vitest the process runs on node, which detectInstall reads as an npm install.
+    const message = checkStudioVersion('>=0.10.0', 'This project', '0.9.0');
+    expect(message).toBe('This project requires Studio >=0.10.0, but you have 0.9.0.\n' + upgradeHint({ kind: 'npm' }));
+    expect(message).toContain('install.');
+    expect(message).not.toContain('npm i -g');
   });
 
   it('names the declarer for a registry package', () => {

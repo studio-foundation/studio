@@ -407,7 +407,8 @@ Error: This project requires Studio >=0.10.0, but you have 0.9.0.
 ```
 
 The upgrade line names the channel this install came from — `studio upgrade` for a
-standalone binary, `npm i -g @studio-foundation/cli@latest` for an npm install.
+standalone binary, and for an npm install the `install.sh` one-liner (`install.ps1` on
+Windows) followed by `npm uninstall -g @studio-foundation/cli`, since npm stopped at 0.29.0.
 
 Any semver range works (`>=0.10.0`, `^0.10.0`, `0.10.x`). Without the key, no version check runs.
 
@@ -486,17 +487,17 @@ The swap goes through a rename rather than an overwrite, because a running execu
 cannot be overwritten on every platform.
 
 **An npm install is not upgraded here.** npm owns those files and overwriting one breaks
-the next `npm i -g`, so the command detects that install and prints the npm command
-instead:
+the next `npm i -g`, and npm stopped at 0.29.0, so no npm command reaches a newer release.
+The command detects that install and points it at the binary instead:
 
 ```
-Studio 0.11.1 was installed through npm — npm owns the update.
+Studio 0.29.0 was installed through npm, which stopped at 0.29.0.
 
-Run:  npm i -g @studio-foundation/cli@latest
+Install the binary:  curl -fsSL https://raw.githubusercontent.com/studio-foundation/studio/main/install.sh | sh
+Then remove npm's:   npm uninstall -g @studio-foundation/cli
 ```
 
-npm stops at 0.29.0, so that command no longer reaches a newer release. Switch to the
-binary with `install.sh`, then `npm uninstall -g @studio-foundation/cli`.
+On Windows the first line is the `install.ps1` one-liner.
 
 The `studio_version` mismatch error names whichever of the two applies to the running
 install.
