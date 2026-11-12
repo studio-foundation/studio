@@ -6,6 +6,7 @@ import * as yaml from 'js-yaml';
 import type { PipelineDefinition, PipelineEntry, StageGroup, StageDefinition, MapStage, MapBatchConfig, CallStage, StartupCommand, StageHooks, StageApprovalConfig } from '@studio-foundation/contracts';
 import { assertKnownFields, suggestClosest } from './strict-fields.js';
 import { CONTEXT_INCLUDE_DIRECTIVES } from './context-propagation.js';
+import { resolveEnvVars } from './env-vars.js';
 
 // Every field the kernel implements, per block (see PipelineDefinition and
 // friends in @studio-foundation/contracts). Anything else is config-theatre
@@ -64,6 +65,20 @@ function checkContextInclude(stage: any, context: string): void {
       );
     }
   }
+}
+
+/**
+ * Resolve `${VAR:-default}` in one numeric field, so a deployment can tune it
+ * without its own copy of the pipeline (STU-2149). Field by field, not file-wide:
+ * a hook command's `${VAR}` belongs to its shell.
+ */
+function resolveIntField(value: unknown, field: string, where: string, context: string): unknown {
+  if (typeof value !== 'string' || !value.includes('${')) return value;
+  const resolved = resolveEnvVars(value).trim();
+  if (!/^[1-9]\d*$/.test(resolved)) {
+    throw new Error(`${where} field '${field}' resolved '${value}' to '${resolved}', not a positive integer${context}`);
+  }
+  return Number(resolved);
 }
 
 /** Strict-check a stage and every nested block the kernel owns. */
@@ -165,6 +180,7 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
         throw new Error(`Group '${entry.group}' must have at least 2 stages${context}`);
       }
       for (const s of entry.stages) {
+        if (s.timeout_ms !== undefined) s.timeout_ms = resolveIntField(s.timeout_ms, 'timeout_ms', `Stage '${s.name}'`, context);
         validateStageFields(s, context);
         checkStageFields(s, context);
       }
@@ -188,6 +204,7 @@ export function parsePipelineYaml(yamlContent: string, sourcePath?: string): Pip
       } as StageGroup);
     } else {
       // Simple stage
+      if (entry.timeout_ms !== undefined) entry.timeout_ms = resolveIntField(entry.timeout_ms, 'timeout_ms', `Stage '${entry.name}'`, context);
       validateStageFields(entry, context);
       checkStageFields(entry, context);
       stages.push({ ...entry, hooks: parseStageHooks(entry), approval: parseApprovalConfig(entry) } as StageDefinition);
@@ -287,6 +304,7 @@ function parseMapStage(entry: any, context: string): MapStage {
   if (entry.as !== undefined && typeof entry.as !== 'string') {
     throw new Error(`Map stage '${name}' field 'as' must be a string${context}`);
   }
+  if (entry.concurrency !== undefined) entry.concurrency = resolveIntField(entry.concurrency, 'concurrency', `Map stage '${name}'`, context);
   if (entry.concurrency !== undefined) {
     if (typeof entry.concurrency !== 'number' || !Number.isInteger(entry.concurrency) || entry.concurrency < 1) {
       throw new Error(`Map stage '${name}' field 'concurrency' must be a positive integer${context}`);

@@ -212,6 +212,7 @@ A **fan-out** (or **map**) stage runs a sub-pipeline once per item of a list, th
 - **`over`** resolves to a list via the same reference syntax as `condition`: `input.<path>` or `stages.<name>.output(.<path>)`. If it doesn't resolve to an array, the stage fails.
 - **Per-item input** comes from `input:` (a template where `{{item}}`, `{{item.<path>}}`, `{{index}}`, `{{input}}`, `{{input.<path>}}` are substituted — a value that is exactly one `{{ref}}` keeps its native type), or from `as: <key>` shorthand (`{ <key>: item }`), or the item object itself when neither is given.
 - **`concurrency`** bounds how many item runs are in flight at once (default 1 = sequential).
+- **`${VAR:-default}`** works in `concurrency` and in a stage's `timeout_ms`, and nowhere else in a pipeline: one deployment can serve the same pipeline from a local model that takes one request at a time while another keeps its fan-out. The value is resolved at load and must be a positive integer. Hook commands are not resolved, so their `${VAR}` still reaches the shell.
 - **`on_item_failure`** is the per-item failure policy:
   - `fail-fast` (default): stop launching new items on the first failure; the stage fails. In-flight items still finish.
   - `collect-all`: run every item regardless; the stage succeeds as long as at least one item succeeded, and the pipeline keeps going. Per-item failures are surfaced in the output, never fatal (a batch where *every* item fails is still a failure).
