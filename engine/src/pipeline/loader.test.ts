@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { parsePipelineYaml } from './loader.js';
 import type { MapStage, StageDefinition } from '@studio-foundation/contracts';
 
@@ -280,5 +280,75 @@ ${batch}
     expect(() => parsePipelineYaml(withBatch('    batch: "yes"'))).toThrow(
       /must be a boolean or an object/,
     );
+  });
+});
+
+describe('parsePipelineYaml — ${VAR} in numeric fields (STU-2149)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  const pipeline = (stages: string) => `
+name: test-pipeline
+description: test
+version: 1
+stages:
+${stages}
+`;
+  const stage = pipeline(`
+  - name: classify
+    kind: classification
+    agent: classifier
+    timeout_ms: \${CLASSIFY_TIMEOUT_MS:-180000}
+    hooks:
+      on_stage_start:
+        - command: echo \${HOME}
+`);
+  const map = pipeline(`
+  - map: items
+    over: input.things
+    pipeline: per-item
+    concurrency: \${CLASSIFY_CONCURRENCY:-4}
+`);
+
+  it('takes the default when the variable is unset', () => {
+    vi.stubEnv('CLASSIFY_TIMEOUT_MS', '');
+    vi.stubEnv('CLASSIFY_CONCURRENCY', '');
+    expect((parsePipelineYaml(stage).stages[0] as StageDefinition).timeout_ms).toBe(180000);
+    expect((parsePipelineYaml(map).stages[0] as MapStage).concurrency).toBe(4);
+  });
+
+  it('takes the environment when the variable is set', () => {
+    vi.stubEnv('CLASSIFY_TIMEOUT_MS', '900000');
+    vi.stubEnv('CLASSIFY_CONCURRENCY', '1');
+    expect((parsePipelineYaml(stage).stages[0] as StageDefinition).timeout_ms).toBe(900000);
+    expect((parsePipelineYaml(map).stages[0] as MapStage).concurrency).toBe(1);
+  });
+
+  it('resolves a stage inside a group', () => {
+    vi.stubEnv('CLASSIFY_TIMEOUT_MS', '900000');
+    const group = pipeline(`
+  - group: loop
+    stages:
+      - name: a
+        kind: analysis
+        agent: analyst
+        timeout_ms: \${CLASSIFY_TIMEOUT_MS:-180000}
+      - name: b
+        kind: analysis
+        agent: analyst
+`);
+    const loop = parsePipelineYaml(group).stages[0] as { stages: StageDefinition[] };
+    expect(loop.stages[0].timeout_ms).toBe(900000);
+  });
+
+  it('rejects a value that is not a positive integer', () => {
+    vi.stubEnv('CLASSIFY_CONCURRENCY', 'four');
+    expect(() => parsePipelineYaml(map)).toThrow(/'concurrency' resolved .* to 'four', not a positive integer/);
+    vi.stubEnv('CLASSIFY_TIMEOUT_MS', '0');
+    expect(() => parsePipelineYaml(stage)).toThrow(/'timeout_ms' resolved .* to '0'/);
+  });
+
+  it("leaves a hook command's ${VAR} to its shell", () => {
+    const hooks = (parsePipelineYaml(stage).stages[0] as StageDefinition).hooks;
+    expect(hooks?.on_stage_start?.[0].command).toBe('echo ${HOME}');
   });
 });
