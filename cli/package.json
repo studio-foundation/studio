@@ -30,6 +30,7 @@
     "node": ">=22.13"
   },
   "dependencies": {
+    "@inquirer/external-editor": "^3.0.5",
     "@inquirer/prompts": "^8.7.2",
     "@studio-foundation/contracts": "workspace:*",
     "@studio-foundation/engine": "workspace:*",
