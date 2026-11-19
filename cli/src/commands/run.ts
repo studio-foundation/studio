@@ -626,33 +626,36 @@ export async function runCommand(pipelineName: string, options: RunOptions): Pro
               }),
             reviewStageOutput: async (stageName: string, output: unknown, contract: OutputContract | null) =>
               serialized(async () => {
-                const { confirm, editor } = await import('@inquirer/prompts');
+                const { confirm, input } = await import('@inquirer/prompts');
+                const { editAsync } = await import('@inquirer/external-editor');
                 const text = JSON.stringify(output, null, 2);
                 console.log(`\nStage "${stageName}" output:\n${text}\n`);
                 const approved = await confirm({ message: 'Approve as-is?', default: true });
                 if (approved) return { decision: 'approved' as const, output };
-                const edited = await editor({
-                  message: 'Edit the stage output, then save and close.',
-                  default: text,
+                // Not @inquirer/prompts' editor(): it keeps listening for Enter
+                // while the editor is open, so a second Enter starts a second
+                // editor whose late rl.resume() throws ERR_USE_AFTER_CLOSE on
+                // node 24 and kills the process (STU-2064). Here no prompt is
+                // open while the editor runs.
+                let edited = text;
+                for (;;) {
+                  await input({ message: 'Edit the stage output, then save and close. Press <enter> to launch your preferred editor.' });
+                  edited = await editAsync(edited, { postfix: '.txt' });
                   // Reuses the same schema check the stage's own output already
                   // passed — an edit that drops a required field or changes a
                   // type must not reach the next stage's context unvalidated
-                  // (STU-1673). @inquirer/prompts re-opens the editor on a
-                  // string return until this passes.
-                  validate: (value: string) => {
-                    if (!contract) return true;
-                    let candidate: unknown = value;
-                    try {
-                      candidate = JSON.parse(value);
-                    } catch {
-                      // Not JSON — validateSchema rejects it below if the contract expects an object.
-                    }
-                    const { valid, errors } = validateSchema(candidate, contract);
-                    return valid
-                      ? true
-                      : `Edited output doesn't satisfy stage "${stageName}"'s contract:\n${errors.map((e) => `  - ${e}`).join('\n')}`;
-                  },
-                });
+                  // (STU-1673). The editor re-opens on the rejected text until it passes.
+                  if (!contract) break;
+                  let candidate: unknown = edited;
+                  try {
+                    candidate = JSON.parse(edited);
+                  } catch {
+                    // Not JSON — validateSchema rejects it below if the contract expects an object.
+                  }
+                  const { valid, errors } = validateSchema(candidate, contract);
+                  if (valid) break;
+                  console.log(chalk.red(`Edited output doesn't satisfy stage "${stageName}"'s contract:\n${errors.map((e) => `  - ${e}`).join('\n')}`));
+                }
                 let parsed: unknown = edited;
                 try {
                   parsed = JSON.parse(edited);

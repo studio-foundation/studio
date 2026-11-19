@@ -41,33 +41,18 @@ function readStagePauseEvents(pipeline: string): StagePauseEvent[] {
   return events;
 }
 
-// @inquirer/external-editor can fire a stray completion callback after the
-// pipeline has already finished and printed its result, throwing
-// ERR_USE_AFTER_CLOSE on the by-then-closed readline interface and taking
-// the process down with a nonzero exit code (STU-1682). The @inquirer/prompts
-// bump that pulled in @inquirer/external-editor 3.x cut this from ~50% to
-// ~15% under load, but didn't eliminate it. Every test that launches the editor
-// retries past the residual race rather than flake, discarding the crashed
-// attempt's run log so the caller's event read only sees the completed run.
-async function runThroughEditor(pipeline: string): Promise<{ exitCode: number | null; clean: string }> {
-  let exitCode: number | null = null;
-  let clean = '';
-  for (let attempt = 0; attempt < 3 && exitCode !== 0; attempt++) {
-    const declineApproval = answerEachInTurn('Approve as-is?', { key: 'n\r' });
-    const launchEditor = answerEachInTurn('launch your preferred editor', { key: '\r' });
-    const result = await runInPty({
-      cwd: FIXTURE_DIR,
-      args: ['run', pipeline, '--input', 'go', '--provider', 'mock'],
-      onData: (out, write) => {
-        declineApproval(out, write);
-        launchEditor(out, write);
-      },
-    });
-    exitCode = result.exitCode;
-    clean = stripAnsi(result.output);
-    if (exitCode !== 0) readStagePauseEvents(pipeline);
-  }
-  return { exitCode, clean };
+async function runThroughEditor(pipeline: string, launchKey = '\r'): Promise<{ exitCode: number | null; clean: string }> {
+  const declineApproval = answerEachInTurn('Approve as-is?', { key: 'n\r' });
+  const launchEditor = answerEachInTurn('launch your preferred editor', { key: launchKey });
+  const result = await runInPty({
+    cwd: FIXTURE_DIR,
+    args: ['run', pipeline, '--input', 'go', '--provider', 'mock'],
+    onData: (out, write) => {
+      declineApproval(out, write);
+      launchEditor(out, write);
+    },
+  });
+  return { exitCode: result.exitCode, clean: stripAnsi(result.output) };
 }
 
 const originalEditor = process.env.EDITOR;
@@ -131,6 +116,24 @@ describe('stage approval pause under a real pty (STU-1653)', () => {
       stage: 'touch',
       decision: 'edited',
       original_output: { summary: 'done', requirements: ['a', 'b'] },
+      resolved_output: { summary: 'done', requirements: ['fixed'] },
+    });
+  });
+
+  // A second Enter while the editor was open used to start a second editor,
+  // whose late readline resume crashed the process on node 24 (STU-2064).
+  it('survives a second Enter while the editor is open (STU-2064)', async () => {
+    process.env.EDITOR = `node ${FAKE_EDITOR_TOGGLE}`;
+    const { exitCode, clean } = await runThroughEditor('approval-edit-validate', '\r\r');
+
+    expect(exitCode).toBe(0);
+    expect(clean).toContain('Pipeline completed');
+    expect(clean).not.toContain('ERR_USE_AFTER_CLOSE');
+
+    const events = readStagePauseEvents('approval-edit-validate');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      decision: 'edited',
       resolved_output: { summary: 'done', requirements: ['fixed'] },
     });
   });
