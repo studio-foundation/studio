@@ -7,6 +7,23 @@ Pre-1.0, a breaking change earns a MINOR bump, not a MAJOR. Breaking entries are
 
 Full notes for each version live on its [GitHub release](https://github.com/studio-foundation/studio/releases).
 
+## [0.31.0] — 2026-11-19
+
+### Engine
+
+- `${VAR:-default}` resolves in a stage's `timeout_ms` and in a `map:` stage's `concurrency`, and nowhere else in a pipeline, so one deployment can run a fan-out one item at a time against a local model while another keeps its parallelism. The value is resolved at load and must be a positive integer. (#382, STU-2149)
+
+### CLI
+
+- A second Enter while the stage-approval editor is open no longer crashes the run on node 24. (#383, STU-2064)
+- `studio upgrade` and the `studio_version` guard point an npm-owned install at the `install.sh` / `install.ps1` one-liner and the `npm uninstall -g` that follows, since npm stopped at 0.29.0. (#379, STU-2139)
+
+### Distribution
+
+- `install.sh` installs `studio-linux-x64-baseline` on an x64 CPU without AVX2, and fails with a message on a musl host without it. (#380, STU-2138)
+- The npm publish workflow, the per-platform npm packages and the `cli/bin` launcher are removed; the `cli` package `bin` is `dist/index.js`, for `npm link` from a checkout. (#381, STU-2140)
+- The docs describe GitHub Release binaries as the only distribution channel. (#378)
+
 ## [0.30.0] — 2026-11-08
 
 ### Providers
