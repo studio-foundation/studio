@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ClaudeCodeMcpServer } from './claude-code-mcp-server.js';
+import { createRepoManagerTools } from '../tools/builtin/repo-manager.js';
 import type { ToolCallOutcome } from './provider.js';
 
 const TOOLS = [
@@ -148,5 +152,62 @@ describe('ClaudeCodeMcpServer', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].name).toBe('repo_manager-read_file');
     expect(calls[0].result).toBe('ok');
+  });
+});
+
+describe('ClaudeCodeMcpServer with the repo_manager builtin', () => {
+  // Source text holding escape sequences, as in the bin/chat.mjs repro.
+  const ORIGINAL = [
+    "  .map((t, i) => `Turn ${i + 1} user: ${t.user}\\nTurn ${i + 1} you: ${t.assistant}`)",
+    "  .join('\\n');",
+    "const tab = 'a\\tb';",
+    "const path = 'C:\\\\dir';",
+    "const re = /\\d+\\.\\d+/;",
+    "const json = '{\"a\":\"x\\ny\"}';",
+    '',
+  ].join('\n');
+
+  let dir: string;
+  let server: ClaudeCodeMcpServer;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'studio-mcp-roundtrip-'));
+    await writeFile(join(dir, 'chat.mjs'), ORIGINAL, 'utf-8');
+    const tools = createRepoManagerTools(dir);
+    server = new ClaudeCodeMcpServer(tools, async (name, args) => {
+      const tool = tools.find((t) => t.name === name)!;
+      const r = await tool.execute(args);
+      return r.success ? { result: r.output } : { error: r.error };
+    });
+  });
+
+  afterEach(async () => {
+    await server.stop();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('round-trips a file with escape sequences byte for byte through read_file and write_file', async () => {
+    const port = await server.start();
+    const read = await jsonRpc(port, 'tools/call', {
+      name: 'repo_manager-read_file',
+      arguments: { path: 'chat.mjs' },
+    });
+    const text: string = read.result.content[0].text;
+    // What the model sees as the file is everything below the header line.
+    const seen = text.slice(text.indexOf('\n') + 1);
+    expect(seen).toBe(ORIGINAL);
+
+    // A model that copies what it saw and adds the requested comment.
+    const edited = `// test\n${seen}`;
+    const write = await jsonRpc(port, 'tools/call', {
+      name: 'repo_manager-write_file',
+      arguments: { path: 'chat.mjs', content: edited },
+    });
+    expect(write.result.isError).toBeUndefined();
+
+    const onDisk = await readFile(join(dir, 'chat.mjs'), 'utf-8');
+    expect(onDisk).toBe(`// test\n${ORIGINAL}`);
+    expect(onDisk.split('\\\\n').length).toBe(ORIGINAL.split('\\\\n').length);
+    expect(onDisk.split('\\n').length).toBe(ORIGINAL.split('\\n').length);
   });
 });
